@@ -1,23 +1,86 @@
-# Fern Native
+# 🌿 Fern Native
 
-React Native / Expo app for Fern AI — hands-free meal planning with continuous mic.
+Native iOS + Android app for Fern AI — hands-free meal planning with continuous mic.
 
-## Setup
+---
+
+## Setup (one command)
+
 ```bash
-npm install
-cp .env.example .env
-# Fill in your keys in .env
+git clone https://github.com/frizzo10/fern-native.git
+cd fern-native
+bash setup.sh
+```
+
+That's it. The script installs everything, fills in the Supabase keys, and tells you exactly what to do next.
+
+The only thing you need to add manually is the **Groq API key** (Frank provides this):
+```
+EXPO_PUBLIC_GROQ_KEY=gsk_your_key_here
+```
+Get one free at **console.groq.com** → API Keys → Create Key.
+
+---
+
+## Preview (no build needed)
+
+```bash
 npx expo start
 ```
+Scan the QR code with **Expo Go** (free on App Store / Google Play). App loads instantly.
 
-## Key differentiator
-True continuous microphone — no tap-to-speak. Listens always, sends 3-second audio chunks to Groq Whisper, responds via Fern AI.
+---
 
 ## Build for distribution
+
 ```bash
-npx eas build --platform ios --profile preview    # → .ipa for AltStore
-npx eas build --platform android --profile preview # → .apk for direct install
+# iOS → .ipa → send to Frank via AltStore
+eas build --platform ios --profile preview
+
+# Android → .apk → send directly to Frank's Android phone  
+eas build --platform android --profile preview
+
+# Both at once
+eas build --platform all --profile preview
 ```
 
+Builds run on Expo's servers (~10-15 min). Download link appears in terminal when done.
+
+---
+
+## What's built
+
+| Screen | Status |
+|--------|--------|
+| Login | ✅ Done — same credentials as app.clickpickandcook.com |
+| Home / Family Hub | ✅ Done — real week plan, meals, activities from Supabase |
+| Continuous mic | ✅ Done — always listening, Groq Whisper, no tap-to-speak |
+| Find Recipes | ⏳ Placeholder |
+| Shopping List | ⏳ Placeholder |
+| My Recipes | ⏳ Placeholder |
+
+---
+
+## Key files
+
+| File | What it does |
+|------|-------------|
+| `setup.sh` | One-command setup |
+| `App.js` | Entry — auth gate + tab navigator |
+| `src/constants/tokens.js` | All DS colors — matches web app exactly |
+| `src/hooks/useContinuousMic.js` | Always-on mic → Groq Whisper → Fern AI |
+| `src/hooks/useSync.js` | Pulls all data from same backend as web app |
+| `src/hooks/useAuth.js` | Login/logout, secure session storage |
+| `src/screens/HomeScreen.js` | Family Hub with real synced data |
+| `src/screens/LoginScreen.js` | Sign in screen |
+
+---
+
 ## Design system
-All colors, fonts, and radii in `src/constants/tokens.js` match the web app at app.clickpickandcook.com exactly.
+
+All colors in `src/constants/tokens.js` match `app.clickpickandcook.com` exactly.
+Forest `#1C3A1A` · Orange `#E8651A` · Sage `#A8D5A2` · Parchment `#FDFAF6`
+
+---
+
+*Fern AI · myaifern.com · Patent Pending USPTO May 2026*
