@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Fern",
+    "slug": "fern-native",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1C3A1A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.fernai.app",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking — say recipes, add items, and plan your week without touching your phone.",
+        "NSSpeechRecognitionUsageDescription": "Fern listens for your voice commands to plan meals and navigate the app hands-free."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1C3A1A"
+      },
+      "package": "com.fernai.app",
+      "permissions": ["RECORD_AUDIO"]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-av",
+        { "microphonePermission": "Fern uses your mic for hands-free voice cooking." }
+      ]
+    ],
+    "extra": {
+      "eas": { "projectId": "fern-native" }
+    }
+  }
+}
