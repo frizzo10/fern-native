@@ -1,8 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio';
 
-// useContinuousMic — always-on voice using expo-audio (SDK 56)
-// Sends 3-second chunks to Groq Whisper, no tap-to-speak
 export function useContinuousMic({ onTranscript, onError } = {}) {
   const [isListening, setIsListening]   = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -15,13 +13,10 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
     if (!activeRef.current) return;
     try {
       setIsProcessing(true);
-
-      // Stop current recording and get URI
       await audioRecorder.stop();
       const uri = audioRecorder.uri;
 
       if (uri) {
-        // Send to Groq Whisper
         const formData = new FormData();
         formData.append('file', { uri, name: 'audio.m4a', type: 'audio/m4a' });
         formData.append('model', 'whisper-large-v3');
@@ -35,12 +30,10 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
         if (text?.trim()) onTranscript?.(text.trim());
       }
 
-      // Restart immediately for continuous listening
       if (activeRef.current) {
         await audioRecorder.record();
       }
       setIsProcessing(false);
-
     } catch (e) {
       setIsProcessing(false);
       if (activeRef.current) onError?.(e.message);
@@ -49,19 +42,27 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
   const start = useCallback(async () => {
     try {
-      // Request mic permission
+      // 1. Request permission
       const status = await AudioModule.requestRecordingPermissionsAsync();
       if (!status.granted) {
         onError?.('Microphone permission denied');
         return;
       }
 
+      // 2. ✅ Enable recording mode — this was the missing step
+      await AudioModule.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+      });
+
+      // 3. Prepare and start recording
       await audioRecorder.prepareToRecordAsync();
       await audioRecorder.record();
       activeRef.current = true;
       setIsListening(true);
 
-      // Process chunk every 3 seconds
+      // 4. Send chunks every 3 seconds
       chunkTimerRef.current = setInterval(() => processChunk(), 3000);
 
     } catch (e) {
@@ -74,6 +75,11 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
     clearInterval(chunkTimerRef.current);
     try {
       await audioRecorder.stop();
+      // Restore normal audio mode when done
+      await AudioModule.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: false,
+      });
     } catch {}
     setIsListening(false);
     setIsProcessing(false);
