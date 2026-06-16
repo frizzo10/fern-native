@@ -11,6 +11,14 @@
       "resizeMode": "contain",
       "backgroundColor": "#1C3A1A"
     },
+    "updates": {
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "url": "https://u.expo.dev/fern-native"
+    },
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.fernai.app",
@@ -34,7 +42,8 @@
       [
         "expo-av",
         { "microphonePermission": "Fern uses your mic for hands-free voice cooking." }
-      ]
+      ],
+      "expo-updates"
     ],
     "extra": {
       "eas": { "projectId": "fern-native" }

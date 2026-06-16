@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View } from 'react-native';
+import { Text, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 
 import HomeScreen     from './src/screens/HomeScreen';
 import FindScreen     from './src/screens/FindScreen';
@@ -15,13 +16,33 @@ import { colors }     from './src/constants/tokens';
 const Tab = createBottomTabNavigator();
 
 function TabIcon({ emoji, focused }) {
-  return <Text style={{ fontSize:22, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>;
+  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>;
+}
+
+// Check for OTA updates on launch
+async function checkForUpdate() {
+  if (__DEV__) return; // skip in development
+  try {
+    const update = await Updates.checkForUpdateAsync();
+    if (update.isAvailable) {
+      await Updates.fetchUpdateAsync();
+      // Reload silently — user won't notice
+      await Updates.reloadAsync();
+    }
+  } catch (e) {
+    // Silently fail — app still works on cached version
+    console.log('OTA check failed:', e.message);
+  }
 }
 
 export default function App() {
   const { user, loading, signIn, signOut } = useAuth();
 
-  if (loading) return null; // splash handles this
+  useEffect(() => {
+    checkForUpdate();
+  }, []);
+
+  if (loading) return null;
 
   if (!user) {
     return (

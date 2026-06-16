@@ -100,7 +100,10 @@ echo "  ${BOLD}Build Android .apk for Frank:${RESET}"
 echo "  eas build --platform android --profile preview"
 echo ""
 echo "  ${BOLD}Build both at once:${RESET}"
-echo "  eas build --platform all --profile preview"
+echo "  eas build --platform all --profile preview
+
+  [1mSend an update (after first build, no reinstall):[0m
+  eas update --branch production --message "What changed""
 echo ""
 echo "${FOREST}Repo: github.com/frizzo10/fern-native${RESET}"
 echo "${FOREST}Web:  app.clickpickandcook.com${RESET}"

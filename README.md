@@ -84,3 +84,19 @@ Forest `#1C3A1A` · Orange `#E8651A` · Sage `#A8D5A2` · Parchment `#FDFAF6`
 ---
 
 *Fern AI · myaifern.com · Patent Pending USPTO May 2026*
+
+---
+
+## Sending updates (no reinstall needed)
+
+After the first build is installed on Frank's phone, you can push updates without a new .ipa/.apk:
+
+```bash
+# Push a UI/JS update — Frank sees it next time he opens the app
+eas update --branch production --message "Description of what changed"
+```
+
+This covers ~90% of updates (screen changes, bug fixes, new features).
+
+Only need a full rebuild (`eas build`) when adding new native packages.
+
