@@ -1,77 +1,83 @@
 import { useState, useRef, useCallback } from 'react';
-import { Audio } from 'expo-av';
+import { useAudioRecorder, AudioModule, RecordingPresets } from 'expo-audio';
 
+// useContinuousMic — always-on voice using expo-audio (SDK 56)
+// Sends 3-second chunks to Groq Whisper, no tap-to-speak
 export function useContinuousMic({ onTranscript, onError } = {}) {
-  const [isListening, setIsListening] = useState(false);
+  const [isListening, setIsListening]   = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const recordingRef = useRef(null);
   const chunkTimerRef = useRef(null);
+  const activeRef     = useRef(false);
+
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+
+  const processChunk = useCallback(async () => {
+    if (!activeRef.current) return;
+    try {
+      setIsProcessing(true);
+
+      // Stop current recording and get URI
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
+
+      if (uri) {
+        // Send to Groq Whisper
+        const formData = new FormData();
+        formData.append('file', { uri, name: 'audio.m4a', type: 'audio/m4a' });
+        formData.append('model', 'whisper-large-v3');
+
+        const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}` },
+          body: formData,
+        });
+        const { text } = await res.json();
+        if (text?.trim()) onTranscript?.(text.trim());
+      }
+
+      // Restart immediately for continuous listening
+      if (activeRef.current) {
+        await audioRecorder.record();
+      }
+      setIsProcessing(false);
+
+    } catch (e) {
+      setIsProcessing(false);
+      if (activeRef.current) onError?.(e.message);
+    }
+  }, [audioRecorder, onTranscript, onError]);
 
   const start = useCallback(async () => {
     try {
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) { onError?.('Microphone permission denied'); return; }
+      // Request mic permission
+      const status = await AudioModule.requestRecordingPermissionsAsync();
+      if (!status.granted) {
+        onError?.('Microphone permission denied');
+        return;
+      }
 
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-      });
-
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = recording;
+      await audioRecorder.prepareToRecordAsync();
+      await audioRecorder.record();
+      activeRef.current = true;
       setIsListening(true);
 
-      // Send chunks every 3s to Groq Whisper
+      // Process chunk every 3 seconds
       chunkTimerRef.current = setInterval(() => processChunk(), 3000);
+
     } catch (e) {
       onError?.(e.message);
     }
-  }, [onTranscript, onError]);
-
-  const processChunk = useCallback(async () => {
-    if (!recordingRef.current) return;
-    try {
-      setIsProcessing(true);
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
-
-      const formData = new FormData();
-      formData.append('file', { uri, name: 'audio.m4a', type: 'audio/m4a' });
-      formData.append('model', 'whisper-large-v3');
-
-      const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}` },
-        body: formData,
-      });
-      const { text } = await res.json();
-      if (text?.trim()) onTranscript?.(text.trim());
-
-      // Restart immediately — continuous
-      const { recording: next } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = next;
-      setIsProcessing(false);
-    } catch (e) {
-      setIsProcessing(false);
-      onError?.(e.message);
-    }
-  }, [onTranscript, onError]);
+  }, [audioRecorder, processChunk, onError]);
 
   const stop = useCallback(async () => {
+    activeRef.current = false;
     clearInterval(chunkTimerRef.current);
-    if (recordingRef.current) {
-      await recordingRef.current.stopAndUnloadAsync();
-      recordingRef.current = null;
-    }
+    try {
+      await audioRecorder.stop();
+    } catch {}
     setIsListening(false);
     setIsProcessing(false);
-  }, []);
+  }, [audioRecorder]);
 
   return { isListening, isProcessing, start, stop };
 }

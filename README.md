@@ -100,3 +100,23 @@ This covers ~90% of updates (screen changes, bug fixes, new features).
 
 Only need a full rebuild (`eas build`) when adding new native packages.
 
+
+---
+
+## ⚠️ Do NOT use Expo Go
+
+This app uses native modules (`expo-audio` for mic, `expo-location` for geofencing) that **Expo Go does not support**. Running `npx expo start` and scanning with Expo Go will give errors like `Cannot find native module 'ExponentAV'`.
+
+**Skip Expo Go entirely. Go straight to EAS build:**
+
+```bash
+eas login
+eas build --platform ios --profile preview    # → .ipa
+eas build --platform android --profile preview # → .apk
+```
+
+Or use a Development Build if you want fast iteration:
+```bash
+npx expo install expo-dev-client
+npx expo run:ios    # builds and runs on simulator or USB-connected device
+```

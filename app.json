@@ -23,7 +23,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.fernai.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking — say recipes, add items, and plan your week without touching your phone.",
+        "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking \u2014 say recipes, add items, and plan your week without touching your phone.",
         "NSSpeechRecognitionUsageDescription": "Fern listens for your voice commands to plan meals and navigate the app hands-free.",
         "NSLocationWhenInUseUsageDescription": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping.",
@@ -48,8 +48,10 @@
     },
     "plugins": [
       [
-        "expo-av",
-        { "microphonePermission": "Fern uses your mic for hands-free voice cooking." }
+        "expo-audio",
+        {
+          "microphonePermission": "Fern uses your mic for hands-free voice cooking."
+        }
       ],
       [
         "expo-location",
@@ -64,7 +66,9 @@
       "expo-updates"
     ],
     "extra": {
-      "eas": { "projectId": "fern-native" }
+      "eas": {
+        "projectId": "fern-native"
+      }
     }
   }
 }
