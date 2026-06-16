@@ -8,19 +8,30 @@ import HomeScreen     from './src/screens/HomeScreen';
 import FindScreen     from './src/screens/FindScreen';
 import ShoppingScreen from './src/screens/ShoppingScreen';
 import RecipesScreen  from './src/screens/RecipesScreen';
+import LoginScreen    from './src/screens/LoginScreen';
+import { useAuth }    from './src/hooks/useAuth';
 import { colors }     from './src/constants/tokens';
 
 const Tab = createBottomTabNavigator();
 
 function TabIcon({ emoji, focused }) {
-  return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.5 }}>{emoji}</Text>
-    </View>
-  );
+  return <Text style={{ fontSize:22, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>;
 }
 
 export default function App() {
+  const { user, loading, signIn, signOut } = useAuth();
+
+  if (loading) return null; // splash handles this
+
+  if (!user) {
+    return (
+      <>
+        <StatusBar style="light" />
+        <LoginScreen onLogin={signIn} />
+      </>
+    );
+  }
+
   return (
     <NavigationContainer>
       <StatusBar style="light" />
@@ -36,7 +47,7 @@ export default function App() {
             height: 62,
           },
           tabBarActiveTintColor:   colors.orange,
-          tabBarInactiveTintColor: 'rgba(168,213,162,0.5)',
+          tabBarInactiveTintColor: 'rgba(168,213,162,0.45)',
           tabBarLabelStyle: {
             fontSize: 9,
             fontWeight: '800',
@@ -48,9 +59,10 @@ export default function App() {
       >
         <Tab.Screen
           name="Home"
-          component={HomeScreen}
           options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }}
-        />
+        >
+          {() => <HomeScreen user={user} />}
+        </Tab.Screen>
         <Tab.Screen
           name="Find"
           component={FindScreen}
@@ -58,17 +70,19 @@ export default function App() {
         />
         <Tab.Screen
           name="Shopping"
-          component={ShoppingScreen}
           options={{
             tabBarLabel: 'Shop',
             tabBarIcon: ({ focused }) => <TabIcon emoji="🛒" focused={focused} />,
           }}
-        />
+        >
+          {() => <ShoppingScreen user={user} />}
+        </Tab.Screen>
         <Tab.Screen
           name="Recipes"
-          component={RecipesScreen}
           options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
-        />
+        >
+          {() => <RecipesScreen user={user} />}
+        </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
