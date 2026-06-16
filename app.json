@@ -48,7 +48,7 @@
     },
     "plugins": [
       [
-        "expo-audio",
+        "expo-av",
         {
           "microphonePermission": "Fern uses your mic for hands-free voice cooking."
         }
