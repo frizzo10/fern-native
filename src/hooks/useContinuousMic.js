@@ -1,109 +1,101 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { AudioModule, useAudioRecorder, RecordingPresets } from 'expo-audio';
+import {
+  setAudioModeAsync,
+  requestRecordingPermissionsAsync,
+  useAudioRecorder,
+  RecordingPresets,
+} from 'expo-audio';
 
 const CHUNK_MS = 3000;
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
 export function useContinuousMic({ onTranscript, onError } = {}) {
-  const [isListening,   setIsListening]   = useState(false);
-  const [isProcessing,  setIsProcessing]  = useState(false);
+  const [isListening,  setIsListening]  = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  const activeRef      = useRef(false);
-  const processingRef  = useRef(false); // prevents overlap
-  const chunkTimerRef  = useRef(null);
+  const activeRef     = useRef(false);
+  const processingRef = useRef(false);
+  const chunkTimerRef = useRef(null);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
 
-  // ── Send one audio chunk to Groq Whisper ──────────────────────────────────
+  // ── Send audio chunk to Groq Whisper ─────────────────────────────────────
   const sendChunk = useCallback(async (uri) => {
     if (!uri) return;
     try {
-      // React Native FormData — must use the object form, not Blob
       const body = new FormData();
       body.append('file', {
         uri,
-        name:  'chunk.m4a',
-        type:  'audio/mp4',   // m4a = audio/mp4 on iOS
+        name: 'chunk.m4a',
+        type: 'audio/mp4',   // React Native requires audio/mp4 for .m4a
       });
       body.append('model',    'whisper-large-v3');
       body.append('language', 'en');
 
       const res = await fetch(GROQ_URL, {
         method:  'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}`,
-          // Do NOT set Content-Type — let fetch set the multipart boundary
-        },
+        headers: { Authorization: `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}` },
+        // No Content-Type — fetch sets multipart boundary automatically
         body,
       });
 
       if (!res.ok) {
-        const err = await res.text();
-        console.warn('[mic] Groq error:', err);
+        console.warn('[mic] Groq error:', await res.text());
         return;
       }
-
-      const data = await res.json();
-      const text = data?.text?.trim();
-      if (text) onTranscript?.(text);
-
+      const { text } = await res.json();
+      if (text?.trim()) onTranscript?.(text.trim());
     } catch (e) {
       console.warn('[mic] sendChunk error:', e.message);
     }
   }, [onTranscript]);
 
-  // ── One record→stop→send cycle ────────────────────────────────────────────
+  // ── One record cycle: stop → send → prepare → record ─────────────────────
   const runCycle = useCallback(async () => {
     if (!activeRef.current || processingRef.current) return;
     processingRef.current = true;
     setIsProcessing(true);
-
     try {
-      // Stop current recording
       await recorder.stop();
       const uri = recorder.uri;
 
-      // Send to Groq (non-blocking for next cycle start)
-      sendChunk(uri); // intentionally not awaited so we restart immediately
+      sendChunk(uri); // non-blocking — restart recording while Groq processes
 
-      // Start next cycle if still active
       if (activeRef.current) {
         await recorder.prepareToRecordAsync();
         await recorder.record();
       }
     } catch (e) {
       console.warn('[mic] cycle error:', e.message);
-      if (activeRef.current) onError?.(e.message);
     } finally {
       processingRef.current = false;
       setIsProcessing(false);
     }
-  }, [recorder, sendChunk, onError]);
+  }, [recorder, sendChunk]);
 
   // ── Start ─────────────────────────────────────────────────────────────────
   const start = useCallback(async () => {
     if (activeRef.current) return;
-
     try {
       // 1. Permission
-      const { granted } = await AudioModule.requestRecordingPermissionsAsync();
+      const { granted } = await requestRecordingPermissionsAsync();
       if (!granted) { onError?.('Microphone permission denied'); return; }
 
-      // 2. Enable recording mode
-      await AudioModule.setAudioModeAsync({
-        allowsRecordingIOS:    true,
-        playsInSilentModeIOS:  true,
-        staysActiveInBackground: true,
+      // 2. Set audio mode — SDK 56 property names
+      await setAudioModeAsync({
+        allowsRecording:       true,   // was allowsRecordingIOS
+        playsInSilentMode:     true,   // was playsInSilentModeIOS
+        shouldPlayInBackground: true,  // was staysActiveInBackground
       });
 
-      // 3. Prepare and start first recording
+      // 3. Prepare and record
       await recorder.prepareToRecordAsync();
       await recorder.record();
 
       activeRef.current = true;
       setIsListening(true);
 
-      // 4. Kick off chunk cycle every CHUNK_MS
+      // 4. Chunk every 3s
       chunkTimerRef.current = setInterval(runCycle, CHUNK_MS);
 
     } catch (e) {
@@ -116,29 +108,20 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
   const stop = useCallback(async () => {
     activeRef.current = false;
     clearInterval(chunkTimerRef.current);
-
+    try { await recorder.stop(); } catch {}
     try {
-      await recorder.stop();
-    } catch {}
-
-    try {
-      // Restore normal audio mode
-      await AudioModule.setAudioModeAsync({
-        allowsRecordingIOS:   false,
-        playsInSilentModeIOS: false,
+      await setAudioModeAsync({
+        allowsRecording:   false,
+        playsInSilentMode: false,
       });
     } catch {}
-
     setIsListening(false);
     setIsProcessing(false);
   }, [recorder]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      activeRef.current = false;
-      clearInterval(chunkTimerRef.current);
-    };
+  useEffect(() => () => {
+    activeRef.current = false;
+    clearInterval(chunkTimerRef.current);
   }, []);
 
   return { isListening, isProcessing, start, stop };
