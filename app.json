@@ -24,7 +24,10 @@
       "bundleIdentifier": "com.fernai.app",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking — say recipes, add items, and plan your week without touching your phone.",
-        "NSSpeechRecognitionUsageDescription": "Fern listens for your voice commands to plan meals and navigate the app hands-free."
+        "NSSpeechRecognitionUsageDescription": "Fern listens for your voice commands to plan meals and navigate the app hands-free.",
+        "NSLocationWhenInUseUsageDescription": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping.",
+        "NSLocationAlwaysUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping."
       }
     },
     "android": {
@@ -33,7 +36,12 @@
         "backgroundColor": "#1C3A1A"
       },
       "package": "com.fernai.app",
-      "permissions": ["RECORD_AUDIO"]
+      "permissions": [
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -42,6 +50,16 @@
       [
         "expo-av",
         { "microphonePermission": "Fern uses your mic for hands-free voice cooking." }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
+          "locationAlwaysPermission": "Fern uses background location to detect when you arrive at your grocery store.",
+          "locationWhenInUsePermission": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
       ],
       "expo-updates"
     ],
