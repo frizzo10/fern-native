@@ -1,0 +1,4 @@
+<resources>
+  <string name="app_name">Fern</string>
+  <string name="expo_runtime_version">exposdk:56.0.0</string>
+</resources>
