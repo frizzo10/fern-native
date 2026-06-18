@@ -60,7 +60,7 @@ function DayCard({ day, date, isToday, meals, activities, weather }) {
   );
 }
 
-function VoiceOrb({ isListening, isProcessing, onPress }) {
+function VoiceOrb({ isListening, isProcessing, isSpeaking, onPress }) {
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -80,14 +80,14 @@ function VoiceOrb({ isListening, isProcessing, onPress }) {
       <Animated.View style={[
         styles.orb,
         isListening  && styles.orbActive,
-        isProcessing && styles.orbProcessing,
+        (isProcessing || isSpeaking) && styles.orbProcessing,
         { transform: [{ scale: pulse }] },
         shadow.strong,
       ]}>
-        <Text style={styles.orbIcon}>{isProcessing ? '⋯' : '🎙'}</Text>
+        <Text style={styles.orbIcon}>{isProcessing || isSpeaking ? '⋯' : '🎙'}</Text>
       </Animated.View>
       <Text style={styles.orbLabel}>
-        {isProcessing ? 'Thinking...' : isListening ? 'Listening...' : 'Ask Fern'}
+        {isSpeaking ? 'Speaking...' : isProcessing ? 'Thinking...' : isListening ? 'Tap when done' : 'Ask Fern'}
       </Text>
     </TouchableOpacity>
   );
@@ -98,19 +98,9 @@ export default function HomeScreen({ user }) {
   const [lastTranscript, setLastTranscript] = useState('');
   const { data, loading } = useSync(user);
 
-  const { isListening, isProcessing, start, stop } = useContinuousMic({
-    onTranscript: async (text) => {
-      setLastTranscript(text);
-      try {
-        const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/ai', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, context: 'family_hub', userId: user?.id }),
-        });
-        const d = await res.json();
-        setFernReply(d.reply || '');
-      } catch {}
-    },
+  const { isListening, isProcessing, isSpeaking, handleOrbPress } = useContinuousMic({
+    onTranscript: setLastTranscript,
+    onReply: setFernReply,
     onError: (e) => console.warn('Mic error:', e),
   });
 
@@ -216,7 +206,8 @@ export default function HomeScreen({ user }) {
       <VoiceOrb
         isListening={isListening}
         isProcessing={isProcessing}
-        onPress={isListening ? stop : start}
+        isSpeaking={isSpeaking}
+        onPress={handleOrbPress}
       />
     </SafeAreaView>
   );

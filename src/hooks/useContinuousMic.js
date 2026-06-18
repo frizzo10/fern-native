@@ -1,209 +1,428 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { AudioModule, useAudioRecorder, RecordingPresets } from 'expo-audio';
+import {
+  createAudioPlayer,
+  setAudioModeAsync,
+  useAudioRecorder,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+} from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
-const CHUNK_MS = 3000;
-const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 
-export function useContinuousMic({ onTranscript, onError } = {}) {
+const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
+const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
+const SPEAK_URL = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
+
+const METERING_INTERVAL_MS = 100;
+const SILENCE_DURATION_MS = 1200;
+const MIN_SPEECH_MS = 400;
+const MAX_RECORDING_MS = 30000;
+const CALIBRATION_MS = 600;
+const MIN_SIGNAL_RANGE_DB = 6;
+
+const RECORDING_OPTIONS = {
+  ...RecordingPresets.HIGH_QUALITY,
+  isMeteringEnabled: true,
+};
+
+function arrayBufferToBase64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function parseFernReply(data) {
+  return (
+    data?.content?.[0]?.text?.trim() ??
+    data?.reply?.trim() ??
+    data?.text?.trim() ??
+    ''
+  );
+}
+
+export function useContinuousMic({ onTranscript, onReply, onError } = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const activeRef = useRef(false);
-  const processingRef = useRef(false);
-  const chunkTimerRef = useRef(null);
+  const busyRef = useRef(false);
+  const monitorRef = useRef(null);
+  const speechStartedRef = useRef(false);
+  const speechStartRef = useRef(null);
+  const silenceStartRef = useRef(null);
+  const recordingStartRef = useRef(null);
+  const playerRef = useRef(null);
+  const minMeterRef = useRef(-160);
+  const maxMeterRef = useRef(-160);
+  const meteringSeenRef = useRef(false);
+  const processUtteranceRef = useRef(null);
 
-  const recorder = useAudioRecorder(
-    RecordingPresets.HIGH_QUALITY
-  );
-  const sendChunk = useCallback(async (uri) => {
-    console.log(
-      'MULTIPART:',
-      FileSystem.FileSystemUploadType.MULTIPART
-    );
-    if (!uri) return;
+  const recorder = useAudioRecorder(RECORDING_OPTIONS);
 
-    try {
+  const clearMonitor = useCallback(() => {
+    if (monitorRef.current) {
+      clearInterval(monitorRef.current);
+      monitorRef.current = null;
+    }
+  }, []);
 
-      const result = await FileSystem.uploadAsync(
+  const releasePlayer = useCallback(() => {
+    if (playerRef.current) {
+      try {
+        playerRef.current.release();
+      } catch {}
+      playerRef.current = null;
+    }
+  }, []);
 
-        'https://api.groq.com/openai/v1/audio/transcriptions',
+  const transcribe = useCallback(async (uri) => {
+    const result = await FileSystem.uploadAsync(GROQ_URL, uri, {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+      fieldName: 'file',
+      mimeType: 'audio/mp4',
+      parameters: {
+        model: 'whisper-large-v3',
+        language: 'en',
+      },
+      headers: {
+        Authorization: `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}`,
+      },
+    });
 
-        uri,
+    const data = JSON.parse(result.body);
+    return data?.text?.trim() ?? '';
+  }, []);
 
-        {
+  const askFern = useCallback(async (text) => {
+    const res = await fetch(AI_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messages: [{ role: 'user', content: text }],
+      }),
+    });
 
-          httpMethod: 'POST',
-
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-
-          fieldName: 'file',
-
-          mimeType: 'audio/mp4',
-
-          parameters: {
-
-            model: 'whisper-large-v3',
-
-            language: 'en',
-
-          },
-
-          headers: {
-
-            Authorization: `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}`,
-
-          },
-
-        }
-
-      );
-
-      console.log('[mic] upload result:', result.body);
-
-      const data = JSON.parse(result.body);
-
-      if (data?.text?.trim()) {
-
-        onTranscript?.(data.text.trim());
-
-      }
-
-    } catch (error) {
-
-      console.warn('[mic] upload error:', error);
-
+    if (!res.ok) {
+      throw new Error(`AI request failed (${res.status})`);
     }
 
-  }, [onTranscript]);
+    const data = await res.json();
+    const reply = parseFernReply(data);
+    if (!reply && data?.error) {
+      throw new Error(data.error);
+    }
+    return reply;
+  }, []);
 
-  const runCycle = useCallback(async () => {
-    if (!activeRef.current) return;
-    if (processingRef.current) return;
+  const speakFern = useCallback(async (text) => {
+    const res = await fetch(SPEAK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
 
-    processingRef.current = true;
+    if (!res.ok) {
+      throw new Error(`Speech request failed (${res.status})`);
+    }
+
+    const buffer = await res.arrayBuffer();
+    const base64 = arrayBufferToBase64(buffer);
+    const uri = `${FileSystem.cacheDirectory}fern-speak-${Date.now()}.mp3`;
+
+    await FileSystem.writeAsStringAsync(uri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+
+    await setAudioModeAsync({
+      allowsRecording: false,
+      playsInSilentMode: true,
+    });
+
+    releasePlayer();
+    const player = createAudioPlayer({ uri });
+    playerRef.current = player;
+
+    await new Promise((resolve, reject) => {
+      const subscription = player.addListener('playbackStatusUpdate', (status) => {
+        if (status.error) {
+          subscription.remove();
+          reject(new Error(status.error));
+          return;
+        }
+        if (status.didJustFinish) {
+          subscription.remove();
+          resolve();
+        }
+      });
+      player.play();
+    });
+
+    releasePlayer();
+
+    try {
+      await FileSystem.deleteAsync(uri, { idempotent: true });
+    } catch {}
+  }, [releasePlayer]);
+
+  const resetVadState = useCallback(() => {
+    speechStartedRef.current = false;
+    speechStartRef.current = null;
+    silenceStartRef.current = null;
+    recordingStartRef.current = null;
+    minMeterRef.current = -160;
+    maxMeterRef.current = -160;
+    meteringSeenRef.current = false;
+  }, []);
+
+  const isSpeechLevel = useCallback((metering, now) => {
+    const range = maxMeterRef.current - minMeterRef.current;
+    if (now - recordingStartRef.current < CALIBRATION_MS) {
+      return false;
+    }
+    if (range < MIN_SIGNAL_RANGE_DB) {
+      return metering > -50;
+    }
+    const speechLevel = minMeterRef.current + range * 0.4;
+    return metering >= speechLevel;
+  }, []);
+
+  const isSilenceLevel = useCallback((metering) => {
+    const range = maxMeterRef.current - minMeterRef.current;
+    if (range < MIN_SIGNAL_RANGE_DB) {
+      return metering <= -52;
+    }
+    const silenceLevel = minMeterRef.current + range * 0.2;
+    return metering <= silenceLevel;
+  }, []);
+
+  const tickVad = useCallback(() => {
+    if (!activeRef.current || busyRef.current) return;
+
+    const status = recorder.getStatus();
+    if (!status.isRecording) return;
+
+    const now = Date.now();
+    if (!recordingStartRef.current) {
+      recordingStartRef.current = now;
+    }
+
+    if (now - recordingStartRef.current >= MAX_RECORDING_MS) {
+      processUtteranceRef.current?.();
+      return;
+    }
+
+    const metering = status.metering;
+    if (typeof metering === 'number') {
+      meteringSeenRef.current = true;
+      minMeterRef.current = Math.min(minMeterRef.current, metering);
+      maxMeterRef.current = Math.max(maxMeterRef.current, metering);
+    } else if (!meteringSeenRef.current) {
+      const elapsed = now - recordingStartRef.current;
+      if (elapsed >= 5000 && status.durationMillis >= MIN_SPEECH_MS) {
+        processUtteranceRef.current?.();
+      }
+      return;
+    }
+
+    if (isSpeechLevel(metering, now)) {
+      if (!speechStartedRef.current) {
+        speechStartedRef.current = true;
+        speechStartRef.current = now;
+      }
+      silenceStartRef.current = null;
+      return;
+    }
+
+    if (!speechStartedRef.current) return;
+
+    if (!silenceStartRef.current) {
+      silenceStartRef.current = now;
+      return;
+    }
+
+    const silenceMs = now - silenceStartRef.current;
+    const speechMs = now - (speechStartRef.current ?? now);
+
+    if (
+      silenceMs >= SILENCE_DURATION_MS &&
+      speechMs >= MIN_SPEECH_MS &&
+      isSilenceLevel(metering)
+    ) {
+      processUtteranceRef.current?.();
+    }
+  }, [isSilenceLevel, isSpeechLevel, recorder]);
+
+  const beginListeningRef = useRef(null);
+
+  const processUtterance = useCallback(async () => {
+    if (!activeRef.current || busyRef.current) return;
+
+    busyRef.current = true;
+    clearMonitor();
+    setIsListening(false);
     setIsProcessing(true);
 
     try {
       await recorder.stop();
+      const uri = recorder.uri ?? recorder.getStatus().url;
 
-      const uri = recorder.uri;
-
-      console.log('[mic] chunk uri:', uri);
-
-      if (uri) {
-        sendChunk(uri);
+      if (!uri) {
+        throw new Error('No recording captured');
       }
 
-      if (activeRef.current) {
-        await recorder.prepareToRecordAsync();
-        await recorder.record();
+      const transcript = await transcribe(uri);
+      if (!transcript) {
+        throw new Error('Could not understand audio');
       }
-    } catch (error) {
-      console.warn('[mic] cycle error:', error);
 
-      if (activeRef.current) {
-        onError?.(error?.message ?? 'Recording failed');
+      onTranscript?.(transcript);
+
+      const reply = await askFern(transcript);
+      if (!reply) {
+        throw new Error('Fern did not return a reply');
       }
-    } finally {
-      processingRef.current = false;
+
+      onReply?.(reply);
+
       setIsProcessing(false);
+      setIsSpeaking(true);
+      await speakFern(reply);
+    } catch (error) {
+      console.warn('[mic] pipeline error:', error);
+      onError?.(error?.message ?? 'Voice request failed');
+    } finally {
+      setIsProcessing(false);
+      setIsSpeaking(false);
+      busyRef.current = false;
+
+      if (activeRef.current) {
+        await beginListeningRef.current?.();
+      }
     }
-  }, [recorder, sendChunk, onError]);
+  }, [askFern, clearMonitor, onError, onReply, onTranscript, recorder, speakFern, transcribe]);
+
+  processUtteranceRef.current = processUtterance;
+
+  const beginListening = useCallback(async () => {
+    if (!activeRef.current || busyRef.current) return;
+
+    try {
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+
+      resetVadState();
+      recordingStartRef.current = Date.now();
+
+      await recorder.prepareToRecordAsync(RECORDING_OPTIONS);
+      recorder.record();
+
+      const status = recorder.getStatus();
+      if (!status.isRecording) {
+        throw new Error('Microphone failed to start');
+      }
+
+      setIsListening(true);
+
+      clearMonitor();
+      monitorRef.current = setInterval(tickVad, METERING_INTERVAL_MS);
+    } catch (error) {
+      console.warn('[mic] listen error:', error);
+      onError?.(error?.message ?? 'Failed to start microphone');
+      activeRef.current = false;
+      setIsListening(false);
+    }
+  }, [clearMonitor, onError, recorder, resetVadState, tickVad]);
+
+  beginListeningRef.current = beginListening;
 
   const start = useCallback(async () => {
     try {
       if (activeRef.current) return;
 
-      const permission =
-        await AudioModule.requestRecordingPermissionsAsync();
-
-      console.log('[mic] permission:', permission);
-
+      const permission = await requestRecordingPermissionsAsync();
       if (!permission.granted) {
         onError?.('Microphone permission denied');
         return;
       }
 
-      console.log(
-        '[mic] AudioModule keys:',
-        Object.keys(AudioModule)
-      );
-
-      // DEBUG: verify method exists
-      console.log(
-        '[mic] setAudioModeAsync:',
-        typeof AudioModule.setAudioModeAsync
-      );
-
-      if (AudioModule.setAudioModeAsync) {
-        await AudioModule.setAudioModeAsync({
-          allowsRecording: true,
-          playsInSilentMode: true,
-        });
-      }
-
-      await recorder.prepareToRecordAsync();
-
-      console.log('[mic] recorder prepared');
-
-      await recorder.record();
-
-      console.log('[mic] recording started');
-
       activeRef.current = true;
-      setIsListening(true);
-
-      chunkTimerRef.current = setInterval(
-        runCycle,
-        CHUNK_MS
-      );
+      await beginListening();
     } catch (error) {
       console.warn('[mic] start error:', error);
-
-      onError?.(
-        error?.message ?? 'Failed to start microphone'
-      );
+      onError?.(error?.message ?? 'Failed to start microphone');
     }
-  }, [recorder, runCycle, onError]);
+  }, [beginListening, onError]);
 
   const stop = useCallback(async () => {
     activeRef.current = false;
-
-    if (chunkTimerRef.current) {
-      clearInterval(chunkTimerRef.current);
-      chunkTimerRef.current = null;
-    }
+    clearMonitor();
+    releasePlayer();
+    resetVadState();
 
     try {
       await recorder.stop();
     } catch {}
 
     try {
-      if (AudioModule.setAudioModeAsync) {
-        await AudioModule.setAudioModeAsync({
-          allowsRecording: false,
-        });
-      }
+      await setAudioModeAsync({ allowsRecording: false });
     } catch {}
 
     setIsListening(false);
     setIsProcessing(false);
-  }, [recorder]);
+    setIsSpeaking(false);
+    busyRef.current = false;
+  }, [clearMonitor, recorder, releasePlayer, resetVadState]);
+
+  const sendNow = useCallback(() => {
+    if (!activeRef.current || busyRef.current) return;
+
+    const duration = recorder.getStatus().durationMillis ?? 0;
+    if (!speechStartedRef.current && duration < MIN_SPEECH_MS) {
+      onError?.('Keep talking a moment, then tap again to send');
+      return;
+    }
+
+    processUtteranceRef.current?.();
+  }, [onError, recorder]);
+
+  const handleOrbPress = useCallback(async () => {
+    if (isProcessing || isSpeaking) {
+      await stop();
+      return;
+    }
+    if (isListening) {
+      const duration = recorder.getStatus().durationMillis ?? 0;
+      if (duration < 300) {
+        await stop();
+        return;
+      }
+      sendNow();
+      return;
+    }
+    await start();
+  }, [isListening, isProcessing, isSpeaking, recorder, sendNow, start, stop]);
 
   useEffect(() => {
     return () => {
       activeRef.current = false;
-
-      if (chunkTimerRef.current) {
-        clearInterval(chunkTimerRef.current);
-      }
+      clearMonitor();
+      releasePlayer();
     };
-  }, []);
+  }, [clearMonitor, releasePlayer]);
 
   return {
     isListening,
     isProcessing,
+    isSpeaking,
     start,
+    sendNow,
     stop,
+    handleOrbPress,
   };
 }
