@@ -6,42 +6,41 @@ import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 
-import HomeScreen     from './src/screens/HomeScreen';
-import FindScreen     from './src/screens/FindScreen';
-import ShoppingScreen from './src/screens/ShoppingScreen';
-import RecipesScreen  from './src/screens/RecipesScreen';
-import LoginScreen    from './src/screens/LoginScreen';
-import { useAuth }    from './src/hooks/useAuth';
+import HomeScreen      from './src/screens/HomeScreen';
+import FindScreen      from './src/screens/FindScreen';
+import ShoppingScreen  from './src/screens/ShoppingScreen';
+import RecipesScreen   from './src/screens/RecipesScreen';
+import LoginScreen     from './src/screens/LoginScreen';
+import ErrorBoundary   from './src/components/ErrorBoundary';
+import { useAuth }     from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
 
 const Tab = createBottomTabNavigator();
 
-// Configure notification handler
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
     shouldPlaySound: true,
-    shouldSetBadge: false,
+    shouldSetBadge:  false,
   }),
 });
 
 function TabIcon({ emoji, focused }) {
-  return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>;
+  return <Text style={{ fontSize:22, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>;
 }
 
-// Store arrival banner — slides down from top
 function ArrivalBanner({ store, onShop, onDismiss }) {
   const slideAnim = React.useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
-    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 80 }).start();
-    const t = setTimeout(onDismiss, 45000); // auto-dismiss after 45s
+    Animated.spring(slideAnim, { toValue:0, useNativeDriver:true, tension:80 }).start();
+    const t = setTimeout(onDismiss, 45000);
     return () => clearTimeout(t);
   }, []);
 
   return (
-    <Animated.View style={[styles.banner, { transform: [{ translateY: slideAnim }] }]}>
+    <Animated.View style={[styles.banner, { transform:[{ translateY:slideAnim }] }]}>
       <Text style={styles.bannerEmoji}>🛒</Text>
       <View style={styles.bannerText}>
         <Text style={styles.bannerTitle}>{store.name} — you've arrived</Text>
@@ -70,50 +69,26 @@ async function checkForUpdate() {
   }
 }
 
-export default function App() {
-  const { user, loading, signIn } = useAuth();
+function MainApp({ user }) {
   const [arrivedStore, setArrivedStore] = useState(null);
-  const [activeTab, setActiveTab] = useState('Home');
-
-  // Mock stores — replace with sync from useSync
-  const userStores = user ? [] : []; // populated from sync data
 
   const { start: startGeofence } = useGeofence({
-    stores: userStores,
-    onArrival: (store, distMeters) => {
-      setArrivedStore(store);
-    },
+    stores: [],
+    onArrival: (store) => setArrivedStore(store),
   });
 
   useEffect(() => {
-    checkForUpdate();
-  }, []);
-
-  // Start geofencing once user is logged in
-  useEffect(() => {
     if (user) startGeofence();
   }, [user]);
-
-  if (loading) return null;
-
-  if (!user) {
-    return (
-      <>
-        <StatusBar style="light" />
-        <LoginScreen onLogin={signIn} />
-      </>
-    );
-  }
 
   return (
     <NavigationContainer>
       <StatusBar style="light" />
 
-      {/* Store arrival banner */}
       {arrivedStore && (
         <ArrivalBanner
           store={arrivedStore}
-          onShop={() => { setArrivedStore(null); setActiveTab('Shopping'); }}
+          onShop={() => setArrivedStore(null)}
           onDismiss={() => setArrivedStore(null)}
         />
       )}
@@ -122,21 +97,21 @@ export default function App() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: {
-            backgroundColor: colors.forest,
-            borderTopColor: 'rgba(168,213,162,0.2)',
-            borderTopWidth: 1,
-            paddingBottom: 6,
-            paddingTop: 6,
-            height: 62,
+            backgroundColor:  colors.forest,
+            borderTopColor:   'rgba(168,213,162,0.2)',
+            borderTopWidth:   1,
+            paddingBottom:    6,
+            paddingTop:       6,
+            height:           62,
           },
           tabBarActiveTintColor:   colors.orange,
           tabBarInactiveTintColor: 'rgba(168,213,162,0.45)',
           tabBarLabelStyle: {
-            fontSize: 9,
-            fontWeight: '800',
+            fontSize:      9,
+            fontWeight:    '800',
             letterSpacing: 0.5,
             textTransform: 'uppercase',
-            marginTop: 2,
+            marginTop:     2,
           },
         }}
       >
@@ -144,13 +119,24 @@ export default function App() {
           name="Home"
           options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }}
         >
-          {() => <HomeScreen user={user} />}
+          {() => (
+            <ErrorBoundary>
+              <HomeScreen user={user} />
+            </ErrorBoundary>
+          )}
         </Tab.Screen>
+
         <Tab.Screen
           name="Find"
-          component={FindScreen}
           options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
-        />
+        >
+          {() => (
+            <ErrorBoundary>
+              <FindScreen user={user} />
+            </ErrorBoundary>
+          )}
+        </Tab.Screen>
+
         <Tab.Screen
           name="Shopping"
           options={{
@@ -158,40 +144,60 @@ export default function App() {
             tabBarIcon: ({ focused }) => <TabIcon emoji="🛒" focused={focused} />,
           }}
         >
-          {() => <ShoppingScreen user={user} />}
+          {() => (
+            <ErrorBoundary>
+              <ShoppingScreen user={user} />
+            </ErrorBoundary>
+          )}
         </Tab.Screen>
+
         <Tab.Screen
           name="Recipes"
           options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
         >
-          {() => <RecipesScreen user={user} />}
+          {() => (
+            <ErrorBoundary>
+              <RecipesScreen user={user} />
+            </ErrorBoundary>
+          )}
         </Tab.Screen>
       </Tab.Navigator>
     </NavigationContainer>
   );
 }
 
+export default function App() {
+  const { user, loading, signIn } = useAuth();
+
+  useEffect(() => { checkForUpdate(); }, []);
+
+  if (loading) return null;
+
+  // Wrap entire app in top-level ErrorBoundary
+  return (
+    <ErrorBoundary>
+      <StatusBar style="light" />
+      {user
+        ? <MainApp user={user} />
+        : <LoginScreen onLogin={signIn} />
+      }
+    </ErrorBoundary>
+  );
+}
+
 const styles = StyleSheet.create({
-  banner: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0,
-    zIndex: 999,
-    backgroundColor: colors.forest,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(168,213,162,0.2)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    paddingTop: 52, // safe area
-    gap: 10,
-    ...shadow.strong,
-  },
-  bannerEmoji:    { fontSize: 24 },
-  bannerText:     { flex: 1 },
-  bannerTitle:    { fontSize: 14, fontWeight: '800', color: colors.onFern },
-  bannerSub:      { fontSize: 12, color: colors.muted, marginTop: 2 },
-  bannerBtn:      { backgroundColor: colors.orange, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8 },
-  bannerBtnText:  { color: '#fff', fontWeight: '800', fontSize: 13 },
-  bannerClose:    { padding: 6 },
-  bannerCloseText:{ color: 'rgba(255,255,255,0.4)', fontSize: 18 },
+  banner:          { position:'absolute', top:0, left:0, right:0, zIndex:999,
+                     backgroundColor:colors.forest,
+                     borderBottomWidth:1, borderBottomColor:'rgba(168,213,162,0.2)',
+                     flexDirection:'row', alignItems:'center',
+                     padding:12, paddingTop:52, gap:10, ...shadow.strong },
+  bannerEmoji:     { fontSize:24 },
+  bannerText:      { flex:1 },
+  bannerTitle:     { fontSize:14, fontWeight:'800', color:colors.onFern },
+  bannerSub:       { fontSize:12, color:colors.muted, marginTop:2 },
+  bannerBtn:       { backgroundColor:colors.orange, borderRadius:radius.md,
+                     paddingHorizontal:14, paddingVertical:8 },
+  bannerBtnText:   { color:'#fff', fontWeight:'800', fontSize:13 },
+  bannerClose:     { padding:6 },
+  bannerCloseText: { color:'rgba(255,255,255,0.4)', fontSize:18 },
 });
