@@ -12,6 +12,7 @@ import ShoppingScreen  from './src/screens/ShoppingScreen';
 import RecipesScreen   from './src/screens/RecipesScreen';
 import LoginScreen     from './src/screens/LoginScreen';
 import ErrorBoundary   from './src/components/ErrorBoundary';
+import { setupGlobalErrorHandler } from './src/lib/crashLogger';
 import { useAuth }     from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
@@ -78,7 +79,10 @@ function MainApp({ user }) {
   });
 
   useEffect(() => {
-    if (user) startGeofence();
+    if (user) {
+      startGeofence();
+      setupGlobalErrorHandler(user.id);
+    }
   }, [user]);
 
   return (
@@ -201,3 +205,8 @@ const styles = StyleSheet.create({
   bannerClose:     { padding:6 },
   bannerCloseText: { color:'rgba(255,255,255,0.4)', fontSize:18 },
 });
+
+// Note: add this import at the top of App.js:
+// import { setupGlobalErrorHandler } from './src/lib/crashLogger';
+// And call it after user loads:
+// useEffect(() => { if (user) setupGlobalErrorHandler(user.id); }, [user]);
