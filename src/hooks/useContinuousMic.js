@@ -1,8 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { AudioModule, useAudioRecorder, RecordingPresets } from 'expo-audio';
+import { useAudioPlayer, AudioModule, useAudioRecorder, RecordingPresets } from 'expo-audio';
+
 import * as FileSystem from 'expo-file-system/legacy';
-const CHUNK_MS = 3000;
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
+const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
+const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
+
 
 export function useContinuousMic({ onTranscript, onError } = {}) {
   const [isListening, setIsListening] = useState(false);
@@ -10,16 +13,167 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
   const activeRef = useRef(false);
   const processingRef = useRef(false);
-  const chunkTimerRef = useRef(null);
+  const [audioUri, setAudioUri] = useState(null);
 
+//VAD 
+  const SILENCE_DB = -15;
+  const SILENCE_MS = 1500;
+  const MAX_RECORDING_MS = 30000;
+  const vadIntervalRef = useRef(null);
+  const silenceTimeoutRef = useRef(null);
+  const maxRecordingTimeoutRef = useRef(null);
+  const hasSpeechRef = useRef(false);
+
+//Player
+  const player = useAudioPlayer(
+    audioUri ? { uri: audioUri } : null
+    );
+
+//Recorder
   const recorder = useAudioRecorder(
     RecordingPresets.HIGH_QUALITY
-  );
+    );
+
+  const processFernReply = useCallback(async (transcript) => {
+    try {
+      const aiResponse = await fetch(GROQ_AI, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: [
+            {
+              role: 'user',
+              content: transcript,
+            },
+          ],
+          system:
+          'You are Fern, a personal AI food assistant. Be brief and conversational.',
+        }),
+      });
+
+      const aiData = await aiResponse.json();
+      const fernReply =
+      aiData?.content?.[0]?.text ??
+      aiData?.data?.content?.[0]?.text ??
+      '';
+
+      if (!fernReply) {
+        console.warn('[fern] empty response');
+        return;
+      }
+
+      console.log('[fern] reply:', fernReply);
+
+      const speechResponse = await fetch(GROQ_SPEAK, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text: fernReply,
+        }),
+      });
+      const arrayBuffer = await speechResponse.arrayBuffer();
+
+      const bytes = new Uint8Array(arrayBuffer);
+
+      let binary = '';
+
+      for (let i = 0; i < bytes.length; i++) {
+
+        binary += String.fromCharCode(bytes[i]);
+
+      }
+
+      const base64 = global.btoa(binary);
+
+      const audioPath =
+
+    `${FileSystem.cacheDirectory}fern-${Date.now()}.mp3`;
+
+    await FileSystem.writeAsStringAsync(
+
+      audioPath,
+
+      base64,
+
+      {
+
+        encoding: FileSystem.EncodingType.Base64,
+
+      }
+
+      );
+
+    console.log('[tts] saved:', audioPath);
+
+    setAudioUri(audioPath);
+
+  } catch (err) {
+    console.warn('[fern] error:', err);
+  }
+}, [recorder]);
+
+  useEffect(() => {
+    if (!audioUri || !player) return;
+
+    try {
+      player.seekTo(0);
+      player.play();
+
+      console.log('[tts] playing');
+    } catch (e) {
+      console.warn('[tts] play error', e);
+    }
+  }, [audioUri, player]);
+
+  useEffect(() => {
+    if (!player) return;
+
+    const sub = player.addListener(
+      'playbackStatusUpdate',
+      async (status) => {
+        if (status.didJustFinish) {
+
+          console.log('[tts] finished');
+
+          if (!activeRef.current) {
+            await start();
+          }
+        }
+      }
+      );
+
+    return () => sub?.remove?.();
+  }, [player, start]);
+
+  const stopPlayback = useCallback(() => {
+
+    try {
+
+      if (!player) return;
+
+      player.pause();
+
+      player.seekTo(0);
+
+      console.log('[tts] playback stopped');
+
+    } catch (e) {
+
+      console.warn('[tts]', e);
+
+    }
+
+  }, [player]);
+
   const sendChunk = useCallback(async (uri) => {
     console.log(
       'MULTIPART:',
       FileSystem.FileSystemUploadType.MULTIPART
-    );
+      );
     if (!uri) return;
 
     try {
@@ -56,7 +210,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
         }
 
-      );
+        );
 
       console.log('[mic] upload result:', result.body);
 
@@ -64,7 +218,13 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
       if (data?.text?.trim()) {
 
-        onTranscript?.(data.text.trim());
+        if (data?.text?.trim()) {
+          const transcript = data.text.trim();
+
+          onTranscript?.(transcript);
+
+          await processFernReply(transcript);
+        }
 
       }
 
@@ -76,46 +236,24 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
   }, [onTranscript]);
 
-  const runCycle = useCallback(async () => {
-    if (!activeRef.current) return;
-    if (processingRef.current) return;
-
-    processingRef.current = true;
-    setIsProcessing(true);
-
-    try {
-      await recorder.stop();
-
-      const uri = recorder.uri;
-
-      console.log('[mic] chunk uri:', uri);
-
-      if (uri) {
-        sendChunk(uri);
-      }
-
-      if (activeRef.current) {
-        await recorder.prepareToRecordAsync();
-        await recorder.record();
-      }
-    } catch (error) {
-      console.warn('[mic] cycle error:', error);
-
-      if (activeRef.current) {
-        onError?.(error?.message ?? 'Recording failed');
-      }
-    } finally {
-      processingRef.current = false;
-      setIsProcessing(false);
-    }
-  }, [recorder, sendChunk, onError]);
-
   const start = useCallback(async () => {
     try {
       if (activeRef.current) return;
+      
+      if (AudioModule.setAudioModeAsync) {
+        await AudioModule.setAudioModeAsync({
+          allowsRecording: true,
+          playsInSilentMode: true,
+        });
+      }
+
+      await recorder.prepareToRecordAsync({
+        ...RecordingPresets.HIGH_QUALITY,
+        isMeteringEnabled: true,
+      });
 
       const permission =
-        await AudioModule.requestRecordingPermissionsAsync();
+      await AudioModule.requestRecordingPermissionsAsync();
 
       console.log('[mic] permission:', permission);
 
@@ -127,76 +265,166 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
       console.log(
         '[mic] AudioModule keys:',
         Object.keys(AudioModule)
-      );
+        );
 
       // DEBUG: verify method exists
       console.log(
         '[mic] setAudioModeAsync:',
         typeof AudioModule.setAudioModeAsync
-      );
-
-      if (AudioModule.setAudioModeAsync) {
-        await AudioModule.setAudioModeAsync({
-          allowsRecording: true,
-          playsInSilentMode: true,
-        });
-      }
-
-      await recorder.prepareToRecordAsync();
+        );
 
       console.log('[mic] recorder prepared');
 
       await recorder.record();
+      hasSpeechRef.current = false;
+
+      maxRecordingTimeoutRef.current = setTimeout(() => {
+        console.log('[vad] max recording reached');
+
+        if (
+          activeRef.current &&
+          !processingRef.current
+          ) {
+          stop();
+      }
+    }, MAX_RECORDING_MS);
+
+      vadIntervalRef.current = setInterval(async () => {
+        try {
+          if (
+            !activeRef.current ||
+            processingRef.current
+            ) {
+            return;
+        }
+
+        const status = await recorder.getStatus();
+
+        const db = status?.metering;
+
+        if (db == null) return;
+
+        console.log('[vad]', db);
+
+    // User spoke at least once
+        if (db > SILENCE_DB) {
+          hasSpeechRef.current = true;
+        }
+
+    // Voice detected
+        if (db > SILENCE_DB) {
+
+          if (silenceTimeoutRef.current) {
+            console.log('[vad] cancel timer');
+
+            clearTimeout(silenceTimeoutRef.current);
+            silenceTimeoutRef.current = null;
+          }
+
+          return;
+        }
+
+    // Silence detected
+        if (
+          hasSpeechRef.current &&
+          !silenceTimeoutRef.current
+          ) {
+          console.log('[vad] start timer');
+
+        silenceTimeoutRef.current = setTimeout(() => {
+
+          console.log('[vad] silence detected');
+
+          silenceTimeoutRef.current = null;
+
+          if (
+            activeRef.current &&
+            !processingRef.current
+            ) {
+            stop();
+        }
+
+      }, SILENCE_MS);
+      }
+
+    } catch (e) {
+      console.warn('[vad]', e);
+    }
+  }, 100);
 
       console.log('[mic] recording started');
 
       activeRef.current = true;
       setIsListening(true);
 
-      chunkTimerRef.current = setInterval(
-        runCycle,
-        CHUNK_MS
-      );
     } catch (error) {
       console.warn('[mic] start error:', error);
 
       onError?.(
         error?.message ?? 'Failed to start microphone'
-      );
+        );
     }
-  }, [recorder, runCycle, onError]);
+  }, [recorder, onError]);
 
   const stop = useCallback(async () => {
-    activeRef.current = false;
-
-    if (chunkTimerRef.current) {
-      clearInterval(chunkTimerRef.current);
-      chunkTimerRef.current = null;
+    if (vadIntervalRef.current) {
+      clearInterval(vadIntervalRef.current);
+      vadIntervalRef.current = null;
     }
+
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+
+    if (maxRecordingTimeoutRef.current) {
+
+      clearTimeout(maxRecordingTimeoutRef.current);
+
+      maxRecordingTimeoutRef.current = null;
+
+    }
+
+    if (!activeRef.current) return;
+
+    activeRef.current = false;
+    setIsListening(false);
+
+    processingRef.current = true;
+    setIsProcessing(true);
 
     try {
       await recorder.stop();
-    } catch {}
 
-    try {
+      const uri = recorder.uri;
+
+      console.log('[mic] final uri:', uri);
+
+      if (uri) {
+        await sendChunk(uri);
+      }
+
       if (AudioModule.setAudioModeAsync) {
         await AudioModule.setAudioModeAsync({
           allowsRecording: false,
         });
       }
-    } catch {}
+    } catch (error) {
+      console.warn('[mic] stop error:', error);
 
-    setIsListening(false);
-    setIsProcessing(false);
-  }, [recorder]);
+      onError?.(
+        error?.message ??
+        'Failed to stop recording'
+        );
+    } finally {
+      processingRef.current = false;
+      setIsProcessing(false);
+    }
+  }, [recorder, sendChunk, onError]);
 
   useEffect(() => {
     return () => {
       activeRef.current = false;
-
-      if (chunkTimerRef.current) {
-        clearInterval(chunkTimerRef.current);
-      }
     };
   }, []);
 
