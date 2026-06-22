@@ -18,15 +18,7 @@ import LoginScreen    from './src/screens/LoginScreen';
 import { useAuth }    from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
-import {
-
-  useFonts,
-
-  Jost_400Regular,
-
-  Jost_700Bold,
-
-} from '@expo-google-fonts/jost';
+import { useFonts } from 'expo-font';
 
 const Tab = createBottomTabNavigator();
 const emoji = "..."
@@ -89,6 +81,22 @@ export default function App() {
   const [arrivedStore, setArrivedStore] = useState(null);
   const [activeTab, setActiveTab] = useState('Home');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  const [fontsLoaded] = useFonts({
+
+    'Playfair-Regular': require('./assets/fonts/PlayfairDisplay-Regular.ttf'),
+    'Playfair-Italic': require('./assets/fonts/PlayfairDisplay-Italic.ttf'),
+    'Playfair-Medium': require('./assets/fonts/PlayfairDisplay-Medium.ttf'),
+    'Playfair-MediumItalic': require('./assets/fonts/PlayfairDisplay-MediumItalic.ttf'),
+    'Playfair-SemiBold': require('./assets/fonts/PlayfairDisplay-SemiBold.ttf'),
+    'Playfair-SemiBoldItalic': require('./assets/fonts/PlayfairDisplay-SemiBoldItalic.ttf'),
+    'Playfair-Bold': require('./assets/fonts/PlayfairDisplay-Bold.ttf'),
+
+    'Jost-Regular': require('./assets/fonts/Jost-Regular.ttf'),
+    'Jost-SemiBold': require('./assets/fonts/Jost-SemiBold.ttf'),
+    'Jost-Bold': require('./assets/fonts/Jost-Bold.ttf'),
+
+  });
 
   const openMoreMenu = () => {
     setShowMoreMenu(true);
@@ -200,30 +208,7 @@ export default function App() {
       </View>
 
     )}
-    <View style= {styles.headerSize}>
 
-    <View style={styles.mainHeaderView}>
-
-    <Image
-      source={require('./assets/icon.png')}
-      style={styles.headerImage}
-    />
-      <View>
-
-        <Text style={styles.headerTextView}>
-        fern
-        </Text>
-
-        <Text style={styles.headerTitle}>
-          WEEKLY AD TO DINNER TABLE • PATENT{"\n"}PENDING
-        </Text>
-
-      </View>
-
-    </View>
-  ),
-
-</View>
       <StatusBar style="light" />
 
       {/* Store arrival banner */}
@@ -280,7 +265,7 @@ export default function App() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="📆" focused={focused} />,
         }}
         >
-        {() => <FamilyScreen user={user} />}
+        {() => <LoginScreen user={user} />}
         </Tab.Screen>
         <Tab.Screen
         name="Recipes"
@@ -339,44 +324,5 @@ const styles = StyleSheet.create({
   bannerBtnText:  { color: '#fff', fontWeight: '800', fontSize: 13 },
   bannerClose:    { padding: 6 },
   bannerCloseText:{ color: 'rgba(255,255,255,0.4)', fontSize: 18 },
-
-  headerSize:  { 
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    backgroundColor: "#1C3A1A",
-    },
-
-  headerImage: {
-    width: 42,
-    height: 42,
-    resizeMode: 'contain',
-    marginRight: 20,
-    marginTop: 30
-    },
-
-  headerTitle:{
-    fontSize: 8,
-    fontFamily:'Jost_700Bold',
-    color: '#A8D5A2',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-    },
-
-  mainHeaderView: {
-    flexDirection: 'row',
-    height: 50,
-    paddingVertical: 0,
-    alignItems: 'center',
-    },
-
-  headerTextView: {
-    color: '#F5EFE6',
-    marginTop: 20,
-    fontFamily:'Jost_700Bold',
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: 1,
-  }
 
 });

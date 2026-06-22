@@ -1,99 +1,209 @@
+// AuthScreen.js — Fern Native
+// Sign in / Sign up with Supabase
+// Matches web app design exactly
+
 import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  KeyboardAvoidingView, Platform, ActivityIndicator,
+  SafeAreaView, Image, Alert
 } from 'react-native';
-import { colors, radius, shadow } from '../constants/tokens';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createClient } from '@supabase/supabase-js';
 
-export default function LoginScreen({ onLogin }) {
+// ── Supabase ────────────────────────────────────────────────────────────────
+const supabase = createClient(
+  'https://axqkdhzcfcroxlkducea.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF4cWtkaHpjZmNyb3hsa2R1Y2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDk4MzQ3MDMsImV4cCI6MjAyNTQxMDcwM30.GZpyNrDwnRBpvEuskyC7PVFHGCinBpFmFCbXZi0YTFM',
+  { auth: { storage: AsyncStorage } }
+);
+
+// ── Design Tokens ────────────────────────────────────────────────────────────
+const C = {
+  forest:  '#1C3A1A',
+  bright:  '#2D5A27',
+  orange:  '#E8651A',
+  sage:    '#A8D5A2',
+  parch:   '#FDFAF6',
+  ink:     '#1A0E05',
+  brown:   '#9C835F',
+  border:  '#E8E0D0',
+};
+
+// ── Sync pull after login ────────────────────────────────────────────────────
+async function syncPull(userId, token) {
+  try {
+    const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'pull', userId, token })
+    });
+    const result = await res.json();
+    const d = result.data || {};
+    await AsyncStorage.setItem('rv4_saved',            JSON.stringify(d.saved            || []));
+    await AsyncStorage.setItem('rv4_books',            JSON.stringify(d.books            || []));
+    await AsyncStorage.setItem('rv4_meal_plan',        JSON.stringify(d.meal_plan        || {}));
+    await AsyncStorage.setItem('rv4_master_shop',      JSON.stringify(d.shopping         || []));
+    await AsyncStorage.setItem('remi_explicit',        JSON.stringify(d.remi_explicit    || {}));
+    await AsyncStorage.setItem('cpc_followed_bloggers',JSON.stringify(d.followed_bloggers|| []));
+    await AsyncStorage.setItem('cpc_user_stores',      JSON.stringify(d.user_stores      || []));
+  } catch (e) {
+    console.warn('Sync pull failed:', e.message);
+  }
+}
+
+// ── Component ────────────────────────────────────────────────────────────────
+export default function AuthScreen({ onAuth }) {
+  const [mode, setMode]         = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName]         = useState('');
   const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
 
-  const handleLogin = async () => {
-    if (!email || !password) { setError('Please enter email and password'); return; }
-    setLoading(true); setError('');
+  async function handleSignIn() {
+    if (!email || !password) return Alert.alert('Please enter email and password');
+    setLoading(true);
     try {
-      await onLogin(email, password);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      const user = data.user;
+      const session = data.session;
+      // Save auth
+      await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+        id: user.id, email: user.email,
+        token: session.access_token,
+        refreshToken: session.refresh_token
+      }));
+      // Pull all data
+      await syncPull(user.id, session.access_token);
+      onAuth(user);
     } catch (e) {
-      setError(e.message || 'Login failed');
+      Alert.alert('Sign in failed', e.message);
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  async function handleSignUp() {
+    if (!email || !password || !name) return Alert.alert('Please fill in all fields');
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      const user = data.user;
+      const session = data.session;
+      // Save name to profile
+      await AsyncStorage.setItem('remi_explicit', JSON.stringify({ userName: name }));
+      await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+        id: user.id, email: user.email,
+        token: session?.access_token,
+        refreshToken: session?.refresh_token
+      }));
+      if (session) await syncPull(user.id, session.access_token);
+      onAuth(user);
+    } catch (e) {
+      Alert.alert('Sign up failed', e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.inner}>
-        {/* Logo */}
-        <View style={styles.logoWrap}>
-          <Text style={styles.logoLeaf}>🌿</Text>
-          <Text style={styles.logoWord}>fern</Text>
-          <Text style={styles.logoSub}>Weekly ad to dinner table</Text>
+    <SafeAreaView style={s.safe}>
+      <KeyboardAvoidingView
+        style={s.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Header */}
+        <View style={s.header}>
+          <Text style={s.logo}>🌿 fern</Text>
+          <Text style={s.tagline}>WEEKLY AD TO DINNER TABLE · PATENT PENDING</Text>
         </View>
 
         {/* Card */}
-        <View style={[styles.card, shadow.strong]}>
-          <Text style={styles.cardTitle}>Sign in</Text>
+        <View style={s.card}>
+          {/* Tab switcher */}
+          <View style={s.tabs}>
+            <TouchableOpacity
+              style={[s.tab, mode === 'signin' && s.tabActive]}
+              onPress={() => setMode('signin')}
+            >
+              <Text style={[s.tabText, mode === 'signin' && s.tabTextActive]}>Sign In</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.tab, mode === 'signup' && s.tabActive]}
+              onPress={() => setMode('signup')}
+            >
+              <Text style={[s.tabText, mode === 'signup' && s.tabTextActive]}>Create Account</Text>
+            </TouchableOpacity>
+          </View>
 
-          <Text style={styles.label}>Email</Text>
+          {/* Fields */}
+          {mode === 'signup' && (
+            <TextInput
+              style={s.input}
+              placeholder="Your first name"
+              placeholderTextColor={C.brown}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+            />
+          )}
           <TextInput
-            style={styles.input}
+            style={s.input}
+            placeholder="Email address"
+            placeholderTextColor={C.brown}
             value={email}
             onChangeText={setEmail}
-            placeholder="your@email.com"
-            placeholderTextColor={colors.brown}
             keyboardType="email-address"
             autoCapitalize="none"
-            autoComplete="email"
+            autoCorrect={false}
           />
-
-          <Text style={styles.label}>Password</Text>
           <TextInput
-            style={styles.input}
+            style={s.input}
+            placeholder="Password"
+            placeholderTextColor={C.brown}
             value={password}
             onChangeText={setPassword}
-            placeholder="••••••••"
-            placeholderTextColor={colors.brown}
             secureTextEntry
           />
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-
+          {/* Button */}
           <TouchableOpacity
-            style={[styles.btn, loading && styles.btnDisabled]}
-            onPress={handleLogin}
-            activeOpacity={0.8}
+            style={s.btn}
+            onPress={mode === 'signin' ? handleSignIn : handleSignUp}
             disabled={loading}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.btnText}>Sign in to Fern</Text>
+              : <Text style={s.btnText}>{mode === 'signin' ? 'Sign In' : 'Create Account'}</Text>
             }
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.footer}>Use the same account as app.clickpickandcook.com</Text>
+        <Text style={s.footer}>✓ Always free · No ads · No spam</Text>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container:   { flex:1, backgroundColor:colors.forest },
-  inner:       { flex:1, justifyContent:'center', paddingHorizontal:24 },
-  logoWrap:    { alignItems:'center', marginBottom:32 },
-  logoLeaf:    { fontSize:48, marginBottom:4 },
-  logoWord:    { fontSize:42, fontWeight:'800', color:colors.onFern, fontFamily:'serif', fontStyle:'italic' },
-  logoSub:     { fontSize:13, color:colors.muted, marginTop:4, letterSpacing:0.3 },
-  card:        { backgroundColor:colors.parch, borderRadius:radius.xl, padding:24 },
-  cardTitle:   { fontSize:22, fontWeight:'800', color:colors.ink, fontFamily:'serif', marginBottom:20 },
-  label:       { fontSize:11, fontWeight:'800', color:colors.brown, textTransform:'uppercase', letterSpacing:0.8, marginBottom:6 },
-  input:       { backgroundColor:'#fff', borderWidth:1, borderColor:colors.border, borderRadius:radius.sm, paddingHorizontal:14, paddingVertical:12, fontSize:15, color:colors.ink, marginBottom:16 },
-  error:       { color:colors.voiceRed, fontSize:13, marginBottom:12, fontWeight:'600' },
-  btn:         { backgroundColor:colors.orange, borderRadius:radius.md, paddingVertical:14, alignItems:'center', marginTop:4 },
-  btnDisabled: { opacity:0.6 },
-  btnText:     { color:'#fff', fontSize:16, fontWeight:'800' },
-  footer:      { textAlign:'center', color:colors.muted, fontSize:12, marginTop:24, lineHeight:18 },
+const s = StyleSheet.create({
+  safe:         { flex: 1, backgroundColor: C.forest },
+  container:    { flex: 1, justifyContent: 'center', padding: 24 },
+  header:       { alignItems: 'center', marginBottom: 32 },
+  logo:         { fontSize: 42, color: '#FDFAF6', fontFamily: 'PlayfairDisplay-Bold', letterSpacing: -1 },
+  tagline:      { fontSize: 9, color: C.sage, letterSpacing: 1.5, marginTop: 4, fontFamily: 'Jost-Regular' },
+  card:         { backgroundColor: C.parch, borderRadius: 20, padding: 20 },
+  tabs:         { flexDirection: 'row', backgroundColor: C.border, borderRadius: 10, padding: 3, marginBottom: 20 },
+  tab:          { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  tabActive:    { backgroundColor: C.forest },
+  tabText:      { fontSize: 14, color: C.brown, fontFamily: 'Jost-SemiBold' },
+  tabTextActive:{ color: '#FDFAF6' },
+  input:        { backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, borderRadius: 10,
+                  paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.ink,
+                  fontFamily: 'Jost-Regular', marginBottom: 12 },
+  btn:          { backgroundColor: C.orange, borderRadius: 12, paddingVertical: 14,
+                  alignItems: 'center', marginTop: 4 },
+  btnText:      { color: '#fff', fontSize: 16, fontFamily: 'Jost-Bold' },
+  footer:       { textAlign: 'center', color: C.sage, fontSize: 12, marginTop: 24, fontFamily: 'Jost-Regular' },
 });
