@@ -21,7 +21,6 @@ import { colors, radius, shadow } from './src/constants/tokens';
 import { useFonts } from 'expo-font';
 
 const Tab = createBottomTabNavigator();
-const emoji = "..."
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -77,10 +76,10 @@ async function checkForUpdate() {
 }
 
 export default function App() {
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signInWithSupabase, signUpWithSupabase, signOut } = useAuth();
+  console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
   const [arrivedStore, setArrivedStore] = useState(null);
   const [activeTab, setActiveTab] = useState('Home');
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
   const [fontsLoaded] = useFonts({
 
@@ -97,15 +96,6 @@ export default function App() {
     'Jost-Bold': require('./assets/fonts/Jost-Bold.ttf'),
 
   });
-
-  const openMoreMenu = () => {
-    setShowMoreMenu(true);
-  };
-
-  const closeMoreMenu = () => {
-    setShowMoreMenu(false);
-  };
-
 
   // Mock stores — replace with sync from useSync
   const userStores = user ? [] : []; // populated from sync data
@@ -133,83 +123,20 @@ export default function App() {
     return (
       <>
         <StatusBar style="light" />
-        <LoginScreen onLogin={signIn} />
+        <LoginScreen 
+          onAuthSuccess={() => {
+            // User state is automatically updated by useAuth hook
+            // The app will re-render when user state changes
+          }}
+          signInWithSupabase={signInWithSupabase}
+          signUpWithSupabase={signUpWithSupabase}
+        />
       </>
     );
   }
 
   return (
     <NavigationContainer>
-    {showMoreMenu && (
-
-      <View
-
-        style={{
-
-          position: 'absolute',
-
-          top: 0,
-
-          left: 0,
-
-          right: 0,
-
-          bottom: 0,
-
-          backgroundColor: 'rgba(0,0,0,0.5)',
-
-          zIndex: 999,
-
-        }}
-
-      >
-
-        <TouchableOpacity
-
-          style={{ flex: 1 }}
-
-          onPress={closeMoreMenu}
-
-        />
-
-        <View
-
-          style={{
-
-            backgroundColor: '#123F1C',
-
-            padding: 20,
-
-          }}
-
-        >
-
-          <Text
-
-            style={{
-
-              color: '#B59C48',
-
-              textAlign: 'center',
-
-              marginBottom: 20,
-
-            }}
-
-          >
-
-            Buttons Displayed here
-
-          </Text>
-
-          {/* Your buttons */}
-
-        </View>
-
-      </View>
-
-    )}
-
       <StatusBar style="light" />
 
       {/* Store arrival banner */}
@@ -266,7 +193,7 @@ export default function App() {
           tabBarIcon: ({ focused }) => <TabIcon emoji="📆" focused={focused} />,
         }}
         >
-        {() => <LoginScreen user={user} />}
+        {() => <FamilyScreen user={user} />}
         </Tab.Screen>
         <Tab.Screen
         name="Recipes"
@@ -276,25 +203,25 @@ export default function App() {
         </Tab.Screen>
 
         <Tab.Screen
-        name="MORE"
+        name="Logout"
         listeners={{
           tabPress: (e) => {
             e.preventDefault();
-            openMoreMenu();
-            },
-            }}
-            options={{
-              tabBarIcon: ({ focused }) => (
-              <Ionicons
-              name="ellipsis-horizontal"
+            signOut();
+          },
+        }}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <Ionicons
+              name="log-out"
               size={28}
               color={focused ? '#B59C48' : '#999'}
-              />
-              ),
-              }}
-              >
-              {() => <RecipesScreen user={user} />}
-              </Tab.Screen>
+            />
+          ),
+        }}
+        >
+        {() => null}
+        </Tab.Screen>
 
       </Tab.Navigator>
     </NavigationContainer>

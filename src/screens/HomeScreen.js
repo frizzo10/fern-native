@@ -142,17 +142,16 @@ export default function HomeScreen({ user }) {
       </View>
 
     </View>
-  ),
+    </View>
 
-</View>
       <ScrollView
         vertical
-        showsHorizontalScrollIndicator = {false}
-        style={styles.weekScrollOuter} >
+        showsHorizontalScrollIndicator={false}
+        style={styles.weekScrollOuter}>
 
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>{getGreeting()}, {"\n"} {userName} </Text>
+          <Text style={styles.greeting}>{getGreeting()}, {"\n"} {userName}</Text>
           <Text style={styles.subheading}>"Here's your food life at a glance"</Text>
         </View>
         <View style={styles.proBadge}>
@@ -207,10 +206,10 @@ export default function HomeScreen({ user }) {
       {/* Stats */}
       <View style={styles.statsRow}>
         {[
-          { label: 'Recipes Saved',    val: `2` },
-          { label: 'Cookbooks', val: '1' },
-          { label: 'Bloggers Following',   val: `2` },
-          { label: 'Meals Planned',    val: '0' },
+          { label: 'Recipes Saved',    val: `${(data.recipes || []).length}` },
+          { label: 'Cookbooks', val: `${(data.books || []).length}` },
+          { label: 'Bloggers Following',   val: `${(data.followers || []).length}` },
+          { label: 'Meals Planned',    val: `${Object.keys(data.mealPlan || {}).length}` },
         ].map(({ label, val }) => (
           <View key={label} style={[styles.statCard, shadow.card]}>
 
