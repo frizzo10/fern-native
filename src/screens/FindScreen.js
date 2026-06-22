@@ -24,7 +24,7 @@ const C = {
 
 const AI_URL       = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const TTS_URL      = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
-const WHISPER_KEY  = 'Your AI Key'; // replace with real key
+const WHISPER_KEY  = process.env.WHISPER_KEY;
 
 const STOP_WORDS = ['stop', 'goodbye', 'done', 'exit', 'bye'];
 

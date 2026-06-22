@@ -129,6 +129,7 @@ export default function App() {
   if (loading) return null;
 
   if (!user) {
+    console.log(user)
     return (
       <>
         <StatusBar style="light" />

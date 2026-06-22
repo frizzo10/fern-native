@@ -12,11 +12,13 @@ export function useAuth() {
   useEffect(() => {
     SecureStore.getItemAsync(AUTH_KEY).then(val => {
       if (val) setUser(JSON.parse(val));
+       console.log(val)
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
 
   const signIn = async (email, password) => {
+    console.log(email,password)
     const res = await fetch(AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
