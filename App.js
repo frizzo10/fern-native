@@ -343,7 +343,8 @@ const styles = StyleSheet.create({
   headerSize:  { 
     paddingTop: 20,
     paddingBottom: 20,
-    paddingHorizontal: 20
+    paddingHorizontal: 20,
+    backgroundColor: "#1C3A1A",
     },
 
   headerImage: {
@@ -355,9 +356,9 @@ const styles = StyleSheet.create({
     },
 
   headerTitle:{
-    color: '#A8D5A2',
     fontSize: 8,
     fontFamily:'Jost_700Bold',
+    color: '#A8D5A2',
     letterSpacing: 2,
     textTransform: 'uppercase',
     },
