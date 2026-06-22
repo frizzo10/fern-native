@@ -1,11 +1,36 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, Animated, ActivityIndicator,
+  StyleSheet, Animated, ActivityIndicator,
+
 } from 'react-native';
+import {
+  SafeAreaView,
+  SafeAreaProvider,
+  SafeAreaInsetsContext,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
+import { useFonts } from 'expo-font';
+import {
+
+  PlayfairDisplay_400Regular,
+
+  PlayfairDisplay_700Bold,
+
+} from '@expo-google-fonts/playfair-display';
+
+import {
+
+  Jost_400Regular,
+
+  Jost_600SemiBold,
+
+  Jost_700Bold,
+
+} from '@expo-google-fonts/jost';
 
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 const MEALS = ['Breakfast','Lunch','Dinner'];
@@ -94,6 +119,16 @@ function VoiceOrb({ isListening, isProcessing, onPress }) {
 }
 
 export default function HomeScreen({ user }) {
+const [fontsLoaded] = useFonts({
+  Playfair400: PlayfairDisplay_400Regular,
+  Playfair700: PlayfairDisplay_700Bold,
+
+  Jost400: Jost_400Regular,
+  Jost600: Jost_600SemiBold,
+  Jost700: Jost_700Bold,
+});
+
+
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
   const { data, loading } = useSync(user);
@@ -156,7 +191,7 @@ export default function HomeScreen({ user }) {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>{getGreeting()}, {userName}</Text>
+          <Text style={styles.greeting}>{getGreeting()},{"\n"}{userName}</Text>
           <Text style={styles.subheading}>Here's your week at a glance</Text>
         </View>
         <View style={styles.proBadge}>
@@ -225,9 +260,9 @@ export default function HomeScreen({ user }) {
 const styles = StyleSheet.create({
   container:       { flex: 1, backgroundColor: colors.parch },
   header:          { flexDirection:'row', justifyContent:'space-between', alignItems:'flex-start', paddingHorizontal:20, paddingTop:16, paddingBottom:12 },
-  greeting:        { fontSize:26, fontWeight:'800', color:colors.ink, fontFamily:'serif' },
+  greeting:        { fontSize:16, fontWeight:'800', color:colors.ink, fontFamily:'Jost_700Bold' },
   subheading:      { fontSize:13, color:colors.brown, marginTop:2 },
-  proBadge:        { backgroundColor:colors.forest, borderRadius:radius.full, paddingHorizontal:10, paddingVertical:4 },
+  proBadge:        { backgroundColor:colors.forest, borderRadius:radius.full, paddingHorizontal:10, paddingVertical:5, marginLeft:5 },
   proBadgeText:    { color:colors.onFern, fontSize:10, fontWeight:'800', letterSpacing:0.5 },
 
   voiceBar:        { backgroundColor:colors.forest, marginHorizontal:16, borderRadius:radius.lg, padding:12, marginBottom:8 },

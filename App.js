@@ -1,21 +1,35 @@
 import React, { useEffect, useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Image, Text, View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 import HomeScreen     from './src/screens/HomeScreen';
 import FindScreen     from './src/screens/FindScreen';
 import ShoppingScreen from './src/screens/ShoppingScreen';
+import FamilyScreen from './src/screens/FamilyScreen';
 import RecipesScreen  from './src/screens/RecipesScreen';
 import LoginScreen    from './src/screens/LoginScreen';
 import { useAuth }    from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
+import {
+
+  useFonts,
+
+  Jost_400Regular,
+
+  Jost_700Bold,
+
+} from '@expo-google-fonts/jost';
 
 const Tab = createBottomTabNavigator();
+const emoji = "..."
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -74,6 +88,16 @@ export default function App() {
   const { user, loading, signIn } = useAuth();
   const [arrivedStore, setArrivedStore] = useState(null);
   const [activeTab, setActiveTab] = useState('Home');
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+
+  const openMoreMenu = () => {
+    setShowMoreMenu(true);
+  };
+
+  const closeMoreMenu = () => {
+    setShowMoreMenu(false);
+  };
+
 
   // Mock stores — replace with sync from useSync
   const userStores = user ? [] : []; // populated from sync data
@@ -107,6 +131,99 @@ export default function App() {
 
   return (
     <NavigationContainer>
+    {showMoreMenu && (
+
+      <View
+
+        style={{
+
+          position: 'absolute',
+
+          top: 0,
+
+          left: 0,
+
+          right: 0,
+
+          bottom: 0,
+
+          backgroundColor: 'rgba(0,0,0,0.5)',
+
+          zIndex: 999,
+
+        }}
+
+      >
+
+        <TouchableOpacity
+
+          style={{ flex: 1 }}
+
+          onPress={closeMoreMenu}
+
+        />
+
+        <View
+
+          style={{
+
+            backgroundColor: '#123F1C',
+
+            padding: 20,
+
+          }}
+
+        >
+
+          <Text
+
+            style={{
+
+              color: '#B59C48',
+
+              textAlign: 'center',
+
+              marginBottom: 20,
+
+            }}
+
+          >
+
+            Buttons Displayed here
+
+          </Text>
+
+          {/* Your buttons */}
+
+        </View>
+
+      </View>
+
+    )}
+    <View style= {styles.headerSize}>
+
+    <View style={styles.mainHeaderView}>
+
+    <Image
+      source={require('./assets/icon.png')}
+      style={styles.headerImage}
+    />
+      <View>
+
+        <Text style={styles.headerTextView}>
+        fern
+        </Text>
+
+        <Text style={styles.headerTitle}>
+          WEEKLY AD TO DINNER TABLE • PATENT{"\n"}PENDING
+        </Text>
+
+      </View>
+
+    </View>
+  ),
+
+</View>
       <StatusBar style="light" />
 
       {/* Store arrival banner */}
@@ -121,13 +238,17 @@ export default function App() {
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
+            headerStyle: {
+            backgroundColor: '#123F1C',},
+            headerTintColor: '#fff',
+
           tabBarStyle: {
             backgroundColor: colors.forest,
-            borderTopColor: 'rgba(168,213,162,0.2)',
+            borderTopColor: 'rgba(168,200,162,0.2)',
             borderTopWidth: 1,
             paddingBottom: 6,
             paddingTop: 6,
-            height: 62,
+            height: 70,
           },
           tabBarActiveTintColor:   colors.orange,
           tabBarInactiveTintColor: 'rgba(168,213,162,0.45)',
@@ -140,6 +261,7 @@ export default function App() {
           },
         }}
       >
+
         <Tab.Screen
           name="Home"
           options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }}
@@ -147,29 +269,52 @@ export default function App() {
           {() => <HomeScreen user={user} />}
         </Tab.Screen>
         <Tab.Screen
-          name="Find"
-          component={FindScreen}
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
+        name="Find"
+        component={FindScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
         />
         <Tab.Screen
-          name="Shopping"
-          options={{
-            tabBarLabel: 'Shop',
-            tabBarIcon: ({ focused }) => <TabIcon emoji="🛒" focused={focused} />,
-          }}
+        name="Family"
+        options={{
+          tabBarLabel: 'FAMILYHUB',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="📆" focused={focused} />,
+        }}
         >
-          {() => <ShoppingScreen user={user} />}
+        {() => <FamilyScreen user={user} />}
         </Tab.Screen>
         <Tab.Screen
-          name="Recipes"
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
+        name="Recipes"
+        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
         >
-          {() => <RecipesScreen user={user} />}
+        {() => <RecipesScreen user={user} />}
         </Tab.Screen>
+
+        <Tab.Screen
+        name="MORE"
+        listeners={{
+          tabPress: (e) => {
+            e.preventDefault();
+            openMoreMenu();
+            },
+            }}
+            options={{
+              tabBarIcon: ({ focused }) => (
+              <Ionicons
+              name="ellipsis-horizontal"
+              size={28}
+              color={focused ? '#B59C48' : '#999'}
+              />
+              ),
+              }}
+              >
+              {() => <RecipesScreen user={user} />}
+              </Tab.Screen>
+
       </Tab.Navigator>
     </NavigationContainer>
   );
 }
+
 
 const styles = StyleSheet.create({
   banner: {
@@ -194,4 +339,43 @@ const styles = StyleSheet.create({
   bannerBtnText:  { color: '#fff', fontWeight: '800', fontSize: 13 },
   bannerClose:    { padding: 6 },
   bannerCloseText:{ color: 'rgba(255,255,255,0.4)', fontSize: 18 },
+
+  headerSize:  { 
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20
+    },
+
+  headerImage: {
+    width: 42,
+    height: 42,
+    resizeMode: 'contain',
+    marginRight: 20,
+    marginTop: 30
+    },
+
+  headerTitle:{
+    color: '#A8D5A2',
+    fontSize: 8,
+    fontFamily:'Jost_700Bold',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    },
+
+  mainHeaderView: {
+    flexDirection: 'row',
+    height: 50,
+    paddingVertical: 0,
+    alignItems: 'center',
+    },
+
+  headerTextView: {
+    color: '#F5EFE6',
+    marginTop: 20,
+    fontFamily:'Jost_700Bold',
+    fontSize: 22,
+    fontWeight: '600',
+    letterSpacing: 1,
+  }
+
 });

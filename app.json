@@ -58,7 +58,15 @@
         }
       ],
       "expo-updates",
-      "expo-audio"
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow $(PRODUCT_NAME) to record audio.",
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": true
+        }
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {

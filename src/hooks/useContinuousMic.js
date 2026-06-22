@@ -23,6 +23,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
   const silenceTimeoutRef = useRef(null);
   const maxRecordingTimeoutRef = useRef(null);
   const hasSpeechRef = useRef(false);
+  const stoppedBySilenceRef = useRef(false);
 
 //Player
   const player = useAudioPlayer(
@@ -239,7 +240,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
   const start = useCallback(async () => {
     try {
       if (activeRef.current) return;
-      
+
       if (AudioModule.setAudioModeAsync) {
         await AudioModule.setAudioModeAsync({
           allowsRecording: true,
@@ -330,11 +331,11 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
           !silenceTimeoutRef.current
           ) {
           console.log('[vad] start timer');
-
-        silenceTimeoutRef.current = setTimeout(() => {
+          stoppedBySilenceRef.current = false;
+          silenceTimeoutRef.current = setTimeout(() => {
 
           console.log('[vad] silence detected');
-
+          stoppedBySilenceRef.current = true;
           silenceTimeoutRef.current = null;
 
           if (
@@ -431,7 +432,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
   return {
     isListening,
     isProcessing,
-    start,
+    // start,
     stop,
   };
 }
