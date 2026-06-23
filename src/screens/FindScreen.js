@@ -305,52 +305,52 @@ export default function FindScreen() {
           </View>
         ) : null}
 
-      {/* Messages */}
-      <ScrollView
-        ref={scrollRef}
-        style={s.messages}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-        contentContainerStyle={s.messagesContent}
-      >
-        {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
-        {isThinking && (
-          <View style={s.thinking}>
-            <ActivityIndicator size="small" color={C.orange} />
-            <Text style={s.thinkingText}>Fern is thinking...</Text>
-          </View>
-        )}
-      </ScrollView>
-
-      {/* Mic button */}
-      <View style={s.micArea}>
-        <MicButton
-          isListening={isListening}
-          onPress={toggleMic}
-          disabled={isThinking || isSpeaking || loopState === 'speaking'}
-        />
-      </View>
-
-      {/* Text input fallback */}
-      <View style={s.inputRow}>
-        <TextInput
-          style={s.textInput}
-          placeholder="Or type to Fern..."
-          placeholderTextColor={C.brown}
-          value={textInput}
-          onChangeText={setTextInput}
-          onSubmitEditing={sendText}
-          returnKeyType="send"
-          editable={!isThinking && !isSpeaking && loopState !== 'speaking'}
-        />
-        <TouchableOpacity
-          style={[s.sendBtn, (!textInput.trim() || isThinking) && s.sendBtnDisabled]}
-          onPress={sendText}
-          disabled={!textInput.trim() || isThinking || isSpeaking}
+        {/* Messages */}
+        <ScrollView
+          ref={scrollRef}
+          style={s.messages}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          contentContainerStyle={s.messagesContent}
         >
-          <Text style={s.sendBtnText}>→</Text>
-        </TouchableOpacity>
-      </View>
+          {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
+          {isThinking && (
+            <View style={s.thinking}>
+              <ActivityIndicator size="small" color={C.orange} />
+              <Text style={s.thinkingText}>Fern is thinking...</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {/* Mic button */}
+        <View style={s.micArea}>
+          <MicButton
+            isListening={isListening}
+            onPress={toggleMic}
+            disabled={isThinking || isSpeaking || loopState === 'speaking'}
+          />
+        </View>
+
+        {/* Text input fallback */}
+        <View style={s.inputRow}>
+          <TextInput
+            style={s.textInput}
+            placeholder="Or type to Fern..."
+            placeholderTextColor={C.brown}
+            value={textInput}
+            onChangeText={setTextInput}
+            onSubmitEditing={sendText}
+            returnKeyType="send"
+            editable={!isThinking && !isSpeaking && loopState !== 'speaking'}
+          />
+          <TouchableOpacity
+            style={[s.sendBtn, (!textInput.trim() || isThinking) && s.sendBtnDisabled]}
+            onPress={sendText}
+            disabled={!textInput.trim() || isThinking || isSpeaking}
+          >
+            <Text style={s.sendBtnText}>→</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </KeyboardAvoidingView>
   );

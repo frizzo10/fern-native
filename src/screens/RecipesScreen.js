@@ -345,144 +345,144 @@ export default function RecipesScreen({ user }) {
                   keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
                   contentContainerStyle={styles.overlayContent}
                 >
-                <View style={styles.overlayImageWrap}>
-                  <ImageBackground
-                    source={selectedRecipe.image ? { uri: selectedRecipe.image } : require('../../assets/icon.png')}
-                    style={styles.overlayImage}
-                    imageStyle={styles.overlayImageInner}
-                  />
-
-                  <TouchableOpacity
-                    style={styles.overlayCloseBtn}
-                    onPress={() => setSelectedRecipe(null)}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.overlayCloseBtnText}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-
-                <View style={styles.overlayBody}>
-                  <Text style={styles.overlayFoodEmoji}>🥗</Text>
-                  <Text style={styles.overlayTitle}>{selectedRecipe.title}</Text>
-
-                  <View style={styles.overlayMetaRow}>
-                    <Text style={styles.overlayMetaText}>🌍 {selectedRecipe.category}</Text>
-                    <Text style={styles.overlayMetaText}>🍽 {selectedRecipe.meal}</Text>
-                    {selectedRecipe.time ? <Text style={styles.overlayMetaText}>⏱ {selectedRecipe.time}</Text> : null}
-
-                    <View style={styles.overlayDifficultyPill}>
-                      {Array.from({ length: 3 }, (_, i) => {
-                        const dotIdx = i + 1;
-                        const isFilled = dotIdx <= getDifficultyLevel(selectedRecipe.difficulty);
-                        return (
-                          <View
-                            key={`detail-dot-${dotIdx}`}
-                            style={[
-                              styles.difficultyDot,
-                              isFilled ? styles.difficultyDotFilled : styles.difficultyDotEmpty,
-                            ]}
-                          />
-                        );
-                      })}
-                      <Text style={styles.overlayDifficultyText}>{selectedRecipe.difficulty}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.overlayDivider} />
-
-                  <View style={styles.overlayDescriptionCard}>
-                    <Text style={styles.overlayDescriptionText}>{selectedRecipe.description}</Text>
-                  </View>
-
-                  <View style={styles.overlayThumbsRow}>
+                  <View style={styles.overlayImageWrap}>
                     <ImageBackground
                       source={selectedRecipe.image ? { uri: selectedRecipe.image } : require('../../assets/icon.png')}
-                      style={styles.overlayThumbImage}
-                      imageStyle={styles.overlayThumbImageInner}
+                      style={styles.overlayImage}
+                      imageStyle={styles.overlayImageInner}
                     />
-                    <View style={styles.overlayCameraPlaceholder}>
-                      <Text style={styles.overlayCameraIcon}>📷</Text>
+
+                    <TouchableOpacity
+                      style={styles.overlayCloseBtn}
+                      onPress={() => setSelectedRecipe(null)}
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.overlayCloseBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.overlayBody}>
+                    <Text style={styles.overlayFoodEmoji}>🥗</Text>
+                    <Text style={styles.overlayTitle}>{selectedRecipe.title}</Text>
+
+                    <View style={styles.overlayMetaRow}>
+                      <Text style={styles.overlayMetaText}>🌍 {selectedRecipe.category}</Text>
+                      <Text style={styles.overlayMetaText}>🍽 {selectedRecipe.meal}</Text>
+                      {selectedRecipe.time ? <Text style={styles.overlayMetaText}>⏱ {selectedRecipe.time}</Text> : null}
+
+                      <View style={styles.overlayDifficultyPill}>
+                        {Array.from({ length: 3 }, (_, i) => {
+                          const dotIdx = i + 1;
+                          const isFilled = dotIdx <= getDifficultyLevel(selectedRecipe.difficulty);
+                          return (
+                            <View
+                              key={`detail-dot-${dotIdx}`}
+                              style={[
+                                styles.difficultyDot,
+                                isFilled ? styles.difficultyDotFilled : styles.difficultyDotEmpty,
+                              ]}
+                            />
+                          );
+                        })}
+                        <Text style={styles.overlayDifficultyText}>{selectedRecipe.difficulty}</Text>
+                      </View>
                     </View>
-                  </View>
 
-                  <Text style={styles.overlaySectionTitle}>INGREDIENTS <Text style={styles.overlayServings}>• {selectedRecipe.servings} servings</Text></Text>
+                    <View style={styles.overlayDivider} />
 
-                  <View style={styles.overlayTopActionsRow}>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>↕ Scale</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>🍷 Pair</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>🎨 Plate</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayActionPill, styles.overlayActionPillCook]}><Text style={styles.overlayActionText}>🎙 Cook</Text></TouchableOpacity>
-                  </View>
+                    <View style={styles.overlayDescriptionCard}>
+                      <Text style={styles.overlayDescriptionText}>{selectedRecipe.description}</Text>
+                    </View>
 
-                  <View style={styles.overlayDivider} />
+                    <View style={styles.overlayThumbsRow}>
+                      <ImageBackground
+                        source={selectedRecipe.image ? { uri: selectedRecipe.image } : require('../../assets/icon.png')}
+                        style={styles.overlayThumbImage}
+                        imageStyle={styles.overlayThumbImageInner}
+                      />
+                      <View style={styles.overlayCameraPlaceholder}>
+                        <Text style={styles.overlayCameraIcon}>📷</Text>
+                      </View>
+                    </View>
 
-                  <View style={styles.overlayIngredientsList}>
-                    {selectedRecipe.ingredients.map((ingredient, idx) => (
-                      <View key={`${selectedRecipe.id}-ing-${idx}`} style={styles.overlayIngredientItem}>
-                        <Text style={styles.overlayIngredientText}>- {ingredient}</Text>
+                    <Text style={styles.overlaySectionTitle}>INGREDIENTS <Text style={styles.overlayServings}>• {selectedRecipe.servings} servings</Text></Text>
+
+                    <View style={styles.overlayTopActionsRow}>
+                      <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>↕ Scale</Text></TouchableOpacity>
+                      <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>🍷 Pair</Text></TouchableOpacity>
+                      <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>🎨 Plate</Text></TouchableOpacity>
+                      <TouchableOpacity style={[styles.overlayActionPill, styles.overlayActionPillCook]}><Text style={styles.overlayActionText}>🎙 Cook</Text></TouchableOpacity>
+                    </View>
+
+                    <View style={styles.overlayDivider} />
+
+                    <View style={styles.overlayIngredientsList}>
+                      {selectedRecipe.ingredients.map((ingredient, idx) => (
+                        <View key={`${selectedRecipe.id}-ing-${idx}`} style={styles.overlayIngredientItem}>
+                          <Text style={styles.overlayIngredientText}>- {ingredient}</Text>
+                        </View>
+                      ))}
+                    </View>
+
+                    <Text style={styles.overlayTipText}>💡 Tap any ingredient for Pro substitutions</Text>
+
+                    <Text style={styles.overlaySectionTitle}>METHOD</Text>
+                    <View style={styles.overlayDivider} />
+
+                    {selectedRecipe.methodSteps.map((step, idx) => (
+                      <View key={`${selectedRecipe.id}-step-${idx}`} style={styles.overlayStepRow}>
+                        <View style={styles.overlayStepNum}><Text style={styles.overlayStepNumText}>{idx + 1}</Text></View>
+                        <Text style={styles.overlayStepText}>{step}</Text>
                       </View>
                     ))}
-                  </View>
 
-                  <Text style={styles.overlayTipText}>💡 Tap any ingredient for Pro substitutions</Text>
+                    <View style={styles.overlayDivider} />
+                    <Text style={styles.overlaySectionTitle}>MY NOTE</Text>
+                    <View style={styles.overlayDivider} />
 
-                  <Text style={styles.overlaySectionTitle}>METHOD</Text>
-                  <View style={styles.overlayDivider} />
-
-                  {selectedRecipe.methodSteps.map((step, idx) => (
-                    <View key={`${selectedRecipe.id}-step-${idx}`} style={styles.overlayStepRow}>
-                      <View style={styles.overlayStepNum}><Text style={styles.overlayStepNumText}>{idx + 1}</Text></View>
-                      <Text style={styles.overlayStepText}>{step}</Text>
+                    <View style={styles.overlayNoteBox}>
+                      <TextInput
+                        multiline
+                        placeholder="Add your own note - tips, substitutions, memories..."
+                        placeholderTextColor="#A9A9A9"
+                        value={noteText}
+                        onChangeText={setNoteText}
+                        style={styles.overlayNoteInput}
+                      />
                     </View>
-                  ))}
 
-                  <View style={styles.overlayDivider} />
-                  <Text style={styles.overlaySectionTitle}>MY NOTE</Text>
-                  <View style={styles.overlayDivider} />
-
-                  <View style={styles.overlayNoteBox}>
-                    <TextInput
-                      multiline
-                      placeholder="Add your own note - tips, substitutions, memories..."
-                      placeholderTextColor="#A9A9A9"
-                      value={noteText}
-                      onChangeText={setNoteText}
-                      style={styles.overlayNoteInput}
-                    />
-                  </View>
-
-                  <TouchableOpacity
-                    style={[styles.overlaySaveNoteBtn, isSaving ? styles.disabledBtn : null]}
-                    activeOpacity={0.85}
-                    onPress={persistRecipeNote}
-                    disabled={isSaving}
-                  >
-                    <Text style={styles.overlaySaveNoteBtnText}>SAVE NOTE</Text>
-                  </TouchableOpacity>
-
-                  <View style={styles.overlayDivider} />
-
-                  <View style={styles.overlayBottomActionsWrap}>
                     <TouchableOpacity
-                      style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark, isSaving ? styles.disabledBtn : null]}
-                      onPress={handleSaveRecipe}
+                      style={[styles.overlaySaveNoteBtn, isSaving ? styles.disabledBtn : null]}
+                      activeOpacity={0.85}
+                      onPress={persistRecipeNote}
                       disabled={isSaving}
                     >
-                      <Text style={styles.overlayBottomBtnTextLight}>💾 SAVE</Text>
+                      <Text style={styles.overlaySaveNoteBtnText}>SAVE NOTE</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}><Text style={styles.overlayBottomBtnTextLight}>✨ Share</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]}><Text style={styles.overlayBottomBtnTextLight}>🛒 List</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>🥕 Instacart</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>✏️ Edit</Text></TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.overlayBottomBtn, styles.overlayBottomBtnClose]}
-                      onPress={() => setSelectedRecipe(null)}
-                    >
-                      <Text style={styles.overlayBottomBtnTextDark}>Close</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDelete]}><Text style={styles.overlayBottomBtnTextDelete}>🗑 Delete</Text></TouchableOpacity>
+
+                    <View style={styles.overlayDivider} />
+
+                    <View style={styles.overlayBottomActionsWrap}>
+                      <TouchableOpacity
+                        style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark, isSaving ? styles.disabledBtn : null]}
+                        onPress={handleSaveRecipe}
+                        disabled={isSaving}
+                      >
+                        <Text style={styles.overlayBottomBtnTextLight}>💾 SAVE</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}><Text style={styles.overlayBottomBtnTextLight}>✨ Share</Text></TouchableOpacity>
+                      <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]}><Text style={styles.overlayBottomBtnTextLight}>🛒 List</Text></TouchableOpacity>
+                      <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>🥕 Instacart</Text></TouchableOpacity>
+                      <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>✏️ Edit</Text></TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.overlayBottomBtn, styles.overlayBottomBtnClose]}
+                        onPress={() => setSelectedRecipe(null)}
+                      >
+                        <Text style={styles.overlayBottomBtnTextDark}>Close</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDelete]}><Text style={styles.overlayBottomBtnTextDelete}>🗑 Delete</Text></TouchableOpacity>
+                    </View>
                   </View>
-                </View>
                 </ScrollView>
               </View>
             </KeyboardAvoidingView>

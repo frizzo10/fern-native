@@ -11,23 +11,23 @@ import {
 
 // ── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
-  forest:  '#1C3A1A',
-  bright:  '#2D5A27',
-  orange:  '#E8651A',
-  sage:    '#A8D5A2',
-  parch:   '#FDFAF6',
-  ink:     '#1A0E05',
-  brown:   '#9C835F',
-  border:  '#E8E0D0',
+  forest: '#1C3A1A',
+  bright: '#2D5A27',
+  orange: '#E8651A',
+  sage: '#A8D5A2',
+  parch: '#FDFAF6',
+  ink: '#1A0E05',
+  brown: '#9C835F',
+  border: '#E8E0D0',
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpWithSupabase }) {
-  const [mode, setMode]         = useState('signin'); // 'signin' | 'signup'
-  const [email, setEmail]       = useState('');
+  const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName]         = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
 
   async function handleSignIn() {
     console.log('🔵 handleSignIn called');
@@ -151,24 +151,28 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
 }
 
 const s = StyleSheet.create({
-  safe:         { flex: 1, backgroundColor: C.forest },
-  container:    { flex: 1 },
-  scroll:       { flex: 1 },
-  scrollContent:{ flexGrow: 1, justifyContent: 'center', padding: 24 },
-  header:       { alignItems: 'center', marginBottom: 32 },
-  logo:         { fontSize: 42, color: '#FDFAF6', fontFamily: 'PlayfairDisplay-Bold', letterSpacing: -1 },
-  tagline:      { fontSize: 9, color: C.sage, letterSpacing: 1.5, marginTop: 4, fontFamily: 'Jost-Regular' },
-  card:         { backgroundColor: C.parch, borderRadius: 20, padding: 20 },
-  tabs:         { flexDirection: 'row', backgroundColor: C.border, borderRadius: 10, padding: 3, marginBottom: 20 },
-  tab:          { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  tabActive:    { backgroundColor: C.forest },
-  tabText:      { fontSize: 14, color: C.brown, fontFamily: 'Jost-SemiBold' },
-  tabTextActive:{ color: '#FDFAF6' },
-  input:        { backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, borderRadius: 10,
-                  paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.ink,
-                  fontFamily: 'Jost-Regular', marginBottom: 12 },
-  btn:          { backgroundColor: C.orange, borderRadius: 12, paddingVertical: 14,
-                  alignItems: 'center', marginTop: 4 },
-  btnText:      { color: '#fff', fontSize: 16, fontFamily: 'Jost-Bold' },
-  footer:       { textAlign: 'center', color: C.sage, fontSize: 12, marginTop: 24, fontFamily: 'Jost-Regular' },
+  safe: { flex: 1, backgroundColor: C.forest },
+  container: { flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  header: { alignItems: 'center', marginBottom: 32 },
+  logo: { fontSize: 42, color: '#FDFAF6', fontFamily: 'PlayfairDisplay-Bold', letterSpacing: -1 },
+  tagline: { fontSize: 9, color: C.sage, letterSpacing: 1.5, marginTop: 4, fontFamily: 'Jost-Regular' },
+  card: { backgroundColor: C.parch, borderRadius: 20, padding: 20 },
+  tabs: { flexDirection: 'row', backgroundColor: C.border, borderRadius: 10, padding: 3, marginBottom: 20 },
+  tab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  tabActive: { backgroundColor: C.forest },
+  tabText: { fontSize: 14, color: C.brown, fontFamily: 'Jost-SemiBold' },
+  tabTextActive: { color: '#FDFAF6' },
+  input: {
+    backgroundColor: '#fff', borderWidth: 1, borderColor: C.border, borderRadius: 10,
+    paddingHorizontal: 14, paddingVertical: 12, fontSize: 15, color: C.ink,
+    fontFamily: 'Jost-Regular', marginBottom: 12
+  },
+  btn: {
+    backgroundColor: C.orange, borderRadius: 12, paddingVertical: 14,
+    alignItems: 'center', marginTop: 4
+  },
+  btnText: { color: '#fff', fontSize: 16, fontFamily: 'Jost-Bold' },
+  footer: { textAlign: 'center', color: C.sage, fontSize: 12, marginTop: 24, fontFamily: 'Jost-Regular' },
 });
