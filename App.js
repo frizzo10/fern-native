@@ -152,7 +152,7 @@ export default function App() {
         screenOptions={{
           headerShown: false,
           headerStyle: {
-            backgroundColor: '#123F1C',
+            backgroundColor: '#1C3A1A',
           },
           headerTintColor: '#fff',
 

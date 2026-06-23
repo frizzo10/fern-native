@@ -404,8 +404,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 8,
-    gap: 10,
+    paddingBottom: 8
   },
 
   headerLeft: {
@@ -887,6 +886,7 @@ const styles = StyleSheet.create({
     color: '#F7EFE2',
     lineHeight: 14,
   },
+
   mainVal: {
     textAlign: 'center',
     fontSize: 26,
@@ -899,6 +899,7 @@ const styles = StyleSheet.create({
     color: '#5D4F42',
     marginTop: 4,
   },
+
   statVal: {
     fontSize: 35,
     fontFamily: 'Playfair-Medium',
