@@ -82,7 +82,11 @@ export default function HomeScreen({ user }) {
   const shoppingCount = (data.shopping || []).length;
   const recipesCount = (data.recipes || []).length;
   const booksCount = (data.books || []).length;
-  const mealsPlannedCount = Object.keys(data.mealPlan || {}).length;
+  const mealsPlannedCount = Object.entries(data.mealPlan || {}).filter(([key, value]) => {
+    if (key.startsWith('_')) return false;
+    if (!Array.isArray(value)) return false;
+    return value.length > 0;
+  }).length;
   const followersCount = (data.followers || []).length;
   const rawStores =
     data.userStores ||
@@ -403,10 +407,12 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 10,
   },
+
   headerLeft: {
     flex: 1,
     paddingRight: 8,
   },
+
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -415,14 +421,16 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     paddingTop: 2,
   },
+
   greeting: {
-    fontSize: 16,
-    lineHeight: 20,
-    fontFamily: 'Playfair-Medium',
+    fontSize: 22,
+    lineHeight: 24,
+    fontFamily: 'PlayfairDisplay-Bold',
     color: '#2C1D12',
   },
+
   subheading: {
-    fontSize: 13,
+    fontSize: 12,
     color: colors.brown,
     marginTop: 2,
     fontFamily: 'Jost-Medium',
@@ -437,6 +445,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     backgroundColor: '#F4EBDD',
   },
+
   iconBadge: {
     borderWidth: 1,
     borderColor: '#D4CABB',
@@ -447,9 +456,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#EEE7DB',
   },
+
   iconBadgeText: {
     fontSize: 18,
   },
+
   langBadge: {
     borderWidth: 1,
     borderColor: '#D4CABB',
@@ -460,27 +471,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#EEE7DB',
   },
+
   askFernBadge: {
     borderRadius: radius.full,
     paddingHorizontal: 16,
     paddingVertical: 11,
     backgroundColor: '#E96B1E',
   },
+
   askFernBadgeActive: {
     backgroundColor: '#14502B',
   },
+
   askFernBadgeText: {
     color: '#FFF9EE',
     fontSize: 12,
     fontFamily: 'Jost-Bold',
     letterSpacing: 0.2,
   },
+
   langBadgeText: {
     color: colors.ink,
     fontSize: 11,
     fontFamily: 'Jost-Medium',
     letterSpacing: 0.3,
   },
+
   proBadgeText: {
     color: '#D06F2E',
     fontSize: 10,
@@ -495,6 +511,7 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 8,
   },
+
   voiceTranscript: {
     color: '#D8E7D0',
     fontSize: 12,
@@ -502,6 +519,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontFamily: 'Jost-Regular',
   },
+
   voiceReply: {
     color: '#F4F0EA',
     fontSize: 13,
@@ -534,7 +552,7 @@ const styles = StyleSheet.create({
     width: '31%',
     backgroundColor: colors.paper,
     borderRadius: 22,
-    minHeight: 100,
+    minHeight: 50,
     padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
@@ -557,7 +575,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EDE7DE',
     borderRadius: 18,
     padding: 14,
-    minHeight: 126,
+    minHeight: 100,
     borderWidth: 1,
     borderColor: '#D4C9BA',
   },
@@ -579,36 +597,43 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#D4C9BA',
   },
+
   mealCardTitle: {
     fontSize: 12,
     color: '#695B4F',
     fontFamily: 'Jost-Bold',
     letterSpacing: 1.2,
   },
+
   tinyDotsRow: {
     flexDirection: 'row',
     gap: 6,
     marginTop: 24,
     marginBottom: 8,
   },
+
   tinyDot: {
     flex: 1,
     height: 4,
     borderRadius: 99,
     backgroundColor: '#CFC6B8',
   },
+
   tinyDotActive: {
     backgroundColor: '#E4722A',
   },
+
   mealDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+
   mealDayText: {
     color: '#7A6C60',
     fontSize: 7,
     fontFamily: 'Jost-Medium',
   },
+
   mealDayTextToday: {
     color: '#E4722A',
     fontFamily: 'Jost-Bold',
@@ -623,22 +648,26 @@ const styles = StyleSheet.create({
     borderColor: '#D4C9BA',
     padding: 16,
   },
+
   panelHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+
   panelTitle: {
     color: '#55463A',
     fontSize: 13,
     fontFamily: 'Jost-Bold',
     letterSpacing: 1.2,
   },
+
   panelLink: {
     color: '#184029',
     fontSize: 16,
     fontFamily: 'Jost-Bold',
   },
+
   panelSubtleText: {
     marginTop: 10,
     color: '#7E7063',
@@ -646,25 +675,30 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     fontFamily: 'Jost-Medium',
   },
+
   smallActionBtn: {
     backgroundColor: '#E96B1E',
     borderRadius: radius.full,
     paddingHorizontal: 13,
     paddingVertical: 8,
   },
+
   smallActionBtnText: {
     color: '#FFF9EE',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
+
   storeList: {
     marginTop: 14,
   },
+
   storeRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
+
   storeIconWrap: {
     width: 35,
     height: 35,
@@ -673,34 +707,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+
   storeIcon: {
     fontSize: 16,
   },
+
   storeInfo: {
     flex: 1,
     minWidth: 0,
   },
+
   storeName: {
     fontSize: 12,
     color: '#1F130A',
     fontFamily: 'Jost-Bold',
   },
+
   storeAddress: {
     color: '#866F54',
     fontSize: 8,
     fontFamily: 'Jost-Medium',
   },
+
   scanCircularBtn: {
     backgroundColor: '#E96B1E',
     borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+
   scanCircularBtnText: {
     color: '#FFF9EE',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
+
   storeDeleteBtn: {
     width: 30,
     height: 30,
@@ -711,12 +752,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F4E7E7',
   },
+
   storeDeleteBtnText: {
     color: '#D2606E',
     fontSize: 12,
     lineHeight: 12,
     fontFamily: 'Jost-Medium',
   },
+
   storeDivider: {
     marginTop: 8,
     marginBottom: 8,
@@ -729,19 +772,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+
   weekCircleCol: {
     alignItems: 'center',
     width: '14.2%',
   },
+
   weekCircleLabel: {
     color: '#6F5E50',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
     marginBottom: 6,
   },
+
   weekCircleLabelToday: {
     color: '#E4722A',
   },
+
   weekCircle: {
     width: 38,
     height: 38,
@@ -752,14 +799,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F4F0EA',
   },
+
   weekCircleToday: {
     borderColor: '#E4722A',
   },
+
   weekCircleInner: {
     width: 6,
     height: 6,
     borderRadius: 99,
   },
+
   weekCircleInnerFilled: {
     backgroundColor: '#2A4E33',
   },
@@ -771,41 +821,49 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     padding: 16,
   },
+
   fernKnowledgeHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+
   fernKnowledgeTitle: {
     color: '#A5C8A2',
     fontSize: 11,
     fontFamily: 'Jost-Bold',
     letterSpacing: 1.5,
   },
+
   fernEditBtn: {
     backgroundColor: 'rgba(255,255,255,0.14)',
     borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
+
   fernEditText: {
     color: '#EAF3E8',
     fontSize: 11,
     fontFamily: 'Jost-Bold',
   },
+
   fernKnowledgeRow: {
     marginTop: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
+
   fernKnowledgeItem: {
     width: '47%',
   },
+
   fernKnowledgeLabel: {
     color: '#B8D2B8',
     fontSize: 12,
     fontFamily: 'Jost-Bold',
   },
+
   fernKnowledgeValue: {
     color: '#F3F7F3',
     fontSize: 16,
@@ -842,7 +900,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   statVal: {
-    fontSize: 38,
+    fontSize: 35,
     fontFamily: 'Playfair-Medium',
     color: 'rgb(56, 89, 45)',
     marginTop: 6,
@@ -856,15 +914,14 @@ const styles = StyleSheet.create({
   headerSize: {
     paddingBottom: 18,
     paddingHorizontal: 20,
-    backgroundColor: '#134523',
+    backgroundColor: '#1C3A1A',
   },
 
   headerImage: {
     width: 42,
     height: 42,
     resizeMode: 'contain',
-    marginRight: 20,
-    marginTop: 0,
+    marginRight: 20
   },
 
   headerTitle: {
@@ -877,17 +934,14 @@ const styles = StyleSheet.create({
 
   mainHeaderView: {
     flexDirection: 'row',
-    minHeight: 52,
-    paddingVertical: 0,
+    minHeight: 54,
     alignItems: 'center',
   },
 
   headerTextView: {
     color: '#F5EFE6',
-    marginTop: 0,
     fontFamily: 'Jost-Bold',
     fontSize: 22,
-    letterSpacing: 1,
     lineHeight: 24,
   },
 });
