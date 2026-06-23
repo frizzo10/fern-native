@@ -3,13 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  Image,
   ImageBackground,
   ScrollView,
   TextInput,
   TouchableOpacity,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 
@@ -47,7 +45,6 @@ function normalizeRecipe(item, index) {
 }
 
 export default function RecipesScreen({ user }) {
-  const insets = useSafeAreaInsets();
   const { data } = useSync(user);
   const [tab, setTab] = useState('recipes');
   const [query, setQuery] = useState('');
@@ -71,16 +68,6 @@ export default function RecipesScreen({ user }) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.headerBrandRow}>
-          <Image source={require('../../assets/icon.png')} style={styles.headerIcon} />
-          <View>
-            <Text style={styles.brandTitle}>fern</Text>
-            <Text style={styles.brandSubTitle}>WEEKLY AD TO DINNER TABLE • PATENT{"\n"}PENDING</Text>
-          </View>
-        </View>
-      </View>
-
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.tabsRow}>
           <View style={styles.tabsPill}>
@@ -170,34 +157,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.parch,
-  },
-  header: {
-    paddingBottom: 10,
-    paddingHorizontal: 20,
-    backgroundColor: '#1C3A1A',
-  },
-  headerBrandRow: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  headerIcon: {
-    width: 42,
-    height: 42,
-    resizeMode: 'contain',
-    marginRight: 20
-  },
-  brandTitle: {
-    color: '#F5EFE6',
-    fontFamily: 'Jost-Bold',
-    fontSize: 22,
-    lineHeight: 24,
-  },
-  brandSubTitle: {
-    fontSize: 8,
-    fontFamily: 'Jost-Bold',
-    color: '#A8D5A2',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
   },
   content: {
     paddingHorizontal: 20,

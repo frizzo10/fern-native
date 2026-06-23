@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import {
-  Image,
   View,
   Text,
   ScrollView,
@@ -8,9 +7,6 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import {
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
@@ -27,8 +23,6 @@ function dateKey(d) {
 }
 
 export default function HomeScreen({ user }) {
-  const insets = useSafeAreaInsets();
-
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
   const { data, loading } = useSync(user);
@@ -131,23 +125,6 @@ export default function HomeScreen({ user }) {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.headerSize, { paddingTop: insets.top + 10 }]}>
-        <View style={styles.mainHeaderView}>
-          <Image
-            source={require('../../assets/icon.png')}
-            style={styles.headerImage}
-          />
-          <View>
-            <Text style={styles.headerTextView}>
-              fern
-            </Text>
-            <Text style={styles.headerTitle}>
-              WEEKLY AD TO DINNER TABLE • PATENT{"\n"}PENDING
-            </Text>
-          </View>
-        </View>
-      </View>
-
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={styles.screenScroll}
@@ -912,37 +889,4 @@ const styles = StyleSheet.create({
     height: 24,
   },
 
-  headerSize: {
-    paddingBottom: 18,
-    paddingHorizontal: 20,
-    backgroundColor: '#1C3A1A',
-  },
-
-  headerImage: {
-    width: 42,
-    height: 42,
-    resizeMode: 'contain',
-    marginRight: 20
-  },
-
-  headerTitle: {
-    fontSize: 8,
-    fontFamily: 'Jost-Bold',
-    color: '#A8D5A2',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-
-  mainHeaderView: {
-    flexDirection: 'row',
-    minHeight: 54,
-    alignItems: 'center',
-  },
-
-  headerTextView: {
-    color: '#F5EFE6',
-    fontFamily: 'Jost-Bold',
-    fontSize: 22,
-    lineHeight: 24,
-  },
 });

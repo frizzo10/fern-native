@@ -35,6 +35,21 @@ function TabIcon({ emoji, focused }) {
   return <Text style={{ fontSize: 22, opacity: focused ? 1 : 0.45 }}>{emoji}</Text>;
 }
 
+function AppTabHeader() {
+  return (
+    <View style={styles.appHeaderRow}>
+      <Image
+        source={require('./assets/icon.png')}
+        style={styles.appHeaderIcon}
+      />
+      <View>
+        <Text style={styles.appHeaderText}>fern</Text>
+        <Text style={styles.appHeaderSubText}>WEEKLY AD TO DINNER TABLE • PATENT{"\n"}PENDING</Text>
+      </View>
+    </View>
+  );
+}
+
 // Store arrival banner — slides down from top
 function ArrivalBanner({ store, onShop, onDismiss }) {
   const slideAnim = React.useRef(new Animated.Value(-100)).current;
@@ -150,11 +165,15 @@ export default function App() {
 
       <Tab.Navigator
         screenOptions={{
-          headerShown: false,
+          headerShown: true,
+          headerTitle: () => <AppTabHeader />,
+          headerTitleAlign: 'left',
           headerStyle: {
             backgroundColor: '#1C3A1A',
+            height: 100,
           },
           headerTintColor: '#fff',
+          headerShadowVisible: false,
 
           tabBarStyle: {
             backgroundColor: colors.forest,
@@ -172,6 +191,11 @@ export default function App() {
             letterSpacing: 0.5,
             textTransform: 'uppercase',
             marginTop: 2,
+          },
+          headerTitleContainerStyle: {
+            left: 0,
+            right: 0,
+            paddingHorizontal: 20,
           },
         }}
       >
@@ -232,6 +256,32 @@ export default function App() {
 
 
 const styles = StyleSheet.create({
+  appHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 50,
+    marginBottom: 10,
+  },
+  appHeaderIcon: {
+    width: 42,
+    height: 42,
+    resizeMode: 'contain',
+    marginRight: 10,
+    marginLeft: -20,
+  },
+  appHeaderText: {
+    color: '#F5EFE6',
+    fontFamily: 'Jost-Bold',
+    fontSize: 22,
+    lineHeight: 24,
+  },
+  appHeaderSubText: {
+    fontSize: 8,
+    fontFamily: 'Jost-Bold',
+    color: '#A8D5A2',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
   banner: {
     position: 'absolute',
     top: 0, left: 0, right: 0,

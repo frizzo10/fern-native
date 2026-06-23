@@ -5,7 +5,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  SafeAreaView, TextInput, Animated, Easing, AppState,
+  TextInput, Animated, Easing, AppState,
   Platform, Alert, ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -293,11 +293,11 @@ export default function FindScreen() {
 
   return (
     <View style={s.safe}>
-      {/* Header */}
-      <View style={s.header}>
-        <Text style={s.headerTitle}>🔍 Find & Ask Fern</Text>
-        {statusText ? <Text style={s.statusText}>{statusText}</Text> : null}
-      </View>
+      {statusText ? (
+        <View style={s.statusBarWrap}>
+          <Text style={s.statusText}>{statusText}</Text>
+        </View>
+      ) : null}
 
       {/* Messages */}
       <ScrollView
@@ -348,13 +348,13 @@ export default function FindScreen() {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, height: 50, backgroundColor: C.parch },
-  header: {
-    backgroundColor: C.forest, padding: 16, height: 80, flexDirection: 'row',
-    alignItems: 'center', justifyContent: 'space-between'
+  safe: { flex: 1, backgroundColor: C.parch },
+  statusBarWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 4,
   },
-  headerTitle: { fontSize: 17, color: '#FDFAF6', fontFamily: 'Jost-SemiBold', marginTop: 20 },
-  statusText: { fontSize: 12, color: C.sage, fontFamily: 'Jost-Regular' },
+  statusText: { fontSize: 12, color: C.forest, fontFamily: 'Jost-Regular' },
 
   // Messages
   messages: { flex: 1 },
