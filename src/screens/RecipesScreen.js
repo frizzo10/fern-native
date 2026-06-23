@@ -8,6 +8,8 @@ import {
   TextInput,
   TouchableOpacity,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
@@ -208,7 +210,12 @@ export default function RecipesScreen({ user }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.tabsRow}>
           <View style={styles.tabsPill}>
             <TouchableOpacity
@@ -326,11 +333,18 @@ export default function RecipesScreen({ user }) {
           />
 
           {selectedRecipe ? (
-            <View style={styles.overlaySheet}>
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.overlayContent}
-              >
+            <KeyboardAvoidingView
+              style={styles.overlaySheetKeyboardAvoid}
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            >
+              <View style={styles.overlaySheet}>
+                <ScrollView
+                  showsVerticalScrollIndicator={false}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+                  contentContainerStyle={styles.overlayContent}
+                >
                 <View style={styles.overlayImageWrap}>
                   <ImageBackground
                     source={selectedRecipe.image ? { uri: selectedRecipe.image } : require('../../assets/icon.png')}
@@ -469,8 +483,9 @@ export default function RecipesScreen({ user }) {
                     <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDelete]}><Text style={styles.overlayBottomBtnTextDelete}>🗑 Delete</Text></TouchableOpacity>
                   </View>
                 </View>
-              </ScrollView>
-            </View>
+                </ScrollView>
+              </View>
+            </KeyboardAvoidingView>
           ) : null}
         </View>
       </Modal>
@@ -663,6 +678,10 @@ const styles = StyleSheet.create({
   overlayBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.34)',
+    justifyContent: 'flex-end',
+  },
+  overlaySheetKeyboardAvoid: {
+    width: '100%',
     justifyContent: 'flex-end',
   },
   overlayBackdropTap: {

@@ -6,6 +6,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
   TextInput, Animated, Easing, AppState,
+  KeyboardAvoidingView,
   Platform, Alert, ActivityIndicator
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -292,17 +293,24 @@ export default function FindScreen() {
   const statusText = isThinking ? 'Thinking...' : isSpeaking ? 'Speaking...' : loopState === 'listening' ? 'Listening...' : '';
 
   return (
-    <View style={s.safe}>
-      {statusText ? (
-        <View style={s.statusBarWrap}>
-          <Text style={s.statusText}>{statusText}</Text>
-        </View>
-      ) : null}
+    <KeyboardAvoidingView
+      style={s.kav}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 108 : 0}
+    >
+      <View style={s.safe}>
+        {statusText ? (
+          <View style={s.statusBarWrap}>
+            <Text style={s.statusText}>{statusText}</Text>
+          </View>
+        ) : null}
 
       {/* Messages */}
       <ScrollView
         ref={scrollRef}
         style={s.messages}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         contentContainerStyle={s.messagesContent}
       >
         {messages.map((msg, i) => <MessageBubble key={i} msg={msg} />)}
@@ -343,11 +351,13 @@ export default function FindScreen() {
           <Text style={s.sendBtnText}>→</Text>
         </TouchableOpacity>
       </View>
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const s = StyleSheet.create({
+  kav: { flex: 1 },
   safe: { flex: 1, backgroundColor: C.parch },
   statusBarWrap: {
     paddingHorizontal: 16,

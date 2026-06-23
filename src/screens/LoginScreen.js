@@ -6,7 +6,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator,
-  SafeAreaView, Image, Alert
+  SafeAreaView, Alert, ScrollView
 } from 'react-native';
 
 // ── Design Tokens ────────────────────────────────────────────────────────────
@@ -67,75 +67,84 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
       <KeyboardAvoidingView
         style={s.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {/* Header */}
-        <View style={s.header}>
-          <Text style={s.logo}>🌿 fern</Text>
-          <Text style={s.tagline}>WEEKLY AD TO DINNER TABLE · PATENT PENDING</Text>
-        </View>
+        <ScrollView
+          style={s.scroll}
+          contentContainerStyle={s.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+          bounces={false}
+        >
+          {/* Header */}
+          <View style={s.header}>
+            <Text style={s.logo}>🌿 fern</Text>
+            <Text style={s.tagline}>WEEKLY AD TO DINNER TABLE · PATENT PENDING</Text>
+          </View>
 
-        {/* Card */}
-        <View style={s.card}>
-          {/* Tab switcher */}
-          <View style={s.tabs}>
+          {/* Card */}
+          <View style={s.card}>
+            {/* Tab switcher */}
+            <View style={s.tabs}>
+              <TouchableOpacity
+                style={[s.tab, mode === 'signin' && s.tabActive]}
+                onPress={() => setMode('signin')}
+              >
+                <Text style={[s.tabText, mode === 'signin' && s.tabTextActive]}>Sign In</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.tab, mode === 'signup' && s.tabActive]}
+                onPress={() => setMode('signup')}
+              >
+                <Text style={[s.tabText, mode === 'signup' && s.tabTextActive]}>Create Account</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Fields */}
+            {mode === 'signup' && (
+              <TextInput
+                style={s.input}
+                placeholder="Your first name"
+                placeholderTextColor={C.brown}
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+              />
+            )}
+            <TextInput
+              style={s.input}
+              placeholder="Email address"
+              placeholderTextColor={C.brown}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TextInput
+              style={s.input}
+              placeholder="Password"
+              placeholderTextColor={C.brown}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+
+            {/* Button */}
             <TouchableOpacity
-              style={[s.tab, mode === 'signin' && s.tabActive]}
-              onPress={() => setMode('signin')}
+              style={s.btn}
+              onPress={mode === 'signin' ? handleSignIn : handleSignUp}
+              disabled={loading}
             >
-              <Text style={[s.tabText, mode === 'signin' && s.tabTextActive]}>Sign In</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.tab, mode === 'signup' && s.tabActive]}
-              onPress={() => setMode('signup')}
-            >
-              <Text style={[s.tabText, mode === 'signup' && s.tabTextActive]}>Create Account</Text>
+              {loading
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={s.btnText}>{mode === 'signin' ? 'Sign In' : 'Create Account'}</Text>
+              }
             </TouchableOpacity>
           </View>
 
-          {/* Fields */}
-          {mode === 'signup' && (
-            <TextInput
-              style={s.input}
-              placeholder="Your first name"
-              placeholderTextColor={C.brown}
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-            />
-          )}
-          <TextInput
-            style={s.input}
-            placeholder="Email address"
-            placeholderTextColor={C.brown}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <TextInput
-            style={s.input}
-            placeholder="Password"
-            placeholderTextColor={C.brown}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-
-          {/* Button */}
-          <TouchableOpacity
-            style={s.btn}
-            onPress={mode === 'signin' ? handleSignIn : handleSignUp}
-            disabled={loading}
-          >
-            {loading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={s.btnText}>{mode === 'signin' ? 'Sign In' : 'Create Account'}</Text>
-            }
-          </TouchableOpacity>
-        </View>
-
-        <Text style={s.footer}>✓ Always free · No ads · No spam</Text>
+          <Text style={s.footer}>✓ Always free · No ads · No spam</Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -143,7 +152,9 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
 
 const s = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: C.forest },
-  container:    { flex: 1, justifyContent: 'center', padding: 24 },
+  container:    { flex: 1 },
+  scroll:       { flex: 1 },
+  scrollContent:{ flexGrow: 1, justifyContent: 'center', padding: 24 },
   header:       { alignItems: 'center', marginBottom: 32 },
   logo:         { fontSize: 42, color: '#FDFAF6', fontFamily: 'PlayfairDisplay-Bold', letterSpacing: -1 },
   tagline:      { fontSize: 9, color: C.sage, letterSpacing: 1.5, marginTop: 4, fontFamily: 'Jost-Regular' },

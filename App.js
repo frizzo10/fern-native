@@ -153,7 +153,6 @@ export default function App() {
   return (
     <NavigationContainer>
       <StatusBar style="light" />
-
       {/* Store arrival banner */}
       {arrivedStore && (
         <ArrivalBanner
@@ -183,6 +182,7 @@ export default function App() {
             paddingTop: 6,
             height: 70,
           },
+          tabBarHideOnKeyboard: true,
           tabBarActiveTintColor: colors.orange,
           tabBarInactiveTintColor: 'rgba(168,213,162,0.45)',
           tabBarLabelStyle: {
