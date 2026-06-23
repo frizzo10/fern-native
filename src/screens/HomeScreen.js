@@ -140,8 +140,8 @@ export default function HomeScreen({ user }) {
 
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{getGreeting()}, {"\n"} {userName}</Text>
-            <Text style={styles.subheading}>"Here's your food life at a glance"</Text>
+            <Text style={styles.greeting}>{getGreeting()}, {"\n"}{userName}</Text>
+            <Text style={styles.subheading}>Here's your food life at a glance</Text>
           </View>
 
           <View style={styles.headerActions}>
@@ -198,11 +198,11 @@ export default function HomeScreen({ user }) {
           {[
             { label: 'Recipes Saved', val: `${recipesCount}` },
             { label: 'Cookbooks', val: `${booksCount}` },
-            { label: 'Bloggers Following', val: `${followersCount}` },
+            { label: 'Bloggers Following', val: `${followersCount}`, color: 'rgb(216, 109, 51)' },
             { label: 'Meals Planned', val: `${mealsPlannedCount}` },
-          ].map(({ label, val }) => (
+          ].map(({ label, val, color }) => (
             <View key={label} style={[styles.statCard, shadow.card]}>
-              <Text style={styles.statVal}>{val}</Text>
+              <Text style={[styles.statVal, { color: color }]}>{val}</Text>
               <Text style={styles.statLabel}>{label}</Text>
             </View>
           ))}
@@ -334,8 +334,8 @@ export default function HomeScreen({ user }) {
 
         <View style={styles.bottomSpacer} />
 
-      </ScrollView>
-    </View>
+      </ScrollView >
+    </View >
   );
 }
 
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
   askFernBadgeText: {
     color: '#FFF9EE',
     fontSize: 12,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     letterSpacing: 0.2,
   },
   langBadgeText: {
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
   proBadgeText: {
     color: '#D06F2E',
     fontSize: 10,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     letterSpacing: 0.6,
   },
 
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
     width: '31%',
     backgroundColor: colors.paper,
     borderRadius: 22,
-    minHeight: 112,
+    minHeight: 100,
     padding: 12,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
   mealCardTitle: {
     fontSize: 12,
     color: '#695B4F',
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     letterSpacing: 1.2,
   },
   tinyDotsRow: {
@@ -563,12 +563,12 @@ const styles = StyleSheet.create({
   },
   mealDayText: {
     color: '#7A6C60',
-    fontSize: 10,
+    fontSize: 7,
     fontFamily: 'Jost-Medium',
   },
   mealDayTextToday: {
     color: '#E4722A',
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
   },
 
   panelCard: {
@@ -588,13 +588,13 @@ const styles = StyleSheet.create({
   panelTitle: {
     color: '#55463A',
     fontSize: 13,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     letterSpacing: 1.2,
   },
   panelLink: {
     color: '#184029',
-    fontSize: 18,
-    fontFamily: 'Jost_700Bold',
+    fontSize: 16,
+    fontFamily: 'Jost-Bold',
   },
   panelSubtleText: {
     marginTop: 10,
@@ -612,7 +612,7 @@ const styles = StyleSheet.create({
   smallActionBtnText: {
     color: '#FFF9EE',
     fontSize: 10,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
   },
 
   weekCircleRow: {
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   weekCircleLabel: {
     color: '#6F5E50',
     fontSize: 10,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     marginBottom: 6,
   },
   weekCircleLabelToday: {
@@ -670,7 +670,7 @@ const styles = StyleSheet.create({
   fernKnowledgeTitle: {
     color: '#A5C8A2',
     fontSize: 11,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     letterSpacing: 1.5,
   },
   fernEditBtn: {
@@ -682,7 +682,7 @@ const styles = StyleSheet.create({
   fernEditText: {
     color: '#EAF3E8',
     fontSize: 11,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
   },
   fernKnowledgeRow: {
     marginTop: 12,
@@ -694,14 +694,14 @@ const styles = StyleSheet.create({
   },
   fernKnowledgeLabel: {
     color: '#B8D2B8',
-    fontSize: 11,
-    fontFamily: 'Jost_700Bold',
+    fontSize: 12,
+    fontFamily: 'Jost-Bold',
   },
   fernKnowledgeValue: {
     color: '#F3F7F3',
     fontSize: 16,
     marginTop: 4,
-    fontFamily: 'Playfair-Medium',
+    fontFamily: 'Jost-Bold',
   },
 
   toolsHeading: {
@@ -709,14 +709,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     color: '#372C22',
     fontSize: 13,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     letterSpacing: 1.5,
   },
 
   mainLabel: {
     textAlign: 'center',
     fontSize: 11,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     color: '#F7EFE2',
     lineHeight: 14,
   },
@@ -728,14 +728,14 @@ const styles = StyleSheet.create({
 
   statLabel: {
     fontSize: 12,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     color: '#5D4F42',
     marginTop: 4,
   },
   statVal: {
     fontSize: 38,
     fontFamily: 'Playfair-Medium',
-    color: colors.ink,
+    color: 'rgb(56, 89, 45)',
     marginTop: 6,
     lineHeight: 40,
   },
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
 
   headerTitle: {
     fontSize: 8,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     color: '#A8D5A2',
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
   headerTextView: {
     color: '#F5EFE6',
     marginTop: 0,
-    fontFamily: 'Jost_700Bold',
+    fontFamily: 'Jost-Bold',
     fontSize: 22,
     letterSpacing: 1,
     lineHeight: 24,
