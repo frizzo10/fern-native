@@ -1,22 +1,21 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  Image, View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, Animated, ActivityIndicator,
-
+  Image,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import {
-  SafeAreaView,
-  SafeAreaProvider,
-  SafeAreaInsetsContext,
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
-import { useFonts } from 'expo-font';
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MEALS = ['Breakfast', 'Lunch', 'Dinner'];
+const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -28,6 +27,7 @@ function dateKey(d) {
 }
 
 export default function HomeScreen({ user }) {
+  const insets = useSafeAreaInsets();
 
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
@@ -49,7 +49,7 @@ export default function HomeScreen({ user }) {
     onError: (e) => console.warn('Mic error:', e),
   });
 
-  // Build week from today
+  // Build week from Sunday to Saturday for current week.
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -69,6 +69,7 @@ export default function HomeScreen({ user }) {
     const dayActivities = (data.activities || []).filter(a => a.dateKey === key);
 
     return {
+      key,
       day: DAYS[d.getDay()],
       date: d.getDate(),
       isToday: key === dateKey(today),
@@ -77,63 +78,96 @@ export default function HomeScreen({ user }) {
     };
   });
 
-  // Stats
   const totalDinners = weekDays.filter(d => d.meals.dinner).length;
-  const totalActivities = (data.activities || []).length;
   const shoppingCount = (data.shopping || []).length;
-  const unplanned = weekDays.filter(d => !d.meals.dinner).length;
   const recipesCount = (data.recipes || []).length;
   const booksCount = (data.books || []).length;
+  const mealsPlannedCount = Object.keys(data.mealPlan || {}).length;
+  const followersCount = (data.followers || []).length;
   const userName = user?.name?.split(' ')[0] || 'Frank';
+  const dietary = data?.profile?.dietary || user?.dietary || 'Vegan';
+
+  const weekFromToday = useMemo(() => {
+    const idx = today.getDay();
+    return [...weekDays.slice(idx), ...weekDays.slice(0, idx)];
+  }, [weekDays, today]);
+
+  const tinyProgressDots = (value, total = 7) => (
+    <View style={styles.tinyDotsRow}>
+      {Array.from({ length: total }, (_, i) => {
+        const active = i < Math.min(value, total);
+        return (
+          <View
+            key={`dot-${i}`}
+            style={[styles.tinyDot, active ? styles.tinyDotActive : null]}
+          />
+        );
+      })}
+    </View>
+  );
+
+  const handleAskFernPress = () => {
+    if (isListening) {
+      stop();
+      return;
+    }
+    start();
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.headerSize}>
-
+      <View style={[styles.headerSize, { paddingTop: insets.top + 10 }]}>
         <View style={styles.mainHeaderView}>
-
           <Image
             source={require('../../assets/icon.png')}
             style={styles.headerImage}
           />
           <View>
-
             <Text style={styles.headerTextView}>
               fern
             </Text>
-
             <Text style={styles.headerTitle}>
               WEEKLY AD TO DINNER TABLE • PATENT{"\n"}PENDING
             </Text>
-
           </View>
-
         </View>
       </View>
 
       <ScrollView
-        vertical
-        showsHorizontalScrollIndicator={false}
-        style={styles.weekScrollOuter}>
+        showsVerticalScrollIndicator={false}
+        style={styles.screenScroll}
+        contentContainerStyle={styles.screenContent}>
 
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.greeting}>{getGreeting()}, {"\n"} {userName}</Text>
             <Text style={styles.subheading}>"Here's your food life at a glance"</Text>
           </View>
-          <View style={styles.proBadge}>
-            <Text style={styles.proBadgeText}>✦✦ PRO MAX</Text>
-          </View>
-          <View style={styles.langBadge}>
-            <Text style={styles.langBadgeText}>🌍 EN</Text>
-          </View>
 
+          <View style={styles.headerActions}>
+            <View style={styles.proBadge}>
+              <Text style={styles.proBadgeText}>✦✦ PRO MAX</Text>
+            </View>
+            <View style={styles.iconBadge}>
+              <Text style={styles.iconBadgeText}>👤</Text>
+            </View>
+            <View style={styles.langBadge}>
+              <Text style={styles.langBadgeText}>🌍 EN</Text>
+            </View>
+          </View>
         </View>
 
         {loading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.forest} />
             <Text style={styles.loadingText}>Syncing your data...</Text>
+          </View>
+        ) : null}
+
+        {lastTranscript ? (
+          <View style={styles.voiceBar}>
+            <Text style={styles.voiceTranscript}>You: {lastTranscript}</Text>
+            {fernReply ? <Text style={styles.voiceReply}>Fern: {fernReply}</Text> : null}
           </View>
         ) : null}
 
@@ -144,7 +178,7 @@ export default function HomeScreen({ user }) {
             { label: 'Dinner Party', val: `🎉`, color: 'rgb(216, 109, 51)' },
             { label: 'Wine Pairing', val: '🍷', color: 'rgb(30, 57, 30)' },
             { label: 'Personal Shopper', val: '🛒', color: 'rgb(56, 89, 45)' },
-            { label: 'Nutrition', val: '🥗', color: 'rgb(216, 109, 51)' },
+            { label: 'Weekly Nutrition', val: '🥗', color: 'rgb(216, 109, 51)' },
           ].map(({ label, val, color }) => (
             <View
               key={label}
@@ -160,24 +194,145 @@ export default function HomeScreen({ user }) {
           ))}
         </View>
 
-
-
-        {/* Stats */}
         <View style={styles.statsRow}>
           {[
-            { label: 'Recipes Saved', val: `${(data.recipes || []).length}` },
-            { label: 'Cookbooks', val: `${(data.books || []).length}` },
-            { label: 'Bloggers Following', val: `${(data.followers || []).length}` },
-            { label: 'Meals Planned', val: `${Object.keys(data.mealPlan || {}).length}` },
+            { label: 'Recipes Saved', val: `${recipesCount}` },
+            { label: 'Cookbooks', val: `${booksCount}` },
+            { label: 'Bloggers Following', val: `${followersCount}` },
+            { label: 'Meals Planned', val: `${mealsPlannedCount}` },
           ].map(({ label, val }) => (
             <View key={label} style={[styles.statCard, shadow.card]}>
-
               <Text style={styles.statVal}>{val}</Text>
-
               <Text style={styles.statLabel}>{label}</Text>
             </View>
           ))}
         </View>
+
+        <View style={styles.mealStatsRow}>
+          <View style={[styles.mealCard, shadow.card]}>
+            <Text style={styles.mealCardTitle}>MEALS PLANNED</Text>
+            {tinyProgressDots(mealsPlannedCount)}
+            <View style={styles.mealDaysRow}>
+              {weekFromToday.map((d) => (
+                <Text
+                  key={`mp-${d.key}`}
+                  style={[styles.mealDayText, d.isToday ? styles.mealDayTextToday : null]}
+                >
+                  {d.day}
+                </Text>
+              ))}
+            </View>
+          </View>
+
+          <View style={[styles.mealCard, shadow.card]}>
+            <Text style={styles.mealCardTitle}>RECIPES SAVED</Text>
+            {tinyProgressDots(recipesCount)}
+            <View style={styles.mealDaysRow}>
+              {weekFromToday.map((d) => (
+                <Text
+                  key={`rs-${d.key}`}
+                  style={[styles.mealDayText, d.isToday ? styles.mealDayTextToday : null]}
+                >
+                  {d.day}
+                </Text>
+              ))}
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.panelCard, shadow.card]}>
+          <View style={styles.panelHeaderRow}>
+            <Text style={styles.panelTitle}>MY STORES</Text>
+            <TouchableOpacity style={styles.smallActionBtn} activeOpacity={0.85}>
+              <Text style={styles.smallActionBtnText}>+ Add Store</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.panelSubtleText}>
+            {(data.stores || []).length ? `${(data.stores || []).length} stores linked` : 'No stores added yet'}
+          </Text>
+        </View>
+
+        <View style={[styles.panelCard, shadow.card]}>
+          <View style={styles.panelHeaderRow}>
+            <Text style={styles.panelTitle}>THIS WEEK</Text>
+            <TouchableOpacity activeOpacity={0.8}>
+              <Text style={styles.panelLink}>Plan →</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.weekCircleRow}>
+            {weekFromToday.map((d) => (
+              <View key={`wk-${d.key}`} style={styles.weekCircleCol}>
+                <Text style={[styles.weekCircleLabel, d.isToday ? styles.weekCircleLabelToday : null]}>
+                  {d.day}
+                </Text>
+                <View style={[styles.weekCircle, d.isToday ? styles.weekCircleToday : null]}>
+                  <View style={[styles.weekCircleInner, d.meals.dinner ? styles.weekCircleInnerFilled : null]} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <View style={[styles.panelCard, shadow.card]}>
+          <View style={styles.panelHeaderRow}>
+            <Text style={styles.panelTitle}>🛒 SHOPPING LIST</Text>
+            <TouchableOpacity activeOpacity={0.8}>
+              <Text style={styles.panelLink}>View →</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.panelSubtleText}>
+            {shoppingCount ? `${shoppingCount} item${shoppingCount > 1 ? 's' : ''} waiting` : 'Your list is empty'}
+          </Text>
+        </View>
+
+        <View style={[styles.fernKnowledgeCard, shadow.card]}>
+          <View style={styles.fernKnowledgeHeader}>
+            <Text style={styles.fernKnowledgeTitle}>WHAT FERN KNOWS ABOUT YOU</Text>
+            <TouchableOpacity style={styles.fernEditBtn} activeOpacity={0.85}>
+              <Text style={styles.fernEditText}>✎ Edit</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.fernKnowledgeRow}>
+            <View style={styles.fernKnowledgeItem}>
+              <Text style={styles.fernKnowledgeLabel}>🥗 DIETARY</Text>
+              <Text style={styles.fernKnowledgeValue}>{dietary}</Text>
+            </View>
+
+            <View style={styles.fernKnowledgeItem}>
+              <Text style={styles.fernKnowledgeLabel}>🙂 NAME</Text>
+              <Text style={styles.fernKnowledgeValue}>{userName}</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text style={styles.toolsHeading}>YOUR TOOLS</Text>
+
+        <View style={styles.mainCardRow}>
+          {[
+            { label: 'Fridge Challenge', val: '🧊', color: 'rgb(30, 57, 30)' },
+            { label: 'Leftover Magic', val: '🧙‍♂️', color: 'rgb(56, 89, 45)' },
+            { label: '20-Min Dinner', val: '⚡', color: 'rgb(216, 109, 51)' },
+            { label: 'Budget Planner', val: '💰', color: 'rgb(30, 57, 30)' },
+            { label: 'AI Meal Planner', val: '🗓', color: 'rgb(56, 89, 45)' },
+            { label: 'Semi-Homemade', val: '🥫', color: 'rgb(30, 57, 30)' },
+            { label: 'Family Vault', val: '📖', color: 'rgb(216, 109, 51)' },
+          ].map(({ label, val, color }) => (
+            <View
+              key={label}
+              style={[
+                styles.mainCard,
+                shadow.card,
+                { backgroundColor: color }
+              ]}
+            >
+              <Text style={styles.mainVal}>{val}</Text>
+              <Text style={styles.mainLabel}>{label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.bottomSpacer} />
 
       </ScrollView>
     </View>
@@ -185,91 +340,162 @@ export default function HomeScreen({ user }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.parch },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
-  greeting: { fontSize: 16, fontWeight: '700', color: colors.ink },
-  subheading: { fontSize: 13, color: colors.brown, marginTop: 2 },
+  container: {
+    flex: 1,
+    backgroundColor: '#F4F0EA',
+  },
+  screenScroll: {
+    flex: 1,
+  },
+  screenContent: {
+    paddingBottom: 12,
+  },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+    gap: 10,
+  },
+  headerLeft: {
+    flex: 1,
+    paddingRight: 8,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    flexShrink: 1,
+    paddingTop: 2,
+  },
+  greeting: {
+    fontSize: 16,
+    lineHeight: 20,
+    fontFamily: 'Playfair-Medium',
+    color: '#2C1D12',
+  },
+  subheading: {
+    fontSize: 13,
+    color: colors.brown,
+    marginTop: 2,
+    fontFamily: 'Jost-Medium',
+    fontStyle: 'italic',
+  },
 
   proBadge: {
     borderWidth: 1,
-    borderColor: colors.orange,
+    borderColor: '#DD8A4A',
     borderRadius: radius.full,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 5,
-    marginLeft: 5,
+    backgroundColor: '#F4EBDD',
+  },
+  iconBadge: {
+    borderWidth: 1,
+    borderColor: '#D4CABB',
+    borderRadius: radius.full,
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEE7DB',
+  },
+  iconBadgeText: {
+    fontSize: 18,
   },
   langBadge: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#D4CABB',
     borderRadius: radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    marginLeft: 5,
+    paddingHorizontal: 12,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEE7DB',
   },
   askFernBadge: {
-    borderWidth: 1,
-    borderColor: colors.border,
     borderRadius: radius.full,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
-    marginLeft: 5,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    backgroundColor: '#E96B1E',
   },
-  askFernBadgeText: { color: colors.orange, fontSize: 8, fontWeight: '800', letterSpacing: 0.5 },
-  langBadgeText: { color: colors.black, fontSize: 10, fontWeight: '500', letterSpacing: 0.5 },
-  proBadgeText: { color: colors.orange, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+  askFernBadgeActive: {
+    backgroundColor: '#14502B',
+  },
+  askFernBadgeText: {
+    color: '#FFF9EE',
+    fontSize: 12,
+    fontFamily: 'Jost_700Bold',
+    letterSpacing: 0.2,
+  },
+  langBadgeText: {
+    color: colors.ink,
+    fontSize: 11,
+    fontFamily: 'Jost-Medium',
+    letterSpacing: 0.3,
+  },
+  proBadgeText: {
+    color: '#D06F2E',
+    fontSize: 10,
+    fontFamily: 'Jost_700Bold',
+    letterSpacing: 0.6,
+  },
 
-  voiceBar: { backgroundColor: colors.forest, marginHorizontal: 16, borderRadius: radius.lg, padding: 12, marginBottom: 8 },
-  voiceTranscript: { color: colors.muted, fontSize: 13, fontStyle: 'italic', marginBottom: 4 },
-  voiceReply: { color: colors.onFern, fontSize: 14, fontWeight: '600' },
+  voiceBar: {
+    backgroundColor: '#1B3D20',
+    marginHorizontal: 20,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 8,
+  },
+  voiceTranscript: {
+    color: '#D8E7D0',
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 4,
+    fontFamily: 'Jost-Regular',
+  },
+  voiceReply: {
+    color: '#F4F0EA',
+    fontSize: 13,
+    fontFamily: 'Jost-Medium',
+  },
 
-  loadingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, marginBottom: 8 },
-  loadingText: { fontSize: 12, color: colors.brown },
-
-  weekScrollOuter: { flexGrow: 0 },
-  weekScroll: { paddingHorizontal: 16, paddingVertical: 8, gap: 10 },
-
-  dayCard: { width: 180, backgroundColor: '#fff', borderRadius: radius.lg, padding: 12, borderWidth: 1, borderColor: colors.border },
-  dayCardToday: { borderColor: colors.orange, borderWidth: 2 },
-  dayHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 },
-  dayLeft: { flexDirection: 'row', alignItems: 'baseline' },
-  dayName: { fontSize: 15, fontWeight: '800', color: colors.ink },
-  dayNameToday: { color: colors.orange },
-  dayDate: { fontSize: 20, fontWeight: '800', color: colors.ink },
-  dayDateToday: { color: colors.orange },
-  dayRight: { alignItems: 'flex-end', gap: 4 },
-  weather: { fontSize: 12, color: colors.brown },
-  todayBadge: { backgroundColor: colors.orange, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  todayBadgeText: { color: '#fff', fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-
-  mealSlot: { borderRadius: 8, padding: 8, marginBottom: 5 },
-  mealSlotFilled: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.border },
-  mealSlotEmpty: { borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
-  mealLabel: { fontSize: 9, fontWeight: '800', color: colors.brown, letterSpacing: 0.8, marginBottom: 2 },
-  mealName: { fontSize: 12, fontWeight: '700', color: colors.ink },
-  mealEmpty: { fontSize: 12, color: colors.brown, opacity: 0.5 },
-
-  activityRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
-  actDot: { width: 7, height: 7, borderRadius: 99 },
-  actText: { fontSize: 11, color: colors.brown, fontWeight: '600', flexShrink: 1 },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    marginBottom: 8,
+  },
+  loadingText: {
+    fontSize: 12,
+    color: colors.brown,
+    fontFamily: 'Jost-Regular',
+  },
 
   mainCardRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
     paddingVertical: 10,
-    marginTop: 10,
+    marginTop: 6,
   },
 
   mainCard: {
-    width: '33%',
+    width: '31%',
     backgroundColor: colors.paper,
-    borderRadius: radius.md,
-    padding: 15,
+    borderRadius: 22,
+    minHeight: 112,
+    padding: 12,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: 15,
-    marginBottom: 10,
+    borderColor: 'rgba(255,255,255,0.15)',
+    marginBottom: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -278,60 +504,250 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
     paddingVertical: 10,
-    marginTop: -10,
+    marginTop: -4,
   },
 
   statCard: {
     width: '48%',
-    backgroundColor: colors.paper,
-    borderRadius: radius.md,
-    padding: 10,
+    backgroundColor: '#EDE7DE',
+    borderRadius: 18,
+    padding: 14,
+    minHeight: 126,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#D4C9BA',
   },
 
   mealStatsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
     paddingVertical: 10,
-    marginTop: -10,
+    marginTop: -2,
   },
 
   mealCard: {
     width: '48%',
-    backgroundColor: colors.paper,
-    borderRadius: radius.md,
-    padding: 10,
+    backgroundColor: '#EDE7DE',
+    borderRadius: 18,
+    padding: 14,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: '#D4C9BA',
+  },
+  mealCardTitle: {
+    fontSize: 12,
+    color: '#695B4F',
+    fontFamily: 'Jost_700Bold',
+    letterSpacing: 1.2,
+  },
+  tinyDotsRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 24,
+    marginBottom: 8,
+  },
+  tinyDot: {
+    flex: 1,
+    height: 4,
+    borderRadius: 99,
+    backgroundColor: '#CFC6B8',
+  },
+  tinyDotActive: {
+    backgroundColor: '#E4722A',
+  },
+  mealDaysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  mealDayText: {
+    color: '#7A6C60',
+    fontSize: 10,
+    fontFamily: 'Jost-Medium',
+  },
+  mealDayTextToday: {
+    color: '#E4722A',
+    fontFamily: 'Jost_700Bold',
   },
 
-  mainLabel: { textAlign: 'center', fontSize: 12, fontFamily: "Jost-Medium", color: "#fff" },
-  mainVal: { textAlign: 'center', fontSize: 28, fontFamily: "Playfair-Medium", color: colors.ink },
+  panelCard: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    backgroundColor: '#EDE7DE',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#D4C9BA',
+    padding: 16,
+  },
+  panelHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  panelTitle: {
+    color: '#55463A',
+    fontSize: 13,
+    fontFamily: 'Jost_700Bold',
+    letterSpacing: 1.2,
+  },
+  panelLink: {
+    color: '#184029',
+    fontSize: 18,
+    fontFamily: 'Jost_700Bold',
+  },
+  panelSubtleText: {
+    marginTop: 10,
+    color: '#7E7063',
+    fontSize: 12,
+    fontStyle: 'italic',
+    fontFamily: 'Jost-Medium',
+  },
+  smallActionBtn: {
+    backgroundColor: '#E96B1E',
+    borderRadius: radius.full,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+  },
+  smallActionBtnText: {
+    color: '#FFF9EE',
+    fontSize: 10,
+    fontFamily: 'Jost_700Bold',
+  },
 
-  statLabel: { fontSize: 12, fontFamily: "Jost-Regular", letterSpacing: 0, color: colors.brown, marginTop: 5 },
-  statVal: { fontSize: 28, fontFamily: "Playfair-Medium", color: colors.ink, marginTop: 15 },
+  weekCircleRow: {
+    marginTop: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  weekCircleCol: {
+    alignItems: 'center',
+    width: '14.2%',
+  },
+  weekCircleLabel: {
+    color: '#6F5E50',
+    fontSize: 10,
+    fontFamily: 'Jost_700Bold',
+    marginBottom: 6,
+  },
+  weekCircleLabelToday: {
+    color: '#E4722A',
+  },
+  weekCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 99,
+    borderWidth: 2,
+    borderColor: '#BFB6AA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4F0EA',
+  },
+  weekCircleToday: {
+    borderColor: '#E4722A',
+  },
+  weekCircleInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 99,
+  },
+  weekCircleInnerFilled: {
+    backgroundColor: '#2A4E33',
+  },
 
-  booksRow: { flexDirection: 'row', gap: 16, paddingHorizontal: 20, marginTop: 8 },
-  booksLabel: { fontSize: 12, color: colors.brown, fontWeight: '700' },
+  fernKnowledgeCard: {
+    marginHorizontal: 20,
+    marginTop: 18,
+    backgroundColor: '#1C512A',
+    borderRadius: 18,
+    padding: 16,
+  },
+  fernKnowledgeHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  fernKnowledgeTitle: {
+    color: '#A5C8A2',
+    fontSize: 11,
+    fontFamily: 'Jost_700Bold',
+    letterSpacing: 1.5,
+  },
+  fernEditBtn: {
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  fernEditText: {
+    color: '#EAF3E8',
+    fontSize: 11,
+    fontFamily: 'Jost_700Bold',
+  },
+  fernKnowledgeRow: {
+    marginTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  fernKnowledgeItem: {
+    width: '47%',
+  },
+  fernKnowledgeLabel: {
+    color: '#B8D2B8',
+    fontSize: 11,
+    fontFamily: 'Jost_700Bold',
+  },
+  fernKnowledgeValue: {
+    color: '#F3F7F3',
+    fontSize: 16,
+    marginTop: 4,
+    fontFamily: 'Playfair-Medium',
+  },
 
-  orbWrap: { alignItems: 'center', paddingVertical: 16 },
-  orb: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.forest, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
-  orbActive: { backgroundColor: colors.voiceRed },
-  orbProcessing: { backgroundColor: colors.orange },
-  orbIcon: { fontSize: 28 },
-
-
-  orbLabel: { fontSize: 11, fontWeight: '700', color: colors.brown, letterSpacing: 0.5, textTransform: 'uppercase' },
-  headerSize: {
-    paddingTop: 20,
-    paddingBottom: 20,
+  toolsHeading: {
+    marginTop: 20,
     paddingHorizontal: 20,
-    backgroundColor: "#1C3A1A",
+    color: '#372C22',
+    fontSize: 13,
+    fontFamily: 'Jost_700Bold',
+    letterSpacing: 1.5,
+  },
+
+  mainLabel: {
+    textAlign: 'center',
+    fontSize: 11,
+    fontFamily: 'Jost_700Bold',
+    color: '#F7EFE2',
+    lineHeight: 14,
+  },
+  mainVal: {
+    textAlign: 'center',
+    fontSize: 26,
+    marginBottom: 6,
+  },
+
+  statLabel: {
+    fontSize: 12,
+    fontFamily: 'Jost_700Bold',
+    color: '#5D4F42',
+    marginTop: 4,
+  },
+  statVal: {
+    fontSize: 38,
+    fontFamily: 'Playfair-Medium',
+    color: colors.ink,
+    marginTop: 6,
+    lineHeight: 40,
+  },
+
+  bottomSpacer: {
+    height: 24,
+  },
+
+  headerSize: {
+    paddingBottom: 18,
+    paddingHorizontal: 20,
+    backgroundColor: '#134523',
   },
 
   headerImage: {
@@ -339,7 +755,7 @@ const styles = StyleSheet.create({
     height: 42,
     resizeMode: 'contain',
     marginRight: 20,
-    marginTop: 30
+    marginTop: 0,
   },
 
   headerTitle: {
@@ -352,17 +768,17 @@ const styles = StyleSheet.create({
 
   mainHeaderView: {
     flexDirection: 'row',
-    height: 50,
+    minHeight: 52,
     paddingVertical: 0,
     alignItems: 'center',
   },
 
   headerTextView: {
     color: '#F5EFE6',
-    marginTop: 20,
+    marginTop: 0,
     fontFamily: 'Jost_700Bold',
     fontSize: 22,
-    fontWeight: '600',
     letterSpacing: 1,
-  }
+    lineHeight: 24,
+  },
 });
