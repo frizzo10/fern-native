@@ -13,7 +13,7 @@ import HomeScreen     from './src/screens/HomeScreen';
 import FindScreen     from './src/screens/FindScreen';
 import ShoppingScreen from './src/screens/ShoppingScreen';
 import FamilyScreen from './src/screens/FamilyScreen';
-import RecipesScreen  from './src/screens/RecipesScreen';
+import WisperScreen  from './src/screens/WisperScreen';
 import LoginScreen    from './src/screens/LoginScreen';
 import { useAuth }    from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
@@ -196,11 +196,10 @@ export default function App() {
         {() => <FamilyScreen user={user} />}
         </Tab.Screen>
         <Tab.Screen
-        name="Recipes"
-        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
-        >
-        {() => <RecipesScreen user={user} />}
-        </Tab.Screen>
+        name="Transcribe"
+        component={WisperScreen}
+        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🎙️" focused={focused} /> }}
+        />
 
         <Tab.Screen
         name="Logout"

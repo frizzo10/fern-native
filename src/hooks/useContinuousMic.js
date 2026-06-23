@@ -7,7 +7,7 @@ const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
 
 
-export function useContinuousMic({ onTranscript, onError } = {}) {
+export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true } = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -15,7 +15,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
   const processingRef = useRef(false);
   const [audioUri, setAudioUri] = useState(null);
 
-//VAD 
+  //VAD 
   const SILENCE_DB = -15;
   const SILENCE_MS = 1500;
   const MAX_RECORDING_MS = 30000;
@@ -25,15 +25,15 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
   const hasSpeechRef = useRef(false);
   const stoppedBySilenceRef = useRef(false);
 
-//Player
+  //Player
   const player = useAudioPlayer(
     audioUri ? { uri: audioUri } : null
-    );
+  );
 
-//Recorder
+  //Recorder
   const recorder = useAudioRecorder(
     RecordingPresets.HIGH_QUALITY
-    );
+  );
 
   const processFernReply = useCallback(async (transcript) => {
     try {
@@ -50,15 +50,15 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
             },
           ],
           system:
-          'You are Fern, a personal AI food assistant. Be brief and conversational.',
+            'You are Fern, a personal AI food assistant. Be brief and conversational.',
         }),
       });
 
       const aiData = await aiResponse.json();
       const fernReply =
-      aiData?.content?.[0]?.text ??
-      aiData?.data?.content?.[0]?.text ??
-      '';
+        aiData?.content?.[0]?.text ??
+        aiData?.data?.content?.[0]?.text ??
+        '';
 
       if (!fernReply) {
         console.warn('[fern] empty response');
@@ -92,30 +92,30 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
       const audioPath =
 
-    `${FileSystem.cacheDirectory}fern-${Date.now()}.mp3`;
+        `${FileSystem.cacheDirectory}fern-${Date.now()}.mp3`;
 
-    await FileSystem.writeAsStringAsync(
+      await FileSystem.writeAsStringAsync(
 
-      audioPath,
+        audioPath,
 
-      base64,
+        base64,
 
-      {
+        {
 
-        encoding: FileSystem.EncodingType.Base64,
+          encoding: FileSystem.EncodingType.Base64,
 
-      }
+        }
 
       );
 
-    console.log('[tts] saved:', audioPath);
+      console.log('[tts] saved:', audioPath);
 
-    setAudioUri(audioPath);
+      setAudioUri(audioPath);
 
-  } catch (err) {
-    console.warn('[fern] error:', err);
-  }
-}, [recorder]);
+    } catch (err) {
+      console.warn('[fern] error:', err);
+    }
+  }, [recorder]);
 
   useEffect(() => {
     if (!audioUri || !player) return;
@@ -145,7 +145,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
           }
         }
       }
-      );
+    );
 
     return () => sub?.remove?.();
   }, [player, start]);
@@ -174,7 +174,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
     console.log(
       'MULTIPART:',
       FileSystem.FileSystemUploadType.MULTIPART
-      );
+    );
     if (!uri) return;
 
     try {
@@ -211,19 +211,18 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
         }
 
-        );
+      );
 
       console.log('[mic] upload result:', result.body);
 
       const data = JSON.parse(result.body);
 
       if (data?.text?.trim()) {
+        const transcript = data.text.trim();
 
-        if (data?.text?.trim()) {
-          const transcript = data.text.trim();
+        onTranscript?.(transcript);
 
-          onTranscript?.(transcript);
-
+        if (autoSpeakReply) {
           await processFernReply(transcript);
         }
 
@@ -235,7 +234,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
     }
 
-  }, [onTranscript]);
+  }, [onTranscript, autoSpeakReply, processFernReply]);
 
   const start = useCallback(async () => {
     try {
@@ -254,7 +253,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
       });
 
       const permission =
-      await AudioModule.requestRecordingPermissionsAsync();
+        await AudioModule.requestRecordingPermissionsAsync();
 
       console.log('[mic] permission:', permission);
 
@@ -266,13 +265,13 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
       console.log(
         '[mic] AudioModule keys:',
         Object.keys(AudioModule)
-        );
+      );
 
       // DEBUG: verify method exists
       console.log(
         '[mic] setAudioModeAsync:',
         typeof AudioModule.setAudioModeAsync
-        );
+      );
 
       console.log('[mic] recorder prepared');
 
@@ -285,73 +284,73 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
         if (
           activeRef.current &&
           !processingRef.current
-          ) {
+        ) {
           stop();
-      }
-    }, MAX_RECORDING_MS);
+        }
+      }, MAX_RECORDING_MS);
 
       vadIntervalRef.current = setInterval(async () => {
         try {
           if (
             !activeRef.current ||
             processingRef.current
-            ) {
+          ) {
             return;
-        }
-
-        const status = await recorder.getStatus();
-
-        const db = status?.metering;
-
-        if (db == null) return;
-
-        console.log('[vad]', db);
-
-    // User spoke at least once
-        if (db > SILENCE_DB) {
-          hasSpeechRef.current = true;
-        }
-
-    // Voice detected
-        if (db > SILENCE_DB) {
-
-          if (silenceTimeoutRef.current) {
-            console.log('[vad] cancel timer');
-
-            clearTimeout(silenceTimeoutRef.current);
-            silenceTimeoutRef.current = null;
           }
 
-          return;
-        }
+          const status = await recorder.getStatus();
 
-    // Silence detected
-        if (
-          hasSpeechRef.current &&
-          !silenceTimeoutRef.current
-          ) {
-          console.log('[vad] start timer');
-          stoppedBySilenceRef.current = false;
-          silenceTimeoutRef.current = setTimeout(() => {
+          const db = status?.metering;
 
-          console.log('[vad] silence detected');
-          stoppedBySilenceRef.current = true;
-          silenceTimeoutRef.current = null;
+          if (db == null) return;
 
+          console.log('[vad]', db);
+
+          // User spoke at least once
+          if (db > SILENCE_DB) {
+            hasSpeechRef.current = true;
+          }
+
+          // Voice detected
+          if (db > SILENCE_DB) {
+
+            if (silenceTimeoutRef.current) {
+              console.log('[vad] cancel timer');
+
+              clearTimeout(silenceTimeoutRef.current);
+              silenceTimeoutRef.current = null;
+            }
+
+            return;
+          }
+
+          // Silence detected
           if (
-            activeRef.current &&
-            !processingRef.current
-            ) {
-            stop();
+            hasSpeechRef.current &&
+            !silenceTimeoutRef.current
+          ) {
+            console.log('[vad] start timer');
+            stoppedBySilenceRef.current = false;
+            silenceTimeoutRef.current = setTimeout(() => {
+
+              console.log('[vad] silence detected');
+              stoppedBySilenceRef.current = true;
+              silenceTimeoutRef.current = null;
+
+              if (
+                activeRef.current &&
+                !processingRef.current
+              ) {
+                stop();
+              }
+
+            }, SILENCE_MS);
+          }
+
+        } catch (e) {
+          console.warn('[vad]', e);
         }
-
-      }, SILENCE_MS);
-      }
-
-    } catch (e) {
-      console.warn('[vad]', e);
-    }
-  }, 100);
+      }, 100);
 
       console.log('[mic] recording started');
 
@@ -363,7 +362,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
 
       onError?.(
         error?.message ?? 'Failed to start microphone'
-        );
+      );
     }
   }, [recorder, onError]);
 
@@ -416,7 +415,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
       onError?.(
         error?.message ??
         'Failed to stop recording'
-        );
+      );
     } finally {
       processingRef.current = false;
       setIsProcessing(false);
@@ -432,7 +431,7 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
   return {
     isListening,
     isProcessing,
-    // start,
+    start,
     stop,
   };
 }
