@@ -5,12 +5,12 @@ const SYNC_URL = 'https://app.clickpickandcook.com/.netlify/functions/sync';
 
 export function useSync(user) {
   const [data, setData] = useState({
-    recipes:    [],
-    mealPlan:   {},
-    shopping:   [],
-    books:      [],
+    recipes: [],
+    mealPlan: {},
+    shopping: [],
+    books: [],
     activities: [],
-    followers:  [],
+    followers: [],
     userProfile: {},
     userStores: [],
   });
@@ -37,14 +37,14 @@ export function useSync(user) {
       if (!dd) return;
 
       const next = {
-        recipes:     dd.saved               || [],
-        mealPlan:    dd.meal_plan           || {},
-        shopping:    dd.shopping            || [],
-        books:       dd.books               || [],
-        activities:  dd.activities          || [],
-        followers:   dd.followed_bloggers   || [],
-        userProfile: dd.remi_explicit       || {},
-        userStores:  dd.user_stores         || [],
+        recipes: dd.saved || [],
+        mealPlan: dd.meal_plan || {},
+        shopping: dd.shopping || [],
+        books: dd.books || [],
+        activities: dd.activities || [],
+        followers: dd.followed_bloggers || [],
+        userProfile: dd.remi_explicit || {},
+        userStores: dd.user_stores || [],
       };
 
       setData(next);
@@ -92,6 +92,41 @@ export function useSync(user) {
     }
   }, [user]);
 
+  const pushAllFromStorage = useCallback(async () => {
+    if (!user?.id || !user?.token) return;
+    try {
+      const saved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || '[]');
+      const books = JSON.parse(await AsyncStorage.getItem('rv4_books') || '[]');
+      const mealPlan = JSON.parse(await AsyncStorage.getItem('rv4_meal_plan') || '{}');
+      const shopping = JSON.parse(await AsyncStorage.getItem('rv4_master_shop') || '[]');
+      const remiExplicit = JSON.parse(await AsyncStorage.getItem('remi_explicit') || '{}');
+      const followedBloggers = JSON.parse(await AsyncStorage.getItem('cpc_followed_bloggers') || '[]');
+      const userStores = JSON.parse(await AsyncStorage.getItem('cpc_user_stores') || '[]');
+
+      await fetch(SYNC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'push',
+          userId: user.id,
+          token: user.token,
+          data: {
+            saved,
+            books,
+            meal_plan: mealPlan,
+            shopping,
+            remi_explicit: remiExplicit,
+            followed_bloggers: followedBloggers,
+            user_stores: userStores,
+          },
+        }),
+      });
+      setLastSync(new Date());
+    } catch (e) {
+      console.warn('Sync full push failed:', e);
+    }
+  }, [user]);
+
   // Load cache first, then refresh from API silently
   useEffect(() => {
     loadCache().then(() => {
@@ -99,5 +134,5 @@ export function useSync(user) {
     });
   }, [loadCache, pull]);
 
-  return { data, loading, refreshing, lastSync, pull, push };
+  return { data, loading, refreshing, lastSync, pull, push, pushAllFromStorage };
 }
