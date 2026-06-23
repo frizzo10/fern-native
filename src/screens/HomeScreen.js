@@ -84,8 +84,19 @@ export default function HomeScreen({ user }) {
   const booksCount = (data.books || []).length;
   const mealsPlannedCount = Object.keys(data.mealPlan || {}).length;
   const followersCount = (data.followers || []).length;
+  const rawStores =
+    data.userStores ||
+    data.user_stores ||
+    data.stores ||
+    data.userProfile?.user_stores ||
+    [];
+  const userStores = Array.isArray(rawStores)
+    ? rawStores
+    : Array.isArray(Object.values(rawStores))
+      ? Object.values(rawStores)
+      : [];
   const userName = user?.name?.split(' ')[0] || 'Frank';
-  const dietary = data?.profile?.dietary || user?.dietary || 'Vegan';
+  const dietary = data?.userProfile?.dietary || data?.profile?.dietary || user?.dietary || 'Vegan';
 
   const weekFromToday = useMemo(() => {
     const idx = today.getDay();
@@ -247,9 +258,41 @@ export default function HomeScreen({ user }) {
               <Text style={styles.smallActionBtnText}>+ Add Store</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.panelSubtleText}>
-            {(data.stores || []).length ? `${(data.stores || []).length} stores linked` : 'No stores added yet'}
-          </Text>
+
+          {userStores.length ? (
+            <View style={styles.storeList}>
+              {userStores.map((store, index) => (
+                <View key={`${store.name || 'store'}-${index}`}>
+                  <View style={styles.storeRow}>
+                    <View style={styles.storeIconWrap}>
+                      <Text style={styles.storeIcon}>🏪</Text>
+                    </View>
+
+                    <View style={styles.storeInfo}>
+                      <Text numberOfLines={2} style={styles.storeName}>
+                        {store.name || 'Store'}
+                      </Text>
+                      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeAddress}>
+                        {store.address || 'Address unavailable'}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity style={styles.scanCircularBtn} activeOpacity={0.85}>
+                      <Text style={styles.scanCircularBtnText}>Scan Circular</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.storeDeleteBtn} activeOpacity={0.85}>
+                      <Text style={styles.storeDeleteBtnText}>✕</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {index < userStores.length - 1 ? <View style={styles.storeDivider} /> : null}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.panelSubtleText}>No stores added yet</Text>
+          )}
         </View>
 
         <View style={[styles.panelCard, shadow.card]}>
@@ -613,6 +656,72 @@ const styles = StyleSheet.create({
     color: '#FFF9EE',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
+  },
+  storeList: {
+    marginTop: 14,
+  },
+  storeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  storeIconWrap: {
+    width: 35,
+    height: 35,
+    borderRadius: 10,
+    backgroundColor: '#1C512A',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storeIcon: {
+    fontSize: 16,
+  },
+  storeInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  storeName: {
+    fontSize: 12,
+    color: '#1F130A',
+    fontFamily: 'Jost-Bold',
+  },
+  storeAddress: {
+    color: '#866F54',
+    fontSize: 8,
+    fontFamily: 'Jost-Medium',
+  },
+  scanCircularBtn: {
+    backgroundColor: '#E96B1E',
+    borderRadius: radius.full,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  scanCircularBtnText: {
+    color: '#FFF9EE',
+    fontSize: 10,
+    fontFamily: 'Jost-Bold',
+  },
+  storeDeleteBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E8BAC0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F4E7E7',
+  },
+  storeDeleteBtnText: {
+    color: '#D2606E',
+    fontSize: 12,
+    lineHeight: 12,
+    fontFamily: 'Jost-Medium',
+  },
+  storeDivider: {
+    marginTop: 8,
+    marginBottom: 8,
+    height: 1,
+    backgroundColor: '#DCCFBF',
   },
 
   weekCircleRow: {
