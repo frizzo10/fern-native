@@ -9,13 +9,13 @@ import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-import HomeScreen     from './src/screens/HomeScreen';
-import FindScreen     from './src/screens/FindScreen';
+import HomeScreen from './src/screens/HomeScreen';
+import FindScreen from './src/screens/FindScreen';
 import ShoppingScreen from './src/screens/ShoppingScreen';
 import FamilyScreen from './src/screens/FamilyScreen';
-import WisperScreen  from './src/screens/WisperScreen';
-import LoginScreen    from './src/screens/LoginScreen';
-import { useAuth }    from './src/hooks/useAuth';
+import RecipesScreen from './src/screens/RecipesScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import { useAuth } from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
 import { useFonts } from 'expo-font';
@@ -123,7 +123,7 @@ export default function App() {
     return (
       <>
         <StatusBar style="light" />
-        <LoginScreen 
+        <LoginScreen
           onAuthSuccess={() => {
             // User state is automatically updated by useAuth hook
             // The app will re-render when user state changes
@@ -151,9 +151,10 @@ export default function App() {
       <Tab.Navigator
         screenOptions={{
           headerShown: false,
-            headerStyle: {
-            backgroundColor: '#123F1C',},
-            headerTintColor: '#fff',
+          headerStyle: {
+            backgroundColor: '#123F1C',
+          },
+          headerTintColor: '#fff',
 
           tabBarStyle: {
             backgroundColor: colors.forest,
@@ -163,7 +164,7 @@ export default function App() {
             paddingTop: 6,
             height: 70,
           },
-          tabBarActiveTintColor:   colors.orange,
+          tabBarActiveTintColor: colors.orange,
           tabBarInactiveTintColor: 'rgba(168,213,162,0.45)',
           tabBarLabelStyle: {
             fontSize: 9,
@@ -182,44 +183,46 @@ export default function App() {
           {() => <HomeScreen user={user} />}
         </Tab.Screen>
         <Tab.Screen
-        name="Find"
-        component={FindScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
+          name="Find"
+          component={FindScreen}
+          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
         />
         <Tab.Screen
-        name="Family"
-        options={{
-          tabBarLabel: 'FAMILYHUB',
-          tabBarIcon: ({ focused }) => <TabIcon emoji="📆" focused={focused} />,
-        }}
+          name="Family"
+          options={{
+            tabBarLabel: 'FAMILYHUB',
+            tabBarIcon: ({ focused }) => <TabIcon emoji="📆" focused={focused} />,
+          }}
         >
-        {() => <FamilyScreen user={user} />}
+          {() => <FamilyScreen user={user} />}
         </Tab.Screen>
-        <Tab.Screen
-        name="Transcribe"
-        component={WisperScreen}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🎙️" focused={focused} /> }}
-        />
 
         <Tab.Screen
-        name="Logout"
-        listeners={{
-          tabPress: (e) => {
-            e.preventDefault();
-            signOut();
-          },
-        }}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <Ionicons
-              name="log-out"
-              size={28}
-              color={focused ? '#B59C48' : '#999'}
-            />
-          ),
-        }}
+          name="Recipes"
+          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
         >
-        {() => null}
+          {() => <RecipesScreen user={user} />}
+        </Tab.Screen>
+
+        <Tab.Screen
+          name="Logout"
+          listeners={{
+            tabPress: (e) => {
+              e.preventDefault();
+              signOut();
+            },
+          }}
+          options={{
+            tabBarIcon: ({ focused }) => (
+              <Ionicons
+                name="log-out"
+                size={28}
+                color={focused ? '#B59C48' : '#999'}
+              />
+            ),
+          }}
+        >
+          {() => null}
         </Tab.Screen>
 
       </Tab.Navigator>
@@ -243,13 +246,13 @@ const styles = StyleSheet.create({
     gap: 10,
     ...shadow.strong,
   },
-  bannerEmoji:    { fontSize: 24 },
-  bannerText:     { flex: 1 },
-  bannerTitle:    { fontSize: 14, fontWeight: '800', color: colors.onFern },
-  bannerSub:      { fontSize: 12, color: colors.muted, marginTop: 2 },
-  bannerBtn:      { backgroundColor: colors.orange, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8 },
-  bannerBtnText:  { color: '#fff', fontWeight: '800', fontSize: 13 },
-  bannerClose:    { padding: 6 },
-  bannerCloseText:{ color: 'rgba(255,255,255,0.4)', fontSize: 18 },
+  bannerEmoji: { fontSize: 24 },
+  bannerText: { flex: 1 },
+  bannerTitle: { fontSize: 14, fontWeight: '800', color: colors.onFern },
+  bannerSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  bannerBtn: { backgroundColor: colors.orange, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8 },
+  bannerBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
+  bannerClose: { padding: 6 },
+  bannerCloseText: { color: 'rgba(255,255,255,0.4)', fontSize: 18 },
 
 });
