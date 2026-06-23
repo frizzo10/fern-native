@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
@@ -23,6 +24,7 @@ function dateKey(d) {
 }
 
 export default function HomeScreen({ user }) {
+  const navigation = useNavigation();
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
   const { data, loading } = useSync(user);
@@ -188,15 +190,21 @@ export default function HomeScreen({ user }) {
 
         <View style={styles.statsRow}>
           {[
-            { label: 'Recipes Saved', val: `${recipesCount}` },
+            { label: 'Recipes Saved', val: `${recipesCount}`, route: 'Recipes' },
             { label: 'Cookbooks', val: `${booksCount}` },
             { label: 'Bloggers Following', val: `${followersCount}`, color: 'rgb(216, 109, 51)' },
             { label: 'Meals Planned', val: `${mealsPlannedCount}` },
-          ].map(({ label, val, color }) => (
-            <View key={label} style={[styles.statCard, shadow.card]}>
+          ].map(({ label, val, color, route }) => (
+            <TouchableOpacity
+              key={label}
+              activeOpacity={route ? 0.85 : 1}
+              disabled={!route}
+              onPress={route ? () => navigation.navigate(route) : undefined}
+              style={[styles.statCard, shadow.card]}
+            >
               <Text style={[styles.statVal, { color: color }]}>{val}</Text>
               <Text style={styles.statLabel}>{label}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 

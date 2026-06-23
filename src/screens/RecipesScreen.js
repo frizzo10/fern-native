@@ -15,6 +15,13 @@ function pickFirst(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '');
 }
 
+function getDifficultyLevel(difficulty) {
+  const value = String(difficulty || '').trim().toLowerCase();
+  if (value.includes('hard')) return 3;
+  if (value.includes('medium') || value.includes('med')) return 2;
+  return 1;
+}
+
 function normalizeRecipe(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, 'Untitled recipe');
   const category = pickFirst(item?.cuisine, item?.category, item?.type, item?.mealType, 'Dinner');
@@ -105,7 +112,7 @@ export default function RecipesScreen({ user }) {
         {tab === 'recipes' ? (
           filteredRecipes.length ? (
             <View style={styles.grid}>
-              {filteredRecipes.map((recipe, index) => (
+              {filteredRecipes.map((recipe) => (
                 <View key={recipe.id} style={[styles.recipeCard, shadow.card]}>
                   <View style={styles.imageWrap}>
                     <ImageBackground
@@ -127,9 +134,19 @@ export default function RecipesScreen({ user }) {
                     </Text>
 
                     <View style={styles.difficultyPill}>
-                      <View style={[styles.difficultyDot, index === 0 ? styles.difficultyDotDim : styles.difficultyDotFilled]} />
-                      <View style={[styles.difficultyDot, index === 0 ? styles.difficultyDotMid : styles.difficultyDotEmpty]} />
-                      <View style={[styles.difficultyDot, index === 0 ? styles.difficultyDotEmpty : styles.difficultyDotEmpty]} />
+                      {Array.from({ length: 3 }, (_, i) => {
+                        const dotIdx = i + 1;
+                        const isFilled = dotIdx <= getDifficultyLevel(recipe.difficulty);
+                        return (
+                          <View
+                            key={`${recipe.id}-dot-${dotIdx}`}
+                            style={[
+                              styles.difficultyDot,
+                              isFilled ? styles.difficultyDotFilled : styles.difficultyDotEmpty,
+                            ]}
+                          />
+                        );
+                      })}
                       <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
                     </View>
                   </View>
@@ -296,14 +313,6 @@ const styles = StyleSheet.create({
   },
   difficultyDotFilled: {
     backgroundColor: '#947117',
-  },
-  difficultyDotDim: {
-    backgroundColor: '#A37B10',
-  },
-  difficultyDotMid: {
-    borderWidth: 1,
-    borderColor: '#B99233',
-    backgroundColor: 'transparent',
   },
   difficultyDotEmpty: {
     borderWidth: 1,

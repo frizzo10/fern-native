@@ -93,7 +93,7 @@ export default function FindScreen() {
     autoSpeakReply: false,
     onTranscript: async (transcript) => {
       console.log('[FindScreen] transcript received:', transcript);
-      
+
       // Check stop words - stop listening first
       if (STOP_WORDS.some(w => transcript.toLowerCase().includes(w))) {
         stop();
