@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
@@ -70,6 +71,29 @@ function firstNonEmptyArray(...arrays) {
   return [];
 }
 
+function normalizeIdArray(value) {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => normalizeIdArray(item))
+      .filter(Boolean);
+  }
+
+  if (value && typeof value === 'object') {
+    return normalizeIdArray(
+      pickFirst(
+        value.id,
+        value.uuid,
+        value.recipe_id,
+        value.recipeId,
+        value._bookId,
+      )
+    );
+  }
+
+  if (value === undefined || value === null || value === '') return [];
+  return [String(value)];
+}
+
 function normalizeRecipe(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, 'Untitled recipe');
   const category = pickFirst(item?.cuisine, item?.category, item?.type, item?.mealType, 'Dinner');
@@ -102,6 +126,10 @@ function normalizeRecipe(item, index) {
     toSteps(item?.directions),
   );
   const note = pickFirst(item?.note, item?.myNote, item?.notes, '');
+  const bookIds = Array.from(new Set([
+    ...normalizeIdArray(item?._bookId),
+    ...normalizeIdArray(item?._bookIds),
+  ]));
 
   return {
     id,
@@ -116,6 +144,7 @@ function normalizeRecipe(item, index) {
     ingredients: ingredients.length ? ingredients : ['No ingredients listed yet'],
     methodSteps: methodSteps.length ? methodSteps : ['No method steps listed yet'],
     note,
+    bookIds,
   };
 }
 
@@ -123,14 +152,61 @@ function getRawRecipeId(item, index) {
   return String(pickFirst(item?.id, item?.uuid, item?.recipe_id, `${index}`));
 }
 
+function normalizeBook(item, index) {
+  const title = pickFirst(item?.title, item?.name, item?.book_title, item?.label, `Cookbook ${index + 1}`);
+  const subtitle = pickFirst(item?.subtitle, item?.description, item?.author, item?.owner, 'My cookbook');
+  const cover = pickFirst(
+    Array.isArray(item?._cloudPhotos) ? item._cloudPhotos[0] : null,
+    item?._cloudPhotos?.[0],
+    item?.image,
+    item?.imageUrl,
+    item?.cover,
+    item?.coverImage,
+    item?.thumbnail,
+  );
+  const recipes = firstNonEmptyArray(
+    item?.recipes,
+    item?.saved,
+    item?.items,
+    item?.recipe_ids,
+  );
+  const recipeCount = typeof item?.recipeCount === 'number'
+    ? item.recipeCount
+    : recipes.length;
+  const recipeIds = Array.from(new Set([
+    ...normalizeIdArray(item?.recipe_ids),
+    ...normalizeIdArray(item?.recipeIds),
+    ...normalizeIdArray(item?.recipeIDs),
+    ...normalizeIdArray(item?.recipes),
+    ...normalizeIdArray(item?.saved),
+    ...normalizeIdArray(item?.items),
+  ]));
+
+  return {
+    id: String(pickFirst(item?.id, item?.uuid, item?.book_id, `${index}`)),
+    title,
+    subtitle,
+    cover,
+    recipeCount,
+    recipeIds,
+  };
+}
+
 export default function RecipesScreen({ user }) {
+  const route = useRoute();
   const { data, pushAllFromStorage } = useSync(user);
   const [tab, setTab] = useState('recipes');
   const [query, setQuery] = useState('');
+  const [selectedBook, setSelectedBook] = useState(null);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [noteText, setNoteText] = useState('');
   const [noteByRecipeId, setNoteByRecipeId] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+
+  const openRecipeDetail = (recipe) => {
+    setSelectedRecipe(recipe);
+    setNoteText(noteByRecipeId[recipe.id] ?? recipe.note ?? '');
+  };
 
   const syncRecipeCache = async (nextSaved) => {
     const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
@@ -208,6 +284,83 @@ export default function RecipesScreen({ user }) {
     });
   }, [recipes, query]);
 
+  const books = useMemo(() => {
+    const list = Array.isArray(data.books) ? data.books : [];
+    return list.map(normalizeBook);
+  }, [data.books]);
+
+  const booksWithMatchedCounts = useMemo(() => {
+    return books.map((book) => ({
+      ...book,
+      matchedRecipeCount: recipes.filter((recipe) => recipe.bookIds.includes(book.id)).length,
+    }));
+  }, [books, recipes]);
+
+  const selectedBookRecipes = useMemo(() => {
+    if (!selectedBook) return [];
+
+    const q = query.trim().toLowerCase();
+    const filtered = recipes.filter((recipe) => {
+      const matchesBookId = recipe.bookIds.includes(selectedBook.id);
+      const matchesRecipeList = selectedBook.recipeIds.includes(String(recipe.id));
+      if (!matchesBookId && !matchesRecipeList) return false;
+
+      if (!q) return true;
+      return [recipe.title, recipe.category, recipe.meal, recipe.difficulty]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q);
+    });
+
+    return filtered;
+  }, [selectedBook, recipes, query]);
+
+  React.useEffect(() => {
+    const debugBooks = (Array.isArray(data.books) ? data.books : []).map((book) => ({
+      id: pickFirst(book?.id, book?.uuid, book?.book_id, null),
+      name: pickFirst(book?.name, book?.title, book?.book_title, null),
+      recipe_ids: pickFirst(book?.recipe_ids, book?.recipeIds, book?.recipes, book?.saved, null),
+      raw: book,
+    }));
+
+    const debugRecipes = (Array.isArray(data.recipes) ? data.recipes : []).map((recipe, index) => ({
+      id: pickFirst(recipe?.id, recipe?.uuid, recipe?.recipe_id, `${index}`),
+      title: pickFirst(recipe?.title, recipe?.name, recipe?.recipe_name, null),
+      _bookId: pickFirst(recipe?._bookId, recipe?._bookIds, null),
+      raw: recipe,
+    }));
+
+    const normalizedMatches = booksWithMatchedCounts.map((book) => ({
+      bookId: book.id,
+      title: book.title,
+      recipeIdsFromBook: book.recipeIds,
+      matchedRecipeCount: book.matchedRecipeCount,
+      matchedRecipes: recipes
+        .filter((recipe) => recipe.bookIds.includes(book.id) || book.recipeIds.includes(String(recipe.id)))
+        .map((recipe) => ({ id: recipe.id, title: recipe.title, bookIds: recipe.bookIds })),
+    }));
+
+    console.log('[RecipesScreen] latest API books raw:', JSON.stringify(debugBooks, null, 2));
+    console.log('[RecipesScreen] latest API saved raw:', JSON.stringify(debugRecipes, null, 2));
+    console.log('[RecipesScreen] normalized cookbook matches:', JSON.stringify(normalizedMatches, null, 2));
+  }, [data.books, data.recipes, booksWithMatchedCounts, recipes]);
+
+  React.useEffect(() => {
+    const requestedTab = route?.params?.openTab;
+    if (requestedTab === 'recipes' || requestedTab === 'cookbooks') {
+      setTab(requestedTab);
+      setSelectedBook(null);
+      setQuery('');
+    }
+  }, [route?.params?.openTab, route?.params?.requestKey]);
+
+  React.useEffect(() => {
+    if (tab !== 'cookbooks' && selectedBook) {
+      setSelectedBook(null);
+    }
+  }, [tab, selectedBook]);
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -216,38 +369,40 @@ export default function RecipesScreen({ user }) {
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         contentContainerStyle={styles.content}
       >
-        <View style={styles.tabsRow}>
-          <View style={styles.tabsPill}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setTab('recipes')}
-              style={[styles.tabButton, tab === 'recipes' ? styles.tabButtonActive : null]}
-            >
-              <Text style={[styles.tabButtonText, tab === 'recipes' ? styles.tabButtonTextActive : null]}>
-                Recipes
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => setTab('cookbooks')}
-              style={[styles.tabButton, tab === 'cookbooks' ? styles.tabButtonActive : null]}
-            >
-              <Text style={[styles.tabButtonText, tab === 'cookbooks' ? styles.tabButtonTextActive : null]}>
-                Cookbooks
-              </Text>
-            </TouchableOpacity>
-          </View>
+        {!selectedBook ? (
+          <View style={styles.tabsRow}>
+            <View style={styles.tabsPill}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setTab('recipes')}
+                style={[styles.tabButton, tab === 'recipes' ? styles.tabButtonActive : null]}
+              >
+                <Text style={[styles.tabButtonText, tab === 'recipes' ? styles.tabButtonTextActive : null]}>
+                  Recipes
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setTab('cookbooks')}
+                style={[styles.tabButton, tab === 'cookbooks' ? styles.tabButtonActive : null]}
+              >
+                <Text style={[styles.tabButtonText, tab === 'cookbooks' ? styles.tabButtonTextActive : null]}>
+                  Cookbooks
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.searchBox}>
-            <TextInput
-              placeholder="Search recipes..."
-              placeholderTextColor="#AA9D8C"
-              value={query}
-              onChangeText={setQuery}
-              style={styles.searchInput}
-            />
+            <View style={styles.searchBox}>
+              <TextInput
+                placeholder="Search recipes..."
+                placeholderTextColor="#AA9D8C"
+                value={query}
+                onChangeText={setQuery}
+                style={styles.searchInput}
+              />
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {tab === 'recipes' ? (
           filteredRecipes.length ? (
@@ -312,10 +467,155 @@ export default function RecipesScreen({ user }) {
             </View>
           )
         ) : (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>Cookbooks coming soon</Text>
-            <Text style={styles.emptySub}>Your cookbooks tab is ready for synced data.</Text>
-          </View>
+          selectedBook ? (
+            <View style={styles.bookDetailWrap}>
+              <View style={styles.bookDetailActionsTop}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setSelectedBook(null)}
+                  style={[styles.bookActionBtn, styles.bookActionBtnMuted]}
+                >
+                  <Text style={styles.bookActionTextLight}>← Back</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.bookDetailActionsRow}>
+                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnMuted, styles.bookActionBtnWide]}>
+                  <Text style={styles.bookActionTextLight}>＋ Add Recipes</Text>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnGreen]}>
+                  <Text style={styles.bookActionTextLight}>✏️ Edit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnShare]}>
+                  <Text style={styles.bookActionTextLight}>✦ Share</Text>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnDarkGreen]}>
+                  <Text style={styles.bookActionTextLight}>🎙 Ask Fern</Text>
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity activeOpacity={0.85} style={styles.bookTrashBtn}>
+                <Text style={styles.bookTrashText}>🗑</Text>
+              </TouchableOpacity>
+
+              <View style={styles.bookDetailCard}>
+                <View style={[styles.bookDetailHeader, selectedBook.cover ? styles.bookDetailHeaderWithImage : null]}>
+                  {selectedBook.cover ? (
+                    <ImageBackground
+                      source={{ uri: selectedBook.cover }}
+                      style={styles.bookDetailHeaderImage}
+                      imageStyle={styles.bookDetailHeaderImageInner}
+                    >
+                      <View style={styles.bookDetailHeaderOverlay} />
+                    </ImageBackground>
+                  ) : null}
+                  <Text style={styles.bookDetailTitle}>{selectedBook.title}</Text>
+                  <Text style={styles.bookDetailCount}>{selectedBookRecipes.length} RECIPE{selectedBookRecipes.length === 1 ? '' : 'S'}</Text>
+                  <Text style={styles.bookDetailSparkle}>✦</Text>
+                </View>
+
+                <View style={styles.bookDetailPage}>
+                  {selectedBookRecipes.length ? (
+                    <View style={styles.bookRecipeGrid}>
+                      {selectedBookRecipes.map((recipe) => (
+                        <TouchableOpacity
+                          key={`book-${selectedBook.id}-${recipe.id}`}
+                          activeOpacity={0.9}
+                          onPress={() => openRecipeDetail(recipe)}
+                          style={[styles.bookRecipeCard, shadow.card]}
+                        >
+                          <ImageBackground
+                            source={recipe.image ? { uri: recipe.image } : require('../../assets/icon.png')}
+                            style={styles.bookRecipeImage}
+                            imageStyle={styles.bookRecipeImageInner}
+                          />
+                          <View style={styles.bookRecipeBody}>
+                            <Text numberOfLines={2} style={styles.bookRecipeTitle}>{recipe.title}</Text>
+                            <Text numberOfLines={1} style={styles.bookRecipeMeta}>{recipe.category} · {recipe.meal}</Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.bookDetailEmpty}>
+                      <Text style={styles.bookDetailEmptyTitle}>No recipes in this cookbook yet</Text>
+                      <Text style={styles.bookDetailEmptySub}>Saved recipes with a matching book ID will appear here.</Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.bookPagerRow}>
+                <TouchableOpacity activeOpacity={0.85} style={[styles.bookPagerBtn, styles.bookPagerBtnDisabled]}>
+                  <Text style={styles.bookPagerBtnDisabledText}>‹ Prev</Text>
+                </TouchableOpacity>
+                <Text style={styles.bookPagerText}>Page 1 of 1</Text>
+                <TouchableOpacity activeOpacity={0.85} style={[styles.bookPagerBtn, styles.bookPagerBtnNext]}>
+                  <Text style={styles.bookPagerBtnText}>Next ›</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : booksWithMatchedCounts.length ? (
+            <View style={styles.cookbooksWrap}>
+              <View style={[styles.cookbooksHero, shadow.strong]}>
+                <Text style={styles.cookbooksHeroTitle}>My cookbooks</Text>
+                <Text style={styles.cookbooksHeroSub}>Tap a cookbook to browse its recipes</Text>
+
+                <TouchableOpacity style={styles.newBookBtn} activeOpacity={0.85}>
+                  <Text style={styles.newBookBtnText}>+ NEW COOKBOOK</Text>
+                </TouchableOpacity>
+
+                <View style={styles.bookshelfDeck}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.bookshelfRow}
+                  >
+                    {booksWithMatchedCounts.map((book) => (
+                      <TouchableOpacity
+                        key={book.id}
+                        activeOpacity={0.9}
+                        onPress={() => {
+                          setSelectedBook(book);
+                          setQuery('');
+                        }}
+                        style={styles.bookSpine}
+                      >
+                        {book.cover ? (
+                          <ImageBackground
+                            source={{ uri: book.cover }}
+                            style={styles.bookSpineCover}
+                            imageStyle={styles.bookSpineCoverImage}
+                          >
+                            <View style={styles.bookOverlay} />
+                          </ImageBackground>
+                        ) : null}
+
+                        <View style={styles.bookSpineLeftEdge} />
+                        <View style={styles.bookSpineRightEdge} />
+
+                        <View style={styles.bookSpineInner}>
+                          <View style={styles.bookRuleTop} />
+
+                          <View style={styles.bookLabelWrap}>
+                            <Text numberOfLines={1} style={styles.bookSpineTitle}>{book.title}</Text>
+                          </View>
+
+                          <View style={styles.bookRuleBottom} />
+                          <Text style={styles.bookSpineSparkle}>✦</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No cookbooks yet</Text>
+              <Text style={styles.emptySub}>Cookbooks from your API sync will appear here.</Text>
+            </View>
+          )
         )}
       </ScrollView>
 
@@ -673,6 +973,346 @@ const styles = StyleSheet.create({
     color: colors.brown,
     fontSize: 13,
     fontFamily: 'Jost-Medium',
+  },
+  cookbooksWrap: {
+    marginTop: 22,
+  },
+  bookDetailWrap: {
+    marginTop: 14,
+    paddingBottom: 14,
+  },
+  bookDetailActionsTop: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  bookDetailActionsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  bookActionBtn: {
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderWidth: 1,
+  },
+  bookActionBtnMuted: {
+    backgroundColor: '#344337',
+    borderColor: '#596B5B',
+  },
+  bookActionBtnWide: {
+    paddingHorizontal: 16,
+  },
+  bookActionBtnGreen: {
+    backgroundColor: '#356B29',
+    borderColor: '#4B8A3D',
+  },
+  bookActionBtnShare: {
+    backgroundColor: '#B2511C',
+    borderColor: '#CC7032',
+  },
+  bookActionBtnDarkGreen: {
+    backgroundColor: '#1E4B20',
+    borderColor: '#2E6930',
+  },
+  bookActionTextLight: {
+    color: '#F1EFE8',
+    fontSize: 13,
+    fontFamily: 'Jost-Bold',
+  },
+  bookTrashBtn: {
+    marginTop: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#F4F0E8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookTrashText: {
+    fontSize: 22,
+  },
+  bookDetailCard: {
+    marginTop: 18,
+    borderRadius: 24,
+    overflow: 'hidden',
+    backgroundColor: '#ECE8DF',
+    borderWidth: 1,
+    borderColor: '#D3CCBE',
+  },
+  bookDetailHeader: {
+    minHeight: 164,
+    backgroundColor: '#A7C2E1',
+    paddingHorizontal: 20,
+    paddingTop: 36,
+    paddingBottom: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookDetailHeaderWithImage: {
+    position: 'relative',
+  },
+  bookDetailHeaderImage: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bookDetailHeaderImageInner: {
+    resizeMode: 'cover',
+  },
+  bookDetailHeaderOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(130, 170, 215, 0.74)',
+  },
+  bookDetailTitle: {
+    color: '#F7F2E8',
+    fontSize: 28,
+    lineHeight: 34,
+    fontFamily: 'PlayfairDisplay-Bold',
+    textAlign: 'center',
+    zIndex: 1,
+  },
+  bookDetailCount: {
+    marginTop: 8,
+    color: 'rgba(243, 239, 229, 0.88)',
+    fontSize: 12,
+    letterSpacing: 3,
+    fontFamily: 'Jost-SemiBold',
+    zIndex: 1,
+  },
+  bookDetailSparkle: {
+    marginTop: 18,
+    color: 'rgba(243, 239, 229, 0.72)',
+    fontSize: 20,
+    zIndex: 1,
+  },
+  bookDetailPage: {
+    minHeight: 360,
+    backgroundColor: '#FAF8F4',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#D7D3CC',
+  },
+  bookRecipeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  bookRecipeCard: {
+    width: '48%',
+    backgroundColor: '#FFFDFC',
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E0D5C5',
+  },
+  bookRecipeImage: {
+    height: 164,
+    backgroundColor: '#E7E0D6',
+  },
+  bookRecipeImageInner: {
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+  },
+  bookRecipeBody: {
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    paddingBottom: 14,
+  },
+  bookRecipeTitle: {
+    color: '#3A2416',
+    fontSize: 16,
+    lineHeight: 20,
+    fontFamily: 'PlayfairDisplay-Bold',
+  },
+  bookRecipeMeta: {
+    marginTop: 4,
+    color: '#8E6D49',
+    fontSize: 11,
+    fontFamily: 'PlayfairDisplay-Italic',
+  },
+  bookDetailEmpty: {
+    minHeight: 180,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  bookDetailEmptyTitle: {
+    color: '#3A2416',
+    fontSize: 18,
+    fontFamily: 'Jost-Bold',
+    textAlign: 'center',
+  },
+  bookDetailEmptySub: {
+    marginTop: 8,
+    color: '#80623F',
+    fontSize: 13,
+    lineHeight: 19,
+    fontFamily: 'Jost-Regular',
+    textAlign: 'center',
+  },
+  bookPagerRow: {
+    marginTop: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bookPagerBtn: {
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  bookPagerBtnDisabled: {
+    backgroundColor: '#2B3E36',
+    opacity: 0.55,
+  },
+  bookPagerBtnNext: {
+    backgroundColor: '#63402B',
+  },
+  bookPagerBtnDisabledText: {
+    color: '#C4C7C3',
+    fontSize: 14,
+    fontFamily: 'Jost-Bold',
+  },
+  bookPagerBtnText: {
+    color: '#F4ECDD',
+    fontSize: 14,
+    fontFamily: 'Jost-Bold',
+  },
+  bookPagerText: {
+    color: '#977A4E',
+    fontSize: 16,
+    fontFamily: 'PlayfairDisplay-Bold',
+  },
+  cookbooksHero: {
+    borderRadius: 28,
+    backgroundColor: '#2B1107',
+    paddingHorizontal: 16,
+    paddingVertical: 22,
+    overflow: 'hidden',
+  },
+  cookbooksHeroTitle: {
+    color: '#E6D9C0',
+    fontSize: 26,
+    lineHeight: 32,
+    fontFamily: 'PlayfairDisplay-Bold',
+    opacity: 0.26,
+  },
+  cookbooksHeroSub: {
+    marginTop: 6,
+    color: '#8D6542',
+    fontSize: 12,
+    lineHeight: 20,
+    fontFamily: 'Jost-Regular',
+  },
+  newBookBtn: {
+    marginTop: 16,
+    alignSelf: 'flex-start',
+    borderRadius: 10,
+    backgroundColor: colors.forest,
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  newBookBtnText: {
+    color: '#F3EEE4',
+    fontSize: 12,
+    letterSpacing: 1,
+    fontFamily: 'Jost-Bold',
+  },
+  bookshelfDeck: {
+    marginTop: 18,
+    borderRadius: 20,
+    backgroundColor: '#B68757',
+    borderWidth: 1,
+    borderColor: '#CAA47F',
+    paddingVertical: 16,
+  },
+  bookshelfRow: {
+    paddingHorizontal: 12,
+    alignItems: 'stretch',
+  },
+  bookSpine: {
+    width: 50,
+    minHeight: 250,
+    borderRadius: 6,
+    backgroundColor: '#A97B4A',
+    borderWidth: 1,
+    borderColor: '#8E653E',
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  bookSpineCover: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  bookSpineCoverImage: {
+    borderRadius: 6,
+  },
+  bookOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(54, 30, 14, 0.55)',
+    borderRadius: 6,
+  },
+  bookSpineLeftEdge: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 4,
+    backgroundColor: 'rgba(229, 206, 165, 0.18)',
+  },
+  bookSpineRightEdge: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 7,
+    backgroundColor: 'rgba(27, 13, 5, 0.65)',
+  },
+  bookSpineInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+  },
+  bookLabelWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookSpineTitle: {
+    color: '#F5ECE0',
+    fontSize: 14,
+    lineHeight: 18,
+    letterSpacing: 0.2,
+    fontFamily: 'PlayfairDisplay-Bold',
+    transform: [{ rotate: '-90deg' }],
+    width: 178,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
+  bookRuleTop: {
+    marginTop: 12,
+    width: '74%',
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#D3AE52',
+    borderWidth: 1,
+    borderColor: '#B88E2E',
+  },
+  bookRuleBottom: {
+    width: '74%',
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: '#D3AE52',
+    borderWidth: 1,
+    borderColor: '#B88E2E',
+  },
+  bookSpineSparkle: {
+    marginTop: 8,
+    color: '#E8E3DA',
+    fontSize: 12,
+    fontFamily: 'Jost-Bold',
   },
 
   overlayBackdrop: {

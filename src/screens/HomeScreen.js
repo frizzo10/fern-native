@@ -190,16 +190,16 @@ export default function HomeScreen({ user }) {
 
         <View style={styles.statsRow}>
           {[
-            { label: 'Recipes Saved', val: `${recipesCount}`, route: 'Recipes' },
-            { label: 'Cookbooks', val: `${booksCount}` },
+            { label: 'Recipes Saved', val: `${recipesCount}`, route: 'Recipes', params: { openTab: 'recipes' } },
+            { label: 'Cookbooks', val: `${booksCount}`, route: 'Recipes', params: { openTab: 'cookbooks', openSection: 'cookbooks' } },
             { label: 'Bloggers Following', val: `${followersCount}`, color: 'rgb(216, 109, 51)' },
             { label: 'Meals Planned', val: `${mealsPlannedCount}` },
-          ].map(({ label, val, color, route }) => (
+          ].map(({ label, val, color, route, params }) => (
             <TouchableOpacity
               key={label}
               activeOpacity={route ? 0.85 : 1}
               disabled={!route}
-              onPress={route ? () => navigation.navigate(route) : undefined}
+              onPress={route ? () => navigation.navigate(route, { ...params, requestKey: Date.now() }) : undefined}
               style={[styles.statCard, shadow.card]}
             >
               <Text style={[styles.statVal, { color: color }]}>{val}</Text>

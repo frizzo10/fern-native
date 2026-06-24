@@ -10,7 +10,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import HomeScreen from './src/screens/HomeScreen';
-import FindScreen from './src/screens/FindScreen';
+import SearchScreen from './src/screens/SearchScreen';
 import ShoppingScreen from './src/screens/ShoppingScreen';
 import FamilyScreen from './src/screens/FamilyScreen';
 import RecipesScreen from './src/screens/RecipesScreen';
@@ -208,13 +208,13 @@ export default function App() {
         </Tab.Screen>
         <Tab.Screen
           name="Find"
-          component={FindScreen}
+          component={SearchScreen}
           options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
         />
         <Tab.Screen
           name="Family"
           options={{
-            tabBarLabel: 'FAMILYHUB',
+            tabBarLabel: 'FAMILY HUB',
             tabBarIcon: ({ focused }) => <TabIcon emoji="📆" focused={focused} />,
           }}
         >
