@@ -848,9 +848,9 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     color: colors.ink,
-    fontSize: 10,
+    fontSize: 12,
     fontFamily: 'Jost-Medium',
-    padding: 0,
+    padding: 2,
   },
   grid: {
     marginTop: 18,

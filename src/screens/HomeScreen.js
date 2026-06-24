@@ -641,14 +641,13 @@ const styles = StyleSheet.create({
 
   panelTitle: {
     color: '#55463A',
-    fontSize: 13,
-    fontFamily: 'Jost-Bold',
-    letterSpacing: 1.2,
+    fontSize: 12,
+    fontFamily: 'Jost-Bold'
   },
 
   panelLink: {
     color: '#184029',
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Jost-Bold',
   },
 
@@ -879,18 +878,17 @@ const styles = StyleSheet.create({
   },
 
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Jost-Bold',
     color: '#5D4F42',
-    marginTop: 4,
+    marginTop: 4
   },
 
   statVal: {
     fontSize: 35,
     fontFamily: 'Playfair-Medium',
     color: 'rgb(56, 89, 45)',
-    marginTop: 6,
-    lineHeight: 40,
+    marginTop: 6
   },
 
   bottomSpacer: {
