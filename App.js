@@ -208,9 +208,10 @@ export default function App() {
         </Tab.Screen>
         <Tab.Screen
           name="Find"
-          component={SearchScreen}
           options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
-        />
+        >
+          {() => <SearchScreen user={user} />}
+        </Tab.Screen>
         <Tab.Screen
           name="Family"
           options={{

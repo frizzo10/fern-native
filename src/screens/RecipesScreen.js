@@ -103,6 +103,7 @@ function normalizeRecipe(item, index) {
   const image = pickFirst(
     Array.isArray(item?._cloudPhotos) ? item._cloudPhotos[0] : null,
     item?._cloudPhotos?.[0],
+    item?._photoUrl,
     item?.image,
     item?.imageUrl,
     item?.photo,
@@ -158,6 +159,7 @@ function normalizeBook(item, index) {
   const cover = pickFirst(
     Array.isArray(item?._cloudPhotos) ? item._cloudPhotos[0] : null,
     item?._cloudPhotos?.[0],
+    item?._photoUrl,
     item?.image,
     item?.imageUrl,
     item?.cover,
@@ -392,15 +394,17 @@ export default function RecipesScreen({ user }) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.searchBox}>
-              <TextInput
-                placeholder="Search recipes..."
-                placeholderTextColor="#AA9D8C"
-                value={query}
-                onChangeText={setQuery}
-                style={styles.searchInput}
-              />
-            </View>
+            {tab === 'recipes' ? (
+              <View style={styles.searchBox}>
+                <TextInput
+                  placeholder="Search recipes..."
+                  placeholderTextColor="#AA9D8C"
+                  value={query}
+                  onChangeText={setQuery}
+                  style={styles.searchInput}
+                />
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -517,12 +521,12 @@ export default function RecipesScreen({ user }) {
                 <View style={styles.bookDetailPage}>
                   {selectedBookRecipes.length ? (
                     <View style={styles.bookRecipeGrid}>
-                      {selectedBookRecipes.map((recipe) => (
+                      {selectedBookRecipes.map((recipe, idx) => (
                         <TouchableOpacity
                           key={`book-${selectedBook.id}-${recipe.id}`}
                           activeOpacity={0.9}
                           onPress={() => openRecipeDetail(recipe)}
-                          style={[styles.bookRecipeCard, shadow.card]}
+                          style={[styles.bookRecipeCard, shadow.card, idx % 2 === 0 ? { marginRight: '4%' } : null]}
                         >
                           <ImageBackground
                             source={recipe.image ? { uri: recipe.image } : require('../../assets/icon.png')}
@@ -1094,7 +1098,7 @@ const styles = StyleSheet.create({
   bookRecipeGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    rowGap: 14,
   },
   bookRecipeCard: {
     width: '48%',

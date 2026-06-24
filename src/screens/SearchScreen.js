@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
     Image,
+    Linking,
+    Modal,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -10,12 +12,63 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radius, shadow } from '../constants/tokens';
+import { useSync } from '../hooks/useSync';
 
-const bloggers = [
-    { name: 'mitten Kitchen', emoji: '🍋', backgroundColor: '#4E8B2F' },
-    { name: 'Budget Bytes', emoji: '💰', backgroundColor: '#224E37' },
+var FEATURED_BLOGGERS = [
+    { id: 'b1', name: 'Half Baked Harvest', emoji: '🌾', specialty: 'Comfort food & seasonal', url: 'https://www.halfbakedharvest.com', color: '#8B4513' },
+    { id: 'b2', name: 'Minimalist Baker', emoji: '🌱', specialty: '10 ingredients or less', url: 'https://minimalistbaker.com', color: '#2D6A4F' },
+    { id: 'b3', name: 'Smitten Kitchen', emoji: '🍋', specialty: 'Real food, tiny kitchen', url: 'https://smittenkitchen.com', color: '#4A7C2F' },
+    { id: 'b4', name: 'Budget Bytes', emoji: '💰', specialty: 'Delicious on a budget', url: 'https://www.budgetbytes.com', color: '#1B4332' },
+    { id: 'b5', name: 'Pinch of Yum', emoji: '🌶', specialty: 'Simple & tasty', url: 'https://pinchofyum.com', color: '#9B3A0F' },
+    { id: 'b6', name: "Sally's Baking", emoji: '🎂', specialty: 'Baking that works', url: 'https://sallysbakingaddiction.com', color: '#7B3F00' },
+    { id: 'b7', name: 'The Pioneer Woman', emoji: '🤠', specialty: 'Hearty ranch cooking', url: 'https://thepioneerwoman.com', color: '#8B4513' },
+    { id: 'b8', name: 'Serious Eats', emoji: '🔬', specialty: 'The science of cooking', url: 'https://www.seriouseats.com', color: '#1C3A1A' },
+    { id: 'b9', name: 'Cookie and Kate', emoji: '🥗', specialty: 'Whole foods vegetarian', url: 'https://cookieandkate.com', color: '#2D6A4F' },
+    { id: 'b10', name: 'Damn Delicious', emoji: '⭐', specialty: 'Quick weeknight dinners', url: 'https://damndelicious.net', color: '#C2185B' },
+    { id: 'b11', name: 'Bon Appétit', emoji: '👨‍🍳', specialty: 'Restaurant-quality at home', url: 'https://www.bonappetit.com', color: '#CC0000' },
+    { id: 'b12', name: 'Food52', emoji: '🍴', specialty: 'Community recipes & tips', url: 'https://food52.com', color: '#E8650A' },
+    { id: 'b13', name: 'Tasty', emoji: '😋', specialty: 'Quick & easy video recipes', url: 'https://tasty.co', color: '#FF6B6B' },
+    { id: 'b14', name: 'RecipeTin Eats', emoji: '🥘', specialty: 'Foolproof family recipes', url: 'https://www.recipetineats.com', color: '#E63946' },
+    { id: 'b15', name: 'Skinnytaste', emoji: '🥦', specialty: 'Healthy lightened-up meals', url: 'https://www.skinnytaste.com', color: '#2D6A4F' },
+    { id: 'b16', name: 'The Kitchn', emoji: '🏠', specialty: 'Practical everyday cooking', url: 'https://www.thekitchn.com', color: '#F4845F' },
+    { id: 'b17', name: 'Love & Lemons', emoji: '🍋', specialty: 'Fresh vegetarian cooking', url: 'https://www.loveandlemons.com', color: '#F7C948' },
+    { id: 'b18', name: 'Gimme Some Oven', emoji: '🍞', specialty: 'Simple comfort food', url: 'https://www.gimmesomeoven.com', color: '#D4813A' },
+    { id: 'b19', name: 'Iowa Girl Eats', emoji: '🌽', specialty: 'Gluten-free family meals', url: 'https://iowagirleats.com', color: '#4A8C3F' },
+    { id: 'b20', name: 'The Woks of Life', emoji: '🥢', specialty: 'Authentic Chinese cooking', url: 'https://thewoksoflife.com', color: '#C9302C' },
+    { id: 'b21', name: 'Downshiftology', emoji: '🥑', specialty: 'Whole foods & paleo', url: 'https://downshiftology.com', color: '#5C8A3C' },
+    { id: 'b22', name: 'A Couple Cooks', emoji: '💑', specialty: 'Healthy & vegetarian', url: 'https://www.acouplecooks.com', color: '#E07C5B' },
+    { id: 'b23', name: 'Simply Recipes', emoji: '🍅', specialty: 'Family-tested recipes', url: 'https://www.simplyrecipes.com', color: '#E25C1E' },
+    { id: 'b24', name: 'NYT Cooking', emoji: '📰', specialty: 'Trusted & tested classics', url: 'https://cooking.nytimes.com', color: '#333333' },
+    { id: 'b25', name: 'Epicurious', emoji: '🏆', specialty: 'Expert-tested recipes', url: 'https://www.epicurious.com', color: '#B5451B' },
+    { id: 'b26', name: 'Allrecipes', emoji: '📖', specialty: 'Community favorites', url: 'https://www.allrecipes.com', color: '#E4242B' },
+    { id: 'b27', name: 'Delish', emoji: '✨', specialty: 'Fun & indulgent recipes', url: 'https://www.delish.com', color: '#FF4D6D' },
+    { id: 'b28', name: 'Taste of Home', emoji: '🏡', specialty: 'Tried & true home cooking', url: 'https://www.tasteofhome.com', color: '#B03A2E' },
+    { id: 'b29', name: 'The Mediterranean Dish', emoji: '🫒', specialty: 'Mediterranean & Middle Eastern', url: 'https://www.themediterraneandish.com', color: '#1A7A4A' },
+    { id: 'b30', name: 'Feasting at Home', emoji: '🏔', specialty: 'Fresh seasonal cooking', url: 'https://www.feastingathome.com', color: '#2980B9' },
+    { id: 'b31', name: 'Oh She Glows', emoji: '✨', specialty: 'Plant-based & vegan', url: 'https://ohsheglows.com', color: '#8E44AD' },
+    { id: 'b32', name: 'Ambitious Kitchen', emoji: '💪', specialty: 'Healthy & indulgent', url: 'https://www.ambitiouskitchen.com', color: '#E91E8C' },
+    { id: 'b33', name: 'Spend With Pennies', emoji: '🪙', specialty: 'Easy budget-friendly meals', url: 'https://www.spendwithpennies.com', color: '#2E86AB' },
+    { id: 'b34', name: 'The Recipe Critic', emoji: '👩‍🍳', specialty: 'Family dinner favorites', url: 'https://therecipecritic.com', color: '#E74C3C' },
+    { id: 'b35', name: "Natasha's Kitchen", emoji: '🫐', specialty: 'Easy & impressive dishes', url: 'https://natashaskitchen.com', color: '#8B1A4A' },
+    { id: 'b36', name: 'Jo Cooks', emoji: '🍲', specialty: 'Quick international meals', url: 'https://www.jocooks.com', color: '#D35400' },
+    { id: 'b37', name: 'Well Plated', emoji: '🥗', specialty: 'Healthy comfort food', url: 'https://www.wellplated.com', color: '#27AE60' },
+    { id: 'b38', name: 'Cafe Delites', emoji: '☕', specialty: 'Indulgent home cooking', url: 'https://cafedelites.com', color: '#6F4E37' },
+    { id: 'b39', name: 'Two Peas & Pod', emoji: '🫛', specialty: 'Feel-good family food', url: 'https://www.twopeasandtheirpod.com', color: '#27AE60' },
+    { id: 'b40', name: 'Cooking Classy', emoji: '🎩', specialty: 'Elevated everyday meals', url: 'https://www.cookingclassy.com', color: '#2C3E50' },
+    { id: 'b41', name: 'The Forked Spoon', emoji: '🍽', specialty: 'Comforting family meals', url: 'https://theforkedspoon.com', color: '#8E44AD' },
+    { id: 'b42', name: 'Foolproof Living', emoji: '🎯', specialty: 'Simple & reliable recipes', url: 'https://foolproofliving.com', color: '#1A5276' },
+    { id: 'b43', name: 'Jessica Gavin', emoji: '🔬', specialty: 'Culinary science recipes', url: 'https://jessicagavin.com', color: '#922B21' },
+    { id: 'b44', name: 'Kevin Is Cooking', emoji: '🧑‍🍳', specialty: 'Bold flavors & techniques', url: 'https://www.keviniscooking.com', color: '#1F618D' },
+    { id: 'b45', name: 'Sweet Peas & Saffron', emoji: '🌸', specialty: 'Meal prep & make-ahead', url: 'https://sweetpeasandsaffron.com', color: '#A04000' },
+    { id: 'b46', name: 'The Cozy Cook', emoji: '🛋', specialty: 'Cozy comfort food', url: 'https://thecozycook.com', color: '#6E2C00' },
+    { id: 'b47', name: 'Isabel Eats', emoji: '🌮', specialty: 'Mexican & Latin recipes', url: 'https://www.isabeleats.com', color: '#C0392B' },
+    { id: 'b48', name: 'Panlasang Pinoy', emoji: '🇵🇭', specialty: 'Filipino home cooking', url: 'https://panlasangpinoy.com', color: '#1A5276' },
+    { id: 'b49', name: 'Indian Healthy Recipes', emoji: '🇮🇳', specialty: 'Authentic Indian cooking', url: 'https://www.indianhealthyrecipes.com', color: '#D68910' },
+    { id: 'b50', name: 'Woks & Skillets', emoji: '🍜', specialty: 'Asian fusion & street food', url: 'https://woksandskillets.com', color: '#922B21' }
 ];
 
 function ActionButton({ label, icon, dark, onPress, style }) {
@@ -31,20 +84,74 @@ function ActionButton({ label, icon, dark, onPress, style }) {
     );
 }
 
-function BloggerCard({ item }) {
+function BloggerCard({ item, onPress }) {
     return (
-        <View style={styles.bloggerCardWrap}>
-            <View style={[styles.bloggerCard, { backgroundColor: item.backgroundColor }]}>
+        <TouchableOpacity style={styles.bloggerCardWrap} activeOpacity={0.85} onPress={onPress}>
+            <View style={[styles.bloggerCard, { backgroundColor: item.color }]}>
                 <Text style={styles.bloggerEmoji}>{item.emoji}</Text>
             </View>
             <Text style={styles.bloggerName}>{item.name}</Text>
-        </View>
+        </TouchableOpacity>
     );
 }
 
-export default function SearchScreen() {
+export default function SearchScreen({ user }) {
+    const navigation = useNavigation();
+    const route = useRoute();
+    const { data, pull, pushAllFromStorage } = useSync(user);
     const [searchText, setSearchText] = useState('');
     const [cravingText, setCravingText] = useState('');
+    const [isBloggersModalOpen, setIsBloggersModalOpen] = useState(false);
+    const [bloggerQuery, setBloggerQuery] = useState('');
+    const [followingBloggersLocal, setFollowingBloggersLocal] = useState([]);
+
+    useEffect(() => {
+        if (route?.params?.openBloggers) {
+            setIsBloggersModalOpen(true);
+            navigation.setParams({ openBloggers: false });
+        }
+    }, [route?.params?.openBloggers, navigation]);
+
+    useEffect(() => {
+        if (isBloggersModalOpen) {
+            pull();
+        }
+    }, [isBloggersModalOpen, pull]);
+
+    const normalizeBlogger = (item) => {
+        const featured = FEATURED_BLOGGERS.find((b) => b.id === item?.id || b.name === item?.name);
+        return {
+            id: item?.id || featured?.id,
+            url: item?.url || featured?.url || '',
+            name: item?.name || featured?.name || 'Unknown blogger',
+            color: item?.color || featured?.color || '#4A7C2F',
+            emoji: item?.emoji || featured?.emoji || '🍽',
+            specialty: item?.specialty || featured?.specialty || 'Food recipes',
+        };
+    };
+
+    useEffect(() => {
+        const source = Array.isArray(data.followers) ? data.followers : [];
+        if (source.length) {
+            setFollowingBloggersLocal(source.map(normalizeBlogger));
+            return;
+        }
+
+        // Fallback for first run when API hasn't returned yet.
+        setFollowingBloggersLocal(FEATURED_BLOGGERS.filter((b) => b.id === 'b3' || b.id === 'b4'));
+    }, [data.followers]);
+
+    const followingBloggers = followingBloggersLocal;
+    const followingIds = useMemo(
+        () => new Set(followingBloggers.map((b) => b.id)),
+        [followingBloggers]
+    );
+
+    const visibleBloggers = FEATURED_BLOGGERS.filter((blogger) => {
+        const q = bloggerQuery.trim().toLowerCase();
+        if (!q) return true;
+        return blogger.name.toLowerCase().includes(q) || blogger.specialty.toLowerCase().includes(q);
+    });
 
     const runSearch = () => {
         const query = searchText.trim();
@@ -54,6 +161,41 @@ export default function SearchScreen() {
     const runCraving = () => {
         const query = cravingText.trim();
         Alert.alert('Ask Fern', query ? `Fern will think about ${query}` : 'Tell Fern what you are craving.');
+    };
+
+    const persistFollowedBloggers = async (nextFollowed) => {
+        setFollowingBloggersLocal(nextFollowed);
+
+        await AsyncStorage.setItem('cpc_followed_bloggers', JSON.stringify(nextFollowed));
+        const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+        await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
+            ...cache,
+            followers: nextFollowed,
+        }));
+
+        await pushAllFromStorage();
+        await pull();
+    };
+
+    const toggleFollow = async (blogger) => {
+        const bloggerId = blogger.id;
+        const next = followingIds.has(bloggerId)
+            ? followingBloggers.filter((item) => item.id !== bloggerId)
+            : [...followingBloggers, blogger];
+
+        try {
+            await persistFollowedBloggers(next);
+        } catch {
+            Alert.alert('Sync error', 'Could not update followed bloggers. Please try again.');
+        }
+    };
+
+    const openBloggerRecipes = async (blogger) => {
+        try {
+            await Linking.openURL(blogger.url);
+        } catch {
+            Alert.alert('Recipes', `Could not open ${blogger.url}`);
+        }
     };
 
     return (
@@ -139,25 +281,115 @@ export default function SearchScreen() {
                                 onPress={() => Alert.alert('Ask Fern', 'Ask Fern about a recipe or ingredient.')}
                                 style={styles.askFernButton}
                             />
-                            <TouchableOpacity activeOpacity={0.85} onPress={() => Alert.alert('Manage', 'Manage your followed bloggers.')}>
+                            <TouchableOpacity activeOpacity={0.85} onPress={() => setIsBloggersModalOpen(true)}>
                                 <Text style={styles.manageLink}>{'>Manage →'}</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     <View style={styles.bloggersRow}>
-                        {bloggers.map((item) => (
-                            <BloggerCard key={item.name} item={item} />
+                        {followingBloggers.map((item) => (
+                            <BloggerCard key={item.id} item={item} onPress={() => setIsBloggersModalOpen(true)} />
                         ))}
 
-                        <View style={styles.bloggerCardWrap}>
+                        <TouchableOpacity style={styles.bloggerCardWrap} activeOpacity={0.85} onPress={() => setIsBloggersModalOpen(true)}>
                             <View style={[styles.bloggerCard, styles.followCard]}>
                                 <Text style={styles.followPlus}>+</Text>
                             </View>
                             <Text style={styles.bloggerName}>Follow</Text>
-                        </View>
+                        </TouchableOpacity>
                     </View>
                 </ScrollView>
+
+                <Modal
+                    animationType="fade"
+                    transparent
+                    visible={isBloggersModalOpen}
+                    onRequestClose={() => setIsBloggersModalOpen(false)}
+                >
+                    <View style={styles.modalBackdrop}>
+                        <SafeAreaView style={styles.modalSafeArea}>
+                            <View style={styles.modalCard}>
+                                <View style={styles.modalHeader}>
+                                    <Text style={styles.modalTitle}>👨‍🍳 Food Bloggers</Text>
+                                    <TouchableOpacity
+                                        activeOpacity={0.85}
+                                        onPress={() => setIsBloggersModalOpen(false)}
+                                        style={styles.modalCloseBtn}
+                                    >
+                                        <Text style={styles.modalCloseText}>×</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+                                    <Text style={styles.followingTitle}>FOLLOWING ({followingBloggers.length})</Text>
+
+                                    {followingBloggers.map((blogger) => (
+                                        <View key={`following-${blogger.id}`} style={styles.manageRowCard}>
+                                            <View style={[styles.manageAvatar, { backgroundColor: blogger.color }]}>
+                                                <Text style={styles.manageAvatarEmoji}>{blogger.emoji}</Text>
+                                            </View>
+
+                                            <View style={styles.manageMeta}>
+                                                <Text style={styles.manageName}>{blogger.name}</Text>
+                                                <Text style={styles.manageSpecialty}>{blogger.specialty}</Text>
+                                            </View>
+
+                                            <View style={styles.followingActions}>
+                                                <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn}>
+                                                    <Text style={styles.followingActionText}>New</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn} onPress={() => openBloggerRecipes(blogger)}>
+                                                    <Text style={styles.followingRecipesText}>Recipes</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity activeOpacity={0.85} style={styles.followingRemoveBtn} onPress={() => toggleFollow(blogger)}>
+                                                    <Text style={styles.followingRemoveText}>×</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        </View>
+                                    ))}
+
+                                    <View style={styles.modalSearchWrap}>
+                                        <TextInput
+                                            value={bloggerQuery}
+                                            onChangeText={setBloggerQuery}
+                                            placeholder="Search 50+ food bloggers..."
+                                            placeholderTextColor="#AAA39A"
+                                            style={styles.modalSearchInput}
+                                        />
+                                    </View>
+
+                                    {visibleBloggers.map((blogger) => {
+                                        const isFollowing = followingIds.has(blogger.id);
+
+                                        return (
+                                            <View key={`discover-${blogger.id}`} style={styles.manageRowCard}>
+                                                <View style={[styles.manageAvatar, { backgroundColor: blogger.color }]}>
+                                                    <Text style={styles.manageAvatarEmoji}>{blogger.emoji}</Text>
+                                                </View>
+
+                                                <View style={styles.manageMeta}>
+                                                    <Text style={styles.manageName}>{blogger.name}</Text>
+                                                    <Text style={styles.manageSpecialty}>{blogger.specialty}</Text>
+                                                </View>
+
+                                                <TouchableOpacity
+                                                    activeOpacity={0.85}
+                                                    onPress={() => toggleFollow(blogger)}
+                                                    style={isFollowing ? styles.followingPill : styles.followPill}
+                                                >
+                                                    <Text style={isFollowing ? styles.followingPillText : styles.followPillText}>
+                                                        {isFollowing ? '✓ Following' : '+ Follow'}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        );
+                                    })}
+                                </ScrollView>
+                            </View>
+                        </SafeAreaView>
+                    </View>
+                </Modal>
             </LinearGradient>
         </SafeAreaView>
     );
@@ -384,6 +616,7 @@ const styles = StyleSheet.create({
     },
     bloggersRow: {
         flexDirection: 'row',
+        flexWrap: 'wrap',
         gap: 16,
         alignItems: 'flex-start',
     },
@@ -420,5 +653,181 @@ const styles = StyleSheet.create({
         fontSize: 22,
         color: '#2E1C10',
         marginTop: -2,
+    },
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(16, 12, 8, 0.45)',
+        paddingHorizontal: 12,
+        paddingVertical: 18,
+    },
+    modalSafeArea: {
+        flex: 1,
+        justifyContent: 'center',
+    },
+    modalCard: {
+        backgroundColor: '#F7F4EE',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#DDD0BB',
+        maxHeight: '90%',
+        overflow: 'hidden',
+    },
+    modalHeader: {
+        paddingHorizontal: 20,
+        paddingTop: 4,
+        paddingBottom: 14,
+        borderBottomWidth: 1,
+        borderBottomColor: '#DDD0BB',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    modalTitle: {
+        fontFamily: 'Playfair-Bold',
+        color: '#2F1C10',
+        fontSize: 18,
+        lineHeight: 24,
+    },
+    modalCloseBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#CEBFA8',
+        backgroundColor: '#EFE8DB',
+    },
+    modalCloseText: {
+        fontSize: 28,
+        color: '#8A6B47',
+        marginTop: -2,
+    },
+    modalContent: {
+        paddingHorizontal: 16,
+        paddingBottom: 40,
+    },
+    followingTitle: {
+        marginTop: 14,
+        marginBottom: 12,
+        fontFamily: 'Jost-Bold',
+        fontSize: 16,
+        letterSpacing: 1.8,
+        color: '#7E5D3A',
+    },
+    manageRowCard: {
+        backgroundColor: '#F9F7F3',
+        borderWidth: 1,
+        borderColor: '#D3C3AB',
+        borderRadius: 20,
+        paddingHorizontal: 10,
+        paddingVertical: 14,
+        marginBottom: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    manageAvatar: {
+        width: 34,
+        height: 34,
+        borderRadius: 26,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    manageAvatarEmoji: {
+        fontSize: 20,
+    },
+    manageMeta: {
+        flex: 1,
+        marginLeft: 8,
+    },
+    manageName: {
+        fontFamily: 'Jost-Bold',
+        fontSize: 18,
+        lineHeight: 22,
+        color: '#2E1A0F',
+    },
+    manageSpecialty: {
+        marginTop: 2,
+        fontFamily: 'Jost-Regular',
+        fontSize: 10,
+        lineHeight: 12,
+        color: '#7D6040',
+    },
+    followingActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: 8,
+        gap: 8,
+    },
+    followingActionBtn: {
+        borderWidth: 1,
+        borderColor: '#D1C0A6',
+        backgroundColor: '#F4EEE4',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+    },
+    followingActionText: {
+        color: '#8A6C4B',
+        fontFamily: 'Jost-SemiBold',
+        fontSize: 8,
+    },
+    followingRecipesText: {
+        color: '#2E92F4',
+        fontFamily: 'Jost-SemiBold',
+        fontSize: 8,
+    },
+    followingRemoveBtn: {
+        backgroundColor: '#F5DDE1',
+        borderRadius: 6,
+        width: 30,
+        height: 30,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    followingRemoveText: {
+        fontSize: 12,
+        color: '#D5464E',
+        lineHeight: 14,
+        marginTop: -1,
+    },
+    modalSearchWrap: {
+        marginTop: 6,
+        marginBottom: 10,
+    },
+    modalSearchInput: {
+        borderWidth: 1,
+        borderColor: '#D6C7B2',
+        borderRadius: 14,
+        backgroundColor: '#FCF9F4',
+        paddingHorizontal: 16,
+        paddingVertical: 13,
+        fontFamily: 'Jost-Regular',
+        color: '#624A31',
+        fontSize: 12,
+    },
+    followPill: {
+        backgroundColor: '#CB1B6D',
+        borderRadius: 10,
+        paddingHorizontal: 10,
+        paddingVertical: 9,
+    },
+    followPillText: {
+        color: '#FFF5FB',
+        fontFamily: 'Jost-Bold',
+        fontSize: 10,
+    },
+    followingPill: {
+        borderWidth: 2,
+        borderColor: '#A4D6B0',
+        backgroundColor: '#E7F5E9',
+        borderRadius: 10,
+        paddingHorizontal: 8,
+        paddingVertical: 10,
+    },
+    followingPillText: {
+        color: '#2F8550',
+        fontFamily: 'Jost-Bold',
+        fontSize: 10,
     },
 });

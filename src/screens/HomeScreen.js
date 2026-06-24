@@ -7,7 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
@@ -27,7 +27,13 @@ export default function HomeScreen({ user }) {
   const navigation = useNavigation();
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
-  const { data, loading } = useSync(user);
+  const { data, loading, pull } = useSync(user);
+
+  useFocusEffect(
+    useMemo(() => () => {
+      pull();
+    }, [pull])
+  );
 
   const { isListening, isProcessing, start, stop } = useContinuousMic({
     onTranscript: async (text) => {
@@ -192,7 +198,7 @@ export default function HomeScreen({ user }) {
           {[
             { label: 'Recipes Saved', val: `${recipesCount}`, route: 'Recipes', params: { openTab: 'recipes' } },
             { label: 'Cookbooks', val: `${booksCount}`, route: 'Recipes', params: { openTab: 'cookbooks', openSection: 'cookbooks' } },
-            { label: 'Bloggers Following', val: `${followersCount}`, color: 'rgb(216, 109, 51)' },
+            { label: 'Bloggers Following', val: `${followersCount}`, color: 'rgb(216, 109, 51)', route: 'Find', params: { openBloggers: true } },
             { label: 'Meals Planned', val: `${mealsPlannedCount}` },
           ].map(({ label, val, color, route, params }) => (
             <TouchableOpacity
