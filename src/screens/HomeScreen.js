@@ -1,5 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
+  Modal,
+  TextInput,
   View,
   Text,
   ScrollView,
@@ -7,12 +10,27 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
 
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const STORE_PRESETS = [
+  '🟢 Publix',
+  '🔵 Kroger',
+  '⭐️ Walmart',
+  '🍎 Whole Foods',
+  "🌸 Trader Joe's",
+  '🔴 Aldi',
+  '🏭 Costco',
+  '🎯 Target',
+  '🟠 H-E-B',
+  '🟣 Safeway',
+  '🟤 Stop & Shop',
+  '⚪ Wegmans',
+];
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -20,14 +38,30 @@ function getGreeting() {
 }
 
 function dateKey(d) {
-  return d.toISOString().slice(0, 10);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function toPlainStoreName(label) {
+  return String(label || '')
+    .replace(/^\s*[^\w]+\s*/u, '')
+    .trim();
 }
 
 export default function HomeScreen({ user }) {
   const navigation = useNavigation();
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
-  const { data, loading, pull } = useSync(user);
+  const [userStoresLocal, setUserStoresLocal] = useState([]);
+  const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
+  const [storeNameInput, setStoreNameInput] = useState('');
+  const [zipCodeInput, setZipCodeInput] = useState('');
+  const [isFindingStore, setIsFindingStore] = useState(false);
+  const [isSavingStore, setIsSavingStore] = useState(false);
+  const [foundStoreCandidate, setFoundStoreCandidate] = useState(null);
+  const { data, loading, pull, pushAllFromStorage } = useSync(user);
 
   useFocusEffect(
     useMemo(() => () => {
@@ -41,7 +75,10 @@ export default function HomeScreen({ user }) {
       try {
         const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/ai', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'FernApp/1.0 (myaifern.com)',
+          },
           body: JSON.stringify({ message: text, context: 'family_hub', userId: user?.id }),
         });
         const d = await res.json();
@@ -51,20 +88,25 @@ export default function HomeScreen({ user }) {
     onError: (e) => console.warn('Mic error:', e),
   });
 
-  // Build week from Sunday to Saturday for current week.
+  // Build a rolling 7-day window starting from today.
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
-    d.setDate(today.getDate() - today.getDay() + i);
+    d.setDate(today.getDate() + i);
     const key = dateKey(d);
     const dayMeals = {};
+    const dayMealEmojis = {};
 
     // Extract meals from mealPlan
     const planDay = data.mealPlan?.[key] || [];
     planDay.forEach(m => {
-      if (m.slot) dayMeals[m.slot.toLowerCase()] = m.title;
+      if (m.slot) {
+        const slotKey = m.slot.toLowerCase();
+        dayMeals[slotKey] = m.title;
+        dayMealEmojis[slotKey] = m.emoji || '';
+      }
     });
 
     // Activities for this day
@@ -76,6 +118,7 @@ export default function HomeScreen({ user }) {
       date: d.getDate(),
       isToday: key === dateKey(today),
       meals: dayMeals,
+      mealEmojis: dayMealEmojis,
       activities: dayActivities,
     };
   });
@@ -101,13 +144,183 @@ export default function HomeScreen({ user }) {
     : Array.isArray(Object.values(rawStores))
       ? Object.values(rawStores)
       : [];
+
+  useEffect(() => {
+    setUserStoresLocal(userStores);
+  }, [userStores]);
+
+  const handleDeleteStore = async (indexToDelete) => {
+    const nextStores = userStoresLocal.filter((_, index) => index !== indexToDelete);
+    setUserStoresLocal(nextStores);
+
+    try {
+      await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(nextStores));
+
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
+        ...cache,
+        userStores: nextStores,
+      }));
+
+      console.log('[stores-sync] deleted store', {
+        index: indexToDelete,
+        remainingCount: nextStores.length,
+      });
+
+      await pushAllFromStorage();
+      await pull();
+      console.log('[stores-sync] backend sync complete after delete');
+    } catch (e) {
+      console.log('[stores-sync] failed to delete/sync store', e?.message || e);
+    }
+  };
+
+  const resetAddStoreForm = () => {
+    setStoreNameInput('');
+    setZipCodeInput('');
+    setFoundStoreCandidate(null);
+    setIsFindingStore(false);
+    setIsSavingStore(false);
+  };
+
+  const openAddStoreModal = () => {
+    resetAddStoreForm();
+    setIsAddStoreModalOpen(true);
+  };
+
+  const closeAddStoreModal = () => {
+    setIsAddStoreModalOpen(false);
+    resetAddStoreForm();
+  };
+
+  const handleFindStore = async () => {
+    const trimmedName = storeNameInput.trim();
+    const trimmedZip = zipCodeInput.trim();
+
+    if (!trimmedName) {
+      Alert.alert('Required', 'Store name is required.');
+      return;
+    }
+    if (!trimmedZip) {
+      Alert.alert('Required', 'ZIP code is required.');
+      return;
+    }
+
+    setIsFindingStore(true);
+    setFoundStoreCandidate(null);
+
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(trimmedZip)}&country=US&limit=1`;
+      console.log('[stores-sync] finding store', { storeName: trimmedName, zipCode: trimmedZip, url });
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'User-Agent': 'FernApp/1.0 (myaifern.com)',
+          Accept: 'application/json',
+        },
+      });
+
+      const rows = await res.json();
+      if (!Array.isArray(rows) || !rows.length) {
+        Alert.alert('Not found', 'No location found for this ZIP code.');
+        return;
+      }
+
+      const first = rows[0];
+      const lat = Number.parseFloat(first.lat);
+      const lng = Number.parseFloat(first.lon);
+      const address = String(first.display_name || '').trim();
+      const candidate = {
+        name: trimmedName,
+        address,
+        lat,
+        lng,
+      };
+
+      console.log('[stores-sync] find store result', candidate);
+      setFoundStoreCandidate(candidate);
+    } catch (e) {
+      console.log('[stores-sync] failed to find store', e?.message || e);
+      Alert.alert('Lookup failed', 'Could not search store right now. Please try again.');
+    } finally {
+      setIsFindingStore(false);
+    }
+  };
+
+  const handleAddStore = async () => {
+    const trimmedName = storeNameInput.trim();
+    const trimmedZip = zipCodeInput.trim();
+
+    if (!trimmedName) {
+      Alert.alert('Required', 'Store name is required.');
+      return;
+    }
+    if (!trimmedZip) {
+      Alert.alert('Required', 'ZIP code is required.');
+      return;
+    }
+    if (!foundStoreCandidate) {
+      Alert.alert('Find required', 'Tap Find to lookup the store location first.');
+      return;
+    }
+
+    const exists = userStoresLocal.some((s) => {
+      const sameName = String(s?.name || '').trim().toLowerCase() === trimmedName.toLowerCase();
+      const sameAddress = String(s?.address || '').trim().toLowerCase() === String(foundStoreCandidate.address || '').trim().toLowerCase();
+      return sameName && sameAddress;
+    });
+    if (exists) {
+      Alert.alert('Already added', 'This store is already in your list.');
+      return;
+    }
+
+    const nextStores = [
+      ...userStoresLocal,
+      {
+        lat: foundStoreCandidate.lat,
+        lng: foundStoreCandidate.lng,
+        name: trimmedName,
+        address: foundStoreCandidate.address,
+      },
+    ];
+
+    setIsSavingStore(true);
+    setUserStoresLocal(nextStores);
+
+    try {
+      await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(nextStores));
+
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
+        ...cache,
+        userStores: nextStores,
+      }));
+
+      console.log('[stores-sync] adding store', {
+        name: trimmedName,
+        zipCode: trimmedZip,
+        address: foundStoreCandidate.address,
+        lat: foundStoreCandidate.lat,
+        lng: foundStoreCandidate.lng,
+        total: nextStores.length,
+      });
+
+      await pushAllFromStorage();
+      await pull();
+      console.log('[stores-sync] backend sync complete after add');
+
+      closeAddStoreModal();
+    } catch (e) {
+      console.log('[stores-sync] failed to add/sync store', e?.message || e);
+      Alert.alert('Sync error', 'Could not add this store right now. Please try again.');
+    } finally {
+      setIsSavingStore(false);
+    }
+  };
+
   const userName = user?.name?.split(' ')[0] || 'Frank';
   const dietary = data?.userProfile?.dietary || data?.profile?.dietary || user?.dietary || 'Vegan';
-
-  const weekFromToday = useMemo(() => {
-    const idx = today.getDay();
-    return [...weekDays.slice(idx), ...weekDays.slice(0, idx)];
-  }, [weekDays, today]);
 
   const tinyProgressDots = (value, total = 7) => (
     <View style={styles.tinyDotsRow}>
@@ -219,7 +432,7 @@ export default function HomeScreen({ user }) {
             <Text style={styles.mealCardTitle}>MEALS PLANNED</Text>
             {tinyProgressDots(mealsPlannedCount)}
             <View style={styles.mealDaysRow}>
-              {weekFromToday.map((d) => (
+              {weekDays.map((d) => (
                 <Text
                   key={`mp-${d.key}`}
                   style={[styles.mealDayText, d.isToday ? styles.mealDayTextToday : null]}
@@ -234,7 +447,7 @@ export default function HomeScreen({ user }) {
             <Text style={styles.mealCardTitle}>RECIPES SAVED</Text>
             {tinyProgressDots(recipesCount)}
             <View style={styles.mealDaysRow}>
-              {weekFromToday.map((d) => (
+              {weekDays.map((d) => (
                 <Text
                   key={`rs-${d.key}`}
                   style={[styles.mealDayText, d.isToday ? styles.mealDayTextToday : null]}
@@ -249,14 +462,14 @@ export default function HomeScreen({ user }) {
         <View style={[styles.panelCard, shadow.card]}>
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>MY STORES</Text>
-            <TouchableOpacity style={styles.smallActionBtn} activeOpacity={0.85}>
+            <TouchableOpacity style={styles.smallActionBtn} activeOpacity={0.85} onPress={openAddStoreModal}>
               <Text style={styles.smallActionBtnText}>+ Add Store</Text>
             </TouchableOpacity>
           </View>
 
-          {userStores.length ? (
+          {userStoresLocal.length ? (
             <View style={styles.storeList}>
-              {userStores.map((store, index) => (
+              {userStoresLocal.map((store, index) => (
                 <View key={`${store.name || 'store'}-${index}`}>
                   <View style={styles.storeRow}>
                     <View style={styles.storeIconWrap}>
@@ -276,12 +489,16 @@ export default function HomeScreen({ user }) {
                       <Text style={styles.scanCircularBtnText}>Scan Circular</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.storeDeleteBtn} activeOpacity={0.85}>
+                    <TouchableOpacity
+                      style={styles.storeDeleteBtn}
+                      activeOpacity={0.85}
+                      onPress={() => handleDeleteStore(index)}
+                    >
                       <Text style={styles.storeDeleteBtnText}>✕</Text>
                     </TouchableOpacity>
                   </View>
 
-                  {index < userStores.length - 1 ? <View style={styles.storeDivider} /> : null}
+                  {index < userStoresLocal.length - 1 ? <View style={styles.storeDivider} /> : null}
                 </View>
               ))}
             </View>
@@ -298,13 +515,21 @@ export default function HomeScreen({ user }) {
             </TouchableOpacity>
           </View>
           <View style={styles.weekCircleRow}>
-            {weekFromToday.map((d) => (
+            {weekDays.map((d) => (
               <View key={`wk-${d.key}`} style={styles.weekCircleCol}>
                 <Text style={[styles.weekCircleLabel, d.isToday ? styles.weekCircleLabelToday : null]}>
                   {d.day}
                 </Text>
-                <View style={[styles.weekCircle, d.isToday ? styles.weekCircleToday : null]}>
-                  <View style={[styles.weekCircleInner, d.meals.dinner ? styles.weekCircleInnerFilled : null]} />
+                <View style={[
+                  styles.weekCircle,
+                  d.isToday ? styles.weekCircleToday : null,
+                  d.meals.dinner ? styles.weekCircleFilled : null,
+                ]}>
+                  {d.meals.dinner ? (
+                    <Text style={styles.weekCircleEmoji}>{d.mealEmojis?.dinner || '🍽️'}</Text>
+                  ) : (
+                    <View style={styles.weekCircleInner} />
+                  )}
                 </View>
               </View>
             ))}
@@ -373,6 +598,86 @@ export default function HomeScreen({ user }) {
         <View style={styles.bottomSpacer} />
 
       </ScrollView >
+
+      <Modal
+        transparent
+        animationType="slide"
+        visible={isAddStoreModalOpen}
+        onRequestClose={closeAddStoreModal}
+      >
+        <View style={styles.addStoreBackdrop}>
+          <View style={styles.addStoreSheet}>
+            <View style={styles.addStoreHeaderRow}>
+              <Text style={styles.addStoreTitle}>Add a Store</Text>
+              <TouchableOpacity style={styles.addStoreCloseBtn} activeOpacity={0.85} onPress={closeAddStoreModal}>
+                <Text style={styles.addStoreCloseText}>×</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.addStorePresetRow}>
+              {STORE_PRESETS.map((label) => {
+                const plainName = toPlainStoreName(label);
+                const selected = storeNameInput.trim().toLowerCase() === plainName.toLowerCase();
+                return (
+                  <TouchableOpacity
+                    key={label}
+                    activeOpacity={0.85}
+                    onPress={() => setStoreNameInput(plainName)}
+                    style={[styles.addStorePresetChip, selected ? styles.addStorePresetChipActive : null]}
+                  >
+                    <Text style={[styles.addStorePresetText, selected ? styles.addStorePresetTextActive : null]}>{label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.addStoreFieldLabel}>OR ENTER STORE NAME</Text>
+            <TextInput
+              value={storeNameInput}
+              onChangeText={setStoreNameInput}
+              placeholder="Store name"
+              placeholderTextColor="#A3A3A3"
+              style={styles.addStoreInput}
+            />
+
+            <Text style={styles.addStoreFieldLabel}>YOUR ZIP CODE</Text>
+            <View style={styles.addStoreZipRow}>
+              <TextInput
+                value={zipCodeInput}
+                onChangeText={setZipCodeInput}
+                placeholder="ZIP code"
+                placeholderTextColor="#A3A3A3"
+                style={[styles.addStoreInput, styles.addStoreZipInput]}
+                keyboardType="number-pad"
+              />
+              <TouchableOpacity
+                style={[styles.addStoreFindBtn, isFindingStore ? styles.addStoreFindBtnDisabled : null]}
+                activeOpacity={0.85}
+                onPress={handleFindStore}
+                disabled={isFindingStore}
+              >
+                <Text style={styles.addStoreFindBtnText}>{isFindingStore ? 'Finding...' : 'Find →'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {foundStoreCandidate ? (
+              <View style={styles.addStoreResultCard}>
+                <Text style={styles.addStoreResultName}>{foundStoreCandidate.name}</Text>
+                <Text style={styles.addStoreResultAddress}>{foundStoreCandidate.address}</Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              style={[styles.addStoreSaveBtn, isSavingStore ? styles.addStoreSaveBtnDisabled : null]}
+              activeOpacity={0.85}
+              onPress={handleAddStore}
+              disabled={isSavingStore}
+            >
+              <Text style={styles.addStoreSaveBtnText}>{isSavingStore ? 'Saving...' : 'Add This Store'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View >
   );
 }
@@ -793,10 +1098,20 @@ const styles = StyleSheet.create({
     borderColor: '#E4722A',
   },
 
+  weekCircleFilled: {
+    backgroundColor: '#1C512A',
+    borderColor: '#1C512A',
+  },
+
   weekCircleInner: {
     width: 6,
     height: 6,
     borderRadius: 99,
+  },
+
+  weekCircleEmoji: {
+    fontSize: 20,
+    lineHeight: 24,
   },
 
   weekCircleInnerFilled: {
@@ -899,6 +1214,150 @@ const styles = StyleSheet.create({
 
   bottomSpacer: {
     height: 24,
+  },
+
+  addStoreBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    justifyContent: 'flex-end',
+  },
+  addStoreSheet: {
+    backgroundColor: '#F5F2ED',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 22,
+    maxHeight: '88%',
+  },
+  addStoreHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  addStoreTitle: {
+    fontFamily: 'PlayfairDisplay-Bold',
+    color: '#2A1A11',
+    fontSize: 20,
+    lineHeight: 56,
+  },
+  addStoreCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EEE7DD',
+  },
+  addStoreCloseText: {
+    fontSize: 22,
+    color: '#2886E8',
+    marginTop: -2,
+  },
+  addStorePresetRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  addStorePresetChip: {
+    borderWidth: 2,
+    borderColor: '#CEBFA6',
+    borderRadius: 24,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: '#F8F5F0',
+  },
+  addStorePresetChipActive: {
+    backgroundColor: '#1B4F22',
+    borderColor: '#1B4F22',
+  },
+  addStorePresetText: {
+    color: '#0F7BEA',
+    fontFamily: 'Jost-Bold',
+    fontSize: 12,
+  },
+  addStorePresetTextActive: {
+    color: '#FFFFFF',
+  },
+  addStoreFieldLabel: {
+    marginTop: 4,
+    marginBottom: 6,
+    color: '#7B5C3A',
+    fontFamily: 'Jost-Bold',
+    fontSize: 12,
+  },
+  addStoreInput: {
+    borderWidth: 2,
+    borderColor: '#CEBFA6',
+    borderRadius: 14,
+    backgroundColor: '#F6F3ED',
+    color: '#2A1A11',
+    fontFamily: 'Jost-Regular',
+    fontSize: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  addStoreZipRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  addStoreZipInput: {
+    flex: 1,
+    marginBottom: 0,
+  },
+  addStoreFindBtn: {
+    backgroundColor: '#194D22',
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 13,
+  },
+  addStoreFindBtnDisabled: {
+    opacity: 0.65,
+  },
+  addStoreFindBtnText: {
+    color: '#EAF2E6',
+    fontFamily: 'Jost-Bold',
+    fontSize: 12,
+  },
+  addStoreResultCard: {
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: '#CEBFA6',
+    borderRadius: 14,
+    backgroundColor: '#F0ECE4',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  addStoreResultName: {
+    color: '#2A1A11',
+    fontFamily: 'Jost-Bold',
+    fontSize: 12,
+  },
+  addStoreResultAddress: {
+    marginTop: 4,
+    color: '#7A5E41',
+    fontFamily: 'Jost-Regular',
+    fontSize: 10,
+  },
+  addStoreSaveBtn: {
+    marginTop: 14,
+    backgroundColor: '#1A4C21',
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  addStoreSaveBtnDisabled: {
+    opacity: 0.65,
+  },
+  addStoreSaveBtnText: {
+    color: '#EAF3E7',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
   },
 
 });

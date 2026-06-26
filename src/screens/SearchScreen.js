@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     Alert,
     Image,
@@ -104,6 +104,8 @@ export default function SearchScreen({ user }) {
     const [isBloggersModalOpen, setIsBloggersModalOpen] = useState(false);
     const [bloggerQuery, setBloggerQuery] = useState('');
     const [followingBloggersLocal, setFollowingBloggersLocal] = useState([]);
+    const syncTimerRef = useRef(null);
+    const isSyncingRef = useRef(false);
 
     useEffect(() => {
         if (route?.params?.openBloggers) {
@@ -117,6 +119,14 @@ export default function SearchScreen({ user }) {
             pull();
         }
     }, [isBloggersModalOpen, pull]);
+
+    useEffect(() => {
+        return () => {
+            if (syncTimerRef.current) {
+                clearTimeout(syncTimerRef.current);
+            }
+        };
+    }, []);
 
     const normalizeBlogger = (item) => {
         const featured = FEATURED_BLOGGERS.find((b) => b.id === item?.id || b.name === item?.name);
@@ -132,14 +142,67 @@ export default function SearchScreen({ user }) {
 
     useEffect(() => {
         const source = Array.isArray(data.followers) ? data.followers : [];
-        if (source.length) {
-            setFollowingBloggersLocal(source.map(normalizeBlogger));
+        const hasPendingSync = Boolean(syncTimerRef.current);
+        if (hasPendingSync || isSyncingRef.current) {
+            console.log('[bloggers-sync] ignoring remote update while local sync is pending', {
+                remoteCount: source.length,
+                pending: hasPendingSync,
+                syncing: isSyncingRef.current,
+            });
             return;
         }
 
-        // Fallback for first run when API hasn't returned yet.
-        setFollowingBloggersLocal(FEATURED_BLOGGERS.filter((b) => b.id === 'b3' || b.id === 'b4'));
+        console.log('[bloggers-sync] applying remote followers', {
+            count: source.length,
+            ids: source.map((b) => b?.id).filter(Boolean),
+        });
+        setFollowingBloggersLocal(source.map(normalizeBlogger));
     }, [data.followers]);
+
+    const persistFollowedBloggersLocal = async (nextFollowed) => {
+        setFollowingBloggersLocal(nextFollowed);
+
+        await AsyncStorage.setItem('cpc_followed_bloggers', JSON.stringify(nextFollowed));
+        const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+        await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
+            ...cache,
+            followers: nextFollowed,
+        }));
+    };
+
+    const scheduleBloggersSync = (nextFollowed, reason) => {
+        if (syncTimerRef.current) {
+            clearTimeout(syncTimerRef.current);
+        }
+
+        console.log('[bloggers-sync] queued sync in 2000ms', {
+            reason,
+            count: nextFollowed.length,
+            ids: nextFollowed.map((b) => b.id),
+        });
+
+        syncTimerRef.current = setTimeout(async () => {
+            syncTimerRef.current = null;
+            isSyncingRef.current = true;
+
+            try {
+                console.log('[bloggers-sync] uploading followed_bloggers', {
+                    count: nextFollowed.length,
+                    ids: nextFollowed.map((b) => b.id),
+                });
+                await pushAllFromStorage();
+
+                console.log('[bloggers-sync] upload complete, pulling latest from backend');
+                await pull();
+                console.log('[bloggers-sync] pull complete after upload');
+            } catch (e) {
+                console.log('[bloggers-sync] upload/pull failed', e?.message || e);
+                Alert.alert('Sync error', 'Could not sync followed bloggers. Please try again.');
+            } finally {
+                isSyncingRef.current = false;
+            }
+        }, 2000);
+    };
 
     const followingBloggers = followingBloggersLocal;
     const followingIds = useMemo(
@@ -163,28 +226,22 @@ export default function SearchScreen({ user }) {
         Alert.alert('Ask Fern', query ? `Fern will think about ${query}` : 'Tell Fern what you are craving.');
     };
 
-    const persistFollowedBloggers = async (nextFollowed) => {
-        setFollowingBloggersLocal(nextFollowed);
-
-        await AsyncStorage.setItem('cpc_followed_bloggers', JSON.stringify(nextFollowed));
-        const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
-        await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
-            ...cache,
-            followers: nextFollowed,
-        }));
-
-        await pushAllFromStorage();
-        await pull();
-    };
-
     const toggleFollow = async (blogger) => {
         const bloggerId = blogger.id;
-        const next = followingIds.has(bloggerId)
+        const removing = followingIds.has(bloggerId);
+        const next = removing
             ? followingBloggers.filter((item) => item.id !== bloggerId)
             : [...followingBloggers, blogger];
 
         try {
-            await persistFollowedBloggers(next);
+            console.log('[bloggers-sync] local change', {
+                action: removing ? 'delete' : 'add',
+                bloggerId,
+                bloggerName: blogger.name,
+                nextCount: next.length,
+            });
+            await persistFollowedBloggersLocal(next);
+            scheduleBloggersSync(next, removing ? 'delete' : 'add');
         } catch {
             Alert.alert('Sync error', 'Could not update followed bloggers. Please try again.');
         }

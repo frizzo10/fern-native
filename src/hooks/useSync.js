@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SYNC_URL = 'https://app.clickpickandcook.com/.netlify/functions/sync';
+const API_HEADERS = {
+  'Content-Type': 'application/json',
+  'User-Agent': 'FernApp/1.0 (myaifern.com)',
+};
 
 export function useSync(user) {
   const [data, setData] = useState({
@@ -29,7 +33,7 @@ export function useSync(user) {
     try {
       const res = await fetch(SYNC_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: API_HEADERS,
         body: JSON.stringify({ action: 'pull', userId: user.id, token: user.token }),
       });
       const result = await res.json();
@@ -84,7 +88,7 @@ export function useSync(user) {
     try {
       await fetch(SYNC_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: API_HEADERS,
         body: JSON.stringify({ action: 'push', userId: user.id, token: user.token, ...payload }),
       });
     } catch (e) {
@@ -105,7 +109,7 @@ export function useSync(user) {
 
       await fetch(SYNC_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: API_HEADERS,
         body: JSON.stringify({
           action: 'push',
           userId: user.id,
