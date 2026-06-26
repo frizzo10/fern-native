@@ -230,6 +230,16 @@ export default function App() {
         </Tab.Screen>
 
         <Tab.Screen
+          name="Shopping"
+          options={{
+            tabBarButton: () => null,
+            tabBarItemStyle: { display: 'none' },
+          }}
+        >
+          {() => <ShoppingScreen user={user} />}
+        </Tab.Screen>
+
+        <Tab.Screen
           name="Logout"
           listeners={{
             tabPress: (e) => {

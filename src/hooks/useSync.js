@@ -96,8 +96,8 @@ export function useSync(user) {
     }
   }, [user]);
 
-  const pushAllFromStorage = useCallback(async () => {
-    if (!user?.id || !user?.token) return;
+  const pushChangedFromStorage = useCallback(async (changedData = {}) => {
+    if (!user?.id || !user?.token) return null;
     try {
       const saved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || '[]');
       const books = JSON.parse(await AsyncStorage.getItem('rv4_books') || '[]');
@@ -107,29 +107,47 @@ export function useSync(user) {
       const followedBloggers = JSON.parse(await AsyncStorage.getItem('cpc_followed_bloggers') || '[]');
       const userStores = JSON.parse(await AsyncStorage.getItem('cpc_user_stores') || '[]');
 
-      await fetch(SYNC_URL, {
+      const dataToPush = {
+        saved,
+        books,
+        meal_plan: mealPlan,
+        shopping,
+        remi_explicit: remiExplicit,
+        followed_bloggers: followedBloggers,
+        user_stores: userStores,
+        ...changedData,
+      };
+
+      const requestBody = {
+        action: 'push',
+        userId: user.id,
+        token: user.token,
+        data: dataToPush,
+      };
+
+      console.log('[sync] push request body', requestBody);
+
+      const res = await fetch(SYNC_URL, {
         method: 'POST',
         headers: API_HEADERS,
-        body: JSON.stringify({
-          action: 'push',
-          userId: user.id,
-          token: user.token,
-          data: {
-            saved,
-            books,
-            meal_plan: mealPlan,
-            shopping,
-            remi_explicit: remiExplicit,
-            followed_bloggers: followedBloggers,
-            user_stores: userStores,
-          },
-        }),
+        body: JSON.stringify(requestBody),
       });
+
+      const responseJson = await res.json().catch(() => null);
+      console.log('[sync] push response status', res.status);
+      console.log('[sync] push response json', responseJson);
+
       setLastSync(new Date());
+      return responseJson;
     } catch (e) {
-      console.warn('Sync full push failed:', e);
+      console.warn('Sync changed push failed:', e);
+      return null;
     }
   }, [user]);
+
+  const pushAllFromStorage = useCallback(async () => {
+    await pushChangedFromStorage();
+  }, [pushChangedFromStorage]);
 
   // Load cache first, then refresh from API silently
   useEffect(() => {
@@ -138,5 +156,5 @@ export function useSync(user) {
     });
   }, [loadCache, pull]);
 
-  return { data, loading, refreshing, lastSync, pull, push, pushAllFromStorage };
+  return { data, loading, refreshing, lastSync, pull, push, pushAllFromStorage, pushChangedFromStorage };
 }

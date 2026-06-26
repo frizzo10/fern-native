@@ -13,24 +13,13 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors, radius, shadow } from '../constants/tokens';
+import { STORE_PRESETS } from '../constants/storePresets';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
+import { findStoreLocationByZip } from '../services/storeLookupService';
+import { fetchWinePairings } from '../services/winePairingService';
 
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-const STORE_PRESETS = [
-  '🟢 Publix',
-  '🔵 Kroger',
-  '⭐️ Walmart',
-  '🍎 Whole Foods',
-  "🌸 Trader Joe's",
-  '🔴 Aldi',
-  '🏭 Costco',
-  '🎯 Target',
-  '🟠 H-E-B',
-  '🟣 Safeway',
-  '🟤 Stop & Shop',
-  '⚪ Wegmans',
-];
 
 function getGreeting() {
   const h = new Date().getHours();
@@ -61,6 +50,11 @@ export default function HomeScreen({ user }) {
   const [isFindingStore, setIsFindingStore] = useState(false);
   const [isSavingStore, setIsSavingStore] = useState(false);
   const [foundStoreCandidate, setFoundStoreCandidate] = useState(null);
+  const [isWineModalOpen, setIsWineModalOpen] = useState(false);
+  const [wineDishInput, setWineDishInput] = useState('');
+  const [isWineSearching, setIsWineSearching] = useState(false);
+  const [wineSummary, setWineSummary] = useState('');
+  const [winePairings, setWinePairings] = useState([]);
   const { data, loading, pull, pushAllFromStorage } = useSync(user);
 
   useFocusEffect(
@@ -210,32 +204,20 @@ export default function HomeScreen({ user }) {
     setFoundStoreCandidate(null);
 
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(trimmedZip)}&country=US&limit=1`;
-      console.log('[stores-sync] finding store', { storeName: trimmedName, zipCode: trimmedZip, url });
+      const location = await findStoreLocationByZip(trimmedName, trimmedZip);
+      console.log('[stores-sync] finding store', { storeName: trimmedName, zipCode: trimmedZip, found: Boolean(location) });
 
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'User-Agent': 'FernApp/1.0 (myaifern.com)',
-          Accept: 'application/json',
-        },
-      });
-
-      const rows = await res.json();
-      if (!Array.isArray(rows) || !rows.length) {
+      if (!location) {
         Alert.alert('Not found', 'No location found for this ZIP code.');
         return;
       }
 
-      const first = rows[0];
-      const lat = Number.parseFloat(first.lat);
-      const lng = Number.parseFloat(first.lon);
-      const address = String(first.display_name || '').trim();
       const candidate = {
         name: trimmedName,
-        address,
-        lat,
-        lng,
+        address: location.address,
+        lat: location.lat,
+        lng: location.lng,
+        source: location.source,
       };
 
       console.log('[stores-sync] find store result', candidate);
@@ -319,6 +301,56 @@ export default function HomeScreen({ user }) {
     }
   };
 
+  const resetWineModal = () => {
+    setWineDishInput('');
+    setWineSummary('');
+    setWinePairings([]);
+    setIsWineSearching(false);
+  };
+
+  const openWineModal = () => {
+    resetWineModal();
+    setIsWineModalOpen(true);
+  };
+
+  const closeWineModal = () => {
+    setIsWineModalOpen(false);
+    resetWineModal();
+  };
+
+  const handleFindWinePairings = async () => {
+    const dish = wineDishInput.trim();
+    if (!dish) {
+      Alert.alert('Required', 'Dish or meal is required.');
+      return;
+    }
+
+    setIsWineSearching(true);
+    setWineSummary('');
+    setWinePairings([]);
+
+    try {
+      const result = await fetchWinePairings({
+        userId: user?.id || '7c36273e-07b1-410c-ad1b-4c2b0295e140',
+        dish,
+      });
+      console.log('[wine-pairing] request payload', result.payload);
+      console.log('[wine-pairing] response', result.responseJson);
+
+      setWineSummary(result.summary);
+      setWinePairings(result.pairings);
+
+      if (!result.summary && !result.pairings.length) {
+        Alert.alert('No results', 'No pairing suggestions were returned. Try another dish.');
+      }
+    } catch (e) {
+      console.log('[wine-pairing] search failed', e?.message || e);
+      Alert.alert('Search failed', 'Could not find wine pairings right now. Please try again.');
+    } finally {
+      setIsWineSearching(false);
+    }
+  };
+
   const userName = user?.name?.split(' ')[0] || 'Frank';
   const dietary = data?.userProfile?.dietary || data?.profile?.dietary || user?.dietary || 'Vegan';
 
@@ -393,8 +425,10 @@ export default function HomeScreen({ user }) {
             { label: 'Personal Shopper', val: '🛒', color: 'rgb(56, 89, 45)' },
             { label: 'Weekly Nutrition', val: '🥗', color: 'rgb(216, 109, 51)' },
           ].map(({ label, val, color }) => (
-            <View
+            <TouchableOpacity
               key={label}
+              activeOpacity={0.88}
+              onPress={label === 'Wine Pairing' ? openWineModal : undefined}
               style={[
                 styles.mainCard,
                 shadow.card,
@@ -403,7 +437,7 @@ export default function HomeScreen({ user }) {
             >
               <Text style={styles.mainVal}>{val}</Text>
               <Text style={styles.mainLabel}>{label}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -539,7 +573,7 @@ export default function HomeScreen({ user }) {
         <View style={[styles.panelCard, shadow.card]}>
           <View style={styles.panelHeaderRow}>
             <Text style={styles.panelTitle}>🛒 SHOPPING LIST</Text>
-            <TouchableOpacity activeOpacity={0.8}>
+            <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Shopping')}>
               <Text style={styles.panelLink}>View →</Text>
             </TouchableOpacity>
           </View>
@@ -675,6 +709,71 @@ export default function HomeScreen({ user }) {
             >
               <Text style={styles.addStoreSaveBtnText}>{isSavingStore ? 'Saving...' : 'Add This Store'}</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="slide"
+        visible={isWineModalOpen}
+        onRequestClose={closeWineModal}
+      >
+        <View style={styles.wineBackdrop}>
+          <View style={styles.wineSheet}>
+            <TouchableOpacity style={styles.wineCloseBtn} activeOpacity={0.85} onPress={closeWineModal}>
+              <Text style={styles.wineCloseText}>×</Text>
+            </TouchableOpacity>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.wineContentScroll}
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.wineHero}>🍷</Text>
+              <Text style={styles.wineTitle}>Wine Pairing</Text>
+              <Text style={styles.wineSubtitle}>Tell us what you're eating or the dish you're making.</Text>
+
+              <Text style={styles.wineFieldLabel}>DISH OR MEAL</Text>
+              <TextInput
+                value={wineDishInput}
+                onChangeText={setWineDishInput}
+                placeholder="e.g. grilled salmon, mushroom risotto, spicy Thai curry"
+                placeholderTextColor="#B0AEA9"
+                style={styles.wineInput}
+              />
+
+              <TouchableOpacity
+                style={[styles.wineFindBtn, isWineSearching ? styles.wineFindBtnDisabled : null]}
+                activeOpacity={0.85}
+                onPress={handleFindWinePairings}
+                disabled={isWineSearching}
+              >
+                <Text style={styles.wineFindBtnText}>{isWineSearching ? 'Searching...' : '🍷 FIND MY PAIRINGS'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.wineAskFernBtn} activeOpacity={0.85}>
+                <Text style={styles.wineAskFernText}>🌿 Ask Fern to Walk Me Through It</Text>
+              </TouchableOpacity>
+
+              {(wineSummary || winePairings.length) ? (
+                <View style={styles.wineResultsContent}>
+                  {wineSummary ? <Text style={styles.wineSummaryText}>"{wineSummary}"</Text> : null}
+                  {winePairings.map((item, index) => (
+                    <View key={`wine-pairing-${index}`} style={styles.wineCard}>
+                      <View style={styles.wineCardTopRow}>
+                        <Text style={styles.wineCardTitle} numberOfLines={2}>
+                          {item.badge ? `✨ ${item.name}` : item.name}
+                          {item.region ? ` • ${item.region}` : ''}
+                        </Text>
+                      </View>
+                      <Text style={styles.wineCardMeta}>{item.type.toUpperCase()}{item.price ? ` · ${item.price}` : ''}</Text>
+                      {item.description ? <Text style={styles.wineCardDescription}>{item.description}</Text> : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1358,6 +1457,164 @@ const styles = StyleSheet.create({
     color: '#EAF3E7',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
+  },
+
+  wineBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    justifyContent: 'flex-end',
+  },
+  wineSheet: {
+    backgroundColor: '#F5F2ED',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: '#D9CFBF',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+    height: '78%',
+  },
+  wineCloseBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#D8D8D8',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  wineCloseText: {
+    fontSize: 26,
+    lineHeight: 28,
+    color: '#F4F4F4',
+    marginTop: -1,
+  },
+  wineHero: {
+    marginTop: 24,
+    textAlign: 'center',
+    fontSize: 58,
+    lineHeight: 64,
+  },
+  wineTitle: {
+    marginTop: 4,
+    textAlign: 'center',
+    color: '#2A1A11',
+    fontFamily: 'PlayfairDisplay-Bold',
+    fontSize: 34,
+    lineHeight: 40,
+  },
+  wineSubtitle: {
+    marginTop: 6,
+    textAlign: 'center',
+    color: '#7B5E3E',
+    fontFamily: 'Jost-Regular',
+    fontSize: 16,
+  },
+  wineFieldLabel: {
+    marginTop: 18,
+    marginBottom: 8,
+    color: '#7B5C3A',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
+    letterSpacing: 1.2,
+  },
+  wineInput: {
+    borderWidth: 2,
+    borderColor: '#CEBFA6',
+    borderRadius: 14,
+    backgroundColor: '#F6F3ED',
+    color: '#2A1A11',
+    fontFamily: 'Jost-Regular',
+    fontSize: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  wineFindBtn: {
+    marginTop: 14,
+    backgroundColor: '#184D22',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  wineFindBtnDisabled: {
+    opacity: 0.65,
+  },
+  wineFindBtnText: {
+    color: '#EAF3E7',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
+    letterSpacing: 0.5,
+  },
+  wineAskFernBtn: {
+    marginTop: 10,
+    backgroundColor: '#EC6518',
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  wineAskFernText: {
+    color: '#FFF5EC',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
+  },
+  wineContentScroll: {
+    paddingTop: 6,
+    paddingBottom: 30,
+  },
+  wineResultsContent: {
+    marginTop: 12,
+    paddingBottom: 8,
+  },
+  wineSummaryText: {
+    color: '#2E2117',
+    fontFamily: 'Jost-Italic',
+    fontStyle: 'italic',
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  wineCard: {
+    borderWidth: 2,
+    borderColor: '#D0C0A7',
+    borderRadius: 18,
+    backgroundColor: '#F8F6F2',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  wineCardTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  wineCardTitle: {
+    flex: 1,
+    color: '#2A1A11',
+    fontFamily: 'Jost-Bold',
+    fontSize: 17,
+    lineHeight: 22,
+  },
+  wineCardMeta: {
+    marginTop: 2,
+    color: '#7B1E3A',
+    fontFamily: 'Jost-Bold',
+    fontSize: 12,
+    letterSpacing: 0.7,
+  },
+  wineCardDescription: {
+    marginTop: 4,
+    color: '#7B5E3E',
+    fontFamily: 'Jost-Regular',
+    fontSize: 14,
+    lineHeight: 20,
+    fontStyle: 'italic',
   },
 
 });

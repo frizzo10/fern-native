@@ -13,63 +13,11 @@ import {
     View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FEATURED_BLOGGERS } from '../constants/featuredBloggers';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
-
-var FEATURED_BLOGGERS = [
-    { id: 'b1', name: 'Half Baked Harvest', emoji: '🌾', specialty: 'Comfort food & seasonal', url: 'https://www.halfbakedharvest.com', color: '#8B4513' },
-    { id: 'b2', name: 'Minimalist Baker', emoji: '🌱', specialty: '10 ingredients or less', url: 'https://minimalistbaker.com', color: '#2D6A4F' },
-    { id: 'b3', name: 'Smitten Kitchen', emoji: '🍋', specialty: 'Real food, tiny kitchen', url: 'https://smittenkitchen.com', color: '#4A7C2F' },
-    { id: 'b4', name: 'Budget Bytes', emoji: '💰', specialty: 'Delicious on a budget', url: 'https://www.budgetbytes.com', color: '#1B4332' },
-    { id: 'b5', name: 'Pinch of Yum', emoji: '🌶', specialty: 'Simple & tasty', url: 'https://pinchofyum.com', color: '#9B3A0F' },
-    { id: 'b6', name: "Sally's Baking", emoji: '🎂', specialty: 'Baking that works', url: 'https://sallysbakingaddiction.com', color: '#7B3F00' },
-    { id: 'b7', name: 'The Pioneer Woman', emoji: '🤠', specialty: 'Hearty ranch cooking', url: 'https://thepioneerwoman.com', color: '#8B4513' },
-    { id: 'b8', name: 'Serious Eats', emoji: '🔬', specialty: 'The science of cooking', url: 'https://www.seriouseats.com', color: '#1C3A1A' },
-    { id: 'b9', name: 'Cookie and Kate', emoji: '🥗', specialty: 'Whole foods vegetarian', url: 'https://cookieandkate.com', color: '#2D6A4F' },
-    { id: 'b10', name: 'Damn Delicious', emoji: '⭐', specialty: 'Quick weeknight dinners', url: 'https://damndelicious.net', color: '#C2185B' },
-    { id: 'b11', name: 'Bon Appétit', emoji: '👨‍🍳', specialty: 'Restaurant-quality at home', url: 'https://www.bonappetit.com', color: '#CC0000' },
-    { id: 'b12', name: 'Food52', emoji: '🍴', specialty: 'Community recipes & tips', url: 'https://food52.com', color: '#E8650A' },
-    { id: 'b13', name: 'Tasty', emoji: '😋', specialty: 'Quick & easy video recipes', url: 'https://tasty.co', color: '#FF6B6B' },
-    { id: 'b14', name: 'RecipeTin Eats', emoji: '🥘', specialty: 'Foolproof family recipes', url: 'https://www.recipetineats.com', color: '#E63946' },
-    { id: 'b15', name: 'Skinnytaste', emoji: '🥦', specialty: 'Healthy lightened-up meals', url: 'https://www.skinnytaste.com', color: '#2D6A4F' },
-    { id: 'b16', name: 'The Kitchn', emoji: '🏠', specialty: 'Practical everyday cooking', url: 'https://www.thekitchn.com', color: '#F4845F' },
-    { id: 'b17', name: 'Love & Lemons', emoji: '🍋', specialty: 'Fresh vegetarian cooking', url: 'https://www.loveandlemons.com', color: '#F7C948' },
-    { id: 'b18', name: 'Gimme Some Oven', emoji: '🍞', specialty: 'Simple comfort food', url: 'https://www.gimmesomeoven.com', color: '#D4813A' },
-    { id: 'b19', name: 'Iowa Girl Eats', emoji: '🌽', specialty: 'Gluten-free family meals', url: 'https://iowagirleats.com', color: '#4A8C3F' },
-    { id: 'b20', name: 'The Woks of Life', emoji: '🥢', specialty: 'Authentic Chinese cooking', url: 'https://thewoksoflife.com', color: '#C9302C' },
-    { id: 'b21', name: 'Downshiftology', emoji: '🥑', specialty: 'Whole foods & paleo', url: 'https://downshiftology.com', color: '#5C8A3C' },
-    { id: 'b22', name: 'A Couple Cooks', emoji: '💑', specialty: 'Healthy & vegetarian', url: 'https://www.acouplecooks.com', color: '#E07C5B' },
-    { id: 'b23', name: 'Simply Recipes', emoji: '🍅', specialty: 'Family-tested recipes', url: 'https://www.simplyrecipes.com', color: '#E25C1E' },
-    { id: 'b24', name: 'NYT Cooking', emoji: '📰', specialty: 'Trusted & tested classics', url: 'https://cooking.nytimes.com', color: '#333333' },
-    { id: 'b25', name: 'Epicurious', emoji: '🏆', specialty: 'Expert-tested recipes', url: 'https://www.epicurious.com', color: '#B5451B' },
-    { id: 'b26', name: 'Allrecipes', emoji: '📖', specialty: 'Community favorites', url: 'https://www.allrecipes.com', color: '#E4242B' },
-    { id: 'b27', name: 'Delish', emoji: '✨', specialty: 'Fun & indulgent recipes', url: 'https://www.delish.com', color: '#FF4D6D' },
-    { id: 'b28', name: 'Taste of Home', emoji: '🏡', specialty: 'Tried & true home cooking', url: 'https://www.tasteofhome.com', color: '#B03A2E' },
-    { id: 'b29', name: 'The Mediterranean Dish', emoji: '🫒', specialty: 'Mediterranean & Middle Eastern', url: 'https://www.themediterraneandish.com', color: '#1A7A4A' },
-    { id: 'b30', name: 'Feasting at Home', emoji: '🏔', specialty: 'Fresh seasonal cooking', url: 'https://www.feastingathome.com', color: '#2980B9' },
-    { id: 'b31', name: 'Oh She Glows', emoji: '✨', specialty: 'Plant-based & vegan', url: 'https://ohsheglows.com', color: '#8E44AD' },
-    { id: 'b32', name: 'Ambitious Kitchen', emoji: '💪', specialty: 'Healthy & indulgent', url: 'https://www.ambitiouskitchen.com', color: '#E91E8C' },
-    { id: 'b33', name: 'Spend With Pennies', emoji: '🪙', specialty: 'Easy budget-friendly meals', url: 'https://www.spendwithpennies.com', color: '#2E86AB' },
-    { id: 'b34', name: 'The Recipe Critic', emoji: '👩‍🍳', specialty: 'Family dinner favorites', url: 'https://therecipecritic.com', color: '#E74C3C' },
-    { id: 'b35', name: "Natasha's Kitchen", emoji: '🫐', specialty: 'Easy & impressive dishes', url: 'https://natashaskitchen.com', color: '#8B1A4A' },
-    { id: 'b36', name: 'Jo Cooks', emoji: '🍲', specialty: 'Quick international meals', url: 'https://www.jocooks.com', color: '#D35400' },
-    { id: 'b37', name: 'Well Plated', emoji: '🥗', specialty: 'Healthy comfort food', url: 'https://www.wellplated.com', color: '#27AE60' },
-    { id: 'b38', name: 'Cafe Delites', emoji: '☕', specialty: 'Indulgent home cooking', url: 'https://cafedelites.com', color: '#6F4E37' },
-    { id: 'b39', name: 'Two Peas & Pod', emoji: '🫛', specialty: 'Feel-good family food', url: 'https://www.twopeasandtheirpod.com', color: '#27AE60' },
-    { id: 'b40', name: 'Cooking Classy', emoji: '🎩', specialty: 'Elevated everyday meals', url: 'https://www.cookingclassy.com', color: '#2C3E50' },
-    { id: 'b41', name: 'The Forked Spoon', emoji: '🍽', specialty: 'Comforting family meals', url: 'https://theforkedspoon.com', color: '#8E44AD' },
-    { id: 'b42', name: 'Foolproof Living', emoji: '🎯', specialty: 'Simple & reliable recipes', url: 'https://foolproofliving.com', color: '#1A5276' },
-    { id: 'b43', name: 'Jessica Gavin', emoji: '🔬', specialty: 'Culinary science recipes', url: 'https://jessicagavin.com', color: '#922B21' },
-    { id: 'b44', name: 'Kevin Is Cooking', emoji: '🧑‍🍳', specialty: 'Bold flavors & techniques', url: 'https://www.keviniscooking.com', color: '#1F618D' },
-    { id: 'b45', name: 'Sweet Peas & Saffron', emoji: '🌸', specialty: 'Meal prep & make-ahead', url: 'https://sweetpeasandsaffron.com', color: '#A04000' },
-    { id: 'b46', name: 'The Cozy Cook', emoji: '🛋', specialty: 'Cozy comfort food', url: 'https://thecozycook.com', color: '#6E2C00' },
-    { id: 'b47', name: 'Isabel Eats', emoji: '🌮', specialty: 'Mexican & Latin recipes', url: 'https://www.isabeleats.com', color: '#C0392B' },
-    { id: 'b48', name: 'Panlasang Pinoy', emoji: '🇵🇭', specialty: 'Filipino home cooking', url: 'https://panlasangpinoy.com', color: '#1A5276' },
-    { id: 'b49', name: 'Indian Healthy Recipes', emoji: '🇮🇳', specialty: 'Authentic Indian cooking', url: 'https://www.indianhealthyrecipes.com', color: '#D68910' },
-    { id: 'b50', name: 'Woks & Skillets', emoji: '🍜', specialty: 'Asian fusion & street food', url: 'https://woksandskillets.com', color: '#922B21' }
-];
 
 function ActionButton({ label, icon, dark, onPress, style }) {
     return (
@@ -119,6 +67,12 @@ export default function SearchScreen({ user }) {
             pull();
         }
     }, [isBloggersModalOpen, pull]);
+
+    useFocusEffect(
+        useMemo(() => () => {
+            pull();
+        }, [pull])
+    );
 
     useEffect(() => {
         return () => {

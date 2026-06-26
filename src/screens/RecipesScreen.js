@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
@@ -11,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
@@ -196,7 +197,7 @@ function normalizeBook(item, index) {
 
 export default function RecipesScreen({ user }) {
   const route = useRoute();
-  const { data, pushAllFromStorage } = useSync(user);
+  const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
   const [tab, setTab] = useState('recipes');
   const [query, setQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState(null);
@@ -204,6 +205,17 @@ export default function RecipesScreen({ user }) {
   const [noteText, setNoteText] = useState('');
   const [noteByRecipeId, setNoteByRecipeId] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [booksLocal, setBooksLocal] = useState([]);
+
+  useFocusEffect(
+    useMemo(() => () => {
+      pull();
+    }, [pull])
+  );
+
+  React.useEffect(() => {
+    setBooksLocal(Array.isArray(data.books) ? data.books : []);
+  }, [data.books]);
 
   const openRecipeDetail = (recipe) => {
     setSelectedRecipe(recipe);
@@ -269,6 +281,64 @@ export default function RecipesScreen({ user }) {
     await persistRecipeNote();
   };
 
+  const handleDeleteBook = async () => {
+    if (!selectedBook) return;
+
+    Alert.alert(
+      'Delete Cookbook',
+      `Delete "${selectedBook.title}" from your cookbooks?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
+              const baseBooks = Array.isArray(storedBooks)
+                ? storedBooks
+                : (Array.isArray(booksLocal) ? booksLocal : []);
+
+              const selectedId = String(selectedBook.id || '').trim();
+              const selectedTitle = String(selectedBook.title || '').trim().toLowerCase();
+
+              const nextBooks = baseBooks.filter((book, index) => {
+                const rawId = String(pickFirst(book?.id, book?.uuid, book?.book_id, `${index}`)).trim();
+                const rawTitle = String(pickFirst(book?.title, book?.name, book?.book_title, '')).trim().toLowerCase();
+                const idMatches = selectedId && rawId === selectedId;
+                const titleMatches = selectedTitle && rawTitle === selectedTitle;
+                return !(idMatches || titleMatches);
+              });
+
+              await AsyncStorage.setItem('rv4_books', JSON.stringify(nextBooks));
+              setBooksLocal(nextBooks);
+
+              const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+              await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
+                ...cache,
+                books: nextBooks,
+              }));
+
+              const response = await pushChangedFromStorage({ books: nextBooks });
+              console.log('[books-sync] deleted cookbook', {
+                selectedBookId: selectedId,
+                selectedBookTitle: selectedBook.title,
+                remainingCount: nextBooks.length,
+              });
+              console.log('[books-sync] backend response after delete', response);
+
+              setSelectedBook(null);
+              await pull();
+            } catch (e) {
+              console.warn('Delete cookbook failed:', e);
+              Alert.alert('Delete failed', 'Could not delete this cookbook right now.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const recipes = useMemo(() => {
     const list = Array.isArray(data.recipes) ? data.recipes : [];
     return list.map(normalizeRecipe);
@@ -287,9 +357,9 @@ export default function RecipesScreen({ user }) {
   }, [recipes, query]);
 
   const books = useMemo(() => {
-    const list = Array.isArray(data.books) ? data.books : [];
+    const list = Array.isArray(booksLocal) ? booksLocal : [];
     return list.map(normalizeBook);
-  }, [data.books]);
+  }, [booksLocal]);
 
   const booksWithMatchedCounts = useMemo(() => {
     return books.map((book) => ({
@@ -498,7 +568,7 @@ export default function RecipesScreen({ user }) {
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity activeOpacity={0.85} style={styles.bookTrashBtn}>
+              <TouchableOpacity activeOpacity={0.85} style={styles.bookTrashBtn} onPress={handleDeleteBook}>
                 <Text style={styles.bookTrashText}>🗑</Text>
               </TouchableOpacity>
 
