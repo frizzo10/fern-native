@@ -284,7 +284,6 @@ const styles = StyleSheet.create({
     color: '#F5EFE6',
     fontFamily: 'Jost-Bold',
     fontSize: 22,
-    lineHeight: 24,
   },
   appHeaderSubText: {
     fontSize: 8,
