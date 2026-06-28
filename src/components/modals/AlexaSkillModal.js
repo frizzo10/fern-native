@@ -3,261 +3,261 @@ import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { colors } from '../../constants/tokens';
 
 export default function AlexaSkillModal({ visible, onClose }) {
-  return (
-    <Modal
-      transparent
-      animationType="slide"
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.alexaBackdrop}>
-        <View style={styles.alexaSheet}>
-          <TouchableOpacity style={styles.alexaCloseBtn} activeOpacity={0.85} onPress={onClose}>
-            <Text style={styles.alexaCloseText}>×</Text>
-          </TouchableOpacity>
+    return (
+        <Modal
+            transparent
+            animationType="slide"
+            visible={visible}
+            onRequestClose={onClose}
+        >
+            <View style={styles.alexaBackdrop}>
+                <View style={styles.alexaSheet}>
+                    <TouchableOpacity style={styles.alexaCloseBtn} activeOpacity={0.85} onPress={onClose}>
+                        <Text style={styles.alexaCloseText}>×</Text>
+                    </TouchableOpacity>
 
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.alexaContentScroll}
-            keyboardShouldPersistTaps="handled"
-          >
-            <View style={styles.alexaHeaderRow}>
-              <View style={styles.alexaIconWrap}>
-                <Text style={styles.alexaIcon}>🔊</Text>
-              </View>
-              <View style={styles.alexaHeaderTextWrap}>
-                <Text style={styles.alexaTitle}>Alexa Skill</Text>
-                <Text style={styles.alexaSubtitle}>Pro Max · Hands-free cooking</Text>
-              </View>
-            </View>
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={styles.alexaContentScroll}
+                        keyboardShouldPersistTaps="handled"
+                    >
+                        <View style={styles.alexaHeaderRow}>
+                            <View style={styles.alexaIconWrap}>
+                                <Text style={styles.alexaIcon}>🔊</Text>
+                            </View>
+                            <View style={styles.alexaHeaderTextWrap}>
+                                <Text style={styles.alexaTitle}>Alexa Skill</Text>
+                                <Text style={styles.alexaSubtitle}>Pro Max · Hands-free cooking</Text>
+                            </View>
+                        </View>
 
-            <View style={styles.alexaHeroCard}>
-              <Text style={styles.alexaHeroLeaf}>🌿</Text>
-              <Text style={styles.alexaHeroTitle}>fern for Alexa</Text>
-              <Text style={styles.alexaHeroSubtitle}>Hands-free cooking, your weekly plan, and real-time shopping guidance on Echo Show.</Text>
-            </View>
+                        <View style={styles.alexaHeroCard}>
+                            <Text style={styles.alexaHeroLeaf}>🌿</Text>
+                            <Text style={styles.alexaHeroTitle}>fern for Alexa</Text>
+                            <Text style={styles.alexaHeroSubtitle}>Hands-free cooking, your weekly plan, and real-time shopping guidance on Echo Show.</Text>
+                        </View>
 
-            <Text style={styles.alexaHowTitle}>HOW TO CONNECT</Text>
+                        <Text style={styles.alexaHowTitle}>HOW TO CONNECT</Text>
 
-            {[
-              { step: '1', emoji: '📱', title: 'Open the Alexa app', sub: 'On your iPhone or Android' },
-              { step: '2', emoji: '🔎', title: 'Search for Fern', sub: 'Skills & Games → Search' },
-              { step: '3', emoji: '🔗', title: 'Enable skill & link account', sub: 'Sign in with your Fern credentials' },
-              { step: '4', emoji: '🔊', title: 'Say "Alexa, open Fern"', sub: 'On any Echo or Echo Show device' },
-            ].map((item, idx) => (
-              <View key={`alexa-step-${item.step}`}>
-                <View style={styles.alexaStepRow}>
-                  <View style={styles.alexaStepBadge}>
-                    <Text style={styles.alexaStepBadgeText}>{item.step}</Text>
-                  </View>
-                  <Text style={styles.alexaStepEmoji}>{item.emoji}</Text>
-                  <View style={styles.alexaStepTextWrap}>
-                    <Text style={styles.alexaStepTitle}>{item.title}</Text>
-                    <Text style={styles.alexaStepSub}>{item.sub}</Text>
-                  </View>
+                        {[
+                            { step: '1', emoji: '📱', title: 'Open the Alexa app', sub: 'On your iPhone or Android' },
+                            { step: '2', emoji: '🔎', title: 'Search for Fern', sub: 'Skills & Games → Search' },
+                            { step: '3', emoji: '🔗', title: 'Enable skill & link account', sub: 'Sign in with your Fern credentials' },
+                            { step: '4', emoji: '🔊', title: 'Say "Alexa, open Fern"', sub: 'On any Echo or Echo Show device' },
+                        ].map((item, idx) => (
+                            <View key={`alexa-step-${item.step}`}>
+                                <View style={styles.alexaStepRow}>
+                                    <View style={styles.alexaStepBadge}>
+                                        <Text style={styles.alexaStepBadgeText}>{item.step}</Text>
+                                    </View>
+                                    <Text style={styles.alexaStepEmoji}>{item.emoji}</Text>
+                                    <View style={styles.alexaStepTextWrap}>
+                                        <Text style={styles.alexaStepTitle}>{item.title}</Text>
+                                        <Text style={styles.alexaStepSub}>{item.sub}</Text>
+                                    </View>
+                                </View>
+                                {idx < 3 ? <View style={styles.alexaStepDivider} /> : null}
+                            </View>
+                        ))}
+
+                        <View style={styles.alexaSkillIdCard}>
+                            <Text style={styles.alexaSkillIdLabel}>SKILL ID</Text>
+                            <Text style={styles.alexaSkillIdText}>amzn1.ask.skill.76006692-3bd6-42c3-9d38-348501ea9099</Text>
+                        </View>
+
+                        <TouchableOpacity style={styles.alexaConnectBtn} activeOpacity={0.85} onPress={onClose}>
+                            <Text style={styles.alexaConnectBtnText}>Got it — Connected now</Text>
+                        </TouchableOpacity>
+                    </ScrollView>
                 </View>
-                {idx < 3 ? <View style={styles.alexaStepDivider} /> : null}
-              </View>
-            ))}
-
-            <View style={styles.alexaSkillIdCard}>
-              <Text style={styles.alexaSkillIdLabel}>SKILL ID</Text>
-              <Text style={styles.alexaSkillIdText}>amzn1.ask.skill.76006692-3bd6-42c3-9d38-348501ea9099</Text>
             </View>
-
-            <TouchableOpacity style={styles.alexaConnectBtn} activeOpacity={0.85} onPress={onClose}>
-              <Text style={styles.alexaConnectBtnText}>Got it — Connected now</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
+        </Modal>
+    );
 }
 
 const styles = StyleSheet.create({
-  alexaBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-    justifyContent: 'flex-end',
-  },
-  alexaSheet: {
-    backgroundColor: '#F5F2ED',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: 1,
-    borderColor: '#D9CFBF',
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 16,
-    height: '80%',
-  },
-  alexaCloseBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    borderWidth: 1,
-    borderColor: '#D4C3AD',
-    backgroundColor: '#EFE9DF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
-  alexaCloseText: {
-    fontSize: 26,
-    lineHeight: 28,
-    color: '#8C6B46',
-    marginTop: -1,
-  },
-  alexaContentScroll: {
-    paddingTop: 10,
-    paddingBottom: 30,
-  },
-  alexaHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 14,
-    paddingRight: 54,
-  },
-  alexaIconWrap: {
-    width: 45,
-    height: 45,
-    borderRadius: 12,
-    backgroundColor: '#174B22',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  alexaIcon: {
-    fontSize: 20,
-  },
-  alexaHeaderTextWrap: {
-    flex: 1,
-  },
-  alexaTitle: {
-    color: '#20140B',
-    fontFamily: 'Jost-Bold',
-    fontSize: 18,
-    lineHeight: 24,
-  },
-  alexaSubtitle: {
-    color: '#8D6D48',
-    fontFamily: 'Jost-Medium',
-    fontSize: 12,
-  },
-  alexaHeroCard: {
-    marginTop: 8,
-    borderRadius: 22,
-    backgroundColor: colors.forest,
-    paddingVertical: 26,
-    paddingHorizontal: 22,
-    alignItems: 'center',
-  },
-  alexaHeroLeaf: {
-    fontSize: 38,
-    lineHeight: 48,
-  },
-  alexaHeroTitle: {
-    marginTop: 10,
-    color: '#F0EBDD',
-    fontFamily: 'PlayfairDisplay-Bold',
-    fontSize: 22,
-    lineHeight: 30,
-    textAlign: 'center',
-  },
-  alexaHeroSubtitle: {
-    marginTop: 10,
-    color: '#C6D5C3',
-    fontFamily: 'Jost-Regular',
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  alexaHowTitle: {
-    marginTop: 22,
-    marginBottom: 8,
-    color: '#8D734E',
-    fontFamily: 'Jost-Bold',
-    fontSize: 12,
-    letterSpacing: 1.2,
-  },
-  alexaStepRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  alexaStepBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#174B22',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  alexaStepBadgeText: {
-    color: '#EAF3E7',
-    fontFamily: 'Jost-Bold',
-    fontSize: 14,
-  },
-  alexaStepEmoji: {
-    fontSize: 26,
-    marginRight: 8,
-  },
-  alexaStepTextWrap: {
-    flex: 1,
-  },
-  alexaStepTitle: {
-    color: '#20140B',
-    fontFamily: 'Jost-Bold',
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  alexaStepSub: {
-    marginTop: 4,
-    color: '#8D734E',
-    fontFamily: 'Jost-Medium',
-    fontSize: 12,
-  },
-  alexaStepDivider: {
-    height: 1,
-    backgroundColor: '#D6C7B1',
-  },
-  alexaSkillIdCard: {
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: '#D4C3AD',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    backgroundColor: '#F1ECE3',
-  },
-  alexaSkillIdLabel: {
-    color: '#a49379',
-    fontFamily: 'Jost-Bold',
-    fontSize: 10,
-  },
-  alexaSkillIdText: {
-    marginTop: 8,
-    color: '#907353',
-    fontFamily: 'Jost-Bold',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  alexaConnectBtn: {
-    marginTop: 16,
-    backgroundColor: '#EC6518',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-  },
-  alexaConnectBtnText: {
-    color: '#FFF5EC',
-    fontFamily: 'Jost-Bold',
-    fontSize: 16,
-  },
+    alexaBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.28)',
+        justifyContent: 'flex-end',
+    },
+    alexaSheet: {
+        backgroundColor: '#F5F2ED',
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        borderWidth: 1,
+        borderColor: '#D9CFBF',
+        paddingHorizontal: 16,
+        paddingTop: 14,
+        paddingBottom: 16,
+        height: '80%',
+    },
+    alexaCloseBtn: {
+        position: 'absolute',
+        top: 12,
+        right: 12,
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        borderWidth: 1,
+        borderColor: '#D4C3AD',
+        backgroundColor: '#EFE9DF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2,
+    },
+    alexaCloseText: {
+        fontSize: 26,
+        lineHeight: 28,
+        color: '#8C6B46',
+        marginTop: -1,
+    },
+    alexaContentScroll: {
+        paddingTop: 10,
+        paddingBottom: 30,
+    },
+    alexaHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 14,
+        paddingRight: 54,
+    },
+    alexaIconWrap: {
+        width: 45,
+        height: 45,
+        borderRadius: 12,
+        backgroundColor: '#174B22',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    alexaIcon: {
+        fontSize: 20,
+    },
+    alexaHeaderTextWrap: {
+        flex: 1,
+    },
+    alexaTitle: {
+        color: '#20140B',
+        fontFamily: 'Jost-Bold',
+        fontSize: 18,
+        lineHeight: 24,
+    },
+    alexaSubtitle: {
+        color: '#8D6D48',
+        fontFamily: 'Jost-Medium',
+        fontSize: 12,
+    },
+    alexaHeroCard: {
+        marginTop: 8,
+        borderRadius: 22,
+        backgroundColor: colors.forest,
+        paddingVertical: 26,
+        paddingHorizontal: 22,
+        alignItems: 'center',
+    },
+    alexaHeroLeaf: {
+        fontSize: 38,
+        lineHeight: 48,
+    },
+    alexaHeroTitle: {
+        marginTop: 10,
+        color: '#F0EBDD',
+        fontFamily: 'PlayfairDisplay-Bold',
+        fontSize: 22,
+        lineHeight: 30,
+        textAlign: 'center',
+    },
+    alexaHeroSubtitle: {
+        marginTop: 10,
+        color: '#C6D5C3',
+        fontFamily: 'Jost-Regular',
+        fontSize: 13,
+        lineHeight: 20,
+        textAlign: 'center',
+    },
+    alexaHowTitle: {
+        marginTop: 22,
+        marginBottom: 8,
+        color: '#8D734E',
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+        letterSpacing: 1.2,
+    },
+    alexaStepRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+    },
+    alexaStepBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#174B22',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12,
+    },
+    alexaStepBadgeText: {
+        color: '#EAF3E7',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+    },
+    alexaStepEmoji: {
+        fontSize: 26,
+        marginRight: 8,
+    },
+    alexaStepTextWrap: {
+        flex: 1,
+    },
+    alexaStepTitle: {
+        color: '#20140B',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+        lineHeight: 22,
+    },
+    alexaStepSub: {
+        marginTop: 4,
+        color: '#8D734E',
+        fontFamily: 'Jost-Medium',
+        fontSize: 12,
+    },
+    alexaStepDivider: {
+        height: 1,
+        backgroundColor: '#D6C7B1',
+    },
+    alexaSkillIdCard: {
+        marginTop: 12,
+        borderWidth: 1,
+        borderColor: '#D4C3AD',
+        borderRadius: 20,
+        paddingHorizontal: 14,
+        paddingVertical: 14,
+        backgroundColor: '#F1ECE3',
+    },
+    alexaSkillIdLabel: {
+        color: '#a49379',
+        fontFamily: 'Jost-Bold',
+        fontSize: 10,
+    },
+    alexaSkillIdText: {
+        marginTop: 8,
+        color: '#907353',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+        lineHeight: 20,
+    },
+    alexaConnectBtn: {
+        marginTop: 16,
+        backgroundColor: '#EC6518',
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+    },
+    alexaConnectBtnText: {
+        color: '#FFF5EC',
+        fontFamily: 'Jost-Bold',
+        fontSize: 16,
+    },
 });
