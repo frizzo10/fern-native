@@ -50,11 +50,14 @@ export default function HomeScreen({ user }) {
   const [isFindingStore, setIsFindingStore] = useState(false);
   const [isSavingStore, setIsSavingStore] = useState(false);
   const [foundStoreCandidate, setFoundStoreCandidate] = useState(null);
+  const [isAlexaModalOpen, setIsAlexaModalOpen] = useState(false);
   const [isWineModalOpen, setIsWineModalOpen] = useState(false);
   const [wineDishInput, setWineDishInput] = useState('');
   const [isWineSearching, setIsWineSearching] = useState(false);
   const [wineSummary, setWineSummary] = useState('');
   const [winePairings, setWinePairings] = useState([]);
+  const [selectedWinePairing, setSelectedWinePairing] = useState(null);
+  const [isAddingWineToList, setIsAddingWineToList] = useState(false);
   const { data, loading, pull, pushAllFromStorage } = useSync(user);
 
   useFocusEffect(
@@ -306,6 +309,7 @@ export default function HomeScreen({ user }) {
     setWineSummary('');
     setWinePairings([]);
     setIsWineSearching(false);
+    setSelectedWinePairing(null);
   };
 
   const openWineModal = () => {
@@ -313,9 +317,21 @@ export default function HomeScreen({ user }) {
     setIsWineModalOpen(true);
   };
 
+  const openAlexaModal = () => {
+    setIsAlexaModalOpen(true);
+  };
+
+  const closeAlexaModal = () => {
+    setIsAlexaModalOpen(false);
+  };
+
   const closeWineModal = () => {
     setIsWineModalOpen(false);
     resetWineModal();
+  };
+
+  const closeWineDetailModal = () => {
+    setSelectedWinePairing(null);
   };
 
   const handleFindWinePairings = async () => {
@@ -348,6 +364,84 @@ export default function HomeScreen({ user }) {
       Alert.alert('Search failed', 'Could not find wine pairings right now. Please try again.');
     } finally {
       setIsWineSearching(false);
+    }
+  };
+
+  const getPairingIcon = (itemOrCategory) => {
+    const rawValue = typeof itemOrCategory === 'object' && itemOrCategory !== null
+      ? itemOrCategory.category || itemOrCategory.type || itemOrCategory.kind || ''
+      : itemOrCategory;
+    const normalized = String(rawValue || '').trim().toLowerCase();
+    if (normalized.includes('wine')) return '🍷';
+    if (normalized.includes('beer')) return '🍺';
+    return '💧';
+  };
+
+  const getPairingTitle = (item, index) => {
+    const parts = [];
+    if (index === 0) {
+      parts.push('✨');
+    }
+    parts.push(getPairingIcon(item));
+    parts.push(item?.name || 'Pairing');
+    if (item?.region) {
+      parts.push(`• ${item.region}`);
+    }
+    return parts.join(' ');
+  };
+
+  const handleAddWineToShoppingList = async () => {
+    if (!selectedWinePairing?.name) {
+      return;
+    }
+
+    const itemName = String(selectedWinePairing.name).trim();
+    if (!itemName) {
+      return;
+    }
+
+    const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+    const alreadyExists = existingItems.some((item) => {
+      const text = String(item?.text || item?.name || item?.title || item?.item || '').trim().toLowerCase();
+      const recipe = String(item?.recipe || item?.recipe_name || item?.sourceRecipe || '').trim().toLowerCase();
+      return text === itemName.toLowerCase() && recipe === 'wine pairing';
+    });
+
+    if (alreadyExists) {
+      Alert.alert('Already added', 'This pairing is already in your shopping list.');
+      return;
+    }
+
+    const nextShopping = [
+      ...existingItems,
+      {
+        id: `wine-pairing-${Date.now()}`,
+        text: itemName,
+        recipe: 'WINE PAIRING',
+        checked: false,
+      },
+    ];
+
+    setIsAddingWineToList(true);
+
+    try {
+      await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(nextShopping));
+
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
+        ...cache,
+        shopping: nextShopping,
+      }));
+
+      await pushAllFromStorage();
+      await pull();
+      closeWineDetailModal();
+      Alert.alert('Added', `${itemName} was added to your shopping list.`);
+    } catch (e) {
+      console.log('[wine-pairing] failed to add shopping item', e?.message || e);
+      Alert.alert('Could not add item', 'Please try again.');
+    } finally {
+      setIsAddingWineToList(false);
     }
   };
 
@@ -428,7 +522,15 @@ export default function HomeScreen({ user }) {
             <TouchableOpacity
               key={label}
               activeOpacity={0.88}
-              onPress={label === 'Wine Pairing' ? openWineModal : undefined}
+              onPress={
+                label === 'Alexa Skill'
+                  ? openAlexaModal
+                  : label === 'Wine Pairing'
+                    ? openWineModal
+                    : label === 'Personal Shopper'
+                      ? () => navigation.navigate('Shopping')
+                      : undefined
+              }
               style={[
                 styles.mainCard,
                 shadow.card,
@@ -716,6 +818,75 @@ export default function HomeScreen({ user }) {
       <Modal
         transparent
         animationType="slide"
+        visible={isAlexaModalOpen}
+        onRequestClose={closeAlexaModal}
+      >
+        <View style={styles.alexaBackdrop}>
+          <View style={styles.alexaSheet}>
+            <TouchableOpacity style={styles.alexaCloseBtn} activeOpacity={0.85} onPress={closeAlexaModal}>
+              <Text style={styles.alexaCloseText}>×</Text>
+            </TouchableOpacity>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.alexaContentScroll}
+              keyboardShouldPersistTaps="handled"
+            >
+              <View style={styles.alexaHeaderRow}>
+                <View style={styles.alexaIconWrap}>
+                  <Text style={styles.alexaIcon}>🔊</Text>
+                </View>
+                <View style={styles.alexaHeaderTextWrap}>
+                  <Text style={styles.alexaTitle}>Alexa Skill</Text>
+                  <Text style={styles.alexaSubtitle}>Pro Max · Hands-free cooking</Text>
+                </View>
+              </View>
+
+              <View style={styles.alexaHeroCard}>
+                <Text style={styles.alexaHeroLeaf}>🌿</Text>
+                <Text style={styles.alexaHeroTitle}>fern for Alexa</Text>
+                <Text style={styles.alexaHeroSubtitle}>Hands-free cooking, your weekly plan, and real-time shopping guidance on Echo Show.</Text>
+              </View>
+
+              <Text style={styles.alexaHowTitle}>HOW TO CONNECT</Text>
+
+              {[
+                { step: '1', emoji: '📱', title: 'Open the Alexa app', sub: 'On your iPhone or Android' },
+                { step: '2', emoji: '🔎', title: 'Search for Fern', sub: 'Skills & Games → Search' },
+                { step: '3', emoji: '🔗', title: 'Enable skill & link account', sub: 'Sign in with your Fern credentials' },
+                { step: '4', emoji: '🔊', title: 'Say "Alexa, open Fern"', sub: 'On any Echo or Echo Show device' },
+              ].map((item, idx) => (
+                <View key={`alexa-step-${item.step}`}>
+                  <View style={styles.alexaStepRow}>
+                    <View style={styles.alexaStepBadge}>
+                      <Text style={styles.alexaStepBadgeText}>{item.step}</Text>
+                    </View>
+                    <Text style={styles.alexaStepEmoji}>{item.emoji}</Text>
+                    <View style={styles.alexaStepTextWrap}>
+                      <Text style={styles.alexaStepTitle}>{item.title}</Text>
+                      <Text style={styles.alexaStepSub}>{item.sub}</Text>
+                    </View>
+                  </View>
+                  {idx < 3 ? <View style={styles.alexaStepDivider} /> : null}
+                </View>
+              ))}
+
+              <View style={styles.alexaSkillIdCard}>
+                <Text style={styles.alexaSkillIdLabel}>SKILL ID</Text>
+                <Text style={styles.alexaSkillIdText}>amzn1.ask.skill.76006692-3bd6-42c3-9d38-348501ea9099</Text>
+              </View>
+
+              <TouchableOpacity style={styles.alexaConnectBtn} activeOpacity={0.85} onPress={closeAlexaModal}>
+                <Text style={styles.alexaConnectBtnText}>Got it — Connected now</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        transparent
+        animationType="slide"
         visible={isWineModalOpen}
         onRequestClose={closeWineModal}
       >
@@ -760,20 +931,69 @@ export default function HomeScreen({ user }) {
                 <View style={styles.wineResultsContent}>
                   {wineSummary ? <Text style={styles.wineSummaryText}>"{wineSummary}"</Text> : null}
                   {winePairings.map((item, index) => (
-                    <View key={`wine-pairing-${index}`} style={styles.wineCard}>
+                    <TouchableOpacity
+                      key={`wine-pairing-${index}`}
+                      activeOpacity={0.86}
+                      style={styles.wineCard}
+                      onPress={() => setSelectedWinePairing(item)}
+                    >
                       <View style={styles.wineCardTopRow}>
                         <Text style={styles.wineCardTitle} numberOfLines={2}>
-                          {item.badge ? `✨ ${item.name}` : item.name}
-                          {item.region ? ` • ${item.region}` : ''}
+                          {getPairingTitle(item, index)}
                         </Text>
+                        <Text style={styles.wineCardChevron}>›</Text>
                       </View>
                       <Text style={styles.wineCardMeta}>{item.type.toUpperCase()}{item.price ? ` · ${item.price}` : ''}</Text>
                       {item.description ? <Text style={styles.wineCardDescription}>{item.description}</Text> : null}
-                    </View>
+                    </TouchableOpacity>
                   ))}
                 </View>
               ) : null}
             </ScrollView>
+
+            {selectedWinePairing ? (
+              <View style={styles.wineDetailOverlay}>
+                <TouchableOpacity style={styles.wineDetailScrim} activeOpacity={1} onPress={closeWineDetailModal} />
+                <View style={styles.wineDetailSheet}>
+                  <View style={styles.wineDetailHeader}>
+                    <View style={styles.wineDetailHeaderTextWrap}>
+                      <Text style={styles.wineDetailTitle}>
+                        {`${getPairingIcon(selectedWinePairing)} ${selectedWinePairing.name}${selectedWinePairing.region ? ` • ${selectedWinePairing.region}` : ''}`}
+                      </Text>
+                      <Text style={styles.wineDetailMeta}>
+                        {selectedWinePairing.type?.toUpperCase() || 'PAIRING'}{selectedWinePairing.price ? ` · ${selectedWinePairing.price}` : ''}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity style={styles.wineDetailCloseBtn} activeOpacity={0.85} onPress={closeWineDetailModal}>
+                      <Text style={styles.wineDetailCloseText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.wineDetailBody}>
+                    <Text style={styles.wineDetailSectionLabel}>WHY IT WORKS</Text>
+                    <Text style={styles.wineDetailDescription}>
+                      {selectedWinePairing.description || 'No additional tasting notes were provided for this pairing.'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.wineDetailActions}>
+                    <TouchableOpacity
+                      style={[styles.wineDetailAddBtn, isAddingWineToList ? styles.wineDetailBtnDisabled : null]}
+                      activeOpacity={0.85}
+                      onPress={handleAddWineToShoppingList}
+                      disabled={isAddingWineToList}
+                    >
+                      <Text style={styles.wineDetailAddBtnText}>{isAddingWineToList ? 'Adding...' : '🛒 Add to list'}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.wineDetailDoneBtn} activeOpacity={0.85} onPress={closeWineDetailModal}>
+                      <Text style={styles.wineDetailDoneBtnText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ) : null}
           </View>
         </View>
       </Modal>
@@ -1459,6 +1679,191 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
+  alexaBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.28)',
+    justifyContent: 'flex-end',
+  },
+  alexaSheet: {
+    backgroundColor: '#F5F2ED',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: '#D9CFBF',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 16,
+    height: '80%',
+  },
+  alexaCloseBtn: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#D4C3AD',
+    backgroundColor: '#EFE9DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
+  },
+  alexaCloseText: {
+    fontSize: 26,
+    lineHeight: 28,
+    color: '#8C6B46',
+    marginTop: -1,
+  },
+  alexaContentScroll: {
+    paddingTop: 10,
+    paddingBottom: 30,
+  },
+  alexaHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+    paddingRight: 54,
+  },
+  alexaIconWrap: {
+    width: 45,
+    height: 45,
+    borderRadius: 12,
+    backgroundColor: '#174B22',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  alexaIcon: {
+    fontSize: 20,
+  },
+  alexaHeaderTextWrap: {
+    flex: 1,
+  },
+  alexaTitle: {
+    color: '#20140B',
+    fontFamily: 'Jost-Bold',
+    fontSize: 18,
+    lineHeight: 24,
+  },
+  alexaSubtitle: {
+    color: '#8D6D48',
+    fontFamily: 'Jost-Medium',
+    fontSize: 12,
+  },
+  alexaHeroCard: {
+    marginTop: 8,
+    borderRadius: 22,
+    backgroundColor: colors.forest,
+    paddingVertical: 26,
+    paddingHorizontal: 22,
+    alignItems: 'center',
+  },
+  alexaHeroLeaf: {
+    fontSize: 38,
+    lineHeight: 48,
+  },
+  alexaHeroTitle: {
+    marginTop: 10,
+    color: '#F0EBDD',
+    fontFamily: 'PlayfairDisplay-Bold',
+    fontSize: 22,
+    lineHeight: 30,
+    textAlign: 'center',
+  },
+  alexaHeroSubtitle: {
+    marginTop: 10,
+    color: '#C6D5C3',
+    fontFamily: 'Jost-Regular',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  alexaHowTitle: {
+    marginTop: 22,
+    marginBottom: 8,
+    color: '#8D734E',
+    fontFamily: 'Jost-Bold',
+    fontSize: 12,
+    letterSpacing: 1.2,
+  },
+  alexaStepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+  },
+  alexaStepBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#174B22',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  alexaStepBadgeText: {
+    color: '#EAF3E7',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
+  },
+  alexaStepEmoji: {
+    fontSize: 26,
+    marginRight: 8,
+  },
+  alexaStepTextWrap: {
+    flex: 1,
+  },
+  alexaStepTitle: {
+    color: '#20140B',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  alexaStepSub: {
+    marginTop: 4,
+    color: '#8D734E',
+    fontFamily: 'Jost-Medium',
+    fontSize: 12
+  },
+  alexaStepDivider: {
+    height: 1,
+    backgroundColor: '#D6C7B1',
+  },
+  alexaSkillIdCard: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#D4C3AD',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+    backgroundColor: '#F1ECE3',
+  },
+  alexaSkillIdLabel: {
+    color: '#a49379',
+    fontFamily: 'Jost-Bold',
+    fontSize: 10
+  },
+  alexaSkillIdText: {
+    marginTop: 8,
+    color: '#907353',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  alexaConnectBtn: {
+    marginTop: 16,
+    backgroundColor: '#EC6518',
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  alexaConnectBtnText: {
+    color: '#FFF5EC',
+    fontFamily: 'Jost-Bold',
+    fontSize: 16,
+  },
+
   wineBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.28)',
@@ -1496,7 +1901,7 @@ const styles = StyleSheet.create({
   wineHero: {
     marginTop: 24,
     textAlign: 'center',
-    fontSize: 58,
+    fontSize: 50,
     lineHeight: 64,
   },
   wineTitle: {
@@ -1504,7 +1909,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#2A1A11',
     fontFamily: 'PlayfairDisplay-Bold',
-    fontSize: 34,
+    fontSize: 24,
     lineHeight: 40,
   },
   wineSubtitle: {
@@ -1512,14 +1917,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#7B5E3E',
     fontFamily: 'Jost-Regular',
-    fontSize: 16,
+    fontSize: 12,
   },
   wineFieldLabel: {
     marginTop: 18,
     marginBottom: 8,
     color: '#7B5C3A',
     fontFamily: 'Jost-Bold',
-    fontSize: 14,
+    fontSize: 12,
     letterSpacing: 1.2,
   },
   wineInput: {
@@ -1529,14 +1934,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#F6F3ED',
     color: '#2A1A11',
     fontFamily: 'Jost-Regular',
-    fontSize: 16,
+    fontSize: 14,
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
   wineFindBtn: {
     marginTop: 14,
     backgroundColor: '#184D22',
-    borderRadius: 16,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
@@ -1547,13 +1952,13 @@ const styles = StyleSheet.create({
   wineFindBtnText: {
     color: '#EAF3E7',
     fontFamily: 'Jost-Bold',
-    fontSize: 14,
+    fontSize: 12,
     letterSpacing: 0.5,
   },
   wineAskFernBtn: {
     marginTop: 10,
     backgroundColor: '#EC6518',
-    borderRadius: 16,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
@@ -1561,7 +1966,7 @@ const styles = StyleSheet.create({
   wineAskFernText: {
     color: '#FFF5EC',
     fontFamily: 'Jost-Bold',
-    fontSize: 14,
+    fontSize: 12,
   },
   wineContentScroll: {
     paddingTop: 6,
@@ -1575,10 +1980,11 @@ const styles = StyleSheet.create({
     color: '#2E2117',
     fontFamily: 'Jost-Italic',
     fontStyle: 'italic',
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 12,
+    lineHeight: 20,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: 20,
+    paddingHorizontal: 12,
   },
   wineCard: {
     borderWidth: 2,
@@ -1598,7 +2004,7 @@ const styles = StyleSheet.create({
     flex: 1,
     color: '#2A1A11',
     fontFamily: 'Jost-Bold',
-    fontSize: 17,
+    fontSize: 15,
     lineHeight: 22,
   },
   wineCardMeta: {
@@ -1608,6 +2014,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.7,
   },
+  wineCardChevron: {
+    marginLeft: 12,
+    color: '#B4AA9C',
+    fontSize: 20,
+    lineHeight: 20,
+    fontFamily: 'Jost-Bold',
+  },
   wineCardDescription: {
     marginTop: 4,
     color: '#7B5E3E',
@@ -1615,6 +2028,114 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     fontStyle: 'italic',
+  },
+  wineDetailOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+  },
+  wineDetailScrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(33,25,18,0.48)',
+  },
+  wineDetailSheet: {
+    backgroundColor: '#F8F5F0',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 18,
+    paddingHorizontal: 20,
+    paddingBottom: 18,
+  },
+  wineDetailHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#D8CAB5',
+  },
+  wineDetailHeaderTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  wineDetailTitle: {
+    color: '#7B1E3A',
+    fontFamily: 'PlayfairDisplay-Bold',
+    fontSize: 18,
+    lineHeight: 30,
+  },
+  wineDetailMeta: {
+    marginTop: 2,
+    color: '#7B5E3E',
+    fontFamily: 'Jost-Bold',
+    fontSize: 12,
+    letterSpacing: 0.7,
+  },
+  wineDetailCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wineDetailCloseText: {
+    color: '#B8B0A6',
+    fontSize: 28,
+    lineHeight: 28,
+  },
+  wineDetailBody: {
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: '#D8CAB5',
+  },
+  wineDetailSectionLabel: {
+    color: '#7B5C3A',
+    fontFamily: 'Jost-Bold',
+    fontSize: 12,
+    letterSpacing: 1.2,
+    marginBottom: 10,
+  },
+  wineDetailDescription: {
+    color: '#2E2117',
+    fontFamily: 'Jost-Italic',
+    fontStyle: 'italic',
+    fontSize: 15,
+    lineHeight: 28,
+  },
+  wineDetailActions: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingTop: 18,
+  },
+  wineDetailAddBtn: {
+    flex: 1,
+    backgroundColor: '#194D22',
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+  },
+  wineDetailBtnDisabled: {
+    opacity: 0.7,
+  },
+  wineDetailAddBtnText: {
+    color: '#F6F3EE',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
+  },
+  wineDetailDoneBtn: {
+    flex: 1,
+    backgroundColor: '#F3EBDD',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#D8CAB5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 15,
+  },
+  wineDetailDoneBtnText: {
+    color: '#2E2117',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
   },
 
 });

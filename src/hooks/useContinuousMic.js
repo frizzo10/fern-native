@@ -16,7 +16,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true 
   const [audioUri, setAudioUri] = useState(null);
 
   //VAD 
-  const SILENCE_DB = -15;
+  const SILENCE_DB = -35;
   const SILENCE_MS = 1500;
   const MAX_RECORDING_MS = 30000;
   const vadIntervalRef = useRef(null);

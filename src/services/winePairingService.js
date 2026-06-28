@@ -1,11 +1,13 @@
 export function normalizeWinePairing(item, index) {
   const name = item?.name || item?.title || item?.wine || item?.beverage || `Pairing ${index + 1}`;
   const region = item?.region || item?.origin || item?.location || '';
+  const rawCategory = item?.category || item?.type || item?.kind || 'Wine';
   const type = item?.type || item?.category || item?.kind || 'Wine';
+  const category = String(rawCategory || '').trim();
   const price = item?.price || item?.budget || item?.priceRange || '';
   const description = item?.description || item?.why || item?.notes || item?.reason || '';
   const badge = item?.badge || item?.tag || item?.highlight || '';
-  return { name, region, type, price, description, badge };
+  return { name, region, type, category, price, description, badge };
 }
 
 export async function fetchWinePairings({ userId, dish }) {
