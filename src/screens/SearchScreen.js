@@ -54,7 +54,7 @@ export default function SearchScreen({ user }) {
     const [followingBloggersLocal, setFollowingBloggersLocal] = useState([]);
     const syncTimerRef = useRef(null);
     const isSyncingRef = useRef(false);
-
+    const scrollRef = useRef(null);
     useEffect(() => {
         if (route?.params?.openBloggers) {
             setIsBloggersModalOpen(true);
@@ -215,7 +215,7 @@ export default function SearchScreen({ user }) {
                 <View style={styles.glowOne} />
                 <View style={styles.glowTwo} />
 
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                     <View style={styles.hero}>
                         <View style={styles.wordmarkRow}>
                             <Image source={require('../../assets/icon.png')} style={styles.heroIcon} resizeMode="contain" />
@@ -276,6 +276,12 @@ export default function SearchScreen({ user }) {
                             style={styles.cravingInput}
                             returnKeyType="done"
                             onSubmitEditing={runCraving}
+                            onFocus={() => {
+                                scrollRef.current?.scrollTo({
+                                    y: 120,
+                                    animated: true,
+                                });
+                            }}
                         />
                         <TouchableOpacity activeOpacity={0.9} onPress={runCraving} style={styles.cravingButton}>
                             <Text style={styles.cravingButtonText}>{'>✦ Go'}</Text>
@@ -574,6 +580,8 @@ const styles = StyleSheet.create({
         marginHorizontal: 12,
     },
     cravingInput: {
+        flex: 1,
+        minWidth: 0,
         backgroundColor: '#E6DBCA',
         borderRadius: 8,
         paddingHorizontal: 10,
@@ -583,6 +591,7 @@ const styles = StyleSheet.create({
         color: '#86725B',
     },
     cravingButton: {
+        width: 60,
         backgroundColor: '#3F2412',
         borderRadius: 10,
         paddingHorizontal: 10,

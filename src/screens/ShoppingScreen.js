@@ -217,7 +217,7 @@ export default function ShoppingScreen({ user }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.quickLabel}>QUICK ADD ▸</Text>
+        <Text style={styles.quickLabel}>QUICK ADD</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
           {QUICK_ADD_ITEMS.map((item) => (
             <TouchableOpacity
@@ -348,15 +348,15 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   voiceIconWrap: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   voiceIcon: {
-    fontSize: 30,
+    fontSize: 20,
   },
   voiceTextWrap: {
     flex: 1,
@@ -365,14 +365,14 @@ const styles = StyleSheet.create({
   },
   voiceTitle: {
     color: '#F3EEE4',
-    fontSize: 12,
+    fontSize: 14,
     lineHeight: 16,
     fontFamily: 'Jost-Bold',
   },
   voiceSub: {
     color: '#8FB18A',
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 12,
+    lineHeight: 14,
     marginTop: 2,
     fontFamily: 'Jost-Regular',
   },
@@ -440,8 +440,8 @@ const styles = StyleSheet.create({
   },
   quickChipText: {
     color: '#6C5238',
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 12,
+    lineHeight: 14,
     fontFamily: 'Jost-SemiBold',
   },
   listWrap: {
@@ -450,8 +450,8 @@ const styles = StyleSheet.create({
   },
   listMeta: {
     color: '#7A5C3A',
-    fontSize: 13,
-    lineHeight: 17,
+    fontSize: 12,
+    lineHeight: 14,
     fontFamily: 'Jost-SemiBold',
     marginBottom: 8,
   },
@@ -466,9 +466,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   recipeSectionTitle: {
-    color: '#2E6631',
-    fontSize: 12,
-    lineHeight: 14,
+    color: colors.bright,
+    fontSize: 10,
+    paddingTop: 10,
+    lineHeight: 12,
     letterSpacing: 2,
     flexShrink: 1,
     fontFamily: 'Jost-Bold'
@@ -521,14 +522,14 @@ const styles = StyleSheet.create({
   },
   listText: {
     color: '#2B1E13',
-    fontSize: 12,
+    fontSize: 14,
     lineHeight: 20,
     fontFamily: 'Jost-Regular',
   },
   listRecipeLabel: {
     color: '#7A5C3A',
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 10,
+    lineHeight: 14,
     fontFamily: 'Jost-Regular',
     marginTop: 2,
   },

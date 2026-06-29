@@ -232,7 +232,7 @@ export default function CharcuterieModal({
                                         onPress={onAddAllShoppingItems}
                                         disabled={isAddingCharcuterieToList}
                                     >
-                                        <Text style={styles.charcuteriePrimaryActionText}>{isAddingCharcuterieToList ? 'Adding...' : '🛒 Review & Add Shopping List'}</Text>
+                                        <Text style={styles.charcuteriePrimaryActionText}>{isAddingCharcuterieToList ? 'Adding...' : '🛒 Add to Shopping List'}</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
