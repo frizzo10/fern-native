@@ -619,7 +619,7 @@ export default function RecipesScreen({ user }) {
                 </View>
               </View>
 
-              <View style={styles.bookPagerRow}>
+              {/* <View style={styles.bookPagerRow}>
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookPagerBtn, styles.bookPagerBtnDisabled]}>
                   <Text style={styles.bookPagerBtnDisabledText}>‹ Prev</Text>
                 </TouchableOpacity>
@@ -627,7 +627,7 @@ export default function RecipesScreen({ user }) {
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookPagerBtn, styles.bookPagerBtnNext]}>
                   <Text style={styles.bookPagerBtnText}>Next ›</Text>
                 </TouchableOpacity>
-              </View>
+              </View> */}
             </View>
           ) : booksWithMatchedCounts.length ? (
             <View style={styles.cookbooksWrap}>
@@ -810,7 +810,6 @@ export default function RecipesScreen({ user }) {
                       </View>
                     ))}
 
-                    <View style={styles.overlayDivider} />
                     <Text style={styles.overlaySectionTitle}>MY NOTE</Text>
                     <View style={styles.overlayDivider} />
 
@@ -855,7 +854,9 @@ export default function RecipesScreen({ user }) {
                         <Text style={styles.overlayBottomBtnTextDark}>Close</Text>
                       </TouchableOpacity>
                       <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDelete]}><Text style={styles.overlayBottomBtnTextDelete}>🗑 Delete</Text></TouchableOpacity>
+
                     </View>
+                    <View style={styles.overlayLastDivider} />
                   </View>
                 </ScrollView>
               </View>
@@ -1066,8 +1067,8 @@ const styles = StyleSheet.create({
   },
   bookActionBtn: {
     borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderWidth: 1,
   },
   bookActionBtnMuted: {
@@ -1075,7 +1076,7 @@ const styles = StyleSheet.create({
     borderColor: '#596B5B',
   },
   bookActionBtnWide: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
   },
   bookActionBtnGreen: {
     backgroundColor: '#356B29',
@@ -1091,20 +1092,20 @@ const styles = StyleSheet.create({
   },
   bookActionTextLight: {
     color: '#F1EFE8',
-    fontSize: 13,
+    fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
   bookTrashBtn: {
-    marginTop: 12,
-    width: 46,
-    height: 46,
-    borderRadius: 12,
+    marginTop: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: '#F4F0E8',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bookTrashText: {
-    fontSize: 22,
+    fontSize: 14,
   },
   bookDetailCard: {
     marginTop: 18,
@@ -1287,7 +1288,7 @@ const styles = StyleSheet.create({
   },
   newBookBtnText: {
     color: '#F3EEE4',
-    fontSize: 12,
+    fontSize: 8,
     letterSpacing: 1,
     fontFamily: 'Jost-Bold',
   },
@@ -1485,17 +1486,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Jost-Bold',
   },
   overlayDivider: {
-    marginTop: 14,
+    marginTop: 10,
     marginBottom: 14,
     height: 1,
     backgroundColor: '#D8C8B0',
+  },
+  overlayLastDivider: {
+    height: 100,
+    backgroundColor: 'transparent',
   },
   overlayDescriptionCard: {
     borderRadius: 8,
     borderLeftWidth: 6,
     borderLeftColor: '#265A34',
     backgroundColor: '#D8E6D7',
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 14,
   },
   overlayDescriptionText: {
@@ -1531,7 +1536,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   overlaySectionTitle: {
-    marginTop: 16,
+    marginTop: 26,
     color: '#214A2B',
     fontSize: 11,
     letterSpacing: 3,
