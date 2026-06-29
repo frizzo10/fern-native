@@ -1,5 +1,7 @@
 import React from 'react';
 import {
+    ActivityIndicator,
+    Image,
     Modal,
     ScrollView,
     StyleSheet,
@@ -55,9 +57,40 @@ export default function CharcuterieModal({
     setCharcuterieDietary,
     isDietaryMenuOpen,
     setIsDietaryMenuOpen,
+    isCharcuterieBuilding,
+    charcuterieResult,
+    isAddingCharcuterieToList,
+    isSavingCharcuterieBoard,
     onBuild,
+    onBuildAnother,
+    onAddSingleShoppingItem,
+    onAddAllShoppingItems,
+    onSaveBoard,
     onAskFern,
 }) {
+    const hasBoard = Boolean(charcuterieResult);
+    const garnishChips = [
+        ...(Array.isArray(charcuterieResult?.garnishes) ? charcuterieResult.garnishes : []),
+        ...(Array.isArray(charcuterieResult?.drizzles) ? charcuterieResult.drizzles : []),
+    ];
+
+    const renderIngredientSection = (title, emoji, items) => {
+        if (!Array.isArray(items) || !items.length) return null;
+
+        return (
+            <View>
+                <Text style={styles.charcuterieSectionHeader}>{`${emoji} ${title}`}</Text>
+                {items.map((item, index) => (
+                    <View key={`${title}-${index}-${item.name}`} style={styles.charcuterieResultItemCard}>
+                        <Text style={styles.charcuterieResultItemTitle}>{`${item.emoji || emoji} ${item.name}`}</Text>
+                        {item.quantity ? <Text style={styles.charcuterieResultItemQty}>{item.quantity}</Text> : null}
+                        {item.description ? <Text style={styles.charcuterieResultItemDesc}>{item.description}</Text> : null}
+                    </View>
+                ))}
+            </View>
+        );
+    };
+
     return (
         <Modal
             transparent
@@ -80,114 +113,254 @@ export default function CharcuterieModal({
                             <Text style={styles.charcuterieTopTitle}>🧀 Charcuterie Board Builder</Text>
                         </View>
 
-                        <Text style={styles.charcuterieHero}>🧀</Text>
-                        <Text style={styles.charcuterieTitle}>Charcuterie Board Builder</Text>
-                        <Text style={styles.charcuterieSubtitle}>Tell us about your gathering and we'll design the perfect board.</Text>
+                        {hasBoard ? (
+                            <View>
+                                <View style={styles.charcuterieResultHeroCard}>
+                                    <Text style={styles.charcuterieResultHeroKicker}>🧀 CHARCUTERIE BOARD</Text>
+                                    <Text style={styles.charcuterieResultHeroTitle}>{charcuterieResult.title}</Text>
+                                    {charcuterieResult.tagline ? <Text style={styles.charcuterieResultHeroTagline}>{charcuterieResult.tagline}</Text> : null}
+                                    <View style={styles.charcuterieResultHeroMetaRow}>
+                                        <Text style={styles.charcuterieResultHeroMetaText}>{`👥 Serves ${charcuterieResult.serves || charcuteriePeople}`}</Text>
+                                        {charcuterieResult.estimatedCost ? <Text style={styles.charcuterieResultHeroMetaText}>{`💰 ${charcuterieResult.estimatedCost}`}</Text> : null}
+                                    </View>
+                                </View>
 
-                        <Text style={styles.charcuterieSectionLabel}>OCCASION</Text>
-                        <View style={styles.charcuterieOccasionWrap}>
-                            {CHARCUTERIE_OCCASIONS.map((occasion) => {
-                                const selected = charcuterieOccasion === occasion;
-                                return (
-                                    <TouchableOpacity
-                                        key={occasion}
-                                        activeOpacity={0.85}
-                                        style={[styles.charcuterieChip, selected ? styles.charcuterieChipActive : null]}
-                                        onPress={() => setCharcuterieOccasion(occasion)}
-                                    >
-                                        <Text style={[styles.charcuterieChipText, selected ? styles.charcuterieChipTextActive : null]}>{occasion}</Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
+                                {renderIngredientSection('Meats', '🥩', charcuterieResult.meats)}
+                                {renderIngredientSection('Cheeses', '🧀', charcuterieResult.cheeses)}
+                                {renderIngredientSection('Accompaniments', '🍇', charcuterieResult.accompaniments)}
+                                {renderIngredientSection('Crackers & Bread', '🍞', charcuterieResult.crackers)}
 
-                        <Text style={styles.charcuterieSectionLabel}>BOARD STYLE</Text>
-                        <View style={styles.charcuterieBoardGrid}>
-                            {CHARCUTERIE_BOARD_STYLES.map((styleItem) => {
-                                const selected = charcuterieBoardStyle === styleItem.id;
-                                return (
-                                    <TouchableOpacity
-                                        key={styleItem.id}
-                                        activeOpacity={0.86}
-                                        style={[styles.charcuterieBoardCard, selected ? styles.charcuterieBoardCardActive : null]}
-                                        onPress={() => setCharcuterieBoardStyle(styleItem.id)}
-                                    >
-                                        <Text style={[styles.charcuterieBoardTitle, selected ? styles.charcuterieBoardTitleActive : null]}>
-                                            {`${styleItem.emoji} ${styleItem.title}`}
-                                        </Text>
-                                        <Text style={[styles.charcuterieBoardSub, selected ? styles.charcuterieBoardSubActive : null]}>
-                                            {styleItem.subtitle}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
+                                {Array.isArray(charcuterieResult.drinks) && charcuterieResult.drinks.length ? (
+                                    <View>
+                                        <Text style={styles.charcuterieSectionHeader}>🥤 Drinks</Text>
+                                        {charcuterieResult.drinks.map((drink, index) => (
+                                            <View key={`drink-${index}-${drink.name}`} style={styles.charcuterieResultItemCard}>
+                                                <Text style={styles.charcuterieResultItemTitle}>{`${drink.emoji || '🥤'} ${drink.name}`}</Text>
+                                                {drink.why ? <Text style={styles.charcuterieResultItemDesc}>{drink.why}</Text> : null}
+                                            </View>
+                                        ))}
+                                    </View>
+                                ) : null}
 
-                        <View style={styles.charcuterieInputRow}>
-                            <View style={styles.charcuterieInputCol}>
-                                <Text style={styles.charcuterieSectionLabel}>PEOPLE</Text>
-                                <TextInput
-                                    value={charcuteriePeople}
-                                    onChangeText={setCharcuteriePeople}
-                                    keyboardType="number-pad"
-                                    placeholder="6"
-                                    placeholderTextColor="#B5AA9B"
-                                    style={styles.charcuterieInput}
-                                />
-                            </View>
-
-                            <View style={styles.charcuterieInputCol}>
-                                <Text style={styles.charcuterieSectionLabel}>BUDGET $</Text>
-                                <TextInput
-                                    value={`${charcuterieBudget}`}
-                                    onChangeText={setCharcuterieBudget}
-                                    keyboardType="number-pad"
-                                    placeholder="60"
-                                    placeholderTextColor="#B5AA9B"
-                                    style={styles.charcuterieInput}
-                                />
-                            </View>
-
-                            <View style={styles.charcuterieInputCol}>
-                                <Text style={styles.charcuterieSectionLabel}>DIETARY</Text>
-                                <View style={styles.charcuteriePickerWrapper}>
-                                    <TouchableOpacity
-                                        activeOpacity={0.8}
-                                        style={styles.charcuterieDropdownButton}
-                                        onPress={() => setIsDietaryMenuOpen((v) => !v)}
-                                    >
-                                        <Text style={styles.charcuterieDropdownText}>{charcuterieDietary}</Text>
-                                        <Text style={styles.charcuterieDropdownArrow}>⌄</Text>
-                                    </TouchableOpacity>
-
-                                    {isDietaryMenuOpen && (
-                                        <View style={styles.charcuterieDropdownMenu}>
-                                            {CHARCUTERIE_DIETARY_OPTIONS.map((option) => (
-                                                <TouchableOpacity
-                                                    key={option}
-                                                    style={styles.charcuterieDropdownItem}
-                                                    activeOpacity={0.8}
-                                                    onPress={() => {
-                                                        setCharcuterieDietary(option);
-                                                        setIsDietaryMenuOpen(false);
-                                                    }}
-                                                >
-                                                    <Text style={styles.charcuterieDropdownItemText}>{option}</Text>
-                                                </TouchableOpacity>
+                                {garnishChips.length ? (
+                                    <View>
+                                        <Text style={styles.charcuterieSectionHeader}>🌿 Garnishes & Drizzles</Text>
+                                        <View style={styles.charcuterieGarnishWrap}>
+                                            {garnishChips.map((chip, index) => (
+                                                <View key={`${chip}-${index}`} style={styles.charcuterieGarnishChip}>
+                                                    <Text style={styles.charcuterieGarnishChipText}>{chip}</Text>
+                                                </View>
                                             ))}
                                         </View>
-                                    )}
+                                    </View>
+                                ) : null}
+
+                                <View style={styles.charcuterieBoardDiagramCard}>
+                                    <Text style={styles.charcuterieBoardDiagramTitle}>🎨 Board Diagram</Text>
+                                    <Image
+                                        source={require('../../../assets/boardDiagram.png')}
+                                        style={styles.charcuterieBoardDiagramImage}
+                                        resizeMode="contain"
+                                    />
+                                    {charcuterieResult.boardLayout ? <Text style={styles.charcuterieBoardDiagramText}>{charcuterieResult.boardLayout}</Text> : null}
+                                </View>
+
+                                {Array.isArray(charcuterieResult.hostTips) && charcuterieResult.hostTips.length ? (
+                                    <View style={styles.charcuterieTipsCard}>
+                                        <Text style={styles.charcuterieTimelineLabel}>💡 HOST TIPS</Text>
+                                        {charcuterieResult.hostTips.map((tip, index) => (
+                                            <Text key={`tip-${index}`} style={styles.charcuterieTipText}>{`• ${tip}`}</Text>
+                                        ))}
+                                    </View>
+                                ) : null}
+
+                                {charcuterieResult.prepTimeline ? (
+                                    <View style={styles.charcuterieTimelineCard}>
+                                        <Text style={styles.charcuterieTimelineLabel}>⏱ PREP TIMELINE</Text>
+                                        <Text style={styles.charcuterieTimelineText}>{charcuterieResult.prepTimeline}</Text>
+                                    </View>
+                                ) : null}
+
+                                {Array.isArray(charcuterieResult.shoppingList) && charcuterieResult.shoppingList.length ? (
+                                    <View style={styles.charcuterieShoppingCard}>
+                                        <View style={styles.charcuterieShoppingHeaderRow}>
+                                            <Text style={styles.charcuterieShoppingTitle}>🛒 SHOPPING LIST</Text>
+                                            <TouchableOpacity
+                                                style={[styles.charcuterieShoppingAddAllBtn, isAddingCharcuterieToList ? styles.charcuterieActionBtnDisabled : null]}
+                                                activeOpacity={0.85}
+                                                onPress={onAddAllShoppingItems}
+                                                disabled={isAddingCharcuterieToList}
+                                            >
+                                                <Text style={styles.charcuterieShoppingAddAllText}>{isAddingCharcuterieToList ? 'Adding...' : '+ Add items'}</Text>
+                                            </TouchableOpacity>
+                                        </View>
+
+                                        {charcuterieResult.shoppingList.map((group, groupIndex) => (
+                                            <View key={`${group.category}-${groupIndex}`} style={styles.charcuterieShoppingGroup}>
+                                                <Text style={styles.charcuterieShoppingGroupTitle}>{group.category}</Text>
+                                                {group.items.map((item, itemIndex) => (
+                                                    <View key={`${item}-${itemIndex}`} style={styles.charcuterieShoppingItemRow}>
+                                                        <Text style={styles.charcuterieShoppingItemText}>{item}</Text>
+                                                        {/* <TouchableOpacity
+                                                            style={[styles.charcuterieShoppingAddBtn, isAddingCharcuterieToList ? styles.charcuterieActionBtnDisabled : null]}
+                                                            activeOpacity={0.85}
+                                                            onPress={() => onAddSingleShoppingItem(item, group.category)}
+                                                            disabled={isAddingCharcuterieToList}
+                                                        >
+                                                            <Text style={styles.charcuterieShoppingAddBtnText}>+</Text>
+                                                        </TouchableOpacity> */}
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        ))}
+                                    </View>
+                                ) : null}
+
+                                <View style={styles.charcuterieResultActionsRow}>
+                                    <TouchableOpacity
+                                        style={[styles.charcuterieSecondaryActionBtn, isSavingCharcuterieBoard ? styles.charcuterieActionBtnDisabled : null]}
+                                        activeOpacity={0.85}
+                                        onPress={onSaveBoard}
+                                        disabled={isSavingCharcuterieBoard}
+                                    >
+                                        <Text style={styles.charcuterieSecondaryActionText}>{isSavingCharcuterieBoard ? 'Saving...' : '💾 Save'}</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={[styles.charcuteriePrimaryActionBtn, isAddingCharcuterieToList ? styles.charcuterieActionBtnDisabled : null]}
+                                        activeOpacity={0.85}
+                                        onPress={onAddAllShoppingItems}
+                                        disabled={isAddingCharcuterieToList}
+                                    >
+                                        <Text style={styles.charcuteriePrimaryActionText}>{isAddingCharcuterieToList ? 'Adding...' : '🛒 Review & Add Shopping List'}</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.charcuterieSecondaryActionBtn}
+                                        activeOpacity={0.85}
+                                        onPress={onBuildAnother}
+                                    >
+                                        <Text style={styles.charcuterieSecondaryActionText}>← Build Another Board</Text>
+                                    </TouchableOpacity>
                                 </View>
                             </View>
-                        </View>
+                        ) : (
+                            <View>
+                                <Text style={styles.charcuterieHero}>🧀</Text>
+                                <Text style={styles.charcuterieTitle}>Charcuterie Board Builder</Text>
+                                <Text style={styles.charcuterieSubtitle}>Tell us about your gathering and we'll design the perfect board.</Text>
 
-                        <TouchableOpacity style={styles.charcuterieBuildBtn} activeOpacity={0.85} onPress={onBuild}>
-                            <Text style={styles.charcuterieBuildBtnText}>🧀 Build My Board</Text>
-                        </TouchableOpacity>
+                                <Text style={styles.charcuterieSectionLabel}>OCCASION</Text>
+                                <View style={styles.charcuterieOccasionWrap}>
+                                    {CHARCUTERIE_OCCASIONS.map((occasion) => {
+                                        const selected = charcuterieOccasion === occasion;
+                                        return (
+                                            <TouchableOpacity
+                                                key={occasion}
+                                                activeOpacity={0.85}
+                                                style={[styles.charcuterieChip, selected ? styles.charcuterieChipActive : null]}
+                                                onPress={() => setCharcuterieOccasion(occasion)}
+                                            >
+                                                <Text style={[styles.charcuterieChipText, selected ? styles.charcuterieChipTextActive : null]}>{occasion}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
 
-                        <TouchableOpacity style={styles.charcuterieAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
-                            <Text style={styles.charcuterieAskFernText}>🌿 Ask Fern to Walk Me Through It</Text>
-                        </TouchableOpacity>
+                                <Text style={styles.charcuterieSectionLabel}>BOARD STYLE</Text>
+                                <View style={styles.charcuterieBoardGrid}>
+                                    {CHARCUTERIE_BOARD_STYLES.map((styleItem) => {
+                                        const selected = charcuterieBoardStyle === styleItem.id;
+                                        return (
+                                            <TouchableOpacity
+                                                key={styleItem.id}
+                                                activeOpacity={0.86}
+                                                style={[styles.charcuterieBoardCard, selected ? styles.charcuterieBoardCardActive : null]}
+                                                onPress={() => setCharcuterieBoardStyle(styleItem.id)}
+                                            >
+                                                <Text style={[styles.charcuterieBoardTitle, selected ? styles.charcuterieBoardTitleActive : null]}>
+                                                    {`${styleItem.emoji} ${styleItem.title}`}
+                                                </Text>
+                                                <Text style={[styles.charcuterieBoardSub, selected ? styles.charcuterieBoardSubActive : null]}>
+                                                    {styleItem.subtitle}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+
+                                <View style={styles.charcuterieInputRow}>
+                                    <View style={styles.charcuterieInputCol}>
+                                        <Text style={styles.charcuterieSectionLabel}>PEOPLE</Text>
+                                        <TextInput
+                                            value={charcuteriePeople}
+                                            onChangeText={setCharcuteriePeople}
+                                            keyboardType="number-pad"
+                                            placeholder="6"
+                                            placeholderTextColor="#B5AA9B"
+                                            style={styles.charcuterieInput}
+                                        />
+                                    </View>
+
+                                    <View style={styles.charcuterieInputCol}>
+                                        <Text style={styles.charcuterieSectionLabel}>BUDGET $</Text>
+                                        <TextInput
+                                            value={`${charcuterieBudget}`}
+                                            onChangeText={setCharcuterieBudget}
+                                            keyboardType="number-pad"
+                                            placeholder="60"
+                                            placeholderTextColor="#B5AA9B"
+                                            style={styles.charcuterieInput}
+                                        />
+                                    </View>
+
+                                    <View style={styles.charcuterieInputCol}>
+                                        <Text style={styles.charcuterieSectionLabel}>DIETARY</Text>
+                                        <View style={styles.charcuteriePickerWrapper}>
+                                            <TouchableOpacity
+                                                activeOpacity={0.8}
+                                                style={styles.charcuterieDropdownButton}
+                                                onPress={() => setIsDietaryMenuOpen((v) => !v)}
+                                            >
+                                                <Text style={styles.charcuterieDropdownText}>{charcuterieDietary}</Text>
+                                                <Text style={styles.charcuterieDropdownArrow}>⌄</Text>
+                                            </TouchableOpacity>
+
+                                            {isDietaryMenuOpen && (
+                                                <View style={styles.charcuterieDropdownMenu}>
+                                                    {CHARCUTERIE_DIETARY_OPTIONS.map((option) => (
+                                                        <TouchableOpacity
+                                                            key={option}
+                                                            style={styles.charcuterieDropdownItem}
+                                                            activeOpacity={0.8}
+                                                            onPress={() => {
+                                                                setCharcuterieDietary(option);
+                                                                setIsDietaryMenuOpen(false);
+                                                            }}
+                                                        >
+                                                            <Text style={styles.charcuterieDropdownItemText}>{option}</Text>
+                                                        </TouchableOpacity>
+                                                    ))}
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                </View>
+
+                                <TouchableOpacity
+                                    style={[styles.charcuterieBuildBtn, isCharcuterieBuilding ? styles.charcuterieActionBtnDisabled : null]}
+                                    activeOpacity={0.85}
+                                    onPress={onBuild}
+                                    disabled={isCharcuterieBuilding}
+                                >
+                                    {isCharcuterieBuilding ? <ActivityIndicator color="#FFF5EB" /> : <Text style={styles.charcuterieBuildBtnText}>🧀 Build My Board</Text>}
+                                </TouchableOpacity>
+
+                                <TouchableOpacity style={styles.charcuterieAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                                    <Text style={styles.charcuterieAskFernText}>🌿 Ask Fern to Walk Me Through It</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
                     </ScrollView>
                 </View>
             </View>
@@ -441,5 +614,279 @@ const styles = StyleSheet.create({
         color: '#FFF5EC',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
+    },
+    charcuterieActionBtnDisabled: {
+        opacity: 0.6,
+    },
+    charcuterieResultHeroCard: {
+        marginTop: 8,
+        borderRadius: 18,
+        backgroundColor: '#7A4E2C',
+        paddingHorizontal: 16,
+        paddingVertical: 16,
+        marginBottom: 14,
+    },
+    charcuterieResultHeroKicker: {
+        color: '#E7D2BE',
+        fontFamily: 'Jost-Bold',
+        fontSize: 10,
+        letterSpacing: 2,
+    },
+    charcuterieResultHeroTitle: {
+        marginTop: 4,
+        color: '#F8ECDD',
+        fontFamily: 'PlayfairDisplay-Bold',
+        fontSize: 22,
+        lineHeight: 38,
+    },
+    charcuterieResultHeroTagline: {
+        marginTop: 4,
+        color: '#F2E3CF',
+        fontFamily: 'Jost-Medium',
+        fontSize: 14,
+        lineHeight: 24,
+    },
+    charcuterieResultHeroMetaRow: {
+        marginTop: 10,
+        flexDirection: 'row',
+        gap: 14,
+    },
+    charcuterieResultHeroMetaText: {
+        color: '#F8ECDD',
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+        lineHeight: 18,
+        paddingBottom: 12,
+    },
+    charcuterieSectionHeader: {
+        marginTop: 16,
+        marginBottom: 10,
+        color: '#5E3C22',
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+        lineHeight: 26,
+    },
+    charcuterieResultItemCard: {
+        borderRadius: 14,
+        backgroundColor: '#ECE7DE',
+        paddingHorizontal: 12,
+        paddingVertical: 10,
+        marginBottom: 8,
+    },
+    charcuterieResultItemTitle: {
+        color: '#2A1A11',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+        lineHeight: 22,
+    },
+    charcuterieResultItemQty: {
+        marginTop: 2,
+        color: '#715943',
+        fontFamily: 'Jost-Medium',
+        fontSize: 12,
+        lineHeight: 19,
+    },
+    charcuterieResultItemDesc: {
+        marginTop: 1,
+        color: '#7A5F41',
+        fontFamily: 'Jost-Italic',
+        fontStyle: 'italic',
+        fontSize: 12,
+        lineHeight: 19,
+    },
+    charcuterieGarnishWrap: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+    },
+    charcuterieGarnishChip: {
+        backgroundColor: '#F1E9DD',
+        borderRadius: 999,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    charcuterieGarnishChipText: {
+        color: '#694A2E',
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+        lineHeight: 18,
+    },
+    charcuterieBoardDiagramCard: {
+        marginTop: 14,
+        borderWidth: 1,
+        borderColor: '#E3CDAE',
+        borderRadius: 16,
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+        backgroundColor: '#FDF9F2',
+    },
+    charcuterieBoardDiagramTitle: {
+        color: '#5E3C22',
+        fontFamily: 'Jost-Bold',
+        fontSize: 17,
+        lineHeight: 24,
+        letterSpacing: 1,
+    },
+    charcuterieBoardDiagramImage: {
+        width: '100%',
+        height: 200,
+    },
+    charcuterieBoardDiagramText: {
+        marginTop: 8,
+        color: '#7A5F41',
+        fontFamily: 'Jost-Italic',
+        fontStyle: 'italic',
+        fontSize: 12,
+        lineHeight: 18,
+    },
+    charcuterieTimelineCard: {
+        marginTop: 14,
+        borderRadius: 14,
+        backgroundColor: '#ECE7DE',
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+    },
+    charcuterieTimelineLabel: {
+        color: '#5E3C22',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+        lineHeight: 22,
+        letterSpacing: 1,
+    },
+    charcuterieTimelineText: {
+        marginTop: 6,
+        color: '#2A1A11',
+        fontFamily: 'Jost-Regular',
+        fontSize: 12,
+        lineHeight: 22,
+    },
+    charcuterieShoppingCard: {
+        marginTop: 14,
+        borderWidth: 1,
+        borderColor: '#D2B99A',
+        borderRadius: 16,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        backgroundColor: '#F7F5F1',
+    },
+    charcuterieShoppingHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    charcuterieShoppingTitle: {
+        color: colors.forest,
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+        lineHeight: 24,
+        letterSpacing: 1,
+    },
+    charcuterieShoppingAddAllBtn: {
+        backgroundColor: '#DDECDC',
+        borderWidth: 1,
+        borderColor: '#A8CCAA',
+        borderRadius: 6,
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+    },
+    charcuterieShoppingAddAllText: {
+        color: colors.bright,
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+        lineHeight: 20,
+    },
+    charcuterieShoppingGroup: {
+        marginTop: 10,
+    },
+    charcuterieShoppingGroupTitle: {
+        color: colors.bright,
+        fontFamily: 'Jost-Bold',
+        fontSize: 10,
+        lineHeight: 19,
+        letterSpacing: 1,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    charcuterieShoppingItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 2,
+        borderBottomWidth: 1,
+        borderBottomColor: '#E2D4C1',
+    },
+    charcuterieShoppingItemText: {
+        flex: 1,
+        color: '#2A1A11',
+        fontFamily: 'Jost-Regular',
+        fontSize: 12,
+        lineHeight: 20,
+        paddingRight: 10,
+    },
+    charcuterieShoppingAddBtn: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        borderWidth: 1,
+        borderColor: '#CDBCA4',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    charcuterieShoppingAddBtnText: {
+        color: '#7C6245',
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+        lineHeight: 15,
+    },
+    charcuterieTipsCard: {
+        marginTop: 14,
+        borderWidth: 1,
+        borderColor: '#E2C659',
+        borderRadius: 14,
+        paddingHorizontal: 12,
+        paddingVertical: 12,
+        backgroundColor: '#F8F6EF',
+    },
+    charcuterieTipText: {
+        marginTop: 4,
+        color: '#2A1A11',
+        fontFamily: 'Jost-Regular',
+        fontSize: 12,
+        lineHeight: 20,
+    },
+    charcuterieResultActionsRow: {
+        marginTop: 16,
+        gap: 10,
+    },
+    charcuterieSecondaryActionBtn: {
+        borderWidth: 1,
+        borderColor: '#CEBFA6',
+        borderRadius: 14,
+        backgroundColor: '#F1ECE4',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+    },
+    charcuterieSecondaryActionText: {
+        color: '#7D5B38',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+        lineHeight: 20,
+        textAlign: 'center',
+    },
+    charcuteriePrimaryActionBtn: {
+        backgroundColor: '#1D512A',
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+    },
+    charcuteriePrimaryActionText: {
+        color: '#F3F9ED',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+        lineHeight: 20,
+        textAlign: 'center',
+        paddingHorizontal: 8,
     },
 });

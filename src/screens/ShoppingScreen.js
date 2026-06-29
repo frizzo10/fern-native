@@ -468,14 +468,15 @@ const styles = StyleSheet.create({
   recipeSectionTitle: {
     color: '#2E6631',
     fontSize: 12,
-    lineHeight: 16,
+    lineHeight: 14,
     letterSpacing: 2,
-    fontFamily: 'Jost-Bold',
+    flexShrink: 1,
+    fontFamily: 'Jost-Bold'
   },
   recipeSectionCount: {
     color: '#7A5C3A',
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 10,
+    lineHeight: 12,
     fontFamily: 'Jost-Bold',
   },
   recipeSectionCountDone: {
@@ -520,7 +521,7 @@ const styles = StyleSheet.create({
   },
   listText: {
     color: '#2B1E13',
-    fontSize: 16,
+    fontSize: 12,
     lineHeight: 20,
     fontFamily: 'Jost-Regular',
   },

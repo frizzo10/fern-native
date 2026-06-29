@@ -18,6 +18,7 @@ import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
 import { findStoreLocationByZip } from '../services/storeLookupService';
 import { fetchWinePairings } from '../services/winePairingService';
+import { fetchCharcuterieBoard } from '../services/charcuterieService';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
 import WinePairingModal from '../components/modals/WinePairingModal';
@@ -68,6 +69,10 @@ export default function HomeScreen({ user }) {
   const [charcuterieBudget, setCharcuterieBudget] = useState('60');
   const [charcuterieDietary, setCharcuterieDietary] = useState('None');
   const [isDietaryMenuOpen, setIsDietaryMenuOpen] = useState(false);
+  const [isCharcuterieBuilding, setIsCharcuterieBuilding] = useState(false);
+  const [charcuterieResult, setCharcuterieResult] = useState(null);
+  const [isAddingCharcuterieToList, setIsAddingCharcuterieToList] = useState(false);
+  const [isSavingCharcuterieBoard, setIsSavingCharcuterieBoard] = useState(false);
   const { data, loading, pull, pushAllFromStorage } = useSync(user);
 
   useFocusEffect(
@@ -332,6 +337,8 @@ export default function HomeScreen({ user }) {
   };
 
   const openCharcuterieModal = () => {
+    setCharcuterieResult(null);
+    setIsDietaryMenuOpen(false);
     setIsCharcuterieModalOpen(true);
   };
 
@@ -340,16 +347,149 @@ export default function HomeScreen({ user }) {
   };
 
   const closeCharcuterieModal = () => {
+    setIsDietaryMenuOpen(false);
     setIsCharcuterieModalOpen(false);
   };
 
-  const handleBuildCharcuterieBoard = () => {
+  const handleBuildCharcuterieBoard = async () => {
     const peopleCount = Math.max(1, Number.parseInt(charcuteriePeople, 10) || 1);
     const budgetValue = Math.max(1, Number.parseInt(charcuterieBudget, 10) || 1);
-    Alert.alert(
-      'Board Plan Ready',
-      `${charcuterieOccasion} · ${charcuterieBoardStyle} · ${peopleCount} people · $${budgetValue} · ${charcuterieDietary}`
+
+    setIsCharcuterieBuilding(true);
+
+    try {
+      const result = await fetchCharcuterieBoard({
+        occasion: charcuterieOccasion,
+        boardType: charcuterieBoardStyle,
+        people: peopleCount,
+        budget: budgetValue,
+        dietary: charcuterieDietary,
+      });
+
+      console.log('[charcuterie] request payload', result.payload);
+      console.log('[charcuterie] response', result.responseJson);
+      setCharcuterieResult(result.board);
+      setIsDietaryMenuOpen(false);
+    } catch (e) {
+      console.log('[charcuterie] build failed', e?.message || e);
+      Alert.alert('Build failed', 'Could not build your charcuterie board right now. Please try again.');
+    } finally {
+      setIsCharcuterieBuilding(false);
+    }
+  };
+
+  const handleBuildAnotherCharcuterieBoard = () => {
+    setCharcuterieResult(null);
+  };
+
+  const flattenCharcuterieShoppingItems = (board) => {
+    if (!board || !Array.isArray(board.shoppingList)) return [];
+
+    return board.shoppingList.flatMap((group) => {
+      const category = String(group?.category || 'Board').trim();
+      if (!Array.isArray(group?.items)) return [];
+      return group.items
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+        .map((item) => ({
+          item,
+          category,
+        }));
+    });
+  };
+
+  const addCharcuterieItemsToShoppingList = async (itemsToAdd, successMessage) => {
+    if (!itemsToAdd.length) {
+      Alert.alert('No items', 'No shopping items were available to add.');
+      return;
+    }
+
+    const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+    const existingSignatures = new Set(
+      existingItems.map((entry) => `${String(entry?.text || '').trim().toLowerCase()}|${String(entry?.recipe || '').trim().toLowerCase()}`)
     );
+
+    const additions = itemsToAdd
+      .filter(({ item, category }) => {
+        const signature = `${item.toLowerCase()}|charcuterie board (${category.toLowerCase()})`;
+        return !existingSignatures.has(signature);
+      })
+      .map(({ item, category }, index) => ({
+        id: `charcuterie-${Date.now()}-${index}`,
+        text: item,
+        recipe: `CHARCUTERIE BOARD (${category.toUpperCase()})`,
+        checked: false,
+      }));
+
+    if (!additions.length) {
+      Alert.alert('Already added', 'Those charcuterie items are already in your shopping list.');
+      return;
+    }
+
+    const nextShopping = [...existingItems, ...additions];
+
+    setIsAddingCharcuterieToList(true);
+
+    try {
+      await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(nextShopping));
+
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
+        ...cache,
+        shopping: nextShopping,
+      }));
+
+      await pushAllFromStorage();
+      await pull();
+      Alert.alert('Added', successMessage || 'Charcuterie items were added to your shopping list.');
+    } catch (e) {
+      console.log('[charcuterie] failed to add shopping items', e?.message || e);
+      Alert.alert('Could not add items', 'Please try again.');
+    } finally {
+      setIsAddingCharcuterieToList(false);
+    }
+  };
+
+  const handleAddSingleCharcuterieItem = async (item, category) => {
+    const trimmedItem = String(item || '').trim();
+    const trimmedCategory = String(category || 'Board').trim();
+    if (!trimmedItem) return;
+
+    await addCharcuterieItemsToShoppingList(
+      [{ item: trimmedItem, category: trimmedCategory }],
+      `${trimmedItem} was added to your shopping list.`
+    );
+  };
+
+  const handleAddAllCharcuterieItems = async () => {
+    const items = flattenCharcuterieShoppingItems(charcuterieResult);
+    await addCharcuterieItemsToShoppingList(items, 'Charcuterie shopping list was added to your shopping list.');
+  };
+
+  const handleSaveCharcuterieBoard = async () => {
+    if (!charcuterieResult) return;
+
+    setIsSavingCharcuterieBoard(true);
+
+    try {
+      const existingBoards = JSON.parse(await AsyncStorage.getItem('fern_saved_charcuterie_boards') || '[]');
+      const nextBoards = [
+        {
+          id: `charcuterie-board-${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          board: charcuterieResult,
+        },
+        ...(Array.isArray(existingBoards) ? existingBoards : []),
+      ];
+
+      await AsyncStorage.setItem('fern_saved_charcuterie_boards', JSON.stringify(nextBoards));
+      Alert.alert('Saved', 'Your charcuterie board was saved locally.');
+    } catch (e) {
+      console.log('[charcuterie] failed to save board', e?.message || e);
+      Alert.alert('Save failed', 'Could not save this board right now.');
+    } finally {
+      setIsSavingCharcuterieBoard(false);
+    }
   };
 
   const handleAskFernCharcuterie = () => {
@@ -866,7 +1006,15 @@ export default function HomeScreen({ user }) {
         setCharcuterieDietary={setCharcuterieDietary}
         isDietaryMenuOpen={isDietaryMenuOpen}
         setIsDietaryMenuOpen={setIsDietaryMenuOpen}
+        isCharcuterieBuilding={isCharcuterieBuilding}
+        charcuterieResult={charcuterieResult}
+        isAddingCharcuterieToList={isAddingCharcuterieToList}
+        isSavingCharcuterieBoard={isSavingCharcuterieBoard}
         onBuild={handleBuildCharcuterieBoard}
+        onBuildAnother={handleBuildAnotherCharcuterieBoard}
+        onAddSingleShoppingItem={handleAddSingleCharcuterieItem}
+        onAddAllShoppingItems={handleAddAllCharcuterieItems}
+        onSaveBoard={handleSaveCharcuterieBoard}
         onAskFern={handleAskFernCharcuterie}
       />
 
