@@ -140,6 +140,7 @@ export default function SearchScreen({ user }) {
     const syncTimerRef = useRef(null);
     const isSyncingRef = useRef(false);
     const scrollRef = useRef(null);
+
     useEffect(() => {
         if (route?.params?.openBloggers) {
             setIsBloggersModalOpen(true);
