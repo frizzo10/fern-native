@@ -5,10 +5,10 @@
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
-  SafeAreaView, Alert, ScrollView
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView
 } from 'react-native';
 
+import { SafeAreaView } from 'react-native-safe-area-context';
 // ── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
   forest: '#1C3A1A',

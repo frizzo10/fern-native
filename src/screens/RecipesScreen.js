@@ -97,6 +97,7 @@ function normalizeIdArray(value) {
 
 function normalizeRecipe(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, 'Untitled recipe');
+  const emoji = pickFirst(item?.emoji, item?.icon, item?.symbol, '🍽');
   const category = pickFirst(item?.cuisine, item?.category, item?.type, item?.mealType, 'Dinner');
   const meal = pickFirst(item?.slot, item?.meal, item?.course, 'Dinner');
   const time = pickFirst(item?.time, item?.minutes ? `${item.minutes} min` : null, item?.duration, '');
@@ -140,6 +141,7 @@ function normalizeRecipe(item, index) {
     meal,
     time,
     difficulty,
+    emoji,
     image,
     description,
     servings,
@@ -505,14 +507,12 @@ export default function RecipesScreen({ user }) {
 
                   <View style={styles.cardBody}>
                     <Text numberOfLines={2} style={styles.recipeTitle}>{recipe.title}</Text>
-                    <Text numberOfLines={1} style={styles.recipeMeta}>
+                    <Text numberOfLines={2} style={styles.recipeMeta}>
                       {recipe.category} • {recipe.meal}
                       {recipe.time ? ` • ${recipe.time}` : ''}
                     </Text>
 
-                    {(noteByRecipeId[recipe.id] ?? recipe.note) ? (
-                      <Text style={styles.noteHint}>Note saved</Text>
-                    ) : null}
+                    {(noteByRecipeId[recipe.id] ?? recipe.note) ? 'Note saved' : ' '}
 
                     <View style={styles.difficultyPill}>
                       {Array.from({ length: 3 }, (_, i) => {
@@ -736,9 +736,8 @@ export default function RecipesScreen({ user }) {
                   </View>
 
                   <View style={styles.overlayBody}>
-                    <Text style={styles.overlayFoodEmoji}>🥗</Text>
+                    <Text style={styles.overlayFoodEmoji}>{selectedRecipe.emoji}</Text>
                     <Text style={styles.overlayTitle}>{selectedRecipe.title}</Text>
-
                     <View style={styles.overlayMetaRow}>
                       <Text style={styles.overlayMetaText}>🌍 {selectedRecipe.category}</Text>
                       <Text style={styles.overlayMetaText}>🍽 {selectedRecipe.meal}</Text>
