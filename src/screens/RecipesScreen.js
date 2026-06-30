@@ -207,6 +207,7 @@ export default function RecipesScreen({ user }) {
   const [noteText, setNoteText] = useState('');
   const [noteByRecipeId, setNoteByRecipeId] = useState({});
   const [isSaving, setIsSaving] = useState(false);
+  const [recipesLocal, setRecipesLocal] = useState([]);
   const [booksLocal, setBooksLocal] = useState([]);
 
   useFocusEffect(
@@ -216,8 +217,9 @@ export default function RecipesScreen({ user }) {
   );
 
   React.useEffect(() => {
+    setRecipesLocal(Array.isArray(data.recipes) ? data.recipes : []);
     setBooksLocal(Array.isArray(data.books) ? data.books : []);
-  }, [data.books]);
+  }, [data.books, data.recipes]);
 
   const openRecipeDetail = (recipe) => {
     setSelectedRecipe(recipe);
@@ -283,6 +285,67 @@ export default function RecipesScreen({ user }) {
     await persistRecipeNote();
   };
 
+  const handleDeleteRecipe = async () => {
+    if (!selectedRecipe) return;
+
+    Alert.alert(
+      'Delete Recipe',
+      `Delete "${selectedRecipe.title}" from your saved recipes?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsSaving(true);
+            try {
+              const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+              const baseSaved = Array.isArray(storedSaved)
+                ? storedSaved
+                : (Array.isArray(recipesLocal) ? recipesLocal : []);
+
+              const selectedId = String(selectedRecipe.id || '').trim();
+              const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+
+              const nextSaved = baseSaved.filter((recipe, index) => {
+                const rawId = getRawRecipeId(recipe, index).trim();
+                const rawTitle = String(pickFirst(recipe?.title, recipe?.name, recipe?.recipe_name, recipe?.recipeTitle, '')).trim().toLowerCase();
+                const idMatches = selectedId && rawId === selectedId;
+                const titleMatches = selectedTitle && rawTitle === selectedTitle;
+                return !(idMatches || titleMatches);
+              });
+
+              await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+              await syncRecipeCache(nextSaved);
+              setRecipesLocal(nextSaved);
+              setNoteByRecipeId((prev) => {
+                const nextNotes = { ...prev };
+                delete nextNotes[selectedId];
+                return nextNotes;
+              });
+
+              const response = await pushChangedFromStorage({ saved: nextSaved });
+              console.log('[recipes-sync] deleted saved recipe', {
+                selectedRecipeId: selectedId,
+                selectedRecipeTitle: selectedRecipe.title,
+                remainingCount: nextSaved.length,
+              });
+              console.log('[recipes-sync] backend response after delete', response);
+
+              setSelectedRecipe(null);
+              await pull();
+            } catch (e) {
+              console.warn('Delete recipe failed:', e);
+              Alert.alert('Delete failed', 'Could not delete this recipe right now.');
+            } finally {
+              setIsSaving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDeleteBook = async () => {
     if (!selectedBook) return;
 
@@ -342,9 +405,9 @@ export default function RecipesScreen({ user }) {
   };
 
   const recipes = useMemo(() => {
-    const list = Array.isArray(data.recipes) ? data.recipes : [];
+    const list = Array.isArray(recipesLocal) ? recipesLocal : [];
     return list.map(normalizeRecipe);
-  }, [data.recipes]);
+  }, [recipesLocal]);
 
   const filteredRecipes = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -856,7 +919,13 @@ export default function RecipesScreen({ user }) {
                       >
                         <Text style={styles.overlayBottomBtnTextDark}>Close</Text>
                       </TouchableOpacity>
-                      <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDelete]}><Text style={styles.overlayBottomBtnTextDelete}>🗑 Delete</Text></TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.overlayBottomBtn, styles.overlayBottomBtnDelete, isSaving ? styles.disabledBtn : null]}
+                        onPress={handleDeleteRecipe}
+                        disabled={isSaving}
+                      >
+                        <Text style={styles.overlayBottomBtnTextDelete}>🗑 Delete</Text>
+                      </TouchableOpacity>
 
                     </View>
                     <View style={styles.overlayLastDivider} />
