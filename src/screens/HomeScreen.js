@@ -6,20 +6,18 @@ import {
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useSync } from '../hooks/useSync';
+import { useTranslation } from '../i18n/LocaleContext';
 
-const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const MEALS = ['Breakfast','Lunch','Dinner'];
-
-function getGreeting() {
+function getGreeting(t) {
   const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  return h < 12 ? t('goodMorning') : h < 17 ? t('goodAfternoon') : t('goodEvening');
 }
 
 function dateKey(d) {
   return d.toISOString().slice(0, 10);
 }
 
-function DayCard({ day, date, isToday, meals, activities, weather }) {
+function DayCard({ day, date, isToday, meals, activities, weather, t, mealKeys }) {
   return (
     <View style={[styles.dayCard, isToday && styles.dayCardToday, shadow.card]}>
       <View style={styles.dayHeader}>
@@ -31,20 +29,20 @@ function DayCard({ day, date, isToday, meals, activities, weather }) {
           {weather ? <Text style={styles.weather}>{weather}</Text> : null}
           {isToday && (
             <View style={styles.todayBadge}>
-              <Text style={styles.todayBadgeText}>TODAY</Text>
+              <Text style={styles.todayBadgeText}>{t('today')}</Text>
             </View>
           )}
         </View>
       </View>
 
-      {MEALS.map(meal => {
-        const recipe = meals?.[meal.toLowerCase()];
+      {mealKeys.map(({ label, key }) => {
+        const recipe = meals?.[key];
         return (
-          <View key={meal} style={[styles.mealSlot, recipe ? styles.mealSlotFilled : styles.mealSlotEmpty]}>
-            <Text style={styles.mealLabel}>{meal.toUpperCase()}</Text>
+          <View key={key} style={[styles.mealSlot, recipe ? styles.mealSlotFilled : styles.mealSlotEmpty]}>
+            <Text style={styles.mealLabel}>{label.toUpperCase()}</Text>
             {recipe
               ? <Text style={styles.mealName} numberOfLines={2}>{recipe}</Text>
-              : <Text style={styles.mealEmpty}>+ Add</Text>
+              : <Text style={styles.mealEmpty}>{t('addMeal')}</Text>
             }
           </View>
         );
@@ -60,7 +58,7 @@ function DayCard({ day, date, isToday, meals, activities, weather }) {
   );
 }
 
-function VoiceOrb({ isListening, isProcessing, onPress }) {
+function VoiceOrb({ isListening, isProcessing, onPress, t }) {
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -87,13 +85,14 @@ function VoiceOrb({ isListening, isProcessing, onPress }) {
         <Text style={styles.orbIcon}>{isProcessing ? '⋯' : '🎙'}</Text>
       </Animated.View>
       <Text style={styles.orbLabel}>
-        {isProcessing ? 'Thinking...' : isListening ? 'Listening...' : 'Ask Fern'}
+        {isProcessing ? t('thinking') : isListening ? t('listening') : t('askFern')}
       </Text>
     </TouchableOpacity>
   );
 }
 
 export default function HomeScreen({ user }) {
+  const { t, locale } = useTranslation();
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
   const { data, loading } = useSync(user);
@@ -105,14 +104,30 @@ export default function HomeScreen({ user }) {
         const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/ai', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, context: 'family_hub', userId: user?.id }),
+          body: JSON.stringify({
+            system: 'You are Fern, a warm and decisive AI family assistant helping with meal planning, recipes, and the weekly schedule. Keep replies short — 2-4 sentences.',
+            messages: [{ role: 'user', content: text }],
+            feature: 'family_hub',
+            locale,
+          }),
         });
         const d = await res.json();
-        setFernReply(d.reply || '');
+        setFernReply((d.content && d.content[0] && d.content[0].text) || '');
       } catch {}
     },
     onError: (e) => console.warn('Mic error:', e),
   });
+
+  // Translated display labels, paired with the fixed English internal keys
+  // used to match against synced meal-plan data (the backend always stores
+  // slot names as English Breakfast/Lunch/Dinner regardless of UI language).
+  const days = t('days');
+  const mealLabels = t('meals');
+  const mealKeys = [
+    { key: 'breakfast', label: mealLabels[0] },
+    { key: 'lunch',     label: mealLabels[1] },
+    { key: 'dinner',    label: mealLabels[2] },
+  ];
 
   // Build week from today
   const today = new Date();
@@ -134,7 +149,7 @@ export default function HomeScreen({ user }) {
     const dayActivities = (data.activities || []).filter(a => a.dateKey === key);
 
     return {
-      day: DAYS[d.getDay()],
+      day: days[d.getDay()],
       date: d.getDate(),
       isToday: key === dateKey(today),
       meals: dayMeals,
@@ -156,11 +171,11 @@ export default function HomeScreen({ user }) {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>{getGreeting()}, {userName}</Text>
-          <Text style={styles.subheading}>Here's your week at a glance</Text>
+          <Text style={styles.greeting}>{getGreeting(t)}, {userName}</Text>
+          <Text style={styles.subheading}>{t('weekAtGlance')}</Text>
         </View>
         <View style={styles.proBadge}>
-          <Text style={styles.proBadgeText}>✦✦ PRO MAX</Text>
+          <Text style={styles.proBadgeText}>{t('proMaxBadge')}</Text>
         </View>
       </View>
 
@@ -175,7 +190,7 @@ export default function HomeScreen({ user }) {
       {loading ? (
         <View style={styles.loadingRow}>
           <ActivityIndicator color={colors.forest} />
-          <Text style={styles.loadingText}>Syncing your data...</Text>
+          <Text style={styles.loadingText}>{t('syncingData')}</Text>
         </View>
       ) : null}
 
@@ -186,16 +201,16 @@ export default function HomeScreen({ user }) {
         contentContainerStyle={styles.weekScroll}
         style={styles.weekScrollOuter}
       >
-        {weekDays.map((d, i) => <DayCard key={i} {...d} />)}
+        {weekDays.map((d, i) => <DayCard key={i} {...d} t={t} mealKeys={mealKeys} />)}
       </ScrollView>
 
       {/* Stats */}
       <View style={styles.statsRow}>
         {[
-          { label: 'Dinners',    val: `${totalDinners}/7` },
-          { label: 'Activities', val: String(totalActivities) },
-          { label: 'Shopping',   val: `${shoppingCount} items` },
-          { label: 'Recipes',    val: String(recipesCount) },
+          { label: t('statDinners'),    val: `${totalDinners}/7` },
+          { label: t('statActivities'), val: String(totalActivities) },
+          { label: t('statShopping'),   val: t('itemsCount', shoppingCount) },
+          { label: t('statRecipes'),    val: String(recipesCount) },
         ].map(({ label, val }) => (
           <View key={label} style={[styles.statCard, shadow.card]}>
             <Text style={styles.statLabel}>{label.toUpperCase()}</Text>
@@ -207,8 +222,8 @@ export default function HomeScreen({ user }) {
       {/* Cookbooks strip */}
       {booksCount > 0 && (
         <View style={styles.booksRow}>
-          <Text style={styles.booksLabel}>📚 {booksCount} Cookbooks</Text>
-          <Text style={styles.booksLabel}>·  {recipesCount} Recipes</Text>
+          <Text style={styles.booksLabel}>{t('cookbooksCount', booksCount)}</Text>
+          <Text style={styles.booksLabel}>{t('recipesCount', recipesCount)}</Text>
         </View>
       )}
 
@@ -217,6 +232,7 @@ export default function HomeScreen({ user }) {
         isListening={isListening}
         isProcessing={isProcessing}
         onPress={isListening ? stop : start}
+        t={t}
       />
     </SafeAreaView>
   );

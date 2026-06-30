@@ -4,20 +4,23 @@ import {
   StyleSheet, SafeAreaView, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { colors, radius, shadow } from '../constants/tokens';
+import { useTranslation } from '../i18n/LocaleContext';
+import { SUPPORTED_LOCALES } from '../i18n/translations';
 
 export default function LoginScreen({ onLogin }) {
+  const { t, locale, setLocale } = useTranslation();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
 
   const handleLogin = async () => {
-    if (!email || !password) { setError('Please enter email and password'); return; }
+    if (!email || !password) { setError(t('loginMissingFields')); return; }
     setLoading(true); setError('');
     try {
       await onLogin(email, password);
     } catch (e) {
-      setError(e.message || 'Login failed');
+      setError(e.message || t('loginFailed'));
     } finally {
       setLoading(false);
     }
@@ -26,18 +29,34 @@ export default function LoginScreen({ onLogin }) {
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.inner}>
+        {/* Language toggle — visible before sign-in since this is the first
+            screen most users see; persists via LocaleContext/AsyncStorage. */}
+        <View style={styles.langRow}>
+          {SUPPORTED_LOCALES.map((code) => (
+            <TouchableOpacity
+              key={code}
+              onPress={() => setLocale(code)}
+              style={[styles.langPill, locale === code && styles.langPillActive]}
+            >
+              <Text style={[styles.langPillText, locale === code && styles.langPillTextActive]}>
+                {code.toUpperCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         {/* Logo */}
         <View style={styles.logoWrap}>
           <Text style={styles.logoLeaf}>🌿</Text>
           <Text style={styles.logoWord}>fern</Text>
-          <Text style={styles.logoSub}>Weekly ad to dinner table</Text>
+          <Text style={styles.logoSub}>{t('logoTagline')}</Text>
         </View>
 
         {/* Card */}
         <View style={[styles.card, shadow.strong]}>
-          <Text style={styles.cardTitle}>Sign in</Text>
+          <Text style={styles.cardTitle}>{t('signIn')}</Text>
 
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('email')}</Text>
           <TextInput
             style={styles.input}
             value={email}
@@ -49,7 +68,7 @@ export default function LoginScreen({ onLogin }) {
             autoComplete="email"
           />
 
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('password')}</Text>
           <TextInput
             style={styles.input}
             value={password}
@@ -69,12 +88,12 @@ export default function LoginScreen({ onLogin }) {
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.btnText}>Sign in to Fern</Text>
+              : <Text style={styles.btnText}>{t('signInToFern')}</Text>
             }
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.footer}>Use the same account as app.clickpickandcook.com</Text>
+        <Text style={styles.footer}>{t('loginFooter')}</Text>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -96,4 +115,10 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity:0.6 },
   btnText:     { color:'#fff', fontSize:16, fontWeight:'800' },
   footer:      { textAlign:'center', color:colors.muted, fontSize:12, marginTop:24, lineHeight:18 },
+
+  langRow:          { flexDirection:'row', justifyContent:'center', gap:8, marginBottom:20 },
+  langPill:         { paddingHorizontal:12, paddingVertical:5, borderRadius:radius.full, borderWidth:1, borderColor:'rgba(255,255,255,0.25)' },
+  langPillActive:   { backgroundColor:colors.orange, borderColor:colors.orange },
+  langPillText:     { color:'rgba(255,255,255,0.55)', fontSize:11, fontWeight:'800', letterSpacing:0.5 },
+  langPillTextActive: { color:'#fff' },
 });

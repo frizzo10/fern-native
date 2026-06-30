@@ -16,6 +16,7 @@ import { setupGlobalErrorHandler } from './src/lib/crashLogger';
 import { useAuth }     from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
+import { LocaleProvider, useTranslation } from './src/i18n/LocaleContext';
 
 const Tab = createBottomTabNavigator();
 
@@ -32,23 +33,24 @@ function TabIcon({ emoji, focused }) {
 }
 
 function ArrivalBanner({ store, onShop, onDismiss }) {
+  const { t } = useTranslation();
   const slideAnim = React.useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
     Animated.spring(slideAnim, { toValue:0, useNativeDriver:true, tension:80 }).start();
-    const t = setTimeout(onDismiss, 45000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(onDismiss, 45000);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
     <Animated.View style={[styles.banner, { transform:[{ translateY:slideAnim }] }]}>
       <Text style={styles.bannerEmoji}>🛒</Text>
       <View style={styles.bannerText}>
-        <Text style={styles.bannerTitle}>{store.name} — you've arrived</Text>
-        <Text style={styles.bannerSub}>Ready to shop with Fern?</Text>
+        <Text style={styles.bannerTitle}>{t('arrivedTitle', store.name)}</Text>
+        <Text style={styles.bannerSub}>{t('arrivedSub')}</Text>
       </View>
       <TouchableOpacity style={styles.bannerBtn} onPress={onShop}>
-        <Text style={styles.bannerBtnText}>Shop</Text>
+        <Text style={styles.bannerBtnText}>{t('shopBtn')}</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onDismiss} style={styles.bannerClose}>
         <Text style={styles.bannerCloseText}>✕</Text>
@@ -71,6 +73,7 @@ async function checkForUpdate() {
 }
 
 function MainApp({ user }) {
+  const { t } = useTranslation();
   const [arrivedStore, setArrivedStore] = useState(null);
 
   const { start: startGeofence } = useGeofence({
@@ -121,7 +124,7 @@ function MainApp({ user }) {
       >
         <Tab.Screen
           name="Home"
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }}
+          options={{ tabBarLabel: t('tabHome'), tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }}
         >
           {() => (
             <ErrorBoundary>
@@ -132,7 +135,7 @@ function MainApp({ user }) {
 
         <Tab.Screen
           name="Find"
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
+          options={{ tabBarLabel: t('tabFind'), tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
         >
           {() => (
             <ErrorBoundary>
@@ -144,7 +147,7 @@ function MainApp({ user }) {
         <Tab.Screen
           name="Shopping"
           options={{
-            tabBarLabel: 'Shop',
+            tabBarLabel: t('tabShop'),
             tabBarIcon: ({ focused }) => <TabIcon emoji="🛒" focused={focused} />,
           }}
         >
@@ -157,7 +160,7 @@ function MainApp({ user }) {
 
         <Tab.Screen
           name="Recipes"
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
+          options={{ tabBarLabel: t('tabRecipes'), tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
         >
           {() => (
             <ErrorBoundary>
@@ -177,14 +180,17 @@ export default function App() {
 
   if (loading) return null;
 
-  // Wrap entire app in top-level ErrorBoundary
+  // Wrap entire app in top-level ErrorBoundary + LocaleProvider so every
+  // screen (including LoginScreen, before a user exists) can call useTranslation().
   return (
     <ErrorBoundary>
-      <StatusBar style="light" />
-      {user
-        ? <MainApp user={user} />
-        : <LoginScreen onLogin={signIn} />
-      }
+      <LocaleProvider>
+        <StatusBar style="light" />
+        {user
+          ? <MainApp user={user} />
+          : <LoginScreen onLogin={signIn} />
+        }
+      </LocaleProvider>
     </ErrorBoundary>
   );
 }

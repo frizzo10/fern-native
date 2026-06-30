@@ -1,12 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../constants/tokens';
+import { useTranslation } from '../i18n/LocaleContext';
 
 export default function ShoppingScreen() {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>🛒 Shopping List</Text>
-      <Text style={styles.sub}>Coming soon</Text>
+      <Text style={styles.text}>{t('shoppingListTitle')}</Text>
+      <Text style={styles.sub}>{t('comingSoon')}</Text>
     </View>
   );
 }
