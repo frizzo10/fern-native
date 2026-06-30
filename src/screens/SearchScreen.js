@@ -1,7 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Image,
+    ImageBackground,
     Linking,
     Modal,
     ScrollView,
@@ -18,6 +20,81 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FEATURED_BLOGGERS } from '../constants/featuredBloggers';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
+import RecipeDetailModal from '../components/RecipeDetailModal';
+import { pickFirst, getRawRecipeId, normalizeRecipe, normalizeAiRecipe } from '../utils/recipeNormalize';
+import { fetchRecipeImage } from '../utils/recipeImage';
+
+const AI_SEARCH_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
+
+const SEARCH_SYSTEM_PROMPT = 'You are a world-class chef and culinary expert with deep knowledge of celebrity recipes, viral dishes, restaurant classics, and home cooking. The user will give you a search query. IMPORTANT: If the query is not related to food, cooking, ingredients, cuisines, or dishes — respond with exactly: [] (an empty JSON array, nothing else). If it is food-related, respond ONLY with a raw JSON array of 6 recipe objects, no markdown, no backticks, no explanation. SEARCH RULES: (1) If the query mentions a specific person, celebrity, chef, or restaurant — your FIRST result must be that exact named recipe as accurately as possible, followed by 4 closely related variations. (2) If the query is a specific dish — your FIRST result must be the most classic/authentic version, followed by 4 variations. (3) If the query is an ingredient — return 5 distinct dishes featuring it. Each object must have: title, emoji (1 emoji), cuisine, mealType (Breakfast/Lunch/Dinner/Dessert/Snack/Appetizer), time (e.g. "40 min"), difficulty (Easy/Medium/Hard), description (2 sentences), ingredients (string array with QUANTITIES: "2 cups flour", "1 egg", "3 tbsp butter"), instructions (string[]), notes (string or ""), photoSearch (a SPECIFIC plain English phrase of 3-5 words that includes the cuisine/style AND key visual distinguishing detail — e.g. "Korean gochujang glazed chicken" not just "grilled chicken", "tandoori chicken naan basmati" not just "grilled chicken" — must be different enough between similar recipes in this same response that photo searches return visually distinct images), matchType ("exact" if this is the specific named recipe the user searched for, "variation" for related recipes).';
+
+function buildSearchUserMessage(query) {
+    return `The user searched for: "${query}". Apply the search rules strictly: if this mentions a specific person or named recipe lead with that exact recipe first then 4 close variations. If it is a dish lead with the most authentic classic version then 4 variations. Make all 5 recipes realistic achievable and distinct. Return ONLY valid JSON array of exactly 6 recipes.`;
+}
+
+function parseAiRecipeList(rawText) {
+    const cleaned = String(rawText || '')
+        .trim()
+        .replace(/^```(?:json)?/i, '')
+        .replace(/```$/, '')
+        .trim();
+
+    try {
+        const parsed = JSON.parse(cleaned);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function SearchResultCard({ recipe, isSaved, onPress }) {
+    return (
+        <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.resultCard, shadow.card]}>
+            <View style={styles.resultImageWrap}>
+                <ImageBackground
+                    source={recipe.image ? { uri: recipe.image } : null}
+                    style={styles.resultImageBackground}
+                >
+                    {!recipe.image ? (
+                        <Text style={styles.resultEmoji}>{recipe.emoji}</Text>
+                    ) : null}
+                </ImageBackground>
+                {isSaved ? (
+                    <View style={styles.savedBadge}>
+                        <Text style={styles.savedBadgeText}>📚 SAVED</Text>
+                    </View>
+                ) : null}
+            </View>
+
+            <View style={styles.resultBody}>
+                <Text style={styles.resultTitle}>{recipe.title}</Text>
+
+                <View style={styles.resultTagsRow}>
+                    {recipe.category ? (
+                        <View style={styles.resultTag}><Text style={styles.resultTagText}>{recipe.category}</Text></View>
+                    ) : null}
+                    {recipe.meal ? (
+                        <View style={styles.resultTag}><Text style={styles.resultTagText}>{recipe.meal}</Text></View>
+                    ) : null}
+                    {recipe.time ? (
+                        <View style={styles.resultTag}><Text style={styles.resultTagText}>⏱ {recipe.time}</Text></View>
+                    ) : null}
+                </View>
+
+                {recipe.description ? (
+                    <Text style={styles.resultDescription}>{recipe.description}</Text>
+                ) : null}
+
+                {isSaved ? (
+                    <>
+                        <View style={styles.resultDivider} />
+                        <Text style={styles.resultSavedNote}>✓ Already in your recipe box</Text>
+                    </>
+                ) : null}
+            </View>
+        </TouchableOpacity>
+    );
+}
 
 function ActionButton({ label, icon, dark, onPress, style }) {
     return (
@@ -46,12 +123,20 @@ function BloggerCard({ item, onPress }) {
 export default function SearchScreen({ user }) {
     const navigation = useNavigation();
     const route = useRoute();
-    const { data, pull, pushAllFromStorage } = useSync(user);
+    const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
     const [searchText, setSearchText] = useState('');
     const [cravingText, setCravingText] = useState('');
     const [isBloggersModalOpen, setIsBloggersModalOpen] = useState(false);
     const [bloggerQuery, setBloggerQuery] = useState('');
     const [followingBloggersLocal, setFollowingBloggersLocal] = useState([]);
+    const [isSearching, setIsSearching] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
+    const [activeQuery, setActiveQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [showOnlyMyRecipes, setShowOnlyMyRecipes] = useState(false);
+    const [selectedRecipe, setSelectedRecipe] = useState(null);
+    const [noteText, setNoteText] = useState('');
+    const [isSavingRecipe, setIsSavingRecipe] = useState(false);
     const syncTimerRef = useRef(null);
     const isSyncingRef = useRef(false);
     const scrollRef = useRef(null);
@@ -170,9 +255,221 @@ export default function SearchScreen({ user }) {
         return blogger.name.toLowerCase().includes(q) || blogger.specialty.toLowerCase().includes(q);
     });
 
-    const runSearch = () => {
+    const savedRecipes = useMemo(
+        () => (Array.isArray(data.recipes) ? data.recipes : []).map(normalizeRecipe),
+        [data.recipes]
+    );
+
+    const findSavedRecipeByTitle = (title) => {
+        const target = String(title || '').trim().toLowerCase();
+        if (!target) return null;
+        return savedRecipes.find((recipe) => recipe.title.trim().toLowerCase() === target) || null;
+    };
+
+    const isResultSaved = (title) => Boolean(findSavedRecipeByTitle(title));
+
+    const visibleResults = useMemo(() => {
+        if (!showOnlyMyRecipes) return searchResults;
+        return searchResults.filter((recipe) => isResultSaved(recipe.title));
+    }, [searchResults, showOnlyMyRecipes, savedRecipes]);
+
+    const savedCountInResults = useMemo(
+        () => searchResults.filter((recipe) => isResultSaved(recipe.title)).length,
+        [searchResults, savedRecipes]
+    );
+
+    const selectedIsSaved = useMemo(
+        () => Boolean(selectedRecipe && findSavedRecipeByTitle(selectedRecipe.title)),
+        [selectedRecipe, savedRecipes]
+    );
+
+    const performSearch = async (query) => {
+        setActiveQuery(query);
+        setHasSearched(true);
+        setShowOnlyMyRecipes(false);
+        setSearchResults([]);
+        setIsSearching(true);
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+
+        try {
+            const res = await fetch(AI_SEARCH_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'FernApp/1.0 (myaifern.com)',
+                },
+                body: JSON.stringify({
+                    system: SEARCH_SYSTEM_PROMPT,
+                    messages: [{ role: 'user', content: buildSearchUserMessage(query) }],
+                    feature: 'recipe_search',
+                    userId: user?.id || '',
+                    locale: 'en',
+                }),
+            });
+
+            const json = await res.json();
+            const rawText = json?.content?.[0]?.text ?? '[]';
+            const recipes = parseAiRecipeList(rawText).map(normalizeAiRecipe);
+            setSearchResults(recipes);
+
+            // Emoji is just a placeholder until each recipe's real photo loads in.
+            recipes.forEach((recipe) => {
+                fetchRecipeImage(recipe.photoSearch || recipe.title).then((url) => {
+                    if (!url) return;
+                    setSearchResults((prev) => prev.map((item) => (
+                        item.id === recipe.id ? { ...item, image: url, _cloudPhotos: [url] } : item
+                    )));
+                    setSelectedRecipe((prev) => (
+                        prev && prev.id === recipe.id ? { ...prev, image: url, _cloudPhotos: [url] } : prev
+                    ));
+                });
+            });
+        } catch (e) {
+            console.warn('[ai-search] request failed', e);
+            Alert.alert('Search failed', 'Could not reach Fern AI search right now. Please try again.');
+        } finally {
+            setIsSearching(false);
+        }
+    };
+
+    const runSearch = async () => {
         const query = searchText.trim();
-        Alert.alert('Search', query ? `Searching for ${query}` : 'Type an ingredient to search.');
+        if (!query) {
+            Alert.alert('Search', 'Type an ingredient to search.');
+            return;
+        }
+
+        await performSearch(query);
+    };
+
+    const runSuggestSomething = async () => {
+        await performSearch('dinner idea');
+    };
+
+    const resetSearch = () => {
+        setHasSearched(false);
+        setSearchResults([]);
+        setActiveQuery('');
+        setShowOnlyMyRecipes(false);
+        scrollRef.current?.scrollTo({ y: 0, animated: false });
+    };
+
+    const openSearchResultDetail = (recipe) => {
+        const matched = findSavedRecipeByTitle(recipe.title);
+        setSelectedRecipe(matched || recipe);
+        setNoteText(matched?.note ?? '');
+    };
+
+    const syncRecipeCache = async (nextSaved) => {
+        const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+        await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: nextSaved }));
+    };
+
+    const persistSelectedRecipeNote = async () => {
+        if (!selectedRecipe) return;
+
+        const trimmed = noteText.trim();
+        setIsSavingRecipe(true);
+        try {
+            const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+            const baseSaved = Array.isArray(storedSaved)
+                ? storedSaved
+                : (Array.isArray(data.recipes) ? data.recipes : []);
+
+            const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+            const existingIndex = baseSaved.findIndex((item) => {
+                const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+                return itemTitle && itemTitle === selectedTitle;
+            });
+
+            let updatedSaved;
+            if (existingIndex >= 0) {
+                updatedSaved = baseSaved.map((item, idx) => {
+                    if (idx !== existingIndex) return item;
+                    const { notes, myNote, ...rest } = item;
+                    return { ...rest, note: trimmed };
+                });
+            } else {
+                updatedSaved = [
+                    ...baseSaved,
+                    {
+                        id: `search-${Date.now()}`,
+                        title: selectedRecipe.title,
+                        emoji: selectedRecipe.emoji,
+                        cuisine: selectedRecipe.category,
+                        mealType: selectedRecipe.meal,
+                        time: selectedRecipe.time,
+                        difficulty: selectedRecipe.difficulty,
+                        description: selectedRecipe.description,
+                        ingredients: selectedRecipe.ingredients,
+                        instructions: selectedRecipe.methodSteps,
+                        note: trimmed,
+                        photoSearch: selectedRecipe.photoSearch || '',
+                        _cloudPhotos: selectedRecipe.image ? [selectedRecipe.image] : [],
+                    },
+                ];
+            }
+
+            await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
+            await syncRecipeCache(updatedSaved);
+
+            await pushAllFromStorage();
+            setSelectedRecipe(null);
+            await pull();
+        } catch (e) {
+            console.warn('[ai-search] save recipe failed', e);
+            Alert.alert('Save failed', 'Could not save this recipe right now.');
+        } finally {
+            setIsSavingRecipe(false);
+        }
+    };
+
+    const handleDeleteSelectedRecipe = async () => {
+        if (!selectedRecipe) return;
+
+        Alert.alert(
+            'Delete Recipe',
+            `Delete "${selectedRecipe.title}" from your saved recipes?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete',
+                    style: 'destructive',
+                    onPress: async () => {
+                        setIsSavingRecipe(true);
+                        try {
+                            const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+                            const baseSaved = Array.isArray(storedSaved)
+                                ? storedSaved
+                                : (Array.isArray(data.recipes) ? data.recipes : []);
+
+                            const selectedId = String(selectedRecipe.id || '').trim();
+                            const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+
+                            const nextSaved = baseSaved.filter((recipe, index) => {
+                                const rawId = getRawRecipeId(recipe, index).trim();
+                                const rawTitle = String(pickFirst(recipe?.title, recipe?.name, recipe?.recipe_name, recipe?.recipeTitle, '')).trim().toLowerCase();
+                                const idMatches = selectedId && rawId === selectedId;
+                                const titleMatches = selectedTitle && rawTitle === selectedTitle;
+                                return !(idMatches || titleMatches);
+                            });
+
+                            await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+                            await syncRecipeCache(nextSaved);
+
+                            await pushChangedFromStorage({ saved: nextSaved });
+                            setSelectedRecipe(null);
+                            await pull();
+                        } catch (e) {
+                            console.warn('[ai-search] delete recipe failed', e);
+                            Alert.alert('Delete failed', 'Could not delete this recipe right now.');
+                        } finally {
+                            setIsSavingRecipe(false);
+                        }
+                    },
+                },
+            ]
+        );
     };
 
     const runCraving = () => {
@@ -224,98 +521,156 @@ export default function SearchScreen({ user }) {
                         <Text style={styles.tagline}>WEEKLY AD TO DINNER TABLE • PATENT PENDING</Text>
                     </View>
 
-                    <Text style={styles.title}>
-                        <Text style={styles.titleMain}>What are you </Text>
-                        <Text style={styles.titleAccent}>cooking</Text>
-                        <Text style={styles.titleMain}>{'\n'}</Text>
-                        <Text style={styles.titleAccent}>tonight?</Text>
-                    </Text>
+                    {!hasSearched ? (
+                        <>
+                            <Text style={styles.title}>
+                                <Text style={styles.titleMain}>What are you </Text>
+                                <Text style={styles.titleAccent}>cooking</Text>
+                                <Text style={styles.titleMain}>{'\n'}</Text>
+                                <Text style={styles.titleAccent}>tonight?</Text>
+                            </Text>
 
-                    <Text style={styles.subtitle}>
-                        Search by ingredient, scan your grocery circular, or let AI surprise you.
-                    </Text>
+                            <Text style={styles.subtitle}>
+                                Search by ingredient, scan your grocery circular, or let AI surprise you.
+                            </Text>
 
-                    <View style={styles.searchCard}>
-                        <TextInput
-                            value={searchText}
-                            onChangeText={setSearchText}
-                            placeholder="e.g. chicken thighs, ground beef, salmon..."
-                            placeholderTextColor="#C7B59E"
-                            style={styles.searchInput}
-                            returnKeyType="search"
-                            onSubmitEditing={runSearch}
-                        />
-                        <TouchableOpacity activeOpacity={0.9} onPress={runSearch} style={styles.searchButton}>
-                            <Text style={styles.searchButtonText}>{'>SEARCH ✦'}</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.quickActionsRow}>
-                        <ActionButton
-                            label="Circular Scanner"
-                            icon="📸"
-                            onPress={() => Alert.alert('Circular Scanner', 'Open the grocery circular scanner.')}
-                            style={styles.quickActionLeft}
-                        />
-                        <ActionButton
-                            label="Suggest Something"
-                            icon="🤔"
-                            dark
-                            onPress={() => Alert.alert('Suggest Something', 'Let Fern suggest a dinner idea.')}
-                            style={styles.quickActionRight}
-                        />
-                    </View>
-
-                    <View style={styles.cravingCard}>
-                        <Text style={styles.cravingLabel}>I Am Craving</Text>
-                        <TextInput
-                            value={cravingText}
-                            onChangeText={setCravingText}
-                            placeholder="an ingredient, a mood, a cuisine..."
-                            placeholderTextColor="#9F9E99"
-                            style={styles.cravingInput}
-                            returnKeyType="done"
-                            onSubmitEditing={runCraving}
-                            onFocus={() => {
-                                scrollRef.current?.scrollTo({
-                                    y: 120,
-                                    animated: true,
-                                });
-                            }}
-                        />
-                        <TouchableOpacity activeOpacity={0.9} onPress={runCraving} style={styles.cravingButton}>
-                            <Text style={styles.cravingButtonText}>{'>✦ Go'}</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>👨‍🍳 FOOD BLOGGERS</Text>
-                        <View style={styles.sectionHeaderActions}>
-                            <ActionButton
-                                label="Ask Fern"
-                                icon="🌿"
-                                dark={false}
-                                onPress={() => Alert.alert('Ask Fern', 'Ask Fern about a recipe or ingredient.')}
-                                style={styles.askFernButton}
-                            />
-                            <TouchableOpacity activeOpacity={0.85} onPress={() => setIsBloggersModalOpen(true)}>
-                                <Text style={styles.manageLink}>{'>Manage →'}</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-
-                    <View style={styles.bloggersRow}>
-                        {followingBloggers.map((item) => (
-                            <BloggerCard key={item.id} item={item} onPress={() => setIsBloggersModalOpen(true)} />
-                        ))}
-
-                        <TouchableOpacity style={styles.bloggerCardWrap} activeOpacity={0.85} onPress={() => setIsBloggersModalOpen(true)}>
-                            <View style={[styles.bloggerCard, styles.followCard]}>
-                                <Text style={styles.followPlus}>+</Text>
+                            <View style={styles.searchCard}>
+                                <TextInput
+                                    value={searchText}
+                                    onChangeText={setSearchText}
+                                    placeholder="e.g. chicken thighs, ground beef, salmon..."
+                                    placeholderTextColor="#C7B59E"
+                                    style={styles.searchInput}
+                                    returnKeyType="search"
+                                    onSubmitEditing={runSearch}
+                                />
+                                <TouchableOpacity activeOpacity={0.9} onPress={runSearch} style={styles.searchButton}>
+                                    <Text style={styles.searchButtonText}>{'>SEARCH ✦'}</Text>
+                                </TouchableOpacity>
                             </View>
-                            <Text style={styles.bloggerName}>Follow</Text>
-                        </TouchableOpacity>
-                    </View>
+
+                            <View style={styles.quickActionsRow}>
+                                <ActionButton
+                                    label="Circular Scanner"
+                                    icon="📸"
+                                    onPress={() => Alert.alert('Circular Scanner', 'Open the grocery circular scanner.')}
+                                    style={styles.quickActionLeft}
+                                />
+                                <ActionButton
+                                    label="Suggest Something"
+                                    icon="🤔"
+                                    dark
+                                    onPress={runSuggestSomething}
+                                    style={styles.quickActionRight}
+                                />
+                            </View>
+
+                            <View style={styles.cravingCard}>
+                                <Text style={styles.cravingLabel}>I Am Craving</Text>
+                                <TextInput
+                                    value={cravingText}
+                                    onChangeText={setCravingText}
+                                    placeholder="an ingredient, a mood, a cuisine..."
+                                    placeholderTextColor="#9F9E99"
+                                    style={styles.cravingInput}
+                                    returnKeyType="done"
+                                    onSubmitEditing={runCraving}
+                                    onFocus={() => {
+                                        scrollRef.current?.scrollTo({
+                                            y: 120,
+                                            animated: true,
+                                        });
+                                    }}
+                                />
+                                <TouchableOpacity activeOpacity={0.9} onPress={runCraving} style={styles.cravingButton}>
+                                    <Text style={styles.cravingButtonText}>{'>✦ Go'}</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>👨‍🍳 FOOD BLOGGERS</Text>
+                                <View style={styles.sectionHeaderActions}>
+                                    <ActionButton
+                                        label="Ask Fern"
+                                        icon="🌿"
+                                        dark={false}
+                                        onPress={() => Alert.alert('Ask Fern', 'Ask Fern about a recipe or ingredient.')}
+                                        style={styles.askFernButton}
+                                    />
+                                    <TouchableOpacity activeOpacity={0.85} onPress={() => setIsBloggersModalOpen(true)}>
+                                        <Text style={styles.manageLink}>{'>Manage →'}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            <View style={styles.bloggersRow}>
+                                {followingBloggers.map((item) => (
+                                    <BloggerCard key={item.id} item={item} onPress={() => setIsBloggersModalOpen(true)} />
+                                ))}
+
+                                <TouchableOpacity style={styles.bloggerCardWrap} activeOpacity={0.85} onPress={() => setIsBloggersModalOpen(true)}>
+                                    <View style={[styles.bloggerCard, styles.followCard]}>
+                                        <Text style={styles.followPlus}>+</Text>
+                                    </View>
+                                    <Text style={styles.bloggerName}>Follow</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </>
+                    ) : (
+                        <View style={styles.resultsWrap}>
+                            <View style={styles.resultsHeaderRow}>
+                                <View style={styles.resultsHeaderTextWrap}>
+                                    <Text style={styles.resultsHeaderTitle}>
+                                        RESULTS FOR "{activeQuery.toUpperCase()}" — {savedCountInResults} SAVED · {searchResults.length} AI
+                                    </Text>
+                                </View>
+                                <TouchableOpacity activeOpacity={0.85} onPress={resetSearch} style={styles.newSearchBtn}>
+                                    <Text style={styles.newSearchBtnText}>{'← New Search'}</Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            <View style={styles.filterPillRow}>
+                                <View style={styles.filterPillLine} />
+                                <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    onPress={() => setShowOnlyMyRecipes((v) => !v)}
+                                    style={[styles.filterPill, showOnlyMyRecipes ? styles.filterPillActive : null]}
+                                >
+                                    <Text style={styles.filterPillText}>📚 FROM MY RECIPES</Text>
+                                </TouchableOpacity>
+                                <View style={styles.filterPillLine} />
+                            </View>
+
+                            {isSearching ? (
+                                <View style={styles.loadingWrap}>
+                                    <ActivityIndicator color={colors.forest} />
+                                    <Text style={styles.loadingText}>Fern is searching for "{activeQuery}"...</Text>
+                                </View>
+                            ) : visibleResults.length ? (
+                                <View style={styles.resultsList}>
+                                    {visibleResults.map((recipe) => (
+                                        <SearchResultCard
+                                            key={recipe.id}
+                                            recipe={recipe}
+                                            isSaved={isResultSaved(recipe.title)}
+                                            onPress={() => openSearchResultDetail(recipe)}
+                                        />
+                                    ))}
+                                </View>
+                            ) : (
+                                <View style={styles.emptyResultsWrap}>
+                                    <Text style={styles.emptyResultsTitle}>
+                                        {showOnlyMyRecipes ? 'No saved recipes in these results' : 'No recipes found'}
+                                    </Text>
+                                    <Text style={styles.emptyResultsSub}>
+                                        {showOnlyMyRecipes
+                                            ? 'Turn off the filter to see all AI results.'
+                                            : 'Try a different ingredient, dish, or chef name.'}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    )}
                 </ScrollView>
 
                 <Modal
@@ -407,6 +762,18 @@ export default function SearchScreen({ user }) {
                         </SafeAreaView>
                     </View>
                 </Modal>
+
+                <RecipeDetailModal
+                    recipe={selectedRecipe}
+                    onClose={() => setSelectedRecipe(null)}
+                    noteText={noteText}
+                    onChangeNoteText={setNoteText}
+                    isSaving={isSavingRecipe}
+                    onSaveNote={persistSelectedRecipeNote}
+                    isAlreadySaved={selectedIsSaved}
+                    showSavedIndicator
+                    onDeleteRecipe={selectedIsSaved ? handleDeleteSelectedRecipe : undefined}
+                />
             </LinearGradient>
         </SafeAreaView>
     );
@@ -849,5 +1216,189 @@ const styles = StyleSheet.create({
         color: '#2F8550',
         fontFamily: 'Jost-Bold',
         fontSize: 10,
+    },
+    resultsWrap: {
+        marginTop: 4,
+    },
+    resultsHeaderRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 18,
+    },
+    resultsHeaderTextWrap: {
+        flex: 1,
+    },
+    resultsHeaderTitle: {
+        fontFamily: 'Jost-Bold',
+        color: '#7A5A36',
+        fontSize: 13,
+        lineHeight: 19,
+        letterSpacing: 0.6,
+    },
+    newSearchBtn: {
+        borderWidth: 1,
+        borderColor: '#DAC7AA',
+        backgroundColor: '#FFFDF8',
+        borderRadius: 14,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        ...shadow.card,
+    },
+    newSearchBtnText: {
+        fontFamily: 'Jost-SemiBold',
+        color: colors.forest,
+        fontSize: 11,
+        textAlign: 'center',
+    },
+    filterPillRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 18,
+    },
+    filterPillLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#DDCBAE',
+    },
+    filterPill: {
+        flexShrink: 0,
+        borderWidth: 1,
+        borderColor: '#A4D6B0',
+        backgroundColor: '#E7F5E9',
+        borderRadius: 999,
+        paddingHorizontal: 16,
+        paddingVertical: 9,
+    },
+    filterPillActive: {
+        backgroundColor: colors.forest,
+        borderColor: colors.forest,
+    },
+    filterPillText: {
+        fontFamily: 'Jost-Bold',
+        color: '#2F8550',
+        fontSize: 11,
+    },
+    loadingWrap: {
+        alignItems: 'center',
+        paddingVertical: 50,
+        gap: 12,
+    },
+    loadingText: {
+        fontFamily: 'Jost-Regular',
+        color: '#8B6840',
+        fontSize: 12,
+    },
+    resultsList: {
+        gap: 18,
+    },
+    resultCard: {
+        backgroundColor: '#FFFDF8',
+        borderRadius: 22,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#DCCFB8',
+    },
+    resultImageWrap: {
+        height: 160,
+        backgroundColor: '#E9E2D2',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    resultImageBackground: {
+        flex: 1,
+        width: '100%',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    savedBadge: {
+        position: 'absolute',
+        top: 12,
+        left: 12,
+        backgroundColor: 'rgba(30,57,30,0.92)',
+        paddingHorizontal: 12,
+        paddingVertical: 7,
+        borderRadius: 12,
+    },
+    savedBadgeText: {
+        color: '#F1F1E7',
+        fontSize: 8,
+        fontFamily: 'Jost-Bold',
+        letterSpacing: 0.8,
+    },
+    resultEmoji: {
+        fontSize: 48,
+    },
+    resultBody: {
+        paddingHorizontal: 16,
+        paddingTop: 14,
+        paddingBottom: 16,
+    },
+    resultTitle: {
+        color: '#3A2416',
+        fontSize: 19,
+        lineHeight: 24,
+        fontFamily: 'PlayfairDisplay-Bold',
+    },
+    resultTagsRow: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: 10,
+    },
+    resultTag: {
+        borderWidth: 1,
+        borderColor: '#D7C39A',
+        backgroundColor: '#F4ECD8',
+        borderRadius: 999,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    resultTagText: {
+        color: '#8E6D49',
+        fontSize: 11,
+        fontFamily: 'Jost-SemiBold',
+    },
+    resultDescription: {
+        marginTop: 12,
+        color: '#7B5D3C',
+        fontSize: 13,
+        lineHeight: 19,
+        fontFamily: 'PlayfairDisplay-Italic',
+    },
+    resultDivider: {
+        marginTop: 14,
+        marginBottom: 10,
+        height: 1,
+        backgroundColor: '#E5D8C8',
+    },
+    resultSavedNote: {
+        color: '#2F6B2F',
+        fontSize: 12,
+        fontFamily: 'Jost-Bold',
+    },
+    emptyResultsWrap: {
+        marginTop: 20,
+        padding: 18,
+        borderRadius: 20,
+        backgroundColor: '#FFFDF8',
+        borderWidth: 1,
+        borderColor: '#DCCFB8',
+        alignItems: 'center',
+    },
+    emptyResultsTitle: {
+        color: colors.ink,
+        fontSize: 16,
+        fontFamily: 'Jost-Bold',
+        textAlign: 'center',
+    },
+    emptyResultsSub: {
+        marginTop: 6,
+        color: colors.brown,
+        fontSize: 12,
+        fontFamily: 'Jost-Medium',
+        textAlign: 'center',
     },
 });
