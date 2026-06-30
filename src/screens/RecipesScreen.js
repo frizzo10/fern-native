@@ -512,7 +512,11 @@ export default function RecipesScreen({ user }) {
                       {recipe.time ? ` • ${recipe.time}` : ''}
                     </Text>
 
-                    {(noteByRecipeId[recipe.id] ?? recipe.note) ? 'Note saved' : ' '}
+                    <Text style={styles.noteHint}>
+                      {(noteByRecipeId[recipe.id] ?? recipe.note)
+                        ? 'Note saved'
+                        : ' '}
+                    </Text>
 
                     <View style={styles.difficultyPill}>
                       {Array.from({ length: 3 }, (_, i) => {
