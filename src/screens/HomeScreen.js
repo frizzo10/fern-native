@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
+import { useFernVoice } from '../hooks/useFernVoice';
 import { useSync } from '../hooks/useSync';
 import { useTranslation } from '../i18n/LocaleContext';
 
@@ -96,6 +97,7 @@ export default function HomeScreen({ user }) {
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
   const { data, loading } = useSync(user);
+  const { speak, voiceEnabled, setVoiceEnabled, speaking } = useFernVoice();
 
   const { isListening, isProcessing, start, stop } = useContinuousMic({
     onTranscript: async (text) => {
@@ -112,7 +114,12 @@ export default function HomeScreen({ user }) {
           }),
         });
         const d = await res.json();
-        setFernReply((d.content && d.content[0] && d.content[0].text) || '');
+        const reply = (d.content && d.content[0] && d.content[0].text) || '';
+        setFernReply(reply);
+        // Only speaks it aloud if the person has explicitly turned voice on
+        // (see useFernVoice.js -- off by default). The reply is always
+        // shown as text either way, so nothing is lost when voice is off.
+        if (reply) speak(reply, { locale });
       } catch {}
     },
     onError: (e) => console.warn('Mic error:', e),
@@ -234,6 +241,20 @@ export default function HomeScreen({ user }) {
         onPress={isListening ? stop : start}
         t={t}
       />
+
+      {/* Fern Voice on/off -- see useFernVoice.js for why this defaults to
+          off. Small and out of the way rather than a prominent setting,
+          since most people won't need to touch it, but it must be
+          reachable, not buried. */}
+      <TouchableOpacity
+        style={styles.voiceToggle}
+        onPress={() => setVoiceEnabled(!voiceEnabled)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.voiceToggleText}>
+          {voiceEnabled ? '🔊' : '🔇'} {t(voiceEnabled ? 'fernVoiceOn' : 'fernVoiceOff')}
+        </Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -294,4 +315,7 @@ const styles = StyleSheet.create({
   orbProcessing:   { backgroundColor:colors.orange },
   orbIcon:         { fontSize:28 },
   orbLabel:        { fontSize:11, fontWeight:'700', color:colors.brown, letterSpacing:0.5, textTransform:'uppercase' },
+
+  voiceToggle: { alignSelf:'center', marginTop:10, marginBottom:6, paddingVertical:6, paddingHorizontal:14 },
+  voiceToggleText: { fontSize:11, fontWeight:'700', color:colors.muted, letterSpacing:0.3 },
 });
