@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, ActivityIndicator, Modal,
+  ScrollView, ActivityIndicator, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
@@ -144,6 +144,10 @@ export default function FindScreen({ user }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
       <View style={styles.searchRow}>
         <TextInput
           style={styles.searchInput}
@@ -194,6 +198,7 @@ export default function FindScreen({ user }) {
         isSaved={selected ? isRecipeSaved(selected) : false}
         t={t}
       />
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

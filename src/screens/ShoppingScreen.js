@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, SafeAreaView,
-  ScrollView, Alert,
+  ScrollView, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
@@ -72,6 +72,11 @@ export default function ShoppingScreen({ user }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
       {items.length === 0 ? (
         <View style={styles.centerState}>
           <Text style={styles.emptyEmoji}>🛒</Text>
@@ -122,6 +127,7 @@ export default function ShoppingScreen({ user }) {
           <Text style={styles.addBtnText}>+</Text>
         </TouchableOpacity>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

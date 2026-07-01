@@ -17,6 +17,7 @@ import { useAuth }     from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
 import { LocaleProvider, useTranslation } from './src/i18n/LocaleContext';
+import { SyncProvider } from './src/hooks/SyncContext';
 
 const Tab = createBottomTabNavigator();
 
@@ -187,7 +188,7 @@ export default function App() {
       <LocaleProvider>
         <StatusBar style="light" />
         {user
-          ? <MainApp user={user} />
+          ? <SyncProvider user={user}><MainApp user={user} /></SyncProvider>
           : <LoginScreen onLogin={signIn} />
         }
       </LocaleProvider>

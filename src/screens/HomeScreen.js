@@ -95,6 +95,8 @@ function VoiceOrb({ isListening, isProcessing, onPress, t }) {
 export default function HomeScreen({ user }) {
   const { t, locale } = useTranslation();
   const [fernReply, setFernReply] = useState('');
+  const [fernError, setFernError] = useState(false);
+  const [askingFern, setAskingFern] = useState(false);
   const [lastTranscript, setLastTranscript] = useState('');
   const { data, loading } = useSync(user);
   const { speak, voiceEnabled, setVoiceEnabled, speaking } = useFernVoice();
@@ -102,6 +104,8 @@ export default function HomeScreen({ user }) {
   const { isListening, isProcessing, start, stop } = useContinuousMic({
     onTranscript: async (text) => {
       setLastTranscript(text);
+      setFernError(false);
+      setAskingFern(true);
       try {
         const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/ai', {
           method: 'POST',
@@ -113,14 +117,29 @@ export default function HomeScreen({ user }) {
             locale,
           }),
         });
+        if (!res.ok) {
+          const errBody = await res.text().catch(() => '');
+          throw new Error(`ai request failed: ${res.status} ${errBody.slice(0, 200)}`);
+        }
         const d = await res.json();
         const reply = (d.content && d.content[0] && d.content[0].text) || '';
+        if (!reply) throw new Error('ai response had no content.text — got: ' + JSON.stringify(d).slice(0, 200));
         setFernReply(reply);
         // Only speaks it aloud if the person has explicitly turned voice on
         // (see useFernVoice.js -- off by default). The reply is always
         // shown as text either way, so nothing is lost when voice is off.
-        if (reply) speak(reply, { locale });
-      } catch {}
+        speak(reply, { locale });
+      } catch (e) {
+        // Previously an empty catch block swallowed every failure here
+        // completely silently -- no log, no UI change, nothing -- which
+        // made 'Fern isn't replying' reports undiagnosable. Now it's
+        // logged for debugging and surfaced in the UI so it's visibly a
+        // failure, not confused with Fern simply having nothing to say.
+        console.warn('[HomeScreen] Ask Fern failed:', e.message);
+        setFernError(true);
+      } finally {
+        setAskingFern(false);
+      }
     },
     onError: (e) => console.warn('Mic error:', e),
   });
@@ -187,10 +206,12 @@ export default function HomeScreen({ user }) {
       </View>
 
       {/* Voice bar */}
-      {(lastTranscript || fernReply) ? (
+      {(lastTranscript || fernReply || askingFern || fernError) ? (
         <View style={styles.voiceBar}>
           {lastTranscript ? <Text style={styles.voiceTranscript}>"{lastTranscript}"</Text> : null}
-          {fernReply      ? <Text style={styles.voiceReply}>{fernReply}</Text> : null}
+          {askingFern     ? <Text style={styles.voiceReply}>{t('thinking')}</Text> : null}
+          {fernError      ? <Text style={styles.voiceError}>{t('askFernError')}</Text> : null}
+          {(!askingFern && !fernError && fernReply) ? <Text style={styles.voiceReply}>{fernReply}</Text> : null}
         </View>
       ) : null}
 
@@ -270,6 +291,7 @@ const styles = StyleSheet.create({
   voiceBar:        { backgroundColor:colors.forest, marginHorizontal:16, borderRadius:radius.lg, padding:12, marginBottom:8 },
   voiceTranscript: { color:colors.muted, fontSize:13, fontStyle:'italic', marginBottom:4 },
   voiceReply:      { color:colors.onFern, fontSize:14, fontWeight:'600' },
+  voiceError:      { color:colors.voiceRed, fontSize:14, fontWeight:'600' },
 
   loadingRow:      { flexDirection:'row', alignItems:'center', gap:8, paddingHorizontal:20, marginBottom:8 },
   loadingText:     { fontSize:12, color:colors.brown },
