@@ -5,6 +5,7 @@ import { colors } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 import { useFernVoice } from '../hooks/useFernVoice';
 import { useContinuousMic } from '../hooks/useContinuousMic';
+import useLanguage from '../hooks/useLanguage';
 
 const STOP_WORDS = ['stop', 'goodbye', 'done', 'exit', 'bye'];
 
@@ -14,6 +15,7 @@ function hasStopWord(text) {
 }
 
 export default function FamilyScreen({ user }) {
+    const { t } = useLanguage();
     const { pull } = useSync(user);
     const [lastTranscript, setLastTranscript] = useState('');
     const [loopStatus, setLoopStatus] = useState('idle');
@@ -24,7 +26,7 @@ export default function FamilyScreen({ user }) {
     const { speakText, getFernReply, isSpeaking, isThinking, lastReply, stopSpeaking } = useFernVoice({
         onError: message => {
             console.warn('[FamilyScreen] voice error:', message);
-            Alert.alert('Voice Error', message);
+            Alert.alert(t('voice_error_title'), message);
         },
     });
 
@@ -53,7 +55,7 @@ export default function FamilyScreen({ user }) {
         },
         onError: (error) => {
             console.warn('[FamilyScreen] mic error:', error);
-            Alert.alert('Microphone Error', error);
+            Alert.alert(t('mic_error_title'), error);
         },
     });
 
@@ -162,11 +164,11 @@ export default function FamilyScreen({ user }) {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.text}>🛒 Family List</Text>
-            <Text style={styles.sub}>Coming soon</Text>
+            <Text style={styles.text}>{t('family_list_title')}</Text>
+            <Text style={styles.sub}>{t('coming_soon')}</Text>
 
             <View style={styles.card}>
-                <Text style={styles.sectionTitle}>Continuous Mic Test</Text>
+                <Text style={styles.sectionTitle}>{t('continuous_mic_test')}</Text>
 
                 <Pressable
                     style={[
@@ -178,26 +180,26 @@ export default function FamilyScreen({ user }) {
                     disabled={isProcessing || isThinking || isSpeaking}
                 >
                     <Text style={styles.buttonText}>
-                        {isListening ? 'Listening...' : 'Start Listening'}
+                        {isListening ? t('mic_listening') : t('start_listening_btn')}
                     </Text>
                 </Pressable>
 
-                <Text style={styles.status}>Status: {loopStatus}</Text>
-                <Text style={styles.status}>Say "stop" to end the loop.</Text>
+                <Text style={styles.status}>{t('status_label', { status: loopStatus })}</Text>
+                <Text style={styles.status}>{t('say_stop_hint')}</Text>
 
-                <Text style={styles.replyLabel}>Last Transcript:</Text>
-                <Text style={styles.replyText}>{lastTranscript || 'No transcript yet.'}</Text>
-                <Text style={styles.replyLabel}>Last Reply:</Text>
-                <Text style={styles.replyText}>{lastReply || 'No reply yet.'}</Text>
+                <Text style={styles.replyLabel}>{t('last_transcript')}</Text>
+                <Text style={styles.replyText}>{lastTranscript || t('no_transcript_yet')}</Text>
+                <Text style={styles.replyLabel}>{t('last_reply')}</Text>
+                <Text style={styles.replyText}>{lastReply || t('no_reply_yet')}</Text>
 
-                <Text style={styles.sectionTitle}>Voice Hook Tests</Text>
+                <Text style={styles.sectionTitle}>{t('voice_hook_tests')}</Text>
 
                 <Pressable
                     style={[styles.actionButton, isThinking && styles.listenButtonDisabled]}
                     onPress={handleSpeakMealAdded}
                     disabled={isThinking}
                 >
-                    <Text style={styles.buttonText}>Speak: Meal Added</Text>
+                    <Text style={styles.buttonText}>{t('speak_meal_added')}</Text>
                 </Pressable>
 
                 <Pressable
@@ -205,7 +207,7 @@ export default function FamilyScreen({ user }) {
                     onPress={handleSpeakBloggerFollowed}
                     disabled={isThinking}
                 >
-                    <Text style={styles.buttonText}>Speak: Blogger Followed</Text>
+                    <Text style={styles.buttonText}>{t('speak_blogger_followed')}</Text>
                 </Pressable>
 
                 <Pressable
@@ -213,7 +215,7 @@ export default function FamilyScreen({ user }) {
                     onPress={handleReplyOnly}
                     disabled={isThinking}
                 >
-                    <Text style={styles.buttonText}>AI Reply Only</Text>
+                    <Text style={styles.buttonText}>{t('ai_reply_only')}</Text>
                 </Pressable>
 
                 <Pressable
@@ -221,7 +223,7 @@ export default function FamilyScreen({ user }) {
                     onPress={handleReplyAndSpeak}
                     disabled={isThinking}
                 >
-                    <Text style={styles.buttonText}>AI Reply + Speak</Text>
+                    <Text style={styles.buttonText}>{t('ai_reply_speak')}</Text>
                 </Pressable>
             </View>
         </View>

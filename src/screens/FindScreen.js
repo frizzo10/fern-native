@@ -13,6 +13,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useAudioPlayer } from 'expo-audio';
 import { useContinuousMic } from '../hooks/useContinuousMic';
+import useLanguage from '../hooks/useLanguage';
 
 const C = {
   forest: '#1C3A1A',
@@ -31,11 +32,12 @@ const STOP_WORDS = ['stop', 'goodbye', 'done', 'exit', 'bye'];
 
 // ── Message Bubble ────────────────────────────────────────────────────────────
 function MessageBubble({ msg }) {
+  const { t } = useLanguage();
   const isUser = msg.role === 'user';
   return (
     <View style={[s.bubble, isUser ? s.bubbleUser : s.bubbleFern]}>
-      {!isUser && <Text style={s.fernLabel}>🌿 Fern</Text>}
-      {isUser ? <Text style={s.userLabel}>{msg.source === 'typed' ? '⌨️ Typed' : '🎙 Spoken'}</Text> : null}
+      {!isUser && <Text style={s.fernLabel}>{t('fern_label')}</Text>}
+      {isUser ? <Text style={s.userLabel}>{msg.source === 'typed' ? t('msg_source_typed') : t('msg_source_spoken')}</Text> : null}
       <Text style={[s.bubbleText, isUser && s.bubbleTextUser]}>{msg.content}</Text>
     </View>
   );
@@ -43,6 +45,7 @@ function MessageBubble({ msg }) {
 
 // ── Pulsing Mic Button ────────────────────────────────────────────────────────
 function MicButton({ isListening, onPress, disabled }) {
+  const { t } = useLanguage();
   const pulse = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -68,15 +71,16 @@ function MicButton({ isListening, onPress, disabled }) {
       ]}>
         <Text style={s.micIcon}>{isListening ? '🎙' : '🎤'}</Text>
       </Animated.View>
-      <Text style={s.micLabel}>{isListening ? 'Listening...' : 'Tap to talk to Fern'}</Text>
+      <Text style={s.micLabel}>{isListening ? t('mic_listening') : t('mic_tap_to_talk')}</Text>
     </TouchableOpacity>
   );
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function FindScreen() {
+  const { t } = useLanguage();
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: 'Hi! Ask me anything about food — recipes, what to make for dinner, substitutions, or scan your store circular for deals.' }
+    { role: 'assistant', content: t('welcome_message') }
   ]);
   const [textInput, setTextInput] = useState('');
   const [profile, setProfile] = useState({});
@@ -99,7 +103,7 @@ export default function FindScreen() {
       if (STOP_WORDS.some(w => transcript.toLowerCase().includes(w))) {
         stop();
         addMessage('user', transcript, 'spoken');
-        addMessage('assistant', 'Goodbye! Tap the mic anytime to chat again.');
+        addMessage('assistant', t('goodbye_message'));
         setLoopState(null);
         restartAfterPlaybackRef.current = false;
         return;
@@ -115,7 +119,7 @@ export default function FindScreen() {
     },
     onError: (error) => {
       console.warn('[FindScreen] mic error:', error);
-      Alert.alert('Microphone Error', error);
+      Alert.alert(t('mic_error_title'), error);
     }
   });
 
@@ -169,7 +173,7 @@ export default function FindScreen() {
         })
       });
       const aiData = await aiRes.json();
-      const reply = aiData.content?.[0]?.text || 'Sorry, I had trouble with that. Try again?';
+      const reply = aiData.content?.[0]?.text || t('ai_reply_fallback');
       console.log('AI reply:', reply);
       addMessage('assistant', reply);
       setIsThinking(false);
@@ -179,7 +183,7 @@ export default function FindScreen() {
 
     } catch (e) {
       console.warn('talkToFern error:', e.message);
-      addMessage('assistant', 'Sorry, something went wrong. Please try again.');
+      addMessage('assistant', t('generic_error_message'));
       setIsThinking(false);
       setLoopState(null);
       restartAfterPlaybackRef.current = false;
@@ -259,7 +263,7 @@ export default function FindScreen() {
       ttsPlayer.play();
     } catch (e) {
       console.warn('TTS error:', e.message);
-      Alert.alert('TTS Error', e.message);
+      Alert.alert(t('tts_error_title'), e.message);
       setIsSpeaking(false);
       setLoopState(null);
       restartAfterPlaybackRef.current = false;
@@ -290,7 +294,7 @@ export default function FindScreen() {
     await talkToFern(text);
   }
 
-  const statusText = isThinking ? 'Thinking...' : isSpeaking ? 'Speaking...' : loopState === 'listening' ? 'Listening...' : '';
+  const statusText = isThinking ? t('mic_thinking_status') : isSpeaking ? t('mic_speaking_status') : loopState === 'listening' ? t('mic_listening') : '';
 
   return (
     <KeyboardAvoidingView
@@ -317,7 +321,7 @@ export default function FindScreen() {
           {isThinking && (
             <View style={s.thinking}>
               <ActivityIndicator size="small" color={C.orange} />
-              <Text style={s.thinkingText}>Fern is thinking...</Text>
+              <Text style={s.thinkingText}>{t('fern_thinking')}</Text>
             </View>
           )}
         </ScrollView>
@@ -335,7 +339,7 @@ export default function FindScreen() {
         <View style={s.inputRow}>
           <TextInput
             style={s.textInput}
-            placeholder="Or type to Fern..."
+            placeholder={t('type_to_fern')}
             placeholderTextColor={C.brown}
             value={textInput}
             onChangeText={setTextInput}

@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { getDifficultyLevel } from '../utils/recipeNormalize';
+import useLanguage from '../hooks/useLanguage';
 
 export default function RecipeDetailModal({
   recipe,
@@ -24,6 +25,7 @@ export default function RecipeDetailModal({
   showSavedIndicator = false,
   onDeleteRecipe,
 }) {
+  const { t } = useLanguage();
   return (
     <Modal
       visible={!!recipe}
@@ -94,7 +96,7 @@ export default function RecipeDetailModal({
                   </View>
 
                   {showSavedIndicator && isAlreadySaved ? (
-                    <Text style={styles.alreadySavedText}>✓ Already in your recipe box</Text>
+                    <Text style={styles.alreadySavedText}>{t('already_saved_indicator')}</Text>
                   ) : null}
 
                   <View style={styles.overlayDivider} />
@@ -114,13 +116,13 @@ export default function RecipeDetailModal({
                     </View>
                   </View>
 
-                  <Text style={styles.overlaySectionTitle}>INGREDIENTS <Text style={styles.overlayServings}>• {recipe.servings} servings</Text></Text>
+                  <Text style={styles.overlaySectionTitle}>{t('ingredients_title')} <Text style={styles.overlayServings}>• {recipe.servings} {t('servings_label')}</Text></Text>
 
                   <View style={styles.overlayTopActionsRow}>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>↕ Scale</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>🍷 Pair</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>🎨 Plate</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayActionPill, styles.overlayActionPillCook]}><Text style={styles.overlayActionText}>🎙 Cook</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_scale')}</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_pair')}</Text></TouchableOpacity>
+                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_plate')}</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.overlayActionPill, styles.overlayActionPillCook]}><Text style={styles.overlayActionText}>{t('action_cook')}</Text></TouchableOpacity>
                   </View>
 
                   <View style={styles.overlayDivider} />
@@ -133,9 +135,9 @@ export default function RecipeDetailModal({
                     ))}
                   </View>
 
-                  <Text style={styles.overlayTipText}>💡 Tap any ingredient for Pro substitutions</Text>
+                  <Text style={styles.overlayTipText}>{t('ingredient_tip')}</Text>
 
-                  <Text style={styles.overlaySectionTitle}>METHOD</Text>
+                  <Text style={styles.overlaySectionTitle}>{t('method_title')}</Text>
                   <View style={styles.overlayDivider} />
 
                   {recipe.methodSteps.map((step, idx) => (
@@ -145,13 +147,13 @@ export default function RecipeDetailModal({
                     </View>
                   ))}
 
-                  <Text style={styles.overlaySectionTitle}>MY NOTE</Text>
+                  <Text style={styles.overlaySectionTitle}>{t('my_note_title')}</Text>
                   <View style={styles.overlayDivider} />
 
                   <View style={styles.overlayNoteBox}>
                     <TextInput
                       multiline
-                      placeholder="Add your own note - tips, substitutions, memories..."
+                      placeholder={t('own_note_placeholder')}
                       placeholderTextColor="#A9A9A9"
                       value={noteText}
                       onChangeText={onChangeNoteText}
@@ -165,7 +167,7 @@ export default function RecipeDetailModal({
                     onPress={onSaveNote}
                     disabled={isSaving}
                   >
-                    <Text style={styles.overlaySaveNoteBtnText}>SAVE NOTE</Text>
+                    <Text style={styles.overlaySaveNoteBtnText}>{t('save_note_caps_btn')}</Text>
                   </TouchableOpacity>
 
                   <View style={styles.overlayDivider} />
@@ -177,18 +179,18 @@ export default function RecipeDetailModal({
                       disabled={isSaving}
                     >
                       <Text style={styles.overlayBottomBtnTextLight}>
-                        {isAlreadySaved ? '💾 SAVE' : '💾 Save to Recipes'}
+                        {isAlreadySaved ? t('save_short_btn') : t('save_to_recipes_btn')}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}><Text style={styles.overlayBottomBtnTextLight}>✨ Share</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]}><Text style={styles.overlayBottomBtnTextLight}>🛒 List</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>🥕 Instacart</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>✏️ Edit</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}><Text style={styles.overlayBottomBtnTextLight}>{t('share_sparkle_btn')}</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]}><Text style={styles.overlayBottomBtnTextLight}>{t('list_btn')}</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>{t('instacart_btn')}</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>{t('edit_btn_recipes')}</Text></TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.overlayBottomBtn, styles.overlayBottomBtnClose]}
                       onPress={onClose}
                     >
-                      <Text style={styles.overlayBottomBtnTextDark}>Close</Text>
+                      <Text style={styles.overlayBottomBtnTextDark}>{t('close_btn')}</Text>
                     </TouchableOpacity>
                     {onDeleteRecipe ? (
                       <TouchableOpacity
@@ -196,7 +198,7 @@ export default function RecipeDetailModal({
                         onPress={onDeleteRecipe}
                         disabled={isSaving}
                       >
-                        <Text style={styles.overlayBottomBtnTextDelete}>🗑 Delete</Text>
+                        <Text style={styles.overlayBottomBtnTextDelete}>{t('delete_short_btn')}</Text>
                       </TouchableOpacity>
                     ) : null}
                   </View>

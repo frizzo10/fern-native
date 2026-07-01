@@ -24,6 +24,7 @@ import {
   getRawRecipeId,
 } from '../utils/recipeNormalize';
 import { fetchRecipeImage } from '../utils/recipeImage';
+import useLanguage from '../hooks/useLanguage';
 
 function normalizeBook(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.book_title, item?.label, `Cookbook ${index + 1}`);
@@ -67,6 +68,7 @@ function normalizeBook(item, index) {
 }
 
 export default function RecipesScreen({ user }) {
+  const { t } = useLanguage();
   const route = useRoute();
   const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
   const [tab, setTab] = useState('recipes');
@@ -154,12 +156,12 @@ export default function RecipesScreen({ user }) {
     if (!selectedRecipe) return;
 
     Alert.alert(
-      'Delete Recipe',
-      `Delete "${selectedRecipe.title}" from your saved recipes?`,
+      t('delete_recipe_title'),
+      t('delete_recipe_desc', { title: selectedRecipe.title }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel_btn'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete_recipe_confirm'),
           style: 'destructive',
           onPress: async () => {
             setIsSaving(true);
@@ -201,7 +203,7 @@ export default function RecipesScreen({ user }) {
               await pull();
             } catch (e) {
               console.warn('Delete recipe failed:', e);
-              Alert.alert('Delete failed', 'Could not delete this recipe right now.');
+              Alert.alert(t('delete_recipe_failed_title'), t('delete_recipe_failed_desc'));
             } finally {
               setIsSaving(false);
             }
@@ -215,12 +217,12 @@ export default function RecipesScreen({ user }) {
     if (!selectedBook) return;
 
     Alert.alert(
-      'Delete Cookbook',
-      `Delete "${selectedBook.title}" from your cookbooks?`,
+      t('delete_cookbook_title'),
+      t('delete_cookbook_desc', { title: selectedBook.title }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('cancel_btn'), style: 'cancel' },
         {
-          text: 'Delete',
+          text: t('delete_recipe_confirm'),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -261,7 +263,7 @@ export default function RecipesScreen({ user }) {
               await pull();
             } catch (e) {
               console.warn('Delete cookbook failed:', e);
-              Alert.alert('Delete failed', 'Could not delete this cookbook right now.');
+              Alert.alert(t('delete_recipe_failed_title'), t('delete_cookbook_failed_desc'));
             }
           },
         },
@@ -397,7 +399,7 @@ export default function RecipesScreen({ user }) {
                 style={[styles.tabButton, tab === 'recipes' ? styles.tabButtonActive : null]}
               >
                 <Text style={[styles.tabButtonText, tab === 'recipes' ? styles.tabButtonTextActive : null]}>
-                  Recipes
+                  {t('recipes_tab')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -406,7 +408,7 @@ export default function RecipesScreen({ user }) {
                 style={[styles.tabButton, tab === 'cookbooks' ? styles.tabButtonActive : null]}
               >
                 <Text style={[styles.tabButtonText, tab === 'cookbooks' ? styles.tabButtonTextActive : null]}>
-                  Cookbooks
+                  {t('cookbooks_tab')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -414,7 +416,7 @@ export default function RecipesScreen({ user }) {
             {tab === 'recipes' ? (
               <View style={styles.searchBox}>
                 <TextInput
-                  placeholder="Search recipes..."
+                  placeholder={t('search_recipes_placeholder')}
                   placeholderTextColor="#AA9D8C"
                   value={query}
                   onChangeText={setQuery}
@@ -445,7 +447,7 @@ export default function RecipesScreen({ user }) {
                       imageStyle={styles.recipeImageInner}
                     >
                       <View style={styles.badgePill}>
-                        <Text style={styles.badgePillText}>📚 MY RECIPES</Text>
+                        <Text style={styles.badgePillText}>{t('my_recipes_badge')}</Text>
                       </View>
                     </ImageBackground>
                   </View>
@@ -459,7 +461,7 @@ export default function RecipesScreen({ user }) {
 
                     <Text style={styles.noteHint}>
                       {(noteByRecipeId[recipe.id] ?? recipe.note)
-                        ? 'Note saved'
+                        ? t('note_saved_badge')
                         : ' '}
                     </Text>
 
@@ -485,8 +487,8 @@ export default function RecipesScreen({ user }) {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No saved recipes yet</Text>
-              <Text style={styles.emptySub}>Saved recipes from sync will appear here.</Text>
+              <Text style={styles.emptyTitle}>{t('no_saved_recipes_title')}</Text>
+              <Text style={styles.emptySub}>{t('no_saved_recipes_sub')}</Text>
             </View>
           )
         ) : (
@@ -498,22 +500,22 @@ export default function RecipesScreen({ user }) {
                   onPress={() => setSelectedBook(null)}
                   style={[styles.bookActionBtn, styles.bookActionBtnMuted]}
                 >
-                  <Text style={styles.bookActionTextLight}>← Back</Text>
+                  <Text style={styles.bookActionTextLight}>{t('back_btn')}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.bookDetailActionsRow}>
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnMuted, styles.bookActionBtnWide]}>
-                  <Text style={styles.bookActionTextLight}>＋ Add Recipes</Text>
+                  <Text style={styles.bookActionTextLight}>{t('add_recipes_btn')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnGreen]}>
-                  <Text style={styles.bookActionTextLight}>✏️ Edit</Text>
+                  <Text style={styles.bookActionTextLight}>{t('edit_btn_recipes')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnShare]}>
-                  <Text style={styles.bookActionTextLight}>✦ Share</Text>
+                  <Text style={styles.bookActionTextLight}>{t('share_btn')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnDarkGreen]}>
-                  <Text style={styles.bookActionTextLight}>🎙 Ask Fern</Text>
+                  <Text style={styles.bookActionTextLight}>{t('ask_fern_recipes')}</Text>
                 </TouchableOpacity>
               </View>
 
@@ -533,7 +535,9 @@ export default function RecipesScreen({ user }) {
                     </ImageBackground>
                   ) : null}
                   <Text style={styles.bookDetailTitle}>{selectedBook.title}</Text>
-                  <Text style={styles.bookDetailCount}>{selectedBookRecipes.length} RECIPE{selectedBookRecipes.length === 1 ? '' : 'S'}</Text>
+                  <Text style={styles.bookDetailCount}>
+                    {t(selectedBookRecipes.length === 1 ? 'recipe_count_singular' : 'recipe_count_plural', { count: selectedBookRecipes.length })}
+                  </Text>
                   <Text style={styles.bookDetailSparkle}>✦</Text>
                 </View>
 
@@ -561,8 +565,8 @@ export default function RecipesScreen({ user }) {
                     </View>
                   ) : (
                     <View style={styles.bookDetailEmpty}>
-                      <Text style={styles.bookDetailEmptyTitle}>No recipes in this cookbook yet</Text>
-                      <Text style={styles.bookDetailEmptySub}>Saved recipes with a matching book ID will appear here.</Text>
+                      <Text style={styles.bookDetailEmptyTitle}>{t('no_recipes_cookbook')}</Text>
+                      <Text style={styles.bookDetailEmptySub}>{t('no_recipes_cookbook_sub')}</Text>
                     </View>
                   )}
                 </View>
@@ -581,11 +585,11 @@ export default function RecipesScreen({ user }) {
           ) : booksWithMatchedCounts.length ? (
             <View style={styles.cookbooksWrap}>
               <View style={[styles.cookbooksHero, shadow.strong]}>
-                <Text style={styles.cookbooksHeroTitle}>My cookbooks</Text>
-                <Text style={styles.cookbooksHeroSub}>Tap a cookbook to browse its recipes</Text>
+                <Text style={styles.cookbooksHeroTitle}>{t('my_cookbooks_title')}</Text>
+                <Text style={styles.cookbooksHeroSub}>{t('tap_cookbook_browse')}</Text>
 
                 <TouchableOpacity style={styles.newBookBtn} activeOpacity={0.85}>
-                  <Text style={styles.newBookBtnText}>+ NEW COOKBOOK</Text>
+                  <Text style={styles.newBookBtnText}>{t('new_cookbook_btn')}</Text>
                 </TouchableOpacity>
 
                 <View style={styles.bookshelfDeck}>
@@ -635,8 +639,8 @@ export default function RecipesScreen({ user }) {
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyTitle}>No cookbooks yet</Text>
-              <Text style={styles.emptySub}>Cookbooks from your API sync will appear here.</Text>
+              <Text style={styles.emptyTitle}>{t('no_cookbooks_title')}</Text>
+              <Text style={styles.emptySub}>{t('no_cookbooks_sub')}</Text>
             </View>
           )
         )}

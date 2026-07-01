@@ -1,8 +1,10 @@
 import React from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../constants/tokens';
+import useLanguage from '../../hooks/useLanguage';
 
 export default function AlexaSkillModal({ visible, onClose }) {
+    const { t } = useLanguage();
     return (
         <Modal
             transparent
@@ -26,24 +28,24 @@ export default function AlexaSkillModal({ visible, onClose }) {
                                 <Text style={styles.alexaIcon}>🔊</Text>
                             </View>
                             <View style={styles.alexaHeaderTextWrap}>
-                                <Text style={styles.alexaTitle}>Alexa Skill</Text>
-                                <Text style={styles.alexaSubtitle}>Pro Max · Hands-free cooking</Text>
+                                <Text style={styles.alexaTitle}>{t('alexa_title')}</Text>
+                                <Text style={styles.alexaSubtitle}>{t('alexa_subtitle')}</Text>
                             </View>
                         </View>
 
                         <View style={styles.alexaHeroCard}>
                             <Text style={styles.alexaHeroLeaf}>🌿</Text>
-                            <Text style={styles.alexaHeroTitle}>fern for Alexa</Text>
-                            <Text style={styles.alexaHeroSubtitle}>Hands-free cooking, your weekly plan, and real-time shopping guidance on Echo Show.</Text>
+                            <Text style={styles.alexaHeroTitle}>{t('alexa_hero_title')}</Text>
+                            <Text style={styles.alexaHeroSubtitle}>{t('alexa_hero_sub')}</Text>
                         </View>
 
-                        <Text style={styles.alexaHowTitle}>HOW TO CONNECT</Text>
+                        <Text style={styles.alexaHowTitle}>{t('how_to_connect')}</Text>
 
                         {[
-                            { step: '1', emoji: '📱', title: 'Open the Alexa app', sub: 'On your iPhone or Android' },
-                            { step: '2', emoji: '🔎', title: 'Search for Fern', sub: 'Skills & Games → Search' },
-                            { step: '3', emoji: '🔗', title: 'Enable skill & link account', sub: 'Sign in with your Fern credentials' },
-                            { step: '4', emoji: '🔊', title: 'Say "Alexa, open Fern"', sub: 'On any Echo or Echo Show device' },
+                            { step: '1', emoji: '📱', title: t('alexa_step_1'), sub: t('alexa_step_1_sub') },
+                            { step: '2', emoji: '🔎', title: t('alexa_step_2'), sub: t('alexa_step_2_sub') },
+                            { step: '3', emoji: '🔗', title: t('alexa_step_3'), sub: t('alexa_step_3_sub') },
+                            { step: '4', emoji: '🔊', title: t('alexa_step_4'), sub: t('alexa_step_4_sub') },
                         ].map((item, idx) => (
                             <View key={`alexa-step-${item.step}`}>
                                 <View style={styles.alexaStepRow}>
@@ -61,12 +63,12 @@ export default function AlexaSkillModal({ visible, onClose }) {
                         ))}
 
                         <View style={styles.alexaSkillIdCard}>
-                            <Text style={styles.alexaSkillIdLabel}>SKILL ID</Text>
+                            <Text style={styles.alexaSkillIdLabel}>{t('skill_id_label')}</Text>
                             <Text style={styles.alexaSkillIdText}>amzn1.ask.skill.76006692-3bd6-42c3-9d38-348501ea9099</Text>
                         </View>
 
                         <TouchableOpacity style={styles.alexaConnectBtn} activeOpacity={0.85} onPress={onClose}>
-                            <Text style={styles.alexaConnectBtnText}>Got it — Connected now</Text>
+                            <Text style={styles.alexaConnectBtnText}>{t('got_it_btn')}</Text>
                         </TouchableOpacity>
                     </ScrollView>
                 </View>

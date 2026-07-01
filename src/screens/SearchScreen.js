@@ -23,6 +23,7 @@ import { useSync } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import { pickFirst, getRawRecipeId, normalizeRecipe, normalizeAiRecipe } from '../utils/recipeNormalize';
 import { fetchRecipeImage } from '../utils/recipeImage';
+import useLanguage from '../hooks/useLanguage';
 
 const AI_SEARCH_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 
@@ -47,7 +48,7 @@ function parseAiRecipeList(rawText) {
     }
 }
 
-function SearchResultCard({ recipe, isSaved, onPress }) {
+function SearchResultCard({ recipe, isSaved, onPress, t }) {
     return (
         <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.resultCard, shadow.card]}>
             <View style={styles.resultImageWrap}>
@@ -61,7 +62,7 @@ function SearchResultCard({ recipe, isSaved, onPress }) {
                 </ImageBackground>
                 {isSaved ? (
                     <View style={styles.savedBadge}>
-                        <Text style={styles.savedBadgeText}>📚 SAVED</Text>
+                        <Text style={styles.savedBadgeText}>{t('results_saved_badge')}</Text>
                     </View>
                 ) : null}
             </View>
@@ -88,7 +89,7 @@ function SearchResultCard({ recipe, isSaved, onPress }) {
                 {isSaved ? (
                     <>
                         <View style={styles.resultDivider} />
-                        <Text style={styles.resultSavedNote}>✓ Already in your recipe box</Text>
+                        <Text style={styles.resultSavedNote}>{t('already_saved_indicator')}</Text>
                     </>
                 ) : null}
             </View>
@@ -123,6 +124,7 @@ function BloggerCard({ item, onPress }) {
 export default function SearchScreen({ user }) {
     const navigation = useNavigation();
     const route = useRoute();
+    const { t } = useLanguage();
     const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
     const [searchText, setSearchText] = useState('');
     const [cravingText, setCravingText] = useState('');
@@ -237,7 +239,7 @@ export default function SearchScreen({ user }) {
                 console.log('[bloggers-sync] pull complete after upload');
             } catch (e) {
                 console.log('[bloggers-sync] upload/pull failed', e?.message || e);
-                Alert.alert('Sync error', 'Could not sync followed bloggers. Please try again.');
+                Alert.alert(t('sync_error'), t('sync_bloggers_error_desc'));
             } finally {
                 isSyncingRef.current = false;
             }
@@ -327,7 +329,7 @@ export default function SearchScreen({ user }) {
             });
         } catch (e) {
             console.warn('[ai-search] request failed', e);
-            Alert.alert('Search failed', 'Could not reach Fern AI search right now. Please try again.');
+            Alert.alert(t('search_failed'), t('ai_search_failed_desc'));
         } finally {
             setIsSearching(false);
         }
@@ -336,7 +338,7 @@ export default function SearchScreen({ user }) {
     const runSearch = async () => {
         const query = searchText.trim();
         if (!query) {
-            Alert.alert('Search', 'Type an ingredient to search.');
+            Alert.alert(t('search_alert_title'), t('search_alert_desc'));
             return;
         }
 
@@ -419,7 +421,7 @@ export default function SearchScreen({ user }) {
             await pull();
         } catch (e) {
             console.warn('[ai-search] save recipe failed', e);
-            Alert.alert('Save failed', 'Could not save this recipe right now.');
+            Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
         } finally {
             setIsSavingRecipe(false);
         }
@@ -429,12 +431,12 @@ export default function SearchScreen({ user }) {
         if (!selectedRecipe) return;
 
         Alert.alert(
-            'Delete Recipe',
-            `Delete "${selectedRecipe.title}" from your saved recipes?`,
+            t('delete_recipe_title'),
+            t('delete_recipe_desc', { title: selectedRecipe.title }),
             [
-                { text: 'Cancel', style: 'cancel' },
+                { text: t('cancel_btn'), style: 'cancel' },
                 {
-                    text: 'Delete',
+                    text: t('delete_recipe_confirm'),
                     style: 'destructive',
                     onPress: async () => {
                         setIsSavingRecipe(true);
@@ -463,7 +465,7 @@ export default function SearchScreen({ user }) {
                             await pull();
                         } catch (e) {
                             console.warn('[ai-search] delete recipe failed', e);
-                            Alert.alert('Delete failed', 'Could not delete this recipe right now.');
+                            Alert.alert(t('delete_recipe_failed_title'), t('delete_recipe_failed_desc'));
                         } finally {
                             setIsSavingRecipe(false);
                         }
@@ -475,7 +477,10 @@ export default function SearchScreen({ user }) {
 
     const runCraving = () => {
         const query = cravingText.trim();
-        Alert.alert('Ask Fern', query ? `Fern will think about ${query}` : 'Tell Fern what you are craving.');
+        Alert.alert(
+            t('ask_fern_craving_title'),
+            query ? t('ask_fern_craving_thinking', { query }) : t('ask_fern_craving_empty')
+        );
     };
 
     const toggleFollow = async (blogger) => {
@@ -495,7 +500,7 @@ export default function SearchScreen({ user }) {
             await persistFollowedBloggersLocal(next);
             scheduleBloggersSync(next, removing ? 'delete' : 'add');
         } catch {
-            Alert.alert('Sync error', 'Could not update followed bloggers. Please try again.');
+            Alert.alert(t('sync_error'), t('sync_bloggers_error_desc'));
         }
     };
 
@@ -503,7 +508,7 @@ export default function SearchScreen({ user }) {
         try {
             await Linking.openURL(blogger.url);
         } catch {
-            Alert.alert('Recipes', `Could not open ${blogger.url}`);
+            Alert.alert(t('recipes_tab'), t('open_recipes_failed_desc', { url: blogger.url }));
         }
     };
 
@@ -519,46 +524,46 @@ export default function SearchScreen({ user }) {
                             <Image source={require('../../assets/icon.png')} style={styles.heroIcon} resizeMode="contain" />
                             <Text style={styles.wordmark}>fern</Text>
                         </View>
-                        <Text style={styles.tagline}>WEEKLY AD TO DINNER TABLE • PATENT PENDING</Text>
+                        <Text style={styles.tagline}>{t('tagline')}</Text>
                     </View>
 
                     {!hasSearched ? (
                         <>
                             <Text style={styles.title}>
-                                <Text style={styles.titleMain}>What are you </Text>
-                                <Text style={styles.titleAccent}>cooking</Text>
+                                <Text style={styles.titleMain}>{t('cooking_tonight_line1')}</Text>
+                                <Text style={styles.titleAccent}>{t('cooking_tonight_accent1')}</Text>
                                 <Text style={styles.titleMain}>{'\n'}</Text>
-                                <Text style={styles.titleAccent}>tonight?</Text>
+                                <Text style={styles.titleAccent}>{t('cooking_tonight_accent2')}</Text>
                             </Text>
 
                             <Text style={styles.subtitle}>
-                                Search by ingredient, scan your grocery circular, or let AI surprise you.
+                                {t('search_subtitle')}
                             </Text>
 
                             <View style={styles.searchCard}>
                                 <TextInput
                                     value={searchText}
                                     onChangeText={setSearchText}
-                                    placeholder="e.g. chicken thighs, ground beef, salmon..."
+                                    placeholder={t('search_input_placeholder')}
                                     placeholderTextColor="#C7B59E"
                                     style={styles.searchInput}
                                     returnKeyType="search"
                                     onSubmitEditing={runSearch}
                                 />
                                 <TouchableOpacity activeOpacity={0.9} onPress={runSearch} style={styles.searchButton}>
-                                    <Text style={styles.searchButtonText}>{'>SEARCH ✦'}</Text>
+                                    <Text style={styles.searchButtonText}>{t('search_btn')}</Text>
                                 </TouchableOpacity>
                             </View>
 
                             <View style={styles.quickActionsRow}>
                                 <ActionButton
-                                    label="Circular Scanner"
+                                    label={t('circular_scanner')}
                                     icon="📸"
-                                    onPress={() => Alert.alert('Circular Scanner', 'Open the grocery circular scanner.')}
+                                    onPress={() => Alert.alert(t('circular_scanner'), t('circular_scanner_stub_desc'))}
                                     style={styles.quickActionLeft}
                                 />
                                 <ActionButton
-                                    label="Suggest Something"
+                                    label={t('suggest_something')}
                                     icon="🤔"
                                     dark
                                     onPress={runSuggestSomething}
@@ -567,11 +572,11 @@ export default function SearchScreen({ user }) {
                             </View>
 
                             <View style={styles.cravingCard}>
-                                <Text style={styles.cravingLabel}>I Am Craving</Text>
+                                <Text style={styles.cravingLabel}>{t('i_am_craving')}</Text>
                                 <TextInput
                                     value={cravingText}
                                     onChangeText={setCravingText}
-                                    placeholder="an ingredient, a mood, a cuisine..."
+                                    placeholder={t('craving_placeholder')}
                                     placeholderTextColor="#9F9E99"
                                     style={styles.cravingInput}
                                     returnKeyType="done"
@@ -584,22 +589,22 @@ export default function SearchScreen({ user }) {
                                     }}
                                 />
                                 <TouchableOpacity activeOpacity={0.9} onPress={runCraving} style={styles.cravingButton}>
-                                    <Text style={styles.cravingButtonText}>{'>✦ Go'}</Text>
+                                    <Text style={styles.cravingButtonText}>{t('craving_btn')}</Text>
                                 </TouchableOpacity>
                             </View>
 
                             <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>👨‍🍳 FOOD BLOGGERS</Text>
+                                <Text style={styles.sectionTitle}>{t('food_bloggers_title')}</Text>
                                 <View style={styles.sectionHeaderActions}>
                                     <ActionButton
-                                        label="Ask Fern"
+                                        label={t('ask_fern_btn')}
                                         icon="🌿"
                                         dark={false}
-                                        onPress={() => Alert.alert('Ask Fern', 'Ask Fern about a recipe or ingredient.')}
+                                        onPress={() => Alert.alert(t('ask_fern_btn'), t('ask_fern_stub_desc'))}
                                         style={styles.askFernButton}
                                     />
                                     <TouchableOpacity activeOpacity={0.85} onPress={() => setIsBloggersModalOpen(true)}>
-                                        <Text style={styles.manageLink}>{'>Manage →'}</Text>
+                                        <Text style={styles.manageLink}>{t('manage_link')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
@@ -613,7 +618,7 @@ export default function SearchScreen({ user }) {
                                     <View style={[styles.bloggerCard, styles.followCard]}>
                                         <Text style={styles.followPlus}>+</Text>
                                     </View>
-                                    <Text style={styles.bloggerName}>Follow</Text>
+                                    <Text style={styles.bloggerName}>{t('follow_btn')}</Text>
                                 </TouchableOpacity>
                             </View>
                         </>
@@ -622,11 +627,15 @@ export default function SearchScreen({ user }) {
                             <View style={styles.resultsHeaderRow}>
                                 <View style={styles.resultsHeaderTextWrap}>
                                     <Text style={styles.resultsHeaderTitle}>
-                                        RESULTS FOR "{activeQuery.toUpperCase()}" — {savedCountInResults} SAVED · {searchResults.length} AI
+                                        {t('results_title', {
+                                            query: activeQuery.toUpperCase(),
+                                            savedCount: savedCountInResults,
+                                            aiCount: searchResults.length,
+                                        })}
                                     </Text>
                                 </View>
                                 <TouchableOpacity activeOpacity={0.85} onPress={resetSearch} style={styles.newSearchBtn}>
-                                    <Text style={styles.newSearchBtnText}>{'← New Search'}</Text>
+                                    <Text style={styles.newSearchBtnText}>{t('new_search_btn')}</Text>
                                 </TouchableOpacity>
                             </View>
 
@@ -637,7 +646,7 @@ export default function SearchScreen({ user }) {
                                     onPress={() => setShowOnlyMyRecipes((v) => !v)}
                                     style={[styles.filterPill, showOnlyMyRecipes ? styles.filterPillActive : null]}
                                 >
-                                    <Text style={styles.filterPillText}>📚 FROM MY RECIPES</Text>
+                                    <Text style={styles.filterPillText}>{t('from_my_recipes_filter')}</Text>
                                 </TouchableOpacity>
                                 <View style={styles.filterPillLine} />
                             </View>
@@ -645,7 +654,7 @@ export default function SearchScreen({ user }) {
                             {isSearching ? (
                                 <View style={styles.loadingWrap}>
                                     <ActivityIndicator color={colors.forest} />
-                                    <Text style={styles.loadingText}>Fern is searching for "{activeQuery}"...</Text>
+                                    <Text style={styles.loadingText}>{t('searching_results', { query: activeQuery })}</Text>
                                 </View>
                             ) : visibleResults.length ? (
                                 <View style={styles.resultsList}>
@@ -655,18 +664,19 @@ export default function SearchScreen({ user }) {
                                             recipe={recipe}
                                             isSaved={isResultSaved(recipe.title)}
                                             onPress={() => openSearchResultDetail(recipe)}
+                                            t={t}
                                         />
                                     ))}
                                 </View>
                             ) : (
                                 <View style={styles.emptyResultsWrap}>
                                     <Text style={styles.emptyResultsTitle}>
-                                        {showOnlyMyRecipes ? 'No saved recipes in these results' : 'No recipes found'}
+                                        {showOnlyMyRecipes ? t('no_saved_recipes') : t('no_recipes_found')}
                                     </Text>
                                     <Text style={styles.emptyResultsSub}>
                                         {showOnlyMyRecipes
-                                            ? 'Turn off the filter to see all AI results.'
-                                            : 'Try a different ingredient, dish, or chef name.'}
+                                            ? t('turn_off_filter')
+                                            : t('try_different_search')}
                                     </Text>
                                 </View>
                             )}
@@ -684,7 +694,7 @@ export default function SearchScreen({ user }) {
                         <SafeAreaView style={styles.modalSafeArea}>
                             <View style={styles.modalCard}>
                                 <View style={styles.modalHeader}>
-                                    <Text style={styles.modalTitle}>👨‍🍳 Food Bloggers</Text>
+                                    <Text style={styles.modalTitle}>{t('bloggers_title')}</Text>
                                     <TouchableOpacity
                                         activeOpacity={0.85}
                                         onPress={() => setIsBloggersModalOpen(false)}
@@ -695,7 +705,7 @@ export default function SearchScreen({ user }) {
                                 </View>
 
                                 <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-                                    <Text style={styles.followingTitle}>FOLLOWING ({followingBloggers.length})</Text>
+                                    <Text style={styles.followingTitle}>{t('following_label', { count: followingBloggers.length })}</Text>
 
                                     {followingBloggers.map((blogger) => (
                                         <View key={`following-${blogger.id}`} style={styles.manageRowCard}>
@@ -710,10 +720,10 @@ export default function SearchScreen({ user }) {
 
                                             <View style={styles.followingActions}>
                                                 <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn}>
-                                                    <Text style={styles.followingActionText}>New</Text>
+                                                    <Text style={styles.followingActionText}>{t('blogger_new')}</Text>
                                                 </TouchableOpacity>
                                                 <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn} onPress={() => openBloggerRecipes(blogger)}>
-                                                    <Text style={styles.followingRecipesText}>Recipes</Text>
+                                                    <Text style={styles.followingRecipesText}>{t('blogger_recipes')}</Text>
                                                 </TouchableOpacity>
                                                 <TouchableOpacity activeOpacity={0.85} style={styles.followingRemoveBtn} onPress={() => toggleFollow(blogger)}>
                                                     <Text style={styles.followingRemoveText}>×</Text>
@@ -726,7 +736,7 @@ export default function SearchScreen({ user }) {
                                         <TextInput
                                             value={bloggerQuery}
                                             onChangeText={setBloggerQuery}
-                                            placeholder="Search 50+ food bloggers..."
+                                            placeholder={t('blogger_search_placeholder')}
                                             placeholderTextColor="#AAA39A"
                                             style={styles.modalSearchInput}
                                         />
@@ -752,7 +762,7 @@ export default function SearchScreen({ user }) {
                                                     style={isFollowing ? styles.followingPill : styles.followPill}
                                                 >
                                                     <Text style={isFollowing ? styles.followingPillText : styles.followPillText}>
-                                                        {isFollowing ? '✓ Following' : '+ Follow'}
+                                                        {isFollowing ? t('blogger_following_pill') : t('blogger_follow_pill')}
                                                     </Text>
                                                 </TouchableOpacity>
                                             </View>

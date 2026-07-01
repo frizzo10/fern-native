@@ -11,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import { colors } from '../../constants/tokens';
+import useLanguage from '../../hooks/useLanguage';
 
 const CHARCUTERIE_OCCASIONS = [
     'Date Night',
@@ -68,6 +69,7 @@ export default function CharcuterieModal({
     onSaveBoard,
     onAskFern,
 }) {
+    const { t } = useLanguage();
     const hasBoard = Boolean(charcuterieResult);
     const garnishChips = [
         ...(Array.isArray(charcuterieResult?.garnishes) ? charcuterieResult.garnishes : []),
@@ -110,13 +112,13 @@ export default function CharcuterieModal({
                         keyboardShouldPersistTaps="handled"
                     >
                         <View style={styles.charcuterieTopRow}>
-                            <Text style={styles.charcuterieTopTitle}>🧀 Charcuterie Board Builder</Text>
+                            <Text style={styles.charcuterieTopTitle}>{`🧀 ${t('charcuterie_title')}`}</Text>
                         </View>
 
                         {hasBoard ? (
                             <View>
                                 <View style={styles.charcuterieResultHeroCard}>
-                                    <Text style={styles.charcuterieResultHeroKicker}>🧀 CHARCUTERIE BOARD</Text>
+                                    <Text style={styles.charcuterieResultHeroKicker}>{t('charcuterie_board_kicker')}</Text>
                                     <Text style={styles.charcuterieResultHeroTitle}>{charcuterieResult.title}</Text>
                                     {charcuterieResult.tagline ? <Text style={styles.charcuterieResultHeroTagline}>{charcuterieResult.tagline}</Text> : null}
                                     <View style={styles.charcuterieResultHeroMetaRow}>
@@ -125,14 +127,14 @@ export default function CharcuterieModal({
                                     </View>
                                 </View>
 
-                                {renderIngredientSection('Meats', '🥩', charcuterieResult.meats)}
-                                {renderIngredientSection('Cheeses', '🧀', charcuterieResult.cheeses)}
-                                {renderIngredientSection('Accompaniments', '🍇', charcuterieResult.accompaniments)}
-                                {renderIngredientSection('Crackers & Bread', '🍞', charcuterieResult.crackers)}
+                                {renderIngredientSection(t('section_meats'), '🥩', charcuterieResult.meats)}
+                                {renderIngredientSection(t('section_cheeses'), '🧀', charcuterieResult.cheeses)}
+                                {renderIngredientSection(t('section_accompaniments'), '🍇', charcuterieResult.accompaniments)}
+                                {renderIngredientSection(t('section_crackers'), '🍞', charcuterieResult.crackers)}
 
                                 {Array.isArray(charcuterieResult.drinks) && charcuterieResult.drinks.length ? (
                                     <View>
-                                        <Text style={styles.charcuterieSectionHeader}>🥤 Drinks</Text>
+                                        <Text style={styles.charcuterieSectionHeader}>{t('section_drinks')}</Text>
                                         {charcuterieResult.drinks.map((drink, index) => (
                                             <View key={`drink-${index}-${drink.name}`} style={styles.charcuterieResultItemCard}>
                                                 <Text style={styles.charcuterieResultItemTitle}>{`${drink.emoji || '🥤'} ${drink.name}`}</Text>
@@ -144,7 +146,7 @@ export default function CharcuterieModal({
 
                                 {garnishChips.length ? (
                                     <View>
-                                        <Text style={styles.charcuterieSectionHeader}>🌿 Garnishes & Drizzles</Text>
+                                        <Text style={styles.charcuterieSectionHeader}>{t('section_garnishes')}</Text>
                                         <View style={styles.charcuterieGarnishWrap}>
                                             {garnishChips.map((chip, index) => (
                                                 <View key={`${chip}-${index}`} style={styles.charcuterieGarnishChip}>
@@ -156,7 +158,7 @@ export default function CharcuterieModal({
                                 ) : null}
 
                                 <View style={styles.charcuterieBoardDiagramCard}>
-                                    <Text style={styles.charcuterieBoardDiagramTitle}>🎨 Board Diagram</Text>
+                                    <Text style={styles.charcuterieBoardDiagramTitle}>{t('board_diagram_title')}</Text>
                                     <Image
                                         source={require('../../../assets/boardDiagram.png')}
                                         style={styles.charcuterieBoardDiagramImage}
@@ -167,7 +169,7 @@ export default function CharcuterieModal({
 
                                 {Array.isArray(charcuterieResult.hostTips) && charcuterieResult.hostTips.length ? (
                                     <View style={styles.charcuterieTipsCard}>
-                                        <Text style={styles.charcuterieTimelineLabel}>💡 HOST TIPS</Text>
+                                        <Text style={styles.charcuterieTimelineLabel}>{t('host_tips_label')}</Text>
                                         {charcuterieResult.hostTips.map((tip, index) => (
                                             <Text key={`tip-${index}`} style={styles.charcuterieTipText}>{`• ${tip}`}</Text>
                                         ))}
@@ -176,7 +178,7 @@ export default function CharcuterieModal({
 
                                 {charcuterieResult.prepTimeline ? (
                                     <View style={styles.charcuterieTimelineCard}>
-                                        <Text style={styles.charcuterieTimelineLabel}>⏱ PREP TIMELINE</Text>
+                                        <Text style={styles.charcuterieTimelineLabel}>{t('prep_timeline_label')}</Text>
                                         <Text style={styles.charcuterieTimelineText}>{charcuterieResult.prepTimeline}</Text>
                                     </View>
                                 ) : null}
@@ -184,14 +186,14 @@ export default function CharcuterieModal({
                                 {Array.isArray(charcuterieResult.shoppingList) && charcuterieResult.shoppingList.length ? (
                                     <View style={styles.charcuterieShoppingCard}>
                                         <View style={styles.charcuterieShoppingHeaderRow}>
-                                            <Text style={styles.charcuterieShoppingTitle}>🛒 SHOPPING LIST</Text>
+                                            <Text style={styles.charcuterieShoppingTitle}>{t('shopping_list_title')}</Text>
                                             <TouchableOpacity
                                                 style={[styles.charcuterieShoppingAddAllBtn, isAddingCharcuterieToList ? styles.charcuterieActionBtnDisabled : null]}
                                                 activeOpacity={0.85}
                                                 onPress={onAddAllShoppingItems}
                                                 disabled={isAddingCharcuterieToList}
                                             >
-                                                <Text style={styles.charcuterieShoppingAddAllText}>{isAddingCharcuterieToList ? 'Adding...' : '+ Add items'}</Text>
+                                                <Text style={styles.charcuterieShoppingAddAllText}>{isAddingCharcuterieToList ? t('adding_ellipsis') : t('add_items_btn')}</Text>
                                             </TouchableOpacity>
                                         </View>
 
@@ -223,7 +225,7 @@ export default function CharcuterieModal({
                                         onPress={onSaveBoard}
                                         disabled={isSavingCharcuterieBoard}
                                     >
-                                        <Text style={styles.charcuterieSecondaryActionText}>{isSavingCharcuterieBoard ? 'Saving...' : '💾 Save'}</Text>
+                                        <Text style={styles.charcuterieSecondaryActionText}>{isSavingCharcuterieBoard ? t('saving_ellipsis') : t('save_btn')}</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
@@ -232,7 +234,7 @@ export default function CharcuterieModal({
                                         onPress={onAddAllShoppingItems}
                                         disabled={isAddingCharcuterieToList}
                                     >
-                                        <Text style={styles.charcuteriePrimaryActionText}>{isAddingCharcuterieToList ? 'Adding...' : '🛒 Add to Shopping List'}</Text>
+                                        <Text style={styles.charcuteriePrimaryActionText}>{isAddingCharcuterieToList ? t('adding_ellipsis') : t('add_to_shopping_list_btn')}</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity
@@ -240,17 +242,17 @@ export default function CharcuterieModal({
                                         activeOpacity={0.85}
                                         onPress={onBuildAnother}
                                     >
-                                        <Text style={styles.charcuterieSecondaryActionText}>← Build Another Board</Text>
+                                        <Text style={styles.charcuterieSecondaryActionText}>{t('build_another_board_btn')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>
                         ) : (
                             <View>
                                 <Text style={styles.charcuterieHero}>🧀</Text>
-                                <Text style={styles.charcuterieTitle}>Charcuterie Board Builder</Text>
-                                <Text style={styles.charcuterieSubtitle}>Tell us about your gathering and we'll design the perfect board.</Text>
+                                <Text style={styles.charcuterieTitle}>{t('charcuterie_title')}</Text>
+                                <Text style={styles.charcuterieSubtitle}>{t('charcuterie_form_subtitle')}</Text>
 
-                                <Text style={styles.charcuterieSectionLabel}>OCCASION</Text>
+                                <Text style={styles.charcuterieSectionLabel}>{t('occasion_label')}</Text>
                                 <View style={styles.charcuterieOccasionWrap}>
                                     {CHARCUTERIE_OCCASIONS.map((occasion) => {
                                         const selected = charcuterieOccasion === occasion;
@@ -267,7 +269,7 @@ export default function CharcuterieModal({
                                     })}
                                 </View>
 
-                                <Text style={styles.charcuterieSectionLabel}>BOARD STYLE</Text>
+                                <Text style={styles.charcuterieSectionLabel}>{t('board_style_label')}</Text>
                                 <View style={styles.charcuterieBoardGrid}>
                                     {CHARCUTERIE_BOARD_STYLES.map((styleItem) => {
                                         const selected = charcuterieBoardStyle === styleItem.id;
@@ -291,31 +293,31 @@ export default function CharcuterieModal({
 
                                 <View style={styles.charcuterieInputRow}>
                                     <View style={styles.charcuterieInputCol}>
-                                        <Text style={styles.charcuterieSectionLabel}>PEOPLE</Text>
+                                        <Text style={styles.charcuterieSectionLabel}>{t('people_label')}</Text>
                                         <TextInput
                                             value={charcuteriePeople}
                                             onChangeText={setCharcuteriePeople}
                                             keyboardType="number-pad"
-                                            placeholder="6"
+                                            placeholder={t('charcuterie_people_placeholder')}
                                             placeholderTextColor="#B5AA9B"
                                             style={styles.charcuterieInput}
                                         />
                                     </View>
 
                                     <View style={styles.charcuterieInputCol}>
-                                        <Text style={styles.charcuterieSectionLabel}>BUDGET $</Text>
+                                        <Text style={styles.charcuterieSectionLabel}>{t('charcuterie_budget_label')}</Text>
                                         <TextInput
                                             value={`${charcuterieBudget}`}
                                             onChangeText={setCharcuterieBudget}
                                             keyboardType="number-pad"
-                                            placeholder="60"
+                                            placeholder={t('charcuterie_budget_placeholder')}
                                             placeholderTextColor="#B5AA9B"
                                             style={styles.charcuterieInput}
                                         />
                                     </View>
 
                                     <View style={styles.charcuterieInputCol}>
-                                        <Text style={styles.charcuterieSectionLabel}>DIETARY</Text>
+                                        <Text style={styles.charcuterieSectionLabel}>{t('charcuterie_dietary_label')}</Text>
                                         <View style={styles.charcuteriePickerWrapper}>
                                             <TouchableOpacity
                                                 activeOpacity={0.8}
@@ -353,11 +355,11 @@ export default function CharcuterieModal({
                                     onPress={onBuild}
                                     disabled={isCharcuterieBuilding}
                                 >
-                                    {isCharcuterieBuilding ? <ActivityIndicator color="#FFF5EB" /> : <Text style={styles.charcuterieBuildBtnText}>🧀 Build My Board</Text>}
+                                    {isCharcuterieBuilding ? <ActivityIndicator color="#FFF5EB" /> : <Text style={styles.charcuterieBuildBtnText}>{t('build_my_board_btn')}</Text>}
                                 </TouchableOpacity>
 
                                 <TouchableOpacity style={styles.charcuterieAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
-                                    <Text style={styles.charcuterieAskFernText}>🌿 Ask Fern to Walk Me Through It</Text>
+                                    <Text style={styles.charcuterieAskFernText}>{t('ask_fern_walkthrough_btn')}</Text>
                                 </TouchableOpacity>
                             </View>
                         )}

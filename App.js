@@ -19,6 +19,8 @@ import { useAuth } from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
 import { useFonts } from 'expo-font';
+import { LanguageProvider } from './src/services/LanguageContext';
+import { useLanguage } from './src/hooks/useLanguage';
 
 const Tab = createBottomTabNavigator();
 
@@ -36,6 +38,7 @@ function TabIcon({ emoji, focused }) {
 }
 
 function AppTabHeader() {
+  const { t } = useLanguage();
   return (
     <View style={styles.appHeaderRow}>
       <Image
@@ -44,7 +47,7 @@ function AppTabHeader() {
       />
       <View>
         <Text style={styles.appHeaderText}>fern</Text>
-        <Text style={styles.appHeaderSubText}>WEEKLY AD TO DINNER TABLE • PATENT{"\n"}PENDING</Text>
+        <Text style={styles.appHeaderSubText}>{t('tagline')}</Text>
       </View>
     </View>
   );
@@ -52,6 +55,7 @@ function AppTabHeader() {
 
 // Store arrival banner — slides down from top
 function ArrivalBanner({ store, onShop, onDismiss }) {
+  const { t } = useLanguage();
   const slideAnim = React.useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
@@ -64,11 +68,11 @@ function ArrivalBanner({ store, onShop, onDismiss }) {
     <Animated.View style={[styles.banner, { transform: [{ translateY: slideAnim }] }]}>
       <Text style={styles.bannerEmoji}>🛒</Text>
       <View style={styles.bannerText}>
-        <Text style={styles.bannerTitle}>{store.name} — you've arrived</Text>
-        <Text style={styles.bannerSub}>Ready to shop with Fern?</Text>
+        <Text style={styles.bannerTitle}>{store.name} — {t('arrived')}</Text>
+        <Text style={styles.bannerSub}>{t('ready_to_shop')}</Text>
       </View>
       <TouchableOpacity style={styles.bannerBtn} onPress={onShop}>
-        <Text style={styles.bannerBtnText}>Shop</Text>
+        <Text style={styles.bannerBtnText}>{t('shop')}</Text>
       </TouchableOpacity>
       <TouchableOpacity onPress={onDismiss} style={styles.bannerClose}>
         <Text style={styles.bannerCloseText}>✕</Text>
@@ -90,27 +94,10 @@ async function checkForUpdate() {
   }
 }
 
-export default function App() {
-  const { user, loading, signInWithSupabase, signUpWithSupabase, signOut } = useAuth();
-  console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
+function AppNavigator({ user, signOut }) {
+  const { t } = useLanguage();
   const [arrivedStore, setArrivedStore] = useState(null);
   const [activeTab, setActiveTab] = useState('Home');
-
-  const [fontsLoaded] = useFonts({
-
-    'Playfair-Regular': require('./assets/fonts/PlayfairDisplay-Regular.ttf'),
-    'Playfair-Italic': require('./assets/fonts/PlayfairDisplay-Italic.ttf'),
-    'Playfair-Medium': require('./assets/fonts/PlayfairDisplay-Medium.ttf'),
-    'Playfair-MediumItalic': require('./assets/fonts/PlayfairDisplay-MediumItalic.ttf'),
-    'Playfair-SemiBold': require('./assets/fonts/PlayfairDisplay-SemiBold.ttf'),
-    'Playfair-SemiBoldItalic': require('./assets/fonts/PlayfairDisplay-SemiBoldItalic.ttf'),
-    'Playfair-Bold': require('./assets/fonts/PlayfairDisplay-Bold.ttf'),
-
-    'Jost-Regular': require('./assets/fonts/Jost-Regular.ttf'),
-    'Jost-SemiBold': require('./assets/fonts/Jost-SemiBold.ttf'),
-    'Jost-Bold': require('./assets/fonts/Jost-Bold.ttf'),
-
-  });
 
   // Mock stores — replace with sync from useSync
   const userStores = user ? [] : []; // populated from sync data
@@ -122,33 +109,10 @@ export default function App() {
     },
   });
 
-  useEffect(() => {
-    checkForUpdate();
-  }, []);
-
   // Start geofencing once user is logged in
   useEffect(() => {
     if (user) startGeofence();
   }, [user]);
-
-  if (loading) return null;
-
-  if (!user) {
-    console.log(user)
-    return (
-      <>
-        <StatusBar style="light" />
-        <LoginScreen
-          onAuthSuccess={() => {
-            // User state is automatically updated by useAuth hook
-            // The app will re-render when user state changes
-          }}
-          signInWithSupabase={signInWithSupabase}
-          signUpWithSupabase={signUpWithSupabase}
-        />
-      </>
-    );
-  }
 
   return (
     <NavigationContainer>
@@ -202,20 +166,26 @@ export default function App() {
 
         <Tab.Screen
           name="Home"
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }}
+          options={{
+            tabBarLabel: t('nav_home'),
+            tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />
+          }}
         >
           {() => <HomeScreen user={user} />}
         </Tab.Screen>
         <Tab.Screen
           name="Find"
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }}
+          options={{
+            tabBarLabel: t('nav_find'),
+            tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} />
+          }}
         >
           {() => <SearchScreen user={user} />}
         </Tab.Screen>
         <Tab.Screen
           name="Family"
           options={{
-            tabBarLabel: 'FAMILY HUB',
+            tabBarLabel: t('nav_family'),
             tabBarIcon: ({ focused }) => <TabIcon emoji="📆" focused={focused} />,
           }}
         >
@@ -224,7 +194,10 @@ export default function App() {
 
         <Tab.Screen
           name="Recipes"
-          options={{ tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} /> }}
+          options={{
+            tabBarLabel: t('nav_recipes'),
+            tabBarIcon: ({ focused }) => <TabIcon emoji="📖" focused={focused} />
+          }}
         >
           {() => <RecipesScreen user={user} />}
         </Tab.Screen>
@@ -248,6 +221,7 @@ export default function App() {
             },
           }}
           options={{
+            tabBarLabel: t('nav_logout'),
             tabBarIcon: ({ focused }) => (
               <Ionicons
                 name="log-out"
@@ -265,6 +239,57 @@ export default function App() {
   );
 }
 
+function MainAppContent() {
+  const { user, loading, signInWithSupabase, signUpWithSupabase, signOut } = useAuth();
+  console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
+
+  useEffect(() => {
+    checkForUpdate();
+  }, []);
+
+  if (loading) return null;
+
+  if (!user) {
+    console.log(user)
+    return (
+      <>
+        <StatusBar style="light" />
+        <LoginScreen
+          onAuthSuccess={() => {
+            // User state is automatically updated by useAuth hook
+            // The app will re-render when user state changes
+          }}
+          signInWithSupabase={signInWithSupabase}
+          signUpWithSupabase={signUpWithSupabase}
+        />
+      </>
+    );
+  }
+
+  return <AppNavigator user={user} signOut={signOut} />;
+}
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    'Playfair-Regular': require('./assets/fonts/PlayfairDisplay-Regular.ttf'),
+    'Playfair-Italic': require('./assets/fonts/PlayfairDisplay-Italic.ttf'),
+    'Playfair-Medium': require('./assets/fonts/PlayfairDisplay-Medium.ttf'),
+    'Playfair-MediumItalic': require('./assets/fonts/PlayfairDisplay-MediumItalic.ttf'),
+    'Playfair-SemiBold': require('./assets/fonts/PlayfairDisplay-SemiBold.ttf'),
+    'Playfair-SemiBoldItalic': require('./assets/fonts/PlayfairDisplay-SemiBoldItalic.ttf'),
+    'Playfair-Bold': require('./assets/fonts/PlayfairDisplay-Bold.ttf'),
+
+    'Jost-Regular': require('./assets/fonts/Jost-Regular.ttf'),
+    'Jost-SemiBold': require('./assets/fonts/Jost-SemiBold.ttf'),
+    'Jost-Bold': require('./assets/fonts/Jost-Bold.ttf'),
+  });
+
+  return (
+    <LanguageProvider>
+      <MainAppContent />
+    </LanguageProvider>
+  );
+}
 
 const styles = StyleSheet.create({
   appHeaderRow: {

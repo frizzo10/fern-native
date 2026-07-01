@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
+import useLanguage from '../hooks/useLanguage';
 
 const QUICK_ADD_ITEMS = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Butter', 'Pasta'];
 const FERN_STARTER_ITEMS = ['Olive oil', 'Garlic', 'Onion', 'Chicken', 'Rice'];
@@ -50,6 +51,7 @@ function toSyncPayload(list) {
 }
 
 export default function ShoppingScreen({ user }) {
+  const { t } = useLanguage();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState('');
@@ -100,7 +102,7 @@ export default function ShoppingScreen({ user }) {
       console.log('[shopping] latest sync response', response);
     } catch (e) {
       console.warn('Save shopping list failed:', e);
-      Alert.alert('Could not save', 'Please try again.');
+      Alert.alert(t('save_error_title'), t('save_error_desc'));
     } finally {
       setSaving(false);
     }
@@ -112,7 +114,7 @@ export default function ShoppingScreen({ user }) {
 
     const exists = items.some((item) => item.text.toLowerCase() === text.toLowerCase());
     if (exists) {
-      Alert.alert('Already on your list', 'That item is already added.');
+      Alert.alert(t('quick_item_exists'), t('quick_item_exists_desc'));
       return;
     }
 
@@ -151,7 +153,7 @@ export default function ShoppingScreen({ user }) {
       }));
 
     if (!additions.length) {
-      Alert.alert('Already stocked', 'Your list already includes Fern starter essentials.');
+      Alert.alert(t('fern_starter_stocked'), t('fern_starter_stocked_desc'));
       return;
     }
 
@@ -163,7 +165,7 @@ export default function ShoppingScreen({ user }) {
       const recipeSuffix = item.recipe ? ` (${item.recipe})` : '';
       return `${item.checked ? '✓' : '•'} ${item.text}${recipeSuffix}`;
     });
-    const message = lines.length ? `Fern Shopping List\n\n${lines.join('\n')}` : 'Fern Shopping List is empty.';
+    const message = lines.length ? `${t('share_list_header')}\n\n${lines.join('\n')}` : t('share_list_empty');
     try {
       await Share.share({ message });
     } catch (e) {
@@ -175,10 +177,10 @@ export default function ShoppingScreen({ user }) {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
-          <Text style={styles.title}>🛒 Shopping List</Text>
+          <Text style={styles.title}>{t('shopping_screen_title')}</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.shareBtn} activeOpacity={0.86} onPress={shareList}>
-              <Text style={styles.shareBtnText}>✦ Share</Text>
+              <Text style={styles.shareBtnText}>{t('share_button')}</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.clipBtn} activeOpacity={0.86}>
               <Text style={styles.clipBtnText}>📋</Text>
@@ -191,17 +193,17 @@ export default function ShoppingScreen({ user }) {
             <Text style={styles.voiceIcon}>🎙</Text>
           </View>
           <View style={styles.voiceTextWrap}>
-            <Text style={styles.voiceTitle}>Add items with your voice</Text>
-            <Text style={styles.voiceSub}>"olive oil, garlic, and chicken"</Text>
+            <Text style={styles.voiceTitle}>{t('voice_card_title')}</Text>
+            <Text style={styles.voiceSub}>{t('voice_card_sub')}</Text>
           </View>
-          <Text style={styles.voiceTap}>TAP</Text>
+          <Text style={styles.voiceTap}>{t('voice_card_tap')}</Text>
         </TouchableOpacity>
 
         <View style={styles.addRow}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
-            placeholder="Type an item..."
+            placeholder={t('type_item_placeholder')}
             placeholderTextColor="#AAA39A"
             style={styles.input}
             returnKeyType="done"
@@ -217,7 +219,7 @@ export default function ShoppingScreen({ user }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.quickLabel}>QUICK ADD</Text>
+        <Text style={styles.quickLabel}>{t('quick_add_title')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
           {QUICK_ADD_ITEMS.map((item) => (
             <TouchableOpacity
@@ -233,7 +235,11 @@ export default function ShoppingScreen({ user }) {
 
         {items.length ? (
           <View style={styles.listWrap}>
-            <Text style={styles.listMeta}>{remainingCount} item{remainingCount === 1 ? '' : 's'} remaining</Text>
+            <Text style={styles.listMeta}>
+              {remainingCount === 1
+                ? t('items_remaining_singular', { count: remainingCount })
+                : t('items_remaining_plural', { count: remainingCount })}
+            </Text>
             {recipeSections.map((section) => (
               <View key={section.recipe} style={styles.recipeSectionWrap}>
                 <View style={styles.recipeSectionHeader}>
@@ -267,13 +273,13 @@ export default function ShoppingScreen({ user }) {
         ) : (
           <View style={styles.emptyWrap}>
             <Text style={styles.emptyLeaf}>🌿</Text>
-            <Text style={styles.emptyTitle}>Your list is empty</Text>
+            <Text style={styles.emptyTitle}>{t('shopping_empty_title')}</Text>
             <Text style={styles.emptySub}>
-              Let Fern check your fridge and pantry, then add ingredients from your week&apos;s dinners.
+              {t('shopping_empty_sub')}
             </Text>
 
             <TouchableOpacity style={[styles.fernBtn, shadow.strong]} activeOpacity={0.9} onPress={buildWithFern}>
-              <Text style={styles.fernBtnText}>🛒 Build my list with Fern</Text>
+              <Text style={styles.fernBtnText}>{t('build_list_fern')}</Text>
             </TouchableOpacity>
           </View>
         )}

@@ -8,6 +8,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import useLanguage from '../../hooks/useLanguage';
 
 export default function WinePairingModal({
     visible,
@@ -26,6 +27,7 @@ export default function WinePairingModal({
     isAddingWineToList,
     onAddWineToShoppingList,
 }) {
+    const { t } = useLanguage();
     return (
         <Modal
             transparent
@@ -45,14 +47,14 @@ export default function WinePairingModal({
                         keyboardShouldPersistTaps="handled"
                     >
                         <Text style={styles.wineHero}>🍷</Text>
-                        <Text style={styles.wineTitle}>Wine Pairing</Text>
-                        <Text style={styles.wineSubtitle}>Tell us what you're eating or the dish you're making.</Text>
+                        <Text style={styles.wineTitle}>{t('wine_pairing_title')}</Text>
+                        <Text style={styles.wineSubtitle}>{t('wine_form_subtitle')}</Text>
 
-                        <Text style={styles.wineFieldLabel}>DISH OR MEAL</Text>
+                        <Text style={styles.wineFieldLabel}>{t('dish_or_meal_label')}</Text>
                         <TextInput
                             value={wineDishInput}
                             onChangeText={setWineDishInput}
-                            placeholder="e.g. grilled salmon, mushroom risotto, spicy Thai curry"
+                            placeholder={t('wine_dish_placeholder')}
                             placeholderTextColor="#B0AEA9"
                             style={styles.wineInput}
                         />
@@ -63,11 +65,11 @@ export default function WinePairingModal({
                             onPress={onFindWinePairings}
                             disabled={isWineSearching}
                         >
-                            <Text style={styles.wineFindBtnText}>{isWineSearching ? 'Searching...' : '🍷 FIND MY PAIRINGS'}</Text>
+                            <Text style={styles.wineFindBtnText}>{isWineSearching ? t('searching_ellipsis') : t('find_my_pairings_btn')}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity style={styles.wineAskFernBtn} activeOpacity={0.85}>
-                            <Text style={styles.wineAskFernText}>🌿 Ask Fern to Walk Me Through It</Text>
+                            <Text style={styles.wineAskFernText}>{t('ask_fern_walkthrough_btn')}</Text>
                         </TouchableOpacity>
 
                         {(wineSummary || winePairings.length) ? (
@@ -104,7 +106,7 @@ export default function WinePairingModal({
                                             {`${getPairingIcon(selectedWinePairing)} ${selectedWinePairing.name}${selectedWinePairing.region ? ` • ${selectedWinePairing.region}` : ''}`}
                                         </Text>
                                         <Text style={styles.wineDetailMeta}>
-                                            {selectedWinePairing.type?.toUpperCase() || 'PAIRING'}{selectedWinePairing.price ? ` · ${selectedWinePairing.price}` : ''}
+                                            {selectedWinePairing.type?.toUpperCase() || t('pairing_fallback_label')}{selectedWinePairing.price ? ` · ${selectedWinePairing.price}` : ''}
                                         </Text>
                                     </View>
 
@@ -114,9 +116,9 @@ export default function WinePairingModal({
                                 </View>
 
                                 <View style={styles.wineDetailBody}>
-                                    <Text style={styles.wineDetailSectionLabel}>WHY IT WORKS</Text>
+                                    <Text style={styles.wineDetailSectionLabel}>{t('why_it_works_label')}</Text>
                                     <Text style={styles.wineDetailDescription}>
-                                        {selectedWinePairing.description || 'No additional tasting notes were provided for this pairing.'}
+                                        {selectedWinePairing.description || t('no_tasting_notes')}
                                     </Text>
                                 </View>
 
@@ -127,11 +129,11 @@ export default function WinePairingModal({
                                         onPress={onAddWineToShoppingList}
                                         disabled={isAddingWineToList}
                                     >
-                                        <Text style={styles.wineDetailAddBtnText}>{isAddingWineToList ? 'Adding...' : '🛒 Add to list'}</Text>
+                                        <Text style={styles.wineDetailAddBtnText}>{isAddingWineToList ? t('adding_ellipsis') : t('add_to_list_btn')}</Text>
                                     </TouchableOpacity>
 
                                     <TouchableOpacity style={styles.wineDetailDoneBtn} activeOpacity={0.85} onPress={onCloseWineDetail}>
-                                        <Text style={styles.wineDetailDoneBtnText}>Done</Text>
+                                        <Text style={styles.wineDetailDoneBtnText}>{t('done_btn')}</Text>
                                     </TouchableOpacity>
                                 </View>
                             </View>

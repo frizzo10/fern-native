@@ -22,12 +22,14 @@ import { fetchCharcuterieBoard } from '../services/charcuterieService';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
 import WinePairingModal from '../components/modals/WinePairingModal';
+import useLanguage from '../hooks/useLanguage';
+import LanguageModal from '../components/modals/LanguageModal';
 
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-function getGreeting() {
+function getGreeting(t) {
   const h = new Date().getHours();
-  return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  return h < 12 ? t('good_morning') : h < 17 ? t('good_afternoon') : t('good_evening');
 }
 
 function dateKey(d) {
@@ -44,7 +46,26 @@ function toPlainStoreName(label) {
 }
 
 export default function HomeScreen({ user }) {
+  const { t, locale, changeLanguage } = useLanguage();
+  const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const navigation = useNavigation();
+
+  const toolKeysMap = {
+    'Alexa Skill': 'tool_alexa',
+    'Charcuterie': 'tool_charcuterie',
+    'Dinner Party': 'tool_dinner_party',
+    'Wine Pairing': 'tool_wine_pairing',
+    'Personal Shopper': 'tool_personal_shopper',
+    'Weekly Nutrition': 'tool_weekly_nutrition',
+    'Fridge Challenge': 'tool_fridge_challenge',
+    'Leftover Magic': 'tool_leftover_magic',
+    '20-Min Dinner': 'tool_20min_dinner',
+    'Budget Planner': 'tool_budget_planner',
+    'AI Meal Planner': 'tool_ai_meal_planner',
+    'Semi-Homemade': 'tool_semi_homemade',
+    'Family Vault': 'tool_family_vault'
+  };
+
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
   const [userStoresLocal, setUserStoresLocal] = useState([]);
@@ -126,7 +147,7 @@ export default function HomeScreen({ user }) {
 
     return {
       key,
-      day: DAYS[d.getDay()],
+      day: t('day_' + d.getDay()),
       date: d.getDate(),
       isToday: key === dateKey(today),
       meals: dayMeals,
@@ -210,11 +231,11 @@ export default function HomeScreen({ user }) {
     const trimmedZip = zipCodeInput.trim();
 
     if (!trimmedName) {
-      Alert.alert('Required', 'Store name is required.');
+      Alert.alert(t('dish_required'), t('store_name_req'));
       return;
     }
     if (!trimmedZip) {
-      Alert.alert('Required', 'ZIP code is required.');
+      Alert.alert(t('dish_required'), t('zip_code_req'));
       return;
     }
 
@@ -226,7 +247,7 @@ export default function HomeScreen({ user }) {
       console.log('[stores-sync] finding store', { storeName: trimmedName, zipCode: trimmedZip, found: Boolean(location) });
 
       if (!location) {
-        Alert.alert('Not found', 'No location found for this ZIP code.');
+        Alert.alert(t('not_found'), t('no_loc_found'));
         return;
       }
 
@@ -242,7 +263,7 @@ export default function HomeScreen({ user }) {
       setFoundStoreCandidate(candidate);
     } catch (e) {
       console.log('[stores-sync] failed to find store', e?.message || e);
-      Alert.alert('Lookup failed', 'Could not search store right now. Please try again.');
+      Alert.alert(t('lookup_failed'), t('lookup_failed_desc'));
     } finally {
       setIsFindingStore(false);
     }
@@ -253,15 +274,15 @@ export default function HomeScreen({ user }) {
     const trimmedZip = zipCodeInput.trim();
 
     if (!trimmedName) {
-      Alert.alert('Required', 'Store name is required.');
+      Alert.alert(t('dish_required'), t('store_name_req'));
       return;
     }
     if (!trimmedZip) {
-      Alert.alert('Required', 'ZIP code is required.');
+      Alert.alert(t('dish_required'), t('zip_code_req'));
       return;
     }
     if (!foundStoreCandidate) {
-      Alert.alert('Find required', 'Tap Find to lookup the store location first.');
+      Alert.alert(t('find_req'), t('find_req_desc'));
       return;
     }
 
@@ -271,7 +292,7 @@ export default function HomeScreen({ user }) {
       return sameName && sameAddress;
     });
     if (exists) {
-      Alert.alert('Already added', 'This store is already in your list.');
+      Alert.alert(t('already_added'), t('already_added_desc'));
       return;
     }
 
@@ -313,7 +334,7 @@ export default function HomeScreen({ user }) {
       closeAddStoreModal();
     } catch (e) {
       console.log('[stores-sync] failed to add/sync store', e?.message || e);
-      Alert.alert('Sync error', 'Could not add this store right now. Please try again.');
+      Alert.alert(t('sync_error'), t('sync_error_desc'));
     } finally {
       setIsSavingStore(false);
     }
@@ -372,7 +393,7 @@ export default function HomeScreen({ user }) {
       setIsDietaryMenuOpen(false);
     } catch (e) {
       console.log('[charcuterie] build failed', e?.message || e);
-      Alert.alert('Build failed', 'Could not build your charcuterie board right now. Please try again.');
+      Alert.alert(t('build_failed'), t('build_failed_desc'));
     } finally {
       setIsCharcuterieBuilding(false);
     }
@@ -400,7 +421,7 @@ export default function HomeScreen({ user }) {
 
   const addCharcuterieItemsToShoppingList = async (itemsToAdd, successMessage) => {
     if (!itemsToAdd.length) {
-      Alert.alert('No items', 'No shopping items were available to add.');
+      Alert.alert(t('no_items'), t('no_items_desc'));
       return;
     }
 
@@ -422,7 +443,7 @@ export default function HomeScreen({ user }) {
       }));
 
     if (!additions.length) {
-      Alert.alert('Already added', 'Those charcuterie items are already in your shopping list.');
+      Alert.alert(t('already_added'), t('charcuterie_items_already_added_desc'));
       return;
     }
 
@@ -441,10 +462,10 @@ export default function HomeScreen({ user }) {
 
       await pushAllFromStorage();
       await pull();
-      Alert.alert('Added', successMessage || 'Charcuterie items were added to your shopping list.');
+      Alert.alert(t('added_title'), successMessage || t('items_added_success'));
     } catch (e) {
       console.log('[charcuterie] failed to add shopping items', e?.message || e);
-      Alert.alert('Could not add items', 'Please try again.');
+      Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));
     } finally {
       setIsAddingCharcuterieToList(false);
     }
@@ -483,10 +504,10 @@ export default function HomeScreen({ user }) {
       ];
 
       await AsyncStorage.setItem('fern_saved_charcuterie_boards', JSON.stringify(nextBoards));
-      Alert.alert('Saved', 'Your charcuterie board was saved locally.');
+      Alert.alert(t('saved_title'), t('board_saved_success'));
     } catch (e) {
       console.log('[charcuterie] failed to save board', e?.message || e);
-      Alert.alert('Save failed', 'Could not save this board right now.');
+      Alert.alert(t('save_failed'), t('save_failed_desc'));
     } finally {
       setIsSavingCharcuterieBoard(false);
     }
@@ -511,7 +532,7 @@ export default function HomeScreen({ user }) {
   const handleFindWinePairings = async () => {
     const dish = wineDishInput.trim();
     if (!dish) {
-      Alert.alert('Required', 'Dish or meal is required.');
+      Alert.alert(t('dish_required'), t('dish_required_desc'));
       return;
     }
 
@@ -531,11 +552,11 @@ export default function HomeScreen({ user }) {
       setWinePairings(result.pairings);
 
       if (!result.summary && !result.pairings.length) {
-        Alert.alert('No results', 'No pairing suggestions were returned. Try another dish.');
+        Alert.alert(t('no_results'), t('no_results_desc'));
       }
     } catch (e) {
       console.log('[wine-pairing] search failed', e?.message || e);
-      Alert.alert('Search failed', 'Could not find wine pairings right now. Please try again.');
+      Alert.alert(t('search_failed'), t('search_failed_desc'));
     } finally {
       setIsWineSearching(false);
     }
@@ -582,7 +603,7 @@ export default function HomeScreen({ user }) {
     });
 
     if (alreadyExists) {
-      Alert.alert('Already added', 'This pairing is already in your shopping list.');
+      Alert.alert(t('already_added'), t('pairing_already_added_desc'));
       return;
     }
 
@@ -610,10 +631,10 @@ export default function HomeScreen({ user }) {
       await pushAllFromStorage();
       await pull();
       closeWineDetailModal();
-      Alert.alert('Added', `${itemName} was added to your shopping list.`);
+      Alert.alert(t('added_title'), t('item_added_success', { item: itemName }));
     } catch (e) {
       console.log('[wine-pairing] failed to add shopping item', e?.message || e);
-      Alert.alert('Could not add item', 'Please try again.');
+      Alert.alert(t('could_not_add_item_title'), t('save_error_desc'));
     } finally {
       setIsAddingWineToList(false);
     }
@@ -653,34 +674,38 @@ export default function HomeScreen({ user }) {
 
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{getGreeting()}, {"\n"}{userName}</Text>
-            <Text style={styles.subheading}>Here's your food life at a glance</Text>
+            <Text style={styles.greeting}>{getGreeting(t)}, {"\n"}{userName}</Text>
+            <Text style={styles.subheading}>{t('food_life_glance')}</Text>
           </View>
 
           <View style={styles.headerActions}>
             <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>✦✦ PRO MAX</Text>
+              <Text style={styles.proBadgeText}>{t('pro_max')}</Text>
             </View>
             <View style={styles.iconBadge}>
               <Text style={styles.iconBadgeText}>👤</Text>
             </View>
-            <View style={styles.langBadge}>
-              <Text style={styles.langBadgeText}>🌍 EN</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.langBadge}
+              activeOpacity={0.85}
+              onPress={() => setIsLanguageModalOpen(true)}
+            >
+              <Text style={styles.langBadgeText}>🌍 {locale.toUpperCase()}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         {loading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color={colors.forest} />
-            <Text style={styles.loadingText}>Syncing your data...</Text>
+            <Text style={styles.loadingText}>{t('syncing_data')}</Text>
           </View>
         ) : null}
 
         {lastTranscript ? (
           <View style={styles.voiceBar}>
-            <Text style={styles.voiceTranscript}>You: {lastTranscript}</Text>
-            {fernReply ? <Text style={styles.voiceReply}>Fern: {fernReply}</Text> : null}
+            <Text style={styles.voiceTranscript}>{t('you')}: {lastTranscript}</Text>
+            {fernReply ? <Text style={styles.voiceReply}>{t('fern')}: {fernReply}</Text> : null}
           </View>
         ) : null}
 
@@ -714,7 +739,7 @@ export default function HomeScreen({ user }) {
               ]}
             >
               <Text style={styles.mainVal}>{val}</Text>
-              <Text style={styles.mainLabel}>{label}</Text>
+              <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -725,23 +750,31 @@ export default function HomeScreen({ user }) {
             { label: 'Cookbooks', val: `${booksCount}`, route: 'Recipes', params: { openTab: 'cookbooks', openSection: 'cookbooks' } },
             { label: 'Bloggers Following', val: `${followersCount}`, color: 'rgb(216, 109, 51)', route: 'Find', params: { openBloggers: true } },
             { label: 'Meals Planned', val: `${mealsPlannedCount}` },
-          ].map(({ label, val, color, route, params }) => (
-            <TouchableOpacity
-              key={label}
-              activeOpacity={route ? 0.85 : 1}
-              disabled={!route}
-              onPress={route ? () => navigation.navigate(route, { ...params, requestKey: Date.now() }) : undefined}
-              style={[styles.statCard, shadow.card]}
-            >
-              <Text style={[styles.statVal, { color: color }]}>{val}</Text>
-              <Text style={styles.statLabel}>{label}</Text>
-            </TouchableOpacity>
-          ))}
+          ].map(({ label, val, color, route, params }) => {
+            const statKeysMap = {
+              'Recipes Saved': 'stat_recipes_saved',
+              'Cookbooks': 'stat_cookbooks',
+              'Bloggers Following': 'stat_bloggers',
+              'Meals Planned': 'stat_meals_planned'
+            };
+            return (
+              <TouchableOpacity
+                key={label}
+                activeOpacity={route ? 0.85 : 1}
+                disabled={!route}
+                onPress={route ? () => navigation.navigate(route, { ...params, requestKey: Date.now() }) : undefined}
+                style={[styles.statCard, shadow.card]}
+              >
+                <Text style={[styles.statVal, { color: color }]}>{val}</Text>
+                <Text style={styles.statLabel}>{t(statKeysMap[label] || label)}</Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
 
         <View style={styles.mealStatsRow}>
           <View style={[styles.mealCard, shadow.card]}>
-            <Text style={styles.mealCardTitle}>MEALS PLANNED</Text>
+            <Text style={styles.mealCardTitle}>{t('meals_planned_title')}</Text>
             {tinyProgressDots(mealsPlannedCount)}
             <View style={styles.mealDaysRow}>
               {weekDays.map((d) => (
@@ -756,7 +789,7 @@ export default function HomeScreen({ user }) {
           </View>
 
           <View style={[styles.mealCard, shadow.card]}>
-            <Text style={styles.mealCardTitle}>RECIPES SAVED</Text>
+            <Text style={styles.mealCardTitle}>{t('recipes_saved_title')}</Text>
             {tinyProgressDots(recipesCount)}
             <View style={styles.mealDaysRow}>
               {weekDays.map((d) => (
@@ -773,9 +806,9 @@ export default function HomeScreen({ user }) {
 
         <View style={[styles.panelCard, shadow.card]}>
           <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>MY STORES</Text>
+            <Text style={styles.panelTitle}>{t('my_stores')}</Text>
             <TouchableOpacity style={styles.smallActionBtn} activeOpacity={0.85} onPress={openAddStoreModal}>
-              <Text style={styles.smallActionBtnText}>+ Add Store</Text>
+              <Text style={styles.smallActionBtnText}>{t('add_store_btn')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -798,7 +831,7 @@ export default function HomeScreen({ user }) {
                     </View>
 
                     <TouchableOpacity style={styles.scanCircularBtn} activeOpacity={0.85}>
-                      <Text style={styles.scanCircularBtnText}>Scan Circular</Text>
+                      <Text style={styles.scanCircularBtnText}>{t('scan_circular')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -815,15 +848,15 @@ export default function HomeScreen({ user }) {
               ))}
             </View>
           ) : (
-            <Text style={styles.panelSubtleText}>No stores added yet</Text>
+            <Text style={styles.panelSubtleText}>{t('no_stores')}</Text>
           )}
         </View>
 
         <View style={[styles.panelCard, shadow.card]}>
           <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>THIS WEEK</Text>
+            <Text style={styles.panelTitle}>{t('this_week')}</Text>
             <TouchableOpacity activeOpacity={0.8}>
-              <Text style={styles.panelLink}>Plan →</Text>
+              <Text style={styles.panelLink}>{t('plan_link')}</Text>
             </TouchableOpacity>
           </View>
           <View style={styles.weekCircleRow}>
@@ -850,38 +883,42 @@ export default function HomeScreen({ user }) {
 
         <View style={[styles.panelCard, shadow.card]}>
           <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>🛒 SHOPPING LIST</Text>
+            <Text style={styles.panelTitle}>{t('shopping_list_title')}</Text>
             <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Shopping')}>
-              <Text style={styles.panelLink}>View →</Text>
+              <Text style={styles.panelLink}>{t('view_link')}</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.panelSubtleText}>
-            {shoppingCount ? `${shoppingCount} item${shoppingCount > 1 ? 's' : ''} waiting` : 'Your list is empty'}
+            {shoppingCount
+              ? (shoppingCount > 1
+                  ? t('items_waiting_plural', { count: shoppingCount })
+                  : t('items_waiting_singular', { count: shoppingCount }))
+              : t('shopping_empty')}
           </Text>
         </View>
 
         <View style={[styles.fernKnowledgeCard, shadow.card]}>
           <View style={styles.fernKnowledgeHeader}>
-            <Text style={styles.fernKnowledgeTitle}>WHAT FERN KNOWS ABOUT YOU</Text>
+            <Text style={styles.fernKnowledgeTitle}>{t('fern_knows_title')}</Text>
             <TouchableOpacity style={styles.fernEditBtn} activeOpacity={0.85}>
-              <Text style={styles.fernEditText}>✎ Edit</Text>
+              <Text style={styles.fernEditText}>{t('edit_btn')}</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.fernKnowledgeRow}>
             <View style={styles.fernKnowledgeItem}>
-              <Text style={styles.fernKnowledgeLabel}>🥗 DIETARY</Text>
+              <Text style={styles.fernKnowledgeLabel}>{t('dietary_label')}</Text>
               <Text style={styles.fernKnowledgeValue}>{dietary}</Text>
             </View>
 
             <View style={styles.fernKnowledgeItem}>
-              <Text style={styles.fernKnowledgeLabel}>🙂 NAME</Text>
+              <Text style={styles.fernKnowledgeLabel}>{t('name_label')}</Text>
               <Text style={styles.fernKnowledgeValue}>{userName}</Text>
             </View>
           </View>
         </View>
 
-        <Text style={styles.toolsHeading}>YOUR TOOLS</Text>
+        <Text style={styles.toolsHeading}>{t('tool_your_tools')}</Text>
 
         <View style={styles.mainCardRow}>
           {[
@@ -902,7 +939,7 @@ export default function HomeScreen({ user }) {
               ]}
             >
               <Text style={styles.mainVal}>{val}</Text>
-              <Text style={styles.mainLabel}>{label}</Text>
+              <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
             </View>
           ))}
         </View>
@@ -920,7 +957,7 @@ export default function HomeScreen({ user }) {
         <View style={styles.addStoreBackdrop}>
           <View style={styles.addStoreSheet}>
             <View style={styles.addStoreHeaderRow}>
-              <Text style={styles.addStoreTitle}>Add a Store</Text>
+              <Text style={styles.addStoreTitle}>{t('add_store_title')}</Text>
               <TouchableOpacity style={styles.addStoreCloseBtn} activeOpacity={0.85} onPress={closeAddStoreModal}>
                 <Text style={styles.addStoreCloseText}>×</Text>
               </TouchableOpacity>
@@ -943,21 +980,21 @@ export default function HomeScreen({ user }) {
               })}
             </View>
 
-            <Text style={styles.addStoreFieldLabel}>OR ENTER STORE NAME</Text>
+            <Text style={styles.addStoreFieldLabel}>{t('or_enter_store')}</Text>
             <TextInput
               value={storeNameInput}
               onChangeText={setStoreNameInput}
-              placeholder="Store name"
+              placeholder={t('store_name_placeholder')}
               placeholderTextColor="#A3A3A3"
               style={styles.addStoreInput}
             />
 
-            <Text style={styles.addStoreFieldLabel}>YOUR ZIP CODE</Text>
+            <Text style={styles.addStoreFieldLabel}>{t('your_zip_code')}</Text>
             <View style={styles.addStoreZipRow}>
               <TextInput
                 value={zipCodeInput}
                 onChangeText={setZipCodeInput}
-                placeholder="ZIP code"
+                placeholder={t('zip_code_placeholder')}
                 placeholderTextColor="#A3A3A3"
                 style={[styles.addStoreInput, styles.addStoreZipInput]}
                 keyboardType="number-pad"
@@ -968,7 +1005,7 @@ export default function HomeScreen({ user }) {
                 onPress={handleFindStore}
                 disabled={isFindingStore}
               >
-                <Text style={styles.addStoreFindBtnText}>{isFindingStore ? 'Finding...' : 'Find →'}</Text>
+                <Text style={styles.addStoreFindBtnText}>{isFindingStore ? t('finding_btn') : t('find_btn')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -985,11 +1022,19 @@ export default function HomeScreen({ user }) {
               onPress={handleAddStore}
               disabled={isSavingStore}
             >
-              <Text style={styles.addStoreSaveBtnText}>{isSavingStore ? 'Saving...' : 'Add This Store'}</Text>
+              <Text style={styles.addStoreSaveBtnText}>{isSavingStore ? t('saving_btn') : t('add_this_store_btn')}</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+      <LanguageModal
+        visible={isLanguageModalOpen}
+        onClose={() => setIsLanguageModalOpen(false)}
+        currentLanguage={locale}
+        onSelectLanguage={changeLanguage}
+        t={t}
+      />
 
       <CharcuterieModal
         visible={isCharcuterieModalOpen}

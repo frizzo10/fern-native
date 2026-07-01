@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
+import useLanguage from '../hooks/useLanguage';
 // ── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
   forest: '#1C3A1A',
@@ -23,6 +24,7 @@ const C = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpWithSupabase }) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +33,7 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
 
   async function handleSignIn() {
     console.log('🔵 handleSignIn called');
-    if (!email || !password) return Alert.alert('Please enter email and password');
+    if (!email || !password) return Alert.alert(t('enter_email_password'));
     console.log('📧 Email:', email, 'Password length:', password.length);
     setLoading(true);
     try {
@@ -43,20 +45,20 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
       console.log('✅ onAuthSuccess callback completed');
     } catch (e) {
       console.error('❌ Sign in error:', e);
-      Alert.alert('Sign in failed', e.message);
+      Alert.alert(t('sign_in_failed'), e.message);
     } finally {
       setLoading(false);
     }
   }
 
   async function handleSignUp() {
-    if (!email || !password || !name) return Alert.alert('Please fill in all fields');
+    if (!email || !password || !name) return Alert.alert(t('fill_all_fields'));
     setLoading(true);
     try {
       const user = await signUpWithSupabase(email, password, name);
       onAuthSuccess(user);
     } catch (e) {
-      Alert.alert('Sign up failed', e.message);
+      Alert.alert(t('sign_up_failed'), e.message);
     } finally {
       setLoading(false);
     }
@@ -78,8 +80,8 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
         >
           {/* Header */}
           <View style={s.header}>
-            <Text style={s.logo}>🌿 fern</Text>
-            <Text style={s.tagline}>WEEKLY AD TO DINNER TABLE · PATENT PENDING</Text>
+            <Text style={s.logo}>{t('logo')}</Text>
+            <Text style={s.tagline}>{t('tagline')}</Text>
           </View>
 
           {/* Card */}
@@ -90,13 +92,13 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
                 style={[s.tab, mode === 'signin' && s.tabActive]}
                 onPress={() => setMode('signin')}
               >
-                <Text style={[s.tabText, mode === 'signin' && s.tabTextActive]}>Sign In</Text>
+                <Text style={[s.tabText, mode === 'signin' && s.tabTextActive]}>{t('sign_in')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.tab, mode === 'signup' && s.tabActive]}
                 onPress={() => setMode('signup')}
               >
-                <Text style={[s.tabText, mode === 'signup' && s.tabTextActive]}>Create Account</Text>
+                <Text style={[s.tabText, mode === 'signup' && s.tabTextActive]}>{t('create_account')}</Text>
               </TouchableOpacity>
             </View>
 
@@ -104,7 +106,7 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
             {mode === 'signup' && (
               <TextInput
                 style={s.input}
-                placeholder="Your first name"
+                placeholder={t('first_name_placeholder')}
                 placeholderTextColor={C.brown}
                 value={name}
                 onChangeText={setName}
@@ -113,7 +115,7 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
             )}
             <TextInput
               style={s.input}
-              placeholder="Email address"
+              placeholder={t('email_placeholder')}
               placeholderTextColor={C.brown}
               value={email}
               onChangeText={setEmail}
@@ -123,7 +125,7 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
             />
             <TextInput
               style={s.input}
-              placeholder="Password"
+              placeholder={t('password_placeholder')}
               placeholderTextColor={C.brown}
               value={password}
               onChangeText={setPassword}
@@ -138,12 +140,12 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
             >
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={s.btnText}>{mode === 'signin' ? 'Sign In' : 'Create Account'}</Text>
+                : <Text style={s.btnText}>{mode === 'signin' ? t('sign_in') : t('create_account')}</Text>
               }
             </TouchableOpacity>
           </View>
 
-          <Text style={s.footer}>✓ Always free · No ads · No spam</Text>
+          <Text style={s.footer}>{t('always_free')}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
