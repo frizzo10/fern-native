@@ -1,3 +1,10 @@
+function sanitizeEmoji(emoji) {
+  const defaultEmoji = '🍽️';
+  if (!emoji || typeof emoji !== 'string') return defaultEmoji;
+  if (emoji.includes('�')) return defaultEmoji;
+  return emoji;
+}
+
 export function pickFirst(...values) {
   return values.find((value) => value !== undefined && value !== null && value !== '');
 }
@@ -82,7 +89,7 @@ export function getRawRecipeId(item, index) {
 
 export function normalizeRecipe(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, 'Untitled recipe');
-  const emoji = pickFirst(item?.emoji, item?.icon, item?.symbol, '🍽');
+  const emoji = sanitizeEmoji(pickFirst(item?.emoji, item?.icon, item?.symbol, '🍽'));
   const category = pickFirst(item?.cuisine, item?.category, item?.type, item?.mealType, 'Dinner');
   const meal = pickFirst(item?.slot, item?.meal, item?.course, 'Dinner');
   const time = pickFirst(item?.time, item?.minutes ? `${item.minutes} min` : null, item?.duration, '');
@@ -152,7 +159,7 @@ export function normalizeAiRecipe(item, index) {
     meal: pickFirst(item?.mealType, 'Dinner'),
     time: pickFirst(item?.time, ''),
     difficulty: pickFirst(item?.difficulty, 'Easy'),
-    emoji: pickFirst(item?.emoji, '🍽'),
+    emoji: sanitizeEmoji(pickFirst(item?.emoji, '🍽')),
     image: null,
     description: pickFirst(item?.description, ''),
     servings: '4',

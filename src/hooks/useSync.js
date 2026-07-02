@@ -7,6 +7,22 @@ const API_HEADERS = {
   'User-Agent': 'FernApp/1.0 (myaifern.com)',
 };
 
+function fixCorruptedEmojis(recipes) {
+  if (!Array.isArray(recipes)) return { fixed: recipes, hadCorruption: false };
+
+  let hadCorruption = false;
+  const fixed = recipes.map((recipe) => {
+    if (recipe?.emoji?.includes?.('�')) {
+      console.log('[sync] Fixed corrupted emoji in recipe:', recipe.title);
+      hadCorruption = true;
+      return { ...recipe, emoji: '🍽️' };
+    }
+    return recipe;
+  });
+
+  return { fixed, hadCorruption };
+}
+
 export function useSync(user) {
   const [data, setData] = useState({
     recipes: [],
@@ -40,8 +56,10 @@ export function useSync(user) {
       const dd = result.data;
       if (!dd) return;
 
+      const { fixed: fixedSaved, hadCorruption } = fixCorruptedEmojis(dd.saved || []);
+
       const next = {
-        recipes: dd.saved || [],
+        recipes: fixedSaved,
         mealPlan: dd.meal_plan || {},
         shopping: dd.shopping || [],
         books: dd.books || [],
@@ -56,13 +74,35 @@ export function useSync(user) {
 
       // Cache locally
       await AsyncStorage.setItem('fern_sync_cache', JSON.stringify(next));
-      await AsyncStorage.setItem('rv4_saved', JSON.stringify(dd.saved || []));
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(fixedSaved));
       await AsyncStorage.setItem('rv4_books', JSON.stringify(dd.books || []));
       await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(dd.meal_plan || {}));
       await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(dd.shopping || []));
       await AsyncStorage.setItem('remi_explicit', JSON.stringify(dd.remi_explicit || {}));
       await AsyncStorage.setItem('cpc_followed_bloggers', JSON.stringify(dd.followed_bloggers || []));
       await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(dd.user_stores || []));
+
+      if (hadCorruption) {
+        console.log('[sync] Pushing fixed emoji back to backend');
+        await fetch(SYNC_URL, {
+          method: 'POST',
+          headers: API_HEADERS,
+          body: JSON.stringify({
+            action: 'push',
+            userId: user.id,
+            token: user.token,
+            data: {
+              saved: fixedSaved,
+              books: dd.books || [],
+              meal_plan: dd.meal_plan || {},
+              shopping: dd.shopping || [],
+              remi_explicit: dd.remi_explicit || {},
+              followed_bloggers: dd.followed_bloggers || [],
+              user_stores: dd.user_stores || [],
+            },
+          }),
+        });
+      }
     } catch (e) {
       console.warn('Sync pull failed:', e);
     } finally {
