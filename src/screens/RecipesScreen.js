@@ -273,7 +273,15 @@ export default function RecipesScreen({ user }) {
 
   const recipes = useMemo(() => {
     const list = Array.isArray(recipesLocal) ? recipesLocal : [];
-    return list.map(normalizeRecipe);
+    const normalized = list.map(normalizeRecipe);
+
+    // Deduplicate by ID — backend may send same recipe multiple times
+    const seen = new Set();
+    return normalized.filter((recipe) => {
+      if (seen.has(recipe.id)) return false;
+      seen.add(recipe.id);
+      return true;
+    });
   }, [recipesLocal]);
 
   React.useEffect(() => {
@@ -307,7 +315,15 @@ export default function RecipesScreen({ user }) {
 
   const books = useMemo(() => {
     const list = Array.isArray(booksLocal) ? booksLocal : [];
-    return list.map(normalizeBook);
+    const normalized = list.map(normalizeBook);
+
+    // Deduplicate by ID — backend may send same book multiple times
+    const seen = new Set();
+    return normalized.filter((book) => {
+      if (seen.has(book.id)) return false;
+      seen.add(book.id);
+      return true;
+    });
   }, [booksLocal]);
 
   const booksWithMatchedCounts = useMemo(() => {

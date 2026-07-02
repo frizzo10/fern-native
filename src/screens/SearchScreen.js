@@ -272,8 +272,17 @@ export default function SearchScreen({ user }) {
     const isResultSaved = (title) => Boolean(findSavedRecipeByTitle(title));
 
     const visibleResults = useMemo(() => {
-        if (!showOnlyMyRecipes) return searchResults;
-        return searchResults.filter((recipe) => isResultSaved(recipe.title));
+        let results = showOnlyMyRecipes
+            ? searchResults.filter((recipe) => isResultSaved(recipe.title))
+            : searchResults;
+
+        // Deduplicate by ID — backend may send same recipe multiple times
+        const seen = new Set();
+        return results.filter((recipe) => {
+            if (seen.has(recipe.id)) return false;
+            seen.add(recipe.id);
+            return true;
+        });
     }, [searchResults, showOnlyMyRecipes, savedRecipes]);
 
     const savedCountInResults = useMemo(
