@@ -22,6 +22,7 @@ import { fetchCharcuterieBoard } from '../services/charcuterieService';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
 import WinePairingModal from '../components/modals/WinePairingModal';
+import EventPlannerIntakeModal from '../components/modals/EventPlannerIntakeModal';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
 
@@ -37,6 +38,13 @@ function dateKey(d) {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+}
+
+function sanitizeEmoji(emoji) {
+  const defaultEmoji = '🍽️';
+  if (!emoji || typeof emoji !== 'string') return defaultEmoji;
+  if (emoji.includes('')) return defaultEmoji;
+  return emoji;
 }
 
 function toPlainStoreName(label) {
@@ -78,6 +86,7 @@ export default function HomeScreen({ user }) {
   const [isAlexaModalOpen, setIsAlexaModalOpen] = useState(false);
   const [isWineModalOpen, setIsWineModalOpen] = useState(false);
   const [isCharcuterieModalOpen, setIsCharcuterieModalOpen] = useState(false);
+  const [isEventPlannerOpen, setIsEventPlannerOpen] = useState(false);
   const [wineDishInput, setWineDishInput] = useState('');
   const [isWineSearching, setIsWineSearching] = useState(false);
   const [wineSummary, setWineSummary] = useState('');
@@ -138,7 +147,7 @@ export default function HomeScreen({ user }) {
       if (m.slot) {
         const slotKey = m.slot.toLowerCase();
         dayMeals[slotKey] = m.title;
-        dayMealEmojis[slotKey] = m.emoji || '';
+        dayMealEmojis[slotKey] = sanitizeEmoji(m.emoji);
       }
     });
 
@@ -723,14 +732,16 @@ export default function HomeScreen({ user }) {
               activeOpacity={0.88}
               onPress={
                 label === 'Alexa Skill'
-                  ? openAlexaModal
+                  ? () => setIsAlexaModalOpen(true)
                   : label === 'Charcuterie'
-                    ? openCharcuterieModal
-                    : label === 'Wine Pairing'
-                      ? openWineModal
-                      : label === 'Personal Shopper'
-                        ? () => navigation.navigate('Shopping')
-                        : undefined
+                    ? () => setIsCharcuterieModalOpen(true)
+                    : label === 'Dinner Party'
+                      ? () => setIsEventPlannerOpen(true)
+                      : label === 'Wine Pairing'
+                        ? () => setIsWineModalOpen(true)
+                        : label === 'Personal Shopper'
+                          ? () => navigation.navigate('Shopping')
+                          : undefined
               }
               style={[
                 styles.mainCard,
@@ -871,7 +882,7 @@ export default function HomeScreen({ user }) {
                   d.meals.dinner ? styles.weekCircleFilled : null,
                 ]}>
                   {d.meals.dinner ? (
-                    <Text style={styles.weekCircleEmoji}>{d.mealEmojis?.dinner || '🍽️'}</Text>
+                    <Text style={styles.weekCircleEmoji}>{sanitizeEmoji(d.mealEmojis?.dinner)}</Text>
                   ) : (
                     <View style={styles.weekCircleInner} />
                   )}
@@ -891,8 +902,8 @@ export default function HomeScreen({ user }) {
           <Text style={styles.panelSubtleText}>
             {shoppingCount
               ? (shoppingCount > 1
-                  ? t('items_waiting_plural', { count: shoppingCount })
-                  : t('items_waiting_singular', { count: shoppingCount }))
+                ? t('items_waiting_plural', { count: shoppingCount })
+                : t('items_waiting_singular', { count: shoppingCount }))
               : t('shopping_empty')}
           </Text>
         </View>
@@ -1084,6 +1095,13 @@ export default function HomeScreen({ user }) {
         getPairingTitle={getPairingTitle}
         isAddingWineToList={isAddingWineToList}
         onAddWineToShoppingList={handleAddWineToShoppingList}
+      />
+
+      <EventPlannerIntakeModal
+        visible={isEventPlannerOpen}
+        onClose={() => setIsEventPlannerOpen(false)}
+        user={user}
+        locale={locale}
       />
     </View >
   );

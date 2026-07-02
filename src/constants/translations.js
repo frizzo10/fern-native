@@ -383,6 +383,17 @@ export const translations = {
     done_btn: "Done",
     pairing_fallback_label: "PAIRING",
 
+    // Event Planner
+    event_planner_q1: "What's the occasion?",
+    event_planner_q2: "How many guests (including you)?",
+    event_planner_q3: "Budget per person?",
+    event_planner_q4: "Your cooking skill level",
+    event_planner_q5: "How much hands-on cooking time?",
+    event_planner_q6: "Cuisine?",
+    event_planner_q7: "What's the vibe?",
+    event_planner_q8: "Season?",
+    event_planner_q9: "Any dietary restrictions?",
+
     // Languages Names
     lang_en: "English",
     lang_es: "Spanish",
@@ -412,6 +423,17 @@ export const translations = {
 
     // Auth / Login
     logo: "🌿 fern",
+
+    // Event Planner
+    event_planner_q1: "¿Cuál es la ocasión?",
+    event_planner_q2: "¿Cuántos invitados (incluyéndote)?",
+    event_planner_q3: "¿Presupuesto por persona?",
+    event_planner_q4: "Tu nivel de habilidad culinaria",
+    event_planner_q5: "¿Cuánto tiempo de cocina disponible?",
+    event_planner_q6: "¿Cocina?",
+    event_planner_q7: "¿Cuál es la atmósfera?",
+    event_planner_q8: "¿Estación?",
+    event_planner_q9: "¿Restricciones dietéticas?",
     sign_in: "Iniciar Sesión",
     create_account: "Crear Cuenta",
     first_name_placeholder: "Tu primer nombre",
