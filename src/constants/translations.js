@@ -5,10 +5,17 @@ export const translations = {
     tagline: "WEEKLY AD TO DINNER TABLE • PATENT PENDING",
     nav_home: "Home",
     nav_find: "Find",
-    nav_family: "FAMILY HUB",
+    nav_family: "FAMILY",
     nav_recipes: "Recipes",
     nav_shopping: "Shopping",
+    nav_more: "More",
     nav_logout: "Logout",
+    more_title: "More",
+    more_subtitle: "Shortcuts & account actions",
+    more_profile: "Profile",
+    more_cookbooks: "Cookbooks",
+    more_help: "Help",
+    more_logout: "Logout",
 
     // Arrival Banner
     arrived: "you've arrived",
@@ -27,6 +34,18 @@ export const translations = {
     fill_all_fields: "Please fill in all fields",
     sign_in_failed: "Sign in failed",
     sign_up_failed: "Sign up failed",
+
+
+
+
+
+
+
+
+
+
+
+
 
     // Home Screen
     good_morning: "Good Morning",
@@ -411,10 +430,17 @@ export const translations = {
     tagline: "FOLLETO SEMANAL A LA MESA · PATENTE PENDIENTE",
     nav_home: "Inicio",
     nav_find: "Buscar",
-    nav_family: "CENTRO FAMILIAR",
+    nav_family: "FAMILIAR",
     nav_recipes: "Recetas",
     nav_shopping: "Compras",
+    nav_more: "Más",
     nav_logout: "Salir",
+    more_title: "Más",
+    more_subtitle: "Atajos y acciones de cuenta",
+    more_profile: "Perfil",
+    more_cookbooks: "Libros",
+    more_help: "Ayuda",
+    more_logout: "Salir",
 
     // Arrival Banner
     arrived: "has llegado",

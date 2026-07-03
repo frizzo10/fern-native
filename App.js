@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Image, Text, View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
+import { Image, Text, View, StyleSheet, TouchableOpacity, Animated, Modal, Pressable, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
@@ -15,6 +15,7 @@ import ShoppingScreen from './src/screens/ShoppingScreen';
 import FamilyScreen from './src/screens/FamilyScreen';
 import RecipesScreen from './src/screens/RecipesScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import FindScreen from './src/screens/FindScreen';
 import { useAuth } from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
@@ -81,6 +82,50 @@ function ArrivalBanner({ store, onShop, onDismiss }) {
   );
 }
 
+function MoreSheet({ visible, onClose, onProfile, onCookbooks, onHelp, onLogout }) {
+  const { t } = useLanguage();
+
+  const items = [
+    { key: 'profile', label: t('more_profile'), icon: 'person-outline', onPress: onProfile },
+    { key: 'cookbooks', label: t('more_cookbooks'), icon: 'book-outline', onPress: onCookbooks },
+    { key: 'help', label: t('more_help'), icon: 'help-circle-outline', onPress: onHelp },
+    { key: 'logout', label: t('more_logout'), icon: 'log-out-outline', onPress: onLogout },
+  ];
+
+  return (
+    <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
+      <View style={styles.moreBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <View style={styles.moreSheet}>
+          <View style={styles.moreHeader}>
+            <View style={styles.moreHeaderTextWrap}>
+              <Text style={styles.moreTitle}>{t('more_title')}</Text>
+              <Text style={styles.moreSubtitle}>{t('more_subtitle')}</Text>
+            </View>
+            <TouchableOpacity style={styles.moreCloseBtn} activeOpacity={0.85} onPress={onClose}>
+              <Text style={styles.moreCloseText}>×</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.moreGrid}>
+            {items.map((item) => (
+              <TouchableOpacity
+                key={item.key}
+                activeOpacity={0.85}
+                onPress={item.onPress}
+                style={styles.moreAction}
+              >
+                <Ionicons name={item.icon} size={20} color={colors.orange} />
+                <Text style={styles.moreActionText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 async function checkForUpdate() {
   if (__DEV__) return;
   try {
@@ -97,7 +142,8 @@ async function checkForUpdate() {
 function AppNavigator({ user, signOut }) {
   const { t } = useLanguage();
   const [arrivedStore, setArrivedStore] = useState(null);
-  const [activeTab, setActiveTab] = useState('Home');
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const navigationRef = React.useRef(null);
 
   // Mock stores — replace with sync from useSync
   const userStores = user ? [] : []; // populated from sync data
@@ -115,16 +161,40 @@ function AppNavigator({ user, signOut }) {
   }, [user]);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <StatusBar style="light" />
       {/* Store arrival banner */}
       {arrivedStore && (
         <ArrivalBanner
           store={arrivedStore}
-          onShop={() => { setArrivedStore(null); setActiveTab('Shopping'); }}
+          onShop={() => {
+            setArrivedStore(null);
+            navigationRef.current?.navigate('Shopping');
+          }}
           onDismiss={() => setArrivedStore(null)}
         />
       )}
+
+      <MoreSheet
+        visible={isMoreOpen}
+        onClose={() => setIsMoreOpen(false)}
+        onProfile={() => {
+          setIsMoreOpen(false);
+          navigationRef.current?.navigate('Home');
+        }}
+        onCookbooks={() => {
+          setIsMoreOpen(false);
+          navigationRef.current?.navigate('Recipes', { openTab: 'cookbooks', requestKey: String(Date.now()) });
+        }}
+        onHelp={() => {
+          setIsMoreOpen(false);
+          Alert.alert(t('more_help'), t('coming_soon'));
+        }}
+        onLogout={() => {
+          setIsMoreOpen(false);
+          signOut();
+        }}
+      />
 
       <Tab.Navigator
         screenOptions={{
@@ -213,18 +283,18 @@ function AppNavigator({ user, signOut }) {
         </Tab.Screen>
 
         <Tab.Screen
-          name="Logout"
+          name="More"
           listeners={{
             tabPress: (e) => {
               e.preventDefault();
-              signOut();
+              setIsMoreOpen(true);
             },
           }}
           options={{
-            tabBarLabel: t('nav_logout'),
+            tabBarLabel: t('nav_more'),
             tabBarIcon: ({ focused }) => (
               <Ionicons
-                name="log-out"
+                name="ellipsis-horizontal"
                 size={28}
                 color={focused ? '#B59C48' : '#999'}
               />
@@ -249,7 +319,7 @@ function MainAppContent() {
 
   if (loading) return null;
 
-  if (!user) {
+  if (user) {
     console.log(user)
     return (
       <>
@@ -339,5 +409,83 @@ const styles = StyleSheet.create({
   bannerBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   bannerClose: { padding: 6 },
   bannerCloseText: { color: 'rgba(255,255,255,0.4)', fontSize: 18 },
+
+  moreBackdrop: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  moreSheet: {
+    height: '30%',
+    backgroundColor: '#F5F2ED',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: '#D9CFBF',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 18,
+    ...shadow.strong,
+  },
+  moreHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  moreHeaderTextWrap: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  moreTitle: {
+    fontFamily: 'Jost-Bold',
+    fontSize: 18,
+    color: '#20140B',
+  },
+  moreSubtitle: {
+    marginTop: 2,
+    fontSize: 11,
+    color: '#7E6A55',
+    fontFamily: 'Jost-Regular',
+  },
+  moreCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: '#D4C3AD',
+    backgroundColor: '#EFE9DF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moreCloseText: {
+    fontSize: 24,
+    lineHeight: 26,
+    color: '#8C6B46',
+    marginTop: -2,
+  },
+  moreGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  moreAction: {
+    width: '48%',
+    minHeight: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E6DCCF',
+    backgroundColor: '#FFF',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  moreActionText: {
+    fontSize: 13,
+    fontFamily: 'Jost-Bold',
+    color: '#20140B',
+  },
 
 });

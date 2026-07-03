@@ -77,7 +77,7 @@ function MicButton({ isListening, onPress, disabled }) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function FindScreen() {
+export default function FindScreen({ user }) {
   const { t } = useLanguage();
   const [messages, setMessages] = useState([
     { role: 'assistant', content: t('welcome_message') }

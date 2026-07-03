@@ -542,7 +542,7 @@ export default function SearchScreen({ user }) {
                                 <Text style={styles.titleMain}>{t('cooking_tonight_line1')}</Text>
                                 <Text style={styles.titleAccent}>{t('cooking_tonight_accent1')}</Text>
                                 <Text style={styles.titleMain}>{'\n'}</Text>
-                                <Text style={styles.titleAccent}>{t('cooking_tonight_accent2')}</Text>
+                                <Text style={styles.sdad}>{t('cooking_tonight_accent2')}</Text>
                             </Text>
 
                             <Text style={styles.subtitle}>
@@ -1024,18 +1024,18 @@ const styles = StyleSheet.create({
     bloggersRow: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        gap: 16,
+        gap: 20,
         alignItems: 'flex-start',
     },
     bloggerCardWrap: {
         alignItems: 'center',
-        width: 96,
+        width: 70,
     },
     bloggerCard: {
-        width: 92,
-        height: 92,
+        width: 52,
+        height: 52,
         borderRadius: 46,
-        borderWidth: 4,
+        borderWidth: 1,
         borderColor: '#F8F4EC',
         alignItems: 'center',
         justifyContent: 'center',
