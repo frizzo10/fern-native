@@ -522,22 +522,30 @@ export default function SearchScreen({ user }) {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
             <LinearGradient colors={['#FBF7EF', '#F7F1E6', '#FBF8F1']} style={styles.background}>
                 <View style={styles.glowOne} />
                 <View style={styles.glowTwo} />
 
-                <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-                    <View style={styles.hero}>
-                        <View style={styles.wordmarkRow}>
-                            <Image source={require('../../assets/icon.png')} style={styles.heroIcon} resizeMode="contain" />
-                            <Text style={styles.wordmark}>fern</Text>
-                        </View>
-                        <Text style={styles.tagline}>{t('tagline')}</Text>
-                    </View>
+                <ScrollView
+                    ref={scrollRef}
+                    contentContainerStyle={[styles.content, hasSearched ? styles.contentSearched : null]}
+                    showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    contentInsetAdjustmentBehavior="never"
+                    automaticallyAdjustContentInsets={false}
+                >
 
                     {!hasSearched ? (
                         <>
+                            <View style={styles.hero}>
+                                <View style={styles.wordmarkRow}>
+                                    <Image source={require('../../assets/icon.png')} style={styles.heroIcon} resizeMode="contain" />
+                                    <Text style={styles.wordmark}>fern</Text>
+                                </View>
+                                <Text style={styles.tagline}>{t('tagline')}</Text>
+                            </View>
+
                             <Text style={styles.title}>
                                 <Text style={styles.titleMain}>{t('cooking_tonight_line1')}</Text>
                                 <Text style={styles.titleAccent}>{t('cooking_tonight_accent1')}</Text>
@@ -828,8 +836,12 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingHorizontal: 22,
-        paddingTop: 14,
-        paddingBottom: 130,
+        paddingTop: 0,
+        paddingBottom: 20,
+    },
+    contentSearched: {
+        paddingTop: 0,
+        paddingBottom: 10,
     },
     hero: {
         alignItems: 'center',
@@ -1238,7 +1250,7 @@ const styles = StyleSheet.create({
         fontSize: 10,
     },
     resultsWrap: {
-        marginTop: 4,
+        marginTop: 0,
     },
     resultsHeaderRow: {
         flexDirection: 'row',
