@@ -26,7 +26,7 @@ const RECORD_OPTIONS = {
   web: {},
 };
 
-export function useContinuousMic({ onTranscript, onError } = {}) {
+export function useContinuousMic({ onTranscript, onError, locale = 'en' } = {}) {
   const [isListening,  setIsListening]  = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -34,6 +34,12 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
   const activeRef     = useRef(false);
   const processingRef = useRef(false);
   const timerRef      = useRef(null);
+  // Keep the latest locale in a ref so an in-flight recording cycle
+  // always sends the current value to Whisper, even if the caller's
+  // locale changes between recordings (e.g. the user switches language
+  // mid-session) without needing to restart the mic loop.
+  const localeRef     = useRef(locale);
+  useEffect(() => { localeRef.current = locale; }, [locale]);
 
   // ── Send chunk to Groq ────────────────────────────────────────────────────
   const sendChunk = useCallback(async (uri) => {
@@ -42,7 +48,16 @@ export function useContinuousMic({ onTranscript, onError } = {}) {
       const body = new FormData();
       body.append('file', { uri, name: 'audio.m4a', type: 'audio/mp4' });
       body.append('model', 'whisper-large-v3');
-      body.append('language', 'en');
+      // Was hardcoded to 'en' regardless of the app's selected locale --
+      // Whisper's language parameter tells the model what language the
+      // AUDIO ITSELF is in, not what to translate to, so forcing 'en' on
+      // Spanish speech would have caused genuinely garbled
+      // transcriptions (a worse failure mode than the pattern-matching
+      // bugs found in the web app tonight, which just failed to
+      // recognize an intent -- this would misinterpret the actual words).
+      // Not yet wired into any screen, so not a live user-facing bug yet,
+      // but fixed now before anything comes to depend on this behavior.
+      body.append('language', localeRef.current);
 
       const res = await fetch(GROQ_URL, {
         method:  'POST',
