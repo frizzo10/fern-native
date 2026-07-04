@@ -102,6 +102,7 @@ export default function HomeScreen({ user }) {
   const { speak, voiceEnabled, setVoiceEnabled, speaking } = useFernVoice();
 
   const { isListening, isProcessing, start, stop } = useContinuousMic({
+    locale,
     onTranscript: async (text) => {
       setLastTranscript(text);
       setFernError(false);
