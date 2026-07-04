@@ -12,10 +12,24 @@ const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 // Build a prompt that asks the model for strict JSON so we can parse it
 // reliably — same pattern the web app uses for its AI-generated recipe
 // features (see fridge-challenge.js / whats-for-dinner.js system prompts).
-function buildSystemPrompt() {
+//
+// Takes locale explicitly and appends a language instruction when it's
+// not English. The shared backend (netlify/functions/ai.js) only reads
+// locale for provider routing -- DEEPSEEK_LOCALES is just ['zh'], and
+// that's the entire extent of what it does with the value -- it never
+// adds any language instruction to the prompt itself. Without this, a
+// Spanish-locale search would still send 'locale: es' to the backend
+// (which does nothing language-wise with it) and get back an
+// English-language system prompt with no instruction to respond in
+// Spanish at all, so the model would have every reason to answer in
+// English regardless of the user's selected language.
+function buildSystemPrompt(locale) {
+  const langRule = locale && locale !== 'en'
+    ? ` Respond entirely in ${locale === 'es' ? 'Spanish' : locale}: all text fields (title, description, ingredients, instructions) must be in that language, not English.`
+    : '';
   return `You are Fern, a recipe suggestion engine. Given a craving or ingredient from the user, respond with ONLY a JSON array (no prose, no markdown fences) of 4 recipe objects, each shaped exactly like:
 {"title": "string", "description": "one sentence", "minutes": number, "servings": number, "ingredients": ["string", ...], "instructions": ["string", ...]}
-Keep ingredients and instructions concise (5-9 ingredients, 4-7 steps). Return valid JSON only.`;
+Keep ingredients and instructions concise (5-9 ingredients, 4-7 steps). Return valid JSON only.${langRule}`;
 }
 
 function parseRecipes(text) {
@@ -112,7 +126,7 @@ export default function FindScreen({ user }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system: buildSystemPrompt(),
+          system: buildSystemPrompt(locale),
           messages: [{ role: 'user', content: query.trim() }],
           feature: 'find_recipes',
           locale,
