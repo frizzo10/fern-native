@@ -78,7 +78,7 @@ function MicButton({ isListening, onPress, disabled }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function FindScreen({ user }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const [messages, setMessages] = useState([
     { role: 'assistant', content: t('welcome_message') }
   ]);
@@ -95,10 +95,10 @@ export default function FindScreen({ user }) {
 
   // Use the continuous mic hook
   const { isListening, isProcessing, start, stop } = useContinuousMic({
-    autoSpeakReply: false,
+    autoSpeakReply: false, locale: locale,
     onTranscript: async (transcript) => {
       console.log('[FindScreen] transcript received:', transcript);
-
+      consol.log({ locale })
       // Check stop words - stop listening first
       if (STOP_WORDS.some(w => transcript.toLowerCase().includes(w))) {
         stop();

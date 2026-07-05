@@ -7,7 +7,7 @@ const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
 
 
-export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true } = {}) {
+export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true, locale = 'en' } = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -34,6 +34,11 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true 
   const recorder = useAudioRecorder(
     RecordingPresets.HIGH_QUALITY
   );
+  useEffect(() => {
+
+    console.log("=========================This is language name ======================", { locale });
+
+  }, []);
 
   const processFernReply = useCallback(async (transcript) => {
     try {
@@ -199,7 +204,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true 
 
             model: 'whisper-large-v3',
 
-            language: 'en',
+            language: locale,
 
           },
 

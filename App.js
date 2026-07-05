@@ -319,7 +319,7 @@ function MainAppContent() {
 
   if (loading) return null;
 
-  if (user) {
+  if (!user) {
     console.log(user)
     return (
       <>

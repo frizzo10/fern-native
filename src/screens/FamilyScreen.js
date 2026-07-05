@@ -15,7 +15,7 @@ function hasStopWord(text) {
 }
 
 export default function FamilyScreen({ user }) {
-    const { t } = useLanguage();
+    const { t, locale } = useLanguage();
     const { pull } = useSync(user);
     const [lastTranscript, setLastTranscript] = useState('');
     const [loopStatus, setLoopStatus] = useState('idle');
@@ -31,7 +31,7 @@ export default function FamilyScreen({ user }) {
     });
 
     const { isListening, isProcessing, start, stop } = useContinuousMic({
-        autoSpeakReply: false,
+        autoSpeakReply: false, locale: locale,
         onTranscript: async (transcript) => {
             const cleanTranscript = transcript?.trim?.() || '';
             console.log('[FamilyScreen] transcript received:', cleanTranscript);

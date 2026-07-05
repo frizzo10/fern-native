@@ -112,6 +112,7 @@ export default function HomeScreen({ user }) {
   );
 
   const { isListening, isProcessing, start, stop } = useContinuousMic({
+    locale: locale,
     onTranscript: async (text) => {
       setLastTranscript(text);
       try {

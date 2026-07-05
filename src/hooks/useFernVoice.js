@@ -30,6 +30,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
+import useLanguage from '../hooks/useLanguage';
 
 const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
@@ -37,6 +38,7 @@ const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-spe
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
 export function useFernVoice({ onError } = {}) {
+    const { t, locale } = useLanguage();
     const [audioUri, setAudioUri] = useState(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
@@ -110,7 +112,7 @@ export function useFernVoice({ onError } = {}) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ text: cleanText }),
+                body: JSON.stringify({ text: cleanText, lang: locale }),
             });
 
             if (!response.ok) {
@@ -160,6 +162,7 @@ export function useFernVoice({ onError } = {}) {
                         },
                     ],
                     system: 'You are Fern, a personal AI food assistant. Be brief and conversational.',
+                    lang: locale
                 }),
             });
 
