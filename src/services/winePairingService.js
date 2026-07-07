@@ -10,13 +10,14 @@ export function normalizeWinePairing(item, index) {
   return { name, region, type, category, price, description, badge };
 }
 
-export async function fetchWinePairings({ userId, dish }) {
+export async function fetchWinePairings({ userId, dish, locale }) {
   const normalizedDish = String(dish || '').trim();
   const titledDish = normalizedDish.charAt(0).toUpperCase() + normalizedDish.slice(1);
 
   const payload = {
     action: 'wine_pairing',
     userId,
+    locale: locale,
     recipe: {
       title: titledDish,
       cuisine: '',

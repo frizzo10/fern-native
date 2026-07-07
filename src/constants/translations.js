@@ -61,6 +61,7 @@ export const translations = {
     tool_alexa: "Alexa Skill",
     tool_charcuterie: "Charcuterie",
     tool_dinner_party: "Dinner Party",
+    tool_ai_plan: "Pro Max • La IA planifica cada detalle",
     tool_wine_pairing: "Wine Pairing",
     tool_personal_shopper: "Personal Shopper",
     tool_weekly_nutrition: "Weekly Nutrition",
@@ -72,11 +73,57 @@ export const translations = {
     tool_semi_homemade: "Semi-Homemade",
     tool_family_vault: "Family Vault",
     tool_your_tools: "YOUR TOOLS",
+    question_label: "QUESTION",
+    of_label: "OF",
+    skip_label: "Skip →",
+    back_label: "← Back",
+    next_label: "NEXT →",
+    build_label: "BUILD",
+    dinner_placeholder: "e.g. anniversary, catching up with old friends, work impress",
+    designing_label: "Designing your event...",
+    designing_sub_label: "Building the menu, shopping list, timing schedule, and host tips.{'\n'}This usually takes 30-45 seconds.",
+
+    //Dinner Questions
+    beginner_label: "Beginner",
+    intermediate_label: "Intermediate",
+    advance_label: "Advanced",
+    hour_label: "Hour",
+    hours_label: "Hours",
+    whole_day_label: "Whole Day",
+
+    surprise_me: "Surprise Me",
+    italian: "Italian",
+    french: "French",
+    american: "American",
+    asian: "Asian",
+    mediterranean: "Mediterranean",
+    mexican: "Mexican",
+
+    comfort_food: "Comfort Food",
+    casual: "Casual",
+    elegant: "Elegant",
+    celebratory: "Celebratory",
+    intimate: "Intimate",
+
+    spring: "Spring",
+    summer: "Summer",
+    fall: "Fall",
+    winter: "Winter",
+
+    none: "None",
+    vegetarian: "Vegetarian",
+    vegan: "Vegan",
+    gluten_free: "Gluten-Free",
+    dairy_free: "Dairy-Free",
+    nut_allergy: "Nut Allergy",
+    shellfish_allergy: "Shellfish Allergy",
+    pescatarian: "Pescatarian",
 
     stat_recipes_saved: "Recipes Saved",
     stat_cookbooks: "Cookbooks",
     stat_bloggers: "Bloggers Following",
     stat_meals_planned: "Meals Planned",
+
 
     // Meal Cards
     meals_planned_title: "MEALS PLANNED",
@@ -413,6 +460,33 @@ export const translations = {
     event_planner_q8: "Season?",
     event_planner_q9: "Any dietary restrictions?",
 
+    error: "Error",
+    user_not_authenticated: "User not authenticated",
+    no_plan_data_received: "No plan data received",
+    unable_to_generate_plan: "Unable to generate plan",
+    check_connection_try_again: "Please check your connection and try again.",
+
+    copied: "Copied",
+    plan_overview_copied: "Plan overview copied to clipboard",
+
+    menu: "Menu",
+    appetizers: "Appetizers",
+    main_courses: "Main Courses",
+    sides: "Sides",
+    desserts: "Desserts",
+
+    tap_for_recipe: "TAP FOR RECIPE →",
+    ai: "AI",
+
+    beverages: "Beverages",
+    host_tips: "Host Tips",
+
+    copy: "Copy",
+    coming_soon: "Coming Soon",
+    music_feature_coming_soon: "Music feature coming soon",
+    music: "Music",
+    new_plan: "New Plan",
+
     // Languages Names
     lang_en: "English",
     lang_es: "Spanish",
@@ -460,6 +534,36 @@ export const translations = {
     event_planner_q7: "¿Cuál es la atmósfera?",
     event_planner_q8: "¿Estación?",
     event_planner_q9: "¿Restricciones dietéticas?",
+
+    error: "Error",
+    user_not_authenticated: "Usuario no autenticado",
+    no_plan_data_received: "No se recibieron datos del plan",
+    unable_to_generate_plan: "No se pudo generar el plan",
+    check_connection_try_again: "Comprueba tu conexión e inténtalo de nuevo.",
+
+    copied: "Copiado",
+    plan_overview_copied: "La descripción del plan se copió al portapapeles",
+
+    menu: "Menú",
+    appetizers: "Entrantes",
+    main_courses: "Platos Principales",
+    sides: "Guarniciones",
+    desserts: "Postres",
+
+    tap_for_recipe: "TOCA PARA VER LA RECETA →",
+    ai: "IA",
+
+    beverages: "Bebidas",
+    host_tips: "Consejos para el Anfitrión",
+
+    copy: "Copiar",
+    coming_soon: "Próximamente",
+    music_feature_coming_soon: "La función de música estará disponible próximamente",
+    music: "Música",
+    new_plan: "Nuevo Plan",
+
+
+
     sign_in: "Iniciar Sesión",
     create_account: "Crear Cuenta",
     first_name_placeholder: "Tu primer nombre",
@@ -485,6 +589,7 @@ export const translations = {
     tool_alexa: "Habilidad Alexa",
     tool_charcuterie: "Charcutería",
     tool_dinner_party: "Cena de Gala",
+    tool_ai_plan: "Pro Max • La IA planifica cada detalle",
     tool_wine_pairing: "Maridaje de Vinos",
     tool_personal_shopper: "Comprador Personal",
     tool_weekly_nutrition: "Nutrición Semanal",
@@ -497,6 +602,52 @@ export const translations = {
     tool_family_vault: "Bóveda Familiar",
     tool_your_tools: "TUS HERRAMIENTAS",
 
+    question_label: "PREGUNTA",
+    of_label: "DE",
+    skip_label: "Saltar →",
+    back_label: "← Volver",
+    next_label: "SIGUIENTE →",
+    build_label: "CONSTRUYE",
+    dinner_placeholder: "p. ej., aniversario, ponerse al día con viejos amigos, impresionar en el trabajo",
+    designing_label: "Diseñando tu evento...",
+    designing_sub_label: "Elaboración del menú, lista de la compra, cronograma y consejos para el anfitrión.\nEsto suele tardar entre 30 y 45 segundos.",
+
+    //Dinner Questions
+    beginner_label: "Principiante",
+    intermediate_label: "Intermedio",
+    advance_label: "Avanzado",
+    hour_label: "Hora",
+    hours_label: "Horas",
+    whole_day_label: "Día completo",
+    surprise_me: "Sorpréndeme",
+    italian: "Italiana",
+    french: "Francesa",
+    american: "Americana",
+    asian: "Asiática",
+    mediterranean: "Mediterránea",
+    mexican: "Mexicana",
+    comfort_food: "Comida Casera",
+
+    casual: "Casual",
+    elegant: "Elegante",
+    celebratory: "De Celebración",
+    intimate: "Íntima",
+
+    spring: "Primavera",
+    summer: "Verano",
+    fall: "Otoño",
+    winter: "Invierno",
+
+    none: "Ninguno",
+    vegetarian: "Vegetariano",
+    vegan: "Vegano",
+    gluten_free: "Sin Gluten",
+    dairy_free: "Sin Lácteos",
+    nut_allergy: "Alergia a los Frutos Secos",
+    shellfish_allergy: "Alergia al Marisco",
+    pescatarian: "Pescetariano",
+
+    // recipes
     stat_recipes_saved: "Recetas Guardadas",
     stat_cookbooks: "Libros de Cocina",
     stat_bloggers: "Blogueros Seguidos",

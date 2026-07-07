@@ -205,8 +205,8 @@ export default function EventPlanResultModal({
       .join('\n\n');
     try {
       await Share.share({
-        message: `Shopping List for ${planResult.title}\n\n${listText}`,
-        title: 'Shopping List',
+        message: `${t('shopping_list_for')} ${planResult.title}\n\n${listText}`,
+        title: t('shopping_list'),
       });
     } catch (e) {
       console.warn('Share failed:', e);
@@ -217,10 +217,10 @@ export default function EventPlanResultModal({
 
   const { menu = {} } = planResult;
   const sections = [
-    { title: 'APPETIZERS', key: 'appetizers', recipes: menu.appetizers || [] },
-    { title: 'MAIN COURSES', key: 'mains', recipes: menu.mains || [] },
-    { title: 'SIDES', key: 'sides', recipes: menu.sides || [] },
-    { title: 'DESSERTS', key: 'desserts', recipes: menu.desserts || [] },
+    { title: t('appetizers').toUpperCase(), key: 'appetizers', recipes: menu.appetizers || [] },
+    { title: t('main_courses').toUpperCase(), key: 'mains', recipes: menu.mains || [] },
+    { title: t('sides').toUpperCase(), key: 'sides', recipes: menu.sides || [] },
+    { title: t('desserts').toUpperCase(), key: 'desserts', recipes: menu.desserts || [] },
   ];
 
   return (
@@ -244,8 +244,8 @@ export default function EventPlanResultModal({
           <View style={styles.sheet}>
             <View style={styles.headerWrap}>
               <View style={styles.headerContent}>
-                <Text style={styles.title}>{planResult.title || 'Event Plan'}</Text>
-                <Text style={styles.subtitle}>Pro Max • AI plans every detail</Text>
+                <Text style={styles.title}>{planResult.title || t('event_plan')}</Text>
+                <Text style={styles.subtitle}>{t('pro_max_ai_plans_every_detail')}</Text>
               </View>
               <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.85}>
                 <Text style={styles.closeBtnText}>×</Text>
@@ -263,7 +263,7 @@ export default function EventPlanResultModal({
                 </View>
               )}
 
-              <Text style={{ ...styles.sectionTitle, marginTop: 12 }}>📋 MENU</Text>
+              <Text style={{ ...styles.sectionTitle, marginTop: 12 }}>📋 {t('menu')}</Text>
 
               {sections.map((section) => (
                 <View key={section.key}>
@@ -299,9 +299,9 @@ export default function EventPlanResultModal({
                                 {recipe.time && (
                                   <Text style={styles.recipeTime}>⏱ {recipe.time}</Text>
                                 )}
-                                <Text style={styles.tapForRecipe}>TAP FOR FULL RECIPE →</Text>
+                                <Text style={styles.tapForRecipe}>{t('tap_for_full_recipe')}</Text>
                               </View>
-                              <Text style={styles.aiBadge}>✨ AI</Text>
+                              <Text style={styles.aiBadge}>✨ {t('ai')}</Text>
                             </View>
                           </View>
                         </TouchableOpacity>
@@ -313,7 +313,7 @@ export default function EventPlanResultModal({
 
               {planResult.drinks && planResult.drinks.length > 0 && (
                 <View>
-                  <Text style={styles.sectionTitle}>🍷 BEVERAGES</Text>
+                  <Text style={styles.sectionTitle}>🍷 {t('beverages').toUpperCase()}</Text>
                   {planResult.drinks.map((drink, idx) => (
                     <View key={idx} style={{ marginBottom: 8 }}>
                       <Text style={{ fontSize: 13, fontFamily: 'Jost-SemiBold', color: '#1A0E05' }}>
@@ -329,7 +329,7 @@ export default function EventPlanResultModal({
 
               {planResult.hostTips && planResult.hostTips.length > 0 && (
                 <View>
-                  <Text style={styles.sectionTitle}>💡 HOST TIPS</Text>
+                  <Text style={styles.sectionTitle}>💡 {t('host_tips').toUpperCase()}</Text>
                   {planResult.hostTips.map((tip, idx) => (
                     <Text
                       key={idx}
@@ -353,13 +353,13 @@ export default function EventPlanResultModal({
                   onPress={handleShareShoppingList}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.bottomBtnText}>📋 Copy List</Text>
+                  <Text style={styles.bottomBtnText}>📋 {t('copy_list')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.bottomBtn}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.bottomBtnText}>🎵 Music</Text>
+                  <Text style={styles.bottomBtnText}>🎵 {t('music')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.bottomBtn, styles.bottomBtnPrimary]}
@@ -367,7 +367,7 @@ export default function EventPlanResultModal({
                   activeOpacity={0.85}
                 >
                   <Text style={[styles.bottomBtnText, styles.bottomBtnTextPrimary]}>
-                    ✨ NEW PLAN
+                    ✨ {t('new_plan')}
                   </Text>
                 </TouchableOpacity>
               </View>

@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const QUESTIONS = [
+const getQuestions = (t) => [
   {
     id: 1,
     field: 'occasion',
@@ -105,9 +105,9 @@ const QUESTIONS = [
     field: 'skill_level',
     type: 'buttons',
     options: [
-      { label: 'Beginner', value: 'beginner' },
-      { label: 'Intermediate', value: 'intermediate' },
-      { label: 'Advanced', value: 'advanced' },
+      { label: t('beginner_label'), value: 'beginner' },
+      { label: t('intermediate_label'), value: 'intermediate' },
+      { label: t('advance_label'), value: 'advanced' },
     ],
   },
   {
@@ -115,10 +115,10 @@ const QUESTIONS = [
     field: 'cook_time_available',
     type: 'buttons',
     options: [
-      { label: '1 Hour', value: '1 hour' },
-      { label: '2 Hours', value: '2 hours' },
-      { label: '3+ Hours', value: '3+ hours' },
-      { label: 'Whole Day', value: 'whole day' },
+      { label: `1 ${t('hour_label')}`, value: '1 hour' },
+      { label: `2 ${t('hours_label')}`, value: '2 hours' },
+      { label: `3+ ${t('hours_label')}`, value: '3+ hours' },
+      { label: t('whole_day_label'), value: 'whole day' },
     ],
   },
   {
@@ -126,14 +126,14 @@ const QUESTIONS = [
     field: 'cuisine_preference',
     type: 'buttons',
     options: [
-      { label: 'Surprise Me', value: 'surprise_me' },
-      { label: 'Italian', value: 'Italian' },
-      { label: 'French', value: 'French' },
-      { label: 'American', value: 'American' },
-      { label: 'Asian', value: 'Asian' },
-      { label: 'Mediterranean', value: 'Mediterranean' },
-      { label: 'Mexican', value: 'Mexican' },
-      { label: 'Comfort Food', value: 'comfort_food' },
+      { label: t('surprise_me'), value: 'surprise_me' },
+      { label: t('italian'), value: 'Italian' },
+      { label: t('french'), value: 'French' },
+      { label: t('american'), value: 'American' },
+      { label: t('asian'), value: 'Asian' },
+      { label: t('mediterranean'), value: 'Mediterranean' },
+      { label: t('mexican'), value: 'Mexican' },
+      { label: t('comfort_food'), value: 'comfort_food' },
     ],
   },
   {
@@ -141,10 +141,10 @@ const QUESTIONS = [
     field: 'mood',
     type: 'buttons',
     options: [
-      { label: 'Casual', value: 'casual' },
-      { label: 'Elegant', value: 'elegant' },
-      { label: 'Celebratory', value: 'celebratory' },
-      { label: 'Intimate', value: 'intimate' },
+      { label: t('casual'), value: 'casual' },
+      { label: t('elegant'), value: 'elegant' },
+      { label: t('celebratory'), value: 'celebratory' },
+      { label: t('intimate'), value: 'intimate' },
     ],
   },
   {
@@ -152,10 +152,10 @@ const QUESTIONS = [
     field: 'season',
     type: 'buttons',
     options: [
-      { label: 'Spring', value: 'spring' },
-      { label: 'Summer', value: 'summer' },
-      { label: 'Fall', value: 'fall' },
-      { label: 'Winter', value: 'winter' },
+      { label: t('spring'), value: 'spring' },
+      { label: t('summer'), value: 'summer' },
+      { label: t('fall'), value: 'fall' },
+      { label: t('winter'), value: 'winter' },
     ],
   },
   {
@@ -163,20 +163,21 @@ const QUESTIONS = [
     field: 'dietary',
     type: 'multiselect',
     options: [
-      { label: 'none', value: 'none' },
-      { label: 'vegetarian', value: 'vegetarian' },
-      { label: 'vegan', value: 'vegan' },
-      { label: 'gluten-free', value: 'gluten-free' },
-      { label: 'dairy-free', value: 'dairy-free' },
-      { label: 'nut allergy', value: 'nut_allergy' },
-      { label: 'shellfish allergy', value: 'shellfish_allergy' },
-      { label: 'pescatarian', value: 'pescatarian' },
+      { label: t('none'), value: 'none' },
+      { label: t('vegetarian'), value: 'vegetarian' },
+      { label: t('vegan'), value: 'vegan' },
+      { label: t('gluten_free'), value: 'gluten-free' },
+      { label: t('dairy_free'), value: 'dairy-free' },
+      { label: t('nut_allergy'), value: 'nut_allergy' },
+      { label: t('shellfish_allergy'), value: 'shellfish_allergy' },
+      { label: t('pescatarian'), value: 'pescatarian' },
     ],
   },
 ];
 
 export default function EventPlannerQuestionFlow({ onComplete, onClose }) {
   const { t } = useLanguage();
+  const QUESTIONS = getQuestions(t);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [intake, setIntake] = useState({
     occasion: '',
@@ -238,7 +239,7 @@ export default function EventPlannerQuestionFlow({ onComplete, onClose }) {
       </View>
 
       <Text style={styles.questionLabel}>
-        QUESTION {currentQuestion.id} OF 9
+        {t('question_label')} {currentQuestion.id} {t('of_label')} 9
       </Text>
 
       {currentQuestion.type === 'text' && (
@@ -246,7 +247,7 @@ export default function EventPlannerQuestionFlow({ onComplete, onClose }) {
           question={getQuestionTitle()}
           value={intake[currentQuestion.field]}
           onChange={handleValueChange}
-          placeholder={currentQuestion.placeholder}
+          placeholder={t('dinner_placeholder')}
         />
       )}
 
@@ -275,7 +276,7 @@ export default function EventPlannerQuestionFlow({ onComplete, onClose }) {
           disabled={currentIdx === 0}
           activeOpacity={0.85}
         >
-          <Text style={styles.controlBtnText}>← Back</Text>
+          <Text style={styles.controlBtnText}>{t('back_label')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -284,7 +285,7 @@ export default function EventPlannerQuestionFlow({ onComplete, onClose }) {
           disabled={currentIdx === QUESTIONS.length - 1}
           activeOpacity={0.85}
         >
-          <Text style={styles.controlBtnText}>Skip →</Text>
+          <Text style={styles.controlBtnText}>{t('skip_label')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -298,7 +299,9 @@ export default function EventPlannerQuestionFlow({ onComplete, onClose }) {
           activeOpacity={0.85}
         >
           <Text style={[styles.controlBtnText, styles.controlBtnTextNext]}>
-            {currentIdx === QUESTIONS.length - 1 ? '✨ BUILD' : 'NEXT →'}
+            {currentIdx === QUESTIONS.length - 1
+              ? `✨ ${t('build_label')}`
+              : t('next_label')}
           </Text>
         </TouchableOpacity>
       </View>

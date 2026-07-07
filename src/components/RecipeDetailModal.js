@@ -24,6 +24,7 @@ export default function RecipeDetailModal({
   isAlreadySaved = true,
   showSavedIndicator = false,
   onDeleteRecipe,
+  onAddToList,
 }) {
   const { t } = useLanguage();
   return (
@@ -182,10 +183,12 @@ export default function RecipeDetailModal({
                         {isAlreadySaved ? t('save_short_btn') : t('save_to_recipes_btn')}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}><Text style={styles.overlayBottomBtnTextLight}>{t('share_sparkle_btn')}</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]}><Text style={styles.overlayBottomBtnTextLight}>{t('list_btn')}</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>{t('instacart_btn')}</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>{t('edit_btn_recipes')}</Text></TouchableOpacity>
+                    {/* <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}><Text style={styles.overlayBottomBtnTextLight}>{t('share_sparkle_btn')}</Text></TouchableOpacity> */}
+                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]} onPress={onAddToList}>
+                      <Text style={styles.overlayBottomBtnTextLight}>{t('list_btn')}</Text>
+                    </TouchableOpacity>
+                    {/* <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>{t('instacart_btn')}</Text></TouchableOpacity> */}
+                    {/* <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>{t('edit_btn_recipes')}</Text></TouchableOpacity> */}
                     <TouchableOpacity
                       style={[styles.overlayBottomBtn, styles.overlayBottomBtnClose]}
                       onPress={onClose}

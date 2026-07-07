@@ -524,9 +524,9 @@ export default function RecipesScreen({ user }) {
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnMuted, styles.bookActionBtnWide]}>
                   <Text style={styles.bookActionTextLight}>{t('add_recipes_btn')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnGreen]}>
+                {/* <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnGreen]}>
                   <Text style={styles.bookActionTextLight}>{t('edit_btn_recipes')}</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnShare]}>
                   <Text style={styles.bookActionTextLight}>{t('share_btn')}</Text>
                 </TouchableOpacity>

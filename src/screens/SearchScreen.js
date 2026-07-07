@@ -124,7 +124,7 @@ function BloggerCard({ item, onPress }) {
 export default function SearchScreen({ user }) {
     const navigation = useNavigation();
     const route = useRoute();
-    const { t } = useLanguage();
+    const { t, locale } = useLanguage();
     const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
     const [searchText, setSearchText] = useState('');
     const [cravingText, setCravingText] = useState('');
@@ -315,7 +315,7 @@ export default function SearchScreen({ user }) {
                     messages: [{ role: 'user', content: buildSearchUserMessage(query) }],
                     feature: 'recipe_search',
                     userId: user?.id || '',
-                    locale: 'en',
+                    locale: locale,
                 }),
             });
 

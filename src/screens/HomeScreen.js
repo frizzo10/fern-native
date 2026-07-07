@@ -395,6 +395,7 @@ export default function HomeScreen({ user }) {
         people: peopleCount,
         budget: budgetValue,
         dietary: charcuterieDietary,
+        locale: locale
       });
 
       console.log('[charcuterie] request payload', result.payload);
@@ -553,7 +554,7 @@ export default function HomeScreen({ user }) {
     try {
       const result = await fetchWinePairings({
         userId: user?.id || '7c36273e-07b1-410c-ad1b-4c2b0295e140',
-        dish,
+        dish, locale
       });
       console.log('[wine-pairing] request payload', result.payload);
       console.log('[wine-pairing] response', result.responseJson);
