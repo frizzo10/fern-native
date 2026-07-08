@@ -17,16 +17,64 @@ export function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Load persisted user on mount
+  // ── Refresh token ────────────────────────────────────────────────────────────
+  const tryRefreshToken = async (refreshToken) => {
+    console.log('\n🔁🔁🔁 ============================================');
+    console.log('🔁🔁🔁  TOKEN REFRESH INITIATED');
+    console.log('🔁🔁🔁  refreshToken:', refreshToken);
+    console.log('🔁🔁🔁 ============================================\n');
+    try {
+      const res = await fetch(AUTH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'refresh', refreshToken }),
+      });
+      const data = await res.json();
+      console.log('🔁 Refresh response status:', res.status);
+      console.log('🔁 Refresh response data:', JSON.stringify(data));
+      if (!data.success || !data.token) {
+        console.warn('🔁❌ Refresh failed — no token in response');
+        return null;
+      }
+      console.log('🔁✅ Refresh succeeded — new token obtained');
+      return { token: data.token, refreshToken: data.refreshToken || refreshToken };
+    } catch (e) {
+      console.warn('🔁❌ Refresh request threw:', e.message);
+      return null;
+    }
+  };
+
+  // Load persisted user on mount; attempt token refresh if we have a stored refreshToken
   useEffect(() => {
-    SecureStore.getItemAsync(AUTH_KEY).then(val => {
+    SecureStore.getItemAsync(AUTH_KEY).then(async (val) => {
       if (val) {
         const savedUser = JSON.parse(val);
-        setUser(savedUser);
+        // Try to silently refresh the token so the session stays alive
+        if (savedUser.refreshToken) {
+          const refreshed = await tryRefreshToken(savedUser.refreshToken);
+          if (refreshed) {
+            const updatedUser = { ...savedUser, token: refreshed.token, refreshToken: refreshed.refreshToken };
+            await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(updatedUser));
+            await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+              id: updatedUser.id,
+              email: updatedUser.email,
+              token: updatedUser.token,
+              refreshToken: updatedUser.refreshToken,
+            }));
+            setUser(updatedUser);
+            console.log('🔁✅ Session restored via refresh token for user:', updatedUser.id);
+          } else {
+            // Refresh failed — still load the saved user; let individual API calls handle expiry
+            setUser(savedUser);
+            console.warn('🔁⚠️  Refresh failed on startup — using cached session, may be expired');
+          }
+        } else {
+          setUser(savedUser);
+        }
       }
       setLoading(false);
     }).catch(() => setLoading(false));
-  }, []);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Sync pull after login ────────────────────────────────────────────────────
   const syncPull = async (userId, token) => {
@@ -61,11 +109,34 @@ export function useAuth() {
         body: JSON.stringify({ action: 'login', email, password }),
       });
       console.log('🔷 REST API response status:', res.status);
-      
+
       const data = await res.json();
       console.log('🔷 REST API response data:', data);
-      
-      if (!data.user || !res.ok) {
+
+      // Login failed — attempt refresh token fallback before surfacing the error
+      if (!data.user || !res.ok || data.error) {
+        console.log('🔷 Login did not return a user (error:', data.error, ') — attempting refresh token fallback...');
+        const stored = await AsyncStorage.getItem('rv4_auth').catch(() => null);
+        const storedAuth = stored ? JSON.parse(stored) : null;
+        if (storedAuth?.refreshToken) {
+          const refreshed = await tryRefreshToken(storedAuth.refreshToken);
+          if (refreshed) {
+            console.log('🔷✅ Refresh token fallback succeeded — restoring session');
+            const updatedUser = {
+              ...storedAuth,
+              token: refreshed.token,
+              refreshToken: refreshed.refreshToken,
+            };
+            await AsyncStorage.setItem('rv4_auth', JSON.stringify(updatedUser));
+            await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(updatedUser));
+            await syncPull(updatedUser.id, updatedUser.token);
+            setUser(updatedUser);
+            return updatedUser;
+          }
+          console.log('🔷❌ Refresh token fallback also failed');
+        } else {
+          console.log('🔷 No stored refresh token available for fallback');
+        }
         throw new Error(data.error || data.message || 'Login failed');
       }
       
@@ -156,6 +227,7 @@ export function useAuth() {
     signInWithSupabase, 
     signUpWithSupabase, 
     signOut, 
-    syncPull 
+    syncPull,
+    tryRefreshToken,
   };
 }

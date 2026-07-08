@@ -19,10 +19,13 @@ import { useSync } from '../hooks/useSync';
 import { findStoreLocationByZip } from '../services/storeLookupService';
 import { fetchWinePairings } from '../services/winePairingService';
 import { fetchCharcuterieBoard } from '../services/charcuterieService';
+import { fetchLeftoverRecipes } from '../services/leftoverMagicService';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
 import WinePairingModal from '../components/modals/WinePairingModal';
 import EventPlannerIntakeModal from '../components/modals/EventPlannerIntakeModal';
+import LeftoverMagicModal from '../components/modals/LeftoverMagicModal';
+import LeftoverRecipeDetailModal from '../components/modals/LeftoverRecipeDetailModal';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
 
@@ -87,6 +90,11 @@ export default function HomeScreen({ user }) {
   const [isWineModalOpen, setIsWineModalOpen] = useState(false);
   const [isCharcuterieModalOpen, setIsCharcuterieModalOpen] = useState(false);
   const [isEventPlannerOpen, setIsEventPlannerOpen] = useState(false);
+  const [isLeftoverMagicOpen, setIsLeftoverMagicOpen] = useState(false);
+  const [leftoverIngredientsInput, setLeftoverIngredientsInput] = useState('');
+  const [isLeftoverSearching, setIsLeftoverSearching] = useState(false);
+  const [leftoverRecipes, setLeftoverRecipes] = useState([]);
+  const [selectedLeftoverRecipe, setSelectedLeftoverRecipe] = useState(null);
   const [wineDishInput, setWineDishInput] = useState('');
   const [isWineSearching, setIsWineSearching] = useState(false);
   const [wineSummary, setWineSummary] = useState('');
@@ -531,6 +539,62 @@ export default function HomeScreen({ user }) {
     }
   };
 
+  const resetLeftoverMagicModal = () => {
+    setLeftoverIngredientsInput('');
+    setIsLeftoverSearching(false);
+    setLeftoverRecipes([]);
+    setSelectedLeftoverRecipe(null);
+  };
+
+  const openLeftoverMagicModal = () => {
+    resetLeftoverMagicModal();
+    setIsLeftoverMagicOpen(true);
+  };
+
+  const closeLeftoverMagicModal = () => {
+    setIsLeftoverMagicOpen(false);
+    resetLeftoverMagicModal();
+  };
+
+  const handleAskFernLeftover = () => {
+    closeLeftoverMagicModal();
+    if (!isListening) {
+      start();
+    }
+  };
+
+  const handleSearchLeftoverRecipes = async () => {
+    const input = leftoverIngredientsInput.trim();
+    if (!input) {
+      Alert.alert(t('dish_required'), t('leftover_ingredients_required_desc'));
+      return;
+    }
+
+    setIsLeftoverSearching(true);
+    setLeftoverRecipes([]);
+
+    try {
+      const result = await fetchLeftoverRecipes({
+        ingredients: input,
+        locale,
+      });
+
+      console.log('[leftover-magic] request payload', result.payload);
+      console.log('[leftover-magic] response', result.responseJson);
+
+      setLeftoverRecipes(result.recipes);
+
+      if (!result.recipes.length) {
+        Alert.alert(t('no_results'), t('leftover_no_results_desc'));
+      }
+    } catch (e) {
+      console.log('[leftover-magic] search failed', e?.message || e);
+      Alert.alert(t('search_failed'), t('leftover_search_failed_desc'));
+    } finally {
+      setIsLeftoverSearching(false);
+    }
+  };
+
   const closeWineModal = () => {
     setIsWineModalOpen(false);
     resetWineModal();
@@ -943,8 +1007,11 @@ export default function HomeScreen({ user }) {
             { label: 'Semi-Homemade', val: '🥫', color: 'rgb(30, 57, 30)' },
             { label: 'Family Vault', val: '📖', color: 'rgb(216, 109, 51)' },
           ].map(({ label, val, color }) => (
-            <View
+            <TouchableOpacity
               key={label}
+              activeOpacity={label === 'Leftover Magic' ? 0.88 : 1}
+              disabled={label !== 'Leftover Magic'}
+              onPress={label === 'Leftover Magic' ? openLeftoverMagicModal : undefined}
               style={[
                 styles.mainCard,
                 shadow.card,
@@ -953,7 +1020,7 @@ export default function HomeScreen({ user }) {
             >
               <Text style={styles.mainVal}>{val}</Text>
               <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
 
@@ -1097,6 +1164,23 @@ export default function HomeScreen({ user }) {
         getPairingTitle={getPairingTitle}
         isAddingWineToList={isAddingWineToList}
         onAddWineToShoppingList={handleAddWineToShoppingList}
+      />
+
+      <LeftoverMagicModal
+        visible={isLeftoverMagicOpen}
+        onClose={closeLeftoverMagicModal}
+        ingredientsInput={leftoverIngredientsInput}
+        setIngredientsInput={setLeftoverIngredientsInput}
+        isSearching={isLeftoverSearching}
+        onSearch={handleSearchLeftoverRecipes}
+        recipes={leftoverRecipes}
+        onViewRecipe={setSelectedLeftoverRecipe}
+        onAskFern={handleAskFernLeftover}
+      />
+
+      <LeftoverRecipeDetailModal
+        recipe={selectedLeftoverRecipe}
+        onClose={() => setSelectedLeftoverRecipe(null)}
       />
 
       <EventPlannerIntakeModal

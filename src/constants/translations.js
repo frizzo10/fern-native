@@ -449,6 +449,24 @@ export const translations = {
     done_btn: "Done",
     pairing_fallback_label: "PAIRING",
 
+    // Leftover Magic Modal
+    leftover_magic_title: "Leftover Magic",
+    leftover_ask_fern_btn: "🌿 Ask Fern",
+    leftover_whats_in_fridge: "What's in your fridge?",
+    leftover_subtitle: "Take a photo or just tell Fern what you have.",
+    leftover_take_photo_btn: "📷 Take a Photo",
+    leftover_upload_library_btn: "🖼️ Upload from Library",
+    leftover_or_tell_fern: "or just tell Fern",
+    leftover_input_placeholder: "e.g. chicken, rice, spinach",
+    leftover_go_btn: "🌿 Go",
+    leftover_results_title: "Here's what you can make 🌿",
+    leftover_view_recipe_btn: "👁 VIEW RECIPE",
+    leftover_ingredients_required_desc: "Tell Fern what ingredients you have first.",
+    leftover_no_results_desc: "No recipes were returned. Try different ingredients.",
+    leftover_search_failed_desc: "Could not search leftover recipes right now. Please try again.",
+    leftover_unknown_cuisine: "Unknown cuisine",
+    leftover_unknown_time: "Unknown time",
+
     // Event Planner
     event_planner_q1: "What's the occasion?",
     event_planner_q2: "How many guests (including you)?",
@@ -976,6 +994,24 @@ export const translations = {
     add_to_list_btn: "🛒 Agregar a la lista",
     done_btn: "Listo",
     pairing_fallback_label: "MARIDAJE",
+
+    // Leftover Magic Modal
+    leftover_magic_title: "Magia de Sobras",
+    leftover_ask_fern_btn: "🌿 Preguntar a Fern",
+    leftover_whats_in_fridge: "¿Qué hay en tu refrigerador?",
+    leftover_subtitle: "Toma una foto o solo dile a Fern lo que tienes.",
+    leftover_take_photo_btn: "📷 Tomar una Foto",
+    leftover_upload_library_btn: "🖼️ Subir desde la Biblioteca",
+    leftover_or_tell_fern: "o solo dile a Fern",
+    leftover_input_placeholder: "ej. pollo, arroz, espinaca",
+    leftover_go_btn: "🌿 Ir",
+    leftover_results_title: "Esto es lo que puedes preparar 🌿",
+    leftover_view_recipe_btn: "👁 VER RECETA",
+    leftover_ingredients_required_desc: "Primero dile a Fern qué ingredientes tienes.",
+    leftover_no_results_desc: "No se devolvieron recetas. Prueba con otros ingredientes.",
+    leftover_search_failed_desc: "No se pudieron buscar recetas con sobras en este momento. Inténtalo de nuevo.",
+    leftover_unknown_cuisine: "Cocina desconocida",
+    leftover_unknown_time: "Tiempo desconocido",
 
     // Languages Names
     lang_en: "Inglés",
