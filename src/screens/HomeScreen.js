@@ -20,12 +20,12 @@ import { findStoreLocationByZip } from '../services/storeLookupService';
 import { fetchWinePairings } from '../services/winePairingService';
 import { fetchCharcuterieBoard } from '../services/charcuterieService';
 import { fetchLeftoverRecipes } from '../services/leftoverMagicService';
+import { fetchRecipeImage } from '../utils/recipeImage';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
 import WinePairingModal from '../components/modals/WinePairingModal';
 import EventPlannerIntakeModal from '../components/modals/EventPlannerIntakeModal';
 import LeftoverMagicModal from '../components/modals/LeftoverMagicModal';
-import LeftoverRecipeDetailModal from '../components/modals/LeftoverRecipeDetailModal';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
 
@@ -593,6 +593,26 @@ export default function HomeScreen({ user }) {
     } finally {
       setIsLeftoverSearching(false);
     }
+  };
+
+  const handleViewLeftoverRecipe = async (recipe) => {
+    if (!recipe) return;
+
+    setSelectedLeftoverRecipe(recipe);
+
+    if (recipe.image) {
+      return;
+    }
+
+    const imageQuery = `${recipe.title || ''} ${recipe.cuisine || ''} food`.trim();
+    const imageUrl = await fetchRecipeImage(imageQuery);
+
+    if (!imageUrl) return;
+
+    setSelectedLeftoverRecipe((current) => {
+      if (!current || current.title !== recipe.title) return current;
+      return { ...current, image: imageUrl };
+    });
   };
 
   const closeWineModal = () => {
@@ -1174,13 +1194,10 @@ export default function HomeScreen({ user }) {
         isSearching={isLeftoverSearching}
         onSearch={handleSearchLeftoverRecipes}
         recipes={leftoverRecipes}
-        onViewRecipe={setSelectedLeftoverRecipe}
+        selectedRecipe={selectedLeftoverRecipe}
+        onViewRecipe={handleViewLeftoverRecipe}
+        onCloseRecipeDetail={() => setSelectedLeftoverRecipe(null)}
         onAskFern={handleAskFernLeftover}
-      />
-
-      <LeftoverRecipeDetailModal
-        recipe={selectedLeftoverRecipe}
-        onClose={() => setSelectedLeftoverRecipe(null)}
       />
 
       <EventPlannerIntakeModal
