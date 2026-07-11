@@ -20,14 +20,25 @@ import { findStoreLocationByZip } from '../services/storeLookupService';
 import { fetchWinePairings } from '../services/winePairingService';
 import { fetchCharcuterieBoard } from '../services/charcuterieService';
 import { fetchLeftoverRecipes } from '../services/leftoverMagicService';
-import { fetchRecipeImage } from '../utils/recipeImage';
+import { fetchFridgeChallengeRecipes } from '../services/fridgeChallengeService';
+import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
+import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
 import WinePairingModal from '../components/modals/WinePairingModal';
 import EventPlannerIntakeModal from '../components/modals/EventPlannerIntakeModal';
 import LeftoverMagicModal from '../components/modals/LeftoverMagicModal';
+import FridgeChallengeModal from '../components/modals/FridgeChallengeModal';
+import RecipeDetailModal from '../components/RecipeDetailModal';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
+
+const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
@@ -93,8 +104,13 @@ export default function HomeScreen({ user }) {
   const [isLeftoverMagicOpen, setIsLeftoverMagicOpen] = useState(false);
   const [leftoverIngredientsInput, setLeftoverIngredientsInput] = useState('');
   const [isLeftoverSearching, setIsLeftoverSearching] = useState(false);
-  const [leftoverRecipes, setLeftoverRecipes] = useState([]);
-  const [selectedLeftoverRecipe, setSelectedLeftoverRecipe] = useState(null);
+  const [leftoverPhoto, setLeftoverPhoto] = useState(null);
+  const [isFridgeChallengeOpen, setIsFridgeChallengeOpen] = useState(false);
+  const [fridgeChallengeStep, setFridgeChallengeStep] = useState('intro');
+  const [fridgeChallengeIngredientsInput, setFridgeChallengeIngredientsInput] = useState('');
+  const [fridgeChallengePhotos, setFridgeChallengePhotos] = useState([null, null, null]);
+  const [isFridgeChallengeSearching, setIsFridgeChallengeSearching] = useState(false);
+  const [hasPlayedFridgeChallengeToday, setHasPlayedFridgeChallengeToday] = useState(false);
   const [wineDishInput, setWineDishInput] = useState('');
   const [isWineSearching, setIsWineSearching] = useState(false);
   const [wineSummary, setWineSummary] = useState('');
@@ -113,11 +129,20 @@ export default function HomeScreen({ user }) {
   const [isSavingCharcuterieBoard, setIsSavingCharcuterieBoard] = useState(false);
   const { data, loading, pull, pushAllFromStorage } = useSync(user);
 
+  const leftover = useAiRecipeCollection({ source: 'leftover', data, pushAllFromStorage, pull, t });
+  const fridgeChallenge = useAiRecipeCollection({ source: 'fridge', data, pushAllFromStorage, pull, t });
+
   useFocusEffect(
     useMemo(() => () => {
       pull();
     }, [pull])
   );
+
+  useEffect(() => {
+    AsyncStorage.getItem(FRIDGE_CHALLENGE_LAST_PLAYED_KEY).then((lastPlayed) => {
+      setHasPlayedFridgeChallengeToday(lastPlayed === todayKey());
+    });
+  }, []);
 
   const { isListening, isProcessing, start, stop } = useContinuousMic({
     locale: locale,
@@ -542,8 +567,15 @@ export default function HomeScreen({ user }) {
   const resetLeftoverMagicModal = () => {
     setLeftoverIngredientsInput('');
     setIsLeftoverSearching(false);
-    setLeftoverRecipes([]);
-    setSelectedLeftoverRecipe(null);
+    setLeftoverPhoto(null);
+    leftover.reset();
+  };
+
+  // Only one <Modal> can be reliably presented at a time, so the results list modal is
+  // hidden (not closed — its state stays intact) while the recipe detail modal is open.
+  const closeLeftoverRecipeDetail = () => {
+    leftover.setSelectedRecipe(null);
+    setIsLeftoverMagicOpen(true);
   };
 
   const openLeftoverMagicModal = () => {
@@ -565,24 +597,25 @@ export default function HomeScreen({ user }) {
 
   const handleSearchLeftoverRecipes = async () => {
     const input = leftoverIngredientsInput.trim();
-    if (!input) {
+    if (!input && !leftoverPhoto) {
       Alert.alert(t('dish_required'), t('leftover_ingredients_required_desc'));
       return;
     }
 
     setIsLeftoverSearching(true);
-    setLeftoverRecipes([]);
+    leftover.setRecipes([]);
 
     try {
       const result = await fetchLeftoverRecipes({
         ingredients: input,
+        photos: leftoverPhoto ? [leftoverPhoto] : [],
         locale,
       });
 
       console.log('[leftover-magic] request payload', result.payload);
       console.log('[leftover-magic] response', result.responseJson);
 
-      setLeftoverRecipes(result.recipes);
+      leftover.setRecipes(result.recipes);
 
       if (!result.recipes.length) {
         Alert.alert(t('no_results'), t('leftover_no_results_desc'));
@@ -595,25 +628,115 @@ export default function HomeScreen({ user }) {
     }
   };
 
-  const handleViewLeftoverRecipe = async (recipe) => {
-    if (!recipe) return;
+  const handleViewLeftoverRecipe = (recipe) => {
+    leftover.viewRecipe(recipe, { onOpenDetail: () => setIsLeftoverMagicOpen(false) });
+  };
 
-    setSelectedLeftoverRecipe(recipe);
+  const pickLeftoverPhoto = async (fromCamera) => {
+    const result = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+    if (result.permissionDenied) {
+      Alert.alert(t('permission_needed_title'), t('photo_permission_denied_desc'));
+      return;
+    }
+    if (!result.photo) return;
+    setLeftoverPhoto(result.photo);
+  };
 
-    if (recipe.image) {
+  const resetFridgeChallengeModal = () => {
+    setFridgeChallengeStep('intro');
+    setFridgeChallengeIngredientsInput('');
+    setFridgeChallengePhotos([null, null, null]);
+    setIsFridgeChallengeSearching(false);
+    fridgeChallenge.reset();
+  };
+
+  const closeFridgeChallengeRecipeDetail = () => {
+    fridgeChallenge.setSelectedRecipe(null);
+    setIsFridgeChallengeOpen(true);
+  };
+
+  const openFridgeChallengeModal = () => {
+    resetFridgeChallengeModal();
+    setIsFridgeChallengeOpen(true);
+  };
+
+  const closeFridgeChallengeModal = () => {
+    setIsFridgeChallengeOpen(false);
+    resetFridgeChallengeModal();
+  };
+
+  const handleAskFernFridgeChallenge = () => {
+    closeFridgeChallengeModal();
+    if (!isListening) {
+      start();
+    }
+  };
+
+  const pickFridgeChallengePhoto = async (slotIndex, fromCamera) => {
+    const result = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+    if (result.permissionDenied) {
+      Alert.alert(t('permission_needed_title'), t('photo_permission_denied_desc'));
+      return;
+    }
+    if (!result.photo) return;
+
+    setFridgeChallengePhotos((current) => {
+      const next = [...current];
+      next[slotIndex] = result.photo;
+      return next;
+    });
+  };
+
+  const goToFridgeChallengePhotos = () => {
+    setFridgeChallengeStep('photos');
+  };
+
+  const handleSearchFridgeChallengeRecipes = async () => {
+    const input = fridgeChallengeIngredientsInput.trim();
+    const photos = fridgeChallengePhotos.filter(Boolean);
+
+    if (!input && !photos.length) {
+      Alert.alert(t('dish_required'), t('fridge_challenge_ingredients_required_desc'));
       return;
     }
 
-    const imageQuery = `${recipe.title || ''} ${recipe.cuisine || ''} food`.trim();
-    const imageUrl = await fetchRecipeImage(imageQuery);
+    setIsFridgeChallengeSearching(true);
+    fridgeChallenge.setRecipes([]);
 
-    if (!imageUrl) return;
+    try {
+      const result = await fetchFridgeChallengeRecipes({
+        photos,
+        ingredients: input,
+        locale,
+      });
 
-    setSelectedLeftoverRecipe((current) => {
-      if (!current || current.title !== recipe.title) return current;
-      return { ...current, image: imageUrl };
-    });
+      console.log('[fridge-challenge] request payload', result.payload);
+      console.log('[fridge-challenge] response', result.responseJson);
+
+      fridgeChallenge.setRecipes(result.recipes);
+      setFridgeChallengeStep('results');
+
+      await AsyncStorage.setItem(FRIDGE_CHALLENGE_LAST_PLAYED_KEY, todayKey());
+      setHasPlayedFridgeChallengeToday(true);
+
+      if (!result.recipes.length) {
+        Alert.alert(t('no_results'), t('fridge_challenge_no_results_desc'));
+      }
+    } catch (e) {
+      console.log('[fridge-challenge] search failed', e?.message || e);
+      Alert.alert(t('search_failed'), t('fridge_challenge_search_failed_desc'));
+    } finally {
+      setIsFridgeChallengeSearching(false);
+    }
   };
+
+  const handleViewFridgeChallengeRecipe = (recipe) => {
+    fridgeChallenge.viewRecipe(recipe, { onOpenDetail: () => setIsFridgeChallengeOpen(false) });
+  };
+
+  const selectedAiRecipe = leftover.selectedRecipe || fridgeChallenge.selectedRecipe;
+  const activeAiRecipeCollection = leftover.selectedRecipe ? leftover : (fridgeChallenge.selectedRecipe ? fridgeChallenge : null);
+  const closeSelectedAiRecipeDetail = leftover.selectedRecipe ? closeLeftoverRecipeDetail : closeFridgeChallengeRecipeDetail;
 
   const closeWineModal = () => {
     setIsWineModalOpen(false);
@@ -1029,9 +1152,15 @@ export default function HomeScreen({ user }) {
           ].map(({ label, val, color }) => (
             <TouchableOpacity
               key={label}
-              activeOpacity={label === 'Leftover Magic' ? 0.88 : 1}
-              disabled={label !== 'Leftover Magic'}
-              onPress={label === 'Leftover Magic' ? openLeftoverMagicModal : undefined}
+              activeOpacity={label === 'Leftover Magic' || label === 'Fridge Challenge' ? 0.88 : 1}
+              disabled={label !== 'Leftover Magic' && label !== 'Fridge Challenge'}
+              onPress={
+                label === 'Leftover Magic'
+                  ? openLeftoverMagicModal
+                  : label === 'Fridge Challenge'
+                    ? openFridgeChallengeModal
+                    : undefined
+              }
               style={[
                 styles.mainCard,
                 shadow.card,
@@ -1193,11 +1322,55 @@ export default function HomeScreen({ user }) {
         setIngredientsInput={setLeftoverIngredientsInput}
         isSearching={isLeftoverSearching}
         onSearch={handleSearchLeftoverRecipes}
-        recipes={leftoverRecipes}
-        selectedRecipe={selectedLeftoverRecipe}
+        photo={leftoverPhoto}
+        onTakePhoto={() => pickLeftoverPhoto(true)}
+        onPickPhotoFromLibrary={() => pickLeftoverPhoto(false)}
+        onRemovePhoto={() => setLeftoverPhoto(null)}
+        recipes={leftover.recipes}
         onViewRecipe={handleViewLeftoverRecipe}
-        onCloseRecipeDetail={() => setSelectedLeftoverRecipe(null)}
+        onSaveRecipe={leftover.handleSaveFromCard}
+        savingRecipeKey={leftover.savingKey}
+        isRecipeSaved={leftover.isRecipeSaved}
         onAskFern={handleAskFernLeftover}
+      />
+
+      <FridgeChallengeModal
+        visible={isFridgeChallengeOpen}
+        onClose={closeFridgeChallengeModal}
+        onAskFern={handleAskFernFridgeChallenge}
+        step={fridgeChallengeStep}
+        onGoToPhotos={goToFridgeChallengePhotos}
+        onBackToIntro={() => setFridgeChallengeStep('intro')}
+        ingredientsInput={fridgeChallengeIngredientsInput}
+        setIngredientsInput={setFridgeChallengeIngredientsInput}
+        isSearching={isFridgeChallengeSearching}
+        onSearch={handleSearchFridgeChallengeRecipes}
+        photos={fridgeChallengePhotos}
+        onPickPhoto={pickFridgeChallengePhoto}
+        onRemovePhoto={(slotIndex) => setFridgeChallengePhotos((current) => {
+          const next = [...current];
+          next[slotIndex] = null;
+          return next;
+        })}
+        hasPlayedToday={hasPlayedFridgeChallengeToday}
+        recipes={fridgeChallenge.recipes}
+        onViewRecipe={handleViewFridgeChallengeRecipe}
+        onSaveRecipe={fridgeChallenge.handleSaveFromCard}
+        savingRecipeKey={fridgeChallenge.savingKey}
+        isRecipeSaved={fridgeChallenge.isRecipeSaved}
+      />
+
+      <RecipeDetailModal
+        recipe={selectedAiRecipe}
+        onClose={closeSelectedAiRecipeDetail}
+        noteText={activeAiRecipeCollection?.noteText ?? ''}
+        onChangeNoteText={activeAiRecipeCollection?.setNoteText ?? (() => {})}
+        isSaving={activeAiRecipeCollection?.isSaving ?? false}
+        onSaveNote={() => activeAiRecipeCollection?.persistSelectedNote(closeSelectedAiRecipeDetail)}
+        isAlreadySaved={selectedAiRecipe ? Boolean(activeAiRecipeCollection?.isRecipeSaved(selectedAiRecipe)) : false}
+        showSavedIndicator
+        onDeleteRecipe={selectedAiRecipe && activeAiRecipeCollection?.isRecipeSaved(selectedAiRecipe) ? () => activeAiRecipeCollection.handleDeleteSelected(closeSelectedAiRecipeDetail) : undefined}
+        onAddToList={() => activeAiRecipeCollection?.handleAddToShoppingList()}
       />
 
       <EventPlannerIntakeModal

@@ -27,7 +27,9 @@
         "NSSpeechRecognitionUsageDescription": "Fern listens for your voice commands to plan meals and navigate the app hands-free.",
         "NSLocationWhenInUseUsageDescription": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping.",
-        "NSLocationAlwaysUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping."
+        "NSLocationAlwaysUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping.",
+        "NSCameraUsageDescription": "Fern uses your camera to photograph your fridge or pantry so it can suggest recipes from what you have.",
+        "NSPhotoLibraryUsageDescription": "Fern needs access to your photos so you can pick fridge or pantry photos to find recipes from what you have."
       }
     },
     "android": {
@@ -40,7 +42,10 @@
         "RECORD_AUDIO",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_BACKGROUND_LOCATION"
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -66,7 +71,14 @@
           "enableBackgroundRecording": true
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fern needs access to your photos so you can pick fridge or pantry photos to find recipes from what you have.",
+          "cameraPermission": "Fern uses your camera to photograph your fridge or pantry so it can suggest recipes from what you have."
+        }
+      ]
     ],
     "extra": {
       "eas": {

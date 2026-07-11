@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    Image,
     Modal,
     ScrollView,
     StyleSheet,
@@ -8,7 +9,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import LeftoverRecipeDetailModal from './LeftoverRecipeDetailModal';
 import useLanguage from '../../hooks/useLanguage';
 
 export default function LeftoverMagicModal({
@@ -18,10 +18,15 @@ export default function LeftoverMagicModal({
     setIngredientsInput,
     isSearching,
     onSearch,
+    photo,
+    onTakePhoto,
+    onPickPhotoFromLibrary,
+    onRemovePhoto,
     recipes,
-    selectedRecipe,
     onViewRecipe,
-    onCloseRecipeDetail,
+    onSaveRecipe,
+    savingRecipeKey,
+    isRecipeSaved,
     onAskFern,
 }) {
     const { t } = useLanguage();
@@ -56,21 +61,32 @@ export default function LeftoverMagicModal({
                                 <Text style={styles.leftoverHeading}>{t('leftover_whats_in_fridge')}</Text>
                                 <Text style={styles.leftoverSubheading}>{t('leftover_subtitle')}</Text>
 
+                                {photo ? (
+                                    <View style={styles.leftoverPhotoPreviewRow}>
+                                        <Image source={{ uri: photo.uri }} style={styles.leftoverPhotoPreview} />
+                                        <TouchableOpacity
+                                            style={styles.leftoverRemovePhotoBtn}
+                                            activeOpacity={0.85}
+                                            onPress={onRemovePhoto}
+                                        >
+                                            <Text style={styles.leftoverRemovePhotoText}>×</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : null}
+
                                 <TouchableOpacity
                                     style={styles.leftoverPrimaryAction}
                                     activeOpacity={0.85}
-                                    onPress={onSearch}
+                                    onPress={onTakePhoto}
                                     disabled={isSearching}
                                 >
-                                    <Text style={styles.leftoverPrimaryActionText}>
-                                        {isSearching ? t('searching_ellipsis') : t('leftover_take_photo_btn')}
-                                    </Text>
+                                    <Text style={styles.leftoverPrimaryActionText}>{t('leftover_take_photo_btn')}</Text>
                                 </TouchableOpacity>
 
                                 <TouchableOpacity
                                     style={styles.leftoverSecondaryAction}
                                     activeOpacity={0.85}
-                                    onPress={onSearch}
+                                    onPress={onPickPhotoFromLibrary}
                                     disabled={isSearching}
                                 >
                                     <Text style={styles.leftoverSecondaryActionText}>{t('leftover_upload_library_btn')}</Text>
@@ -121,23 +137,35 @@ export default function LeftoverMagicModal({
                                         <Text style={styles.recipeDescription}>{recipe.description}</Text>
                                         <Text style={styles.recipeTime}>{`⏱ ${recipe.time}`}</Text>
 
-                                        <TouchableOpacity
-                                            style={styles.viewRecipeBtn}
-                                            activeOpacity={0.85}
-                                            onPress={() => onViewRecipe(recipe)}
-                                        >
-                                            <Text style={styles.viewRecipeBtnText}>{t('leftover_view_recipe_btn')}</Text>
-                                        </TouchableOpacity>
+                                        <View style={styles.recipeActionsRow}>
+                                            <TouchableOpacity
+                                                style={styles.viewRecipeBtn}
+                                                activeOpacity={0.85}
+                                                onPress={() => onViewRecipe(recipe)}
+                                            >
+                                                <Text style={styles.viewRecipeBtnText}>{t('leftover_view_recipe_btn')}</Text>
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={[styles.saveRecipeBtn, isRecipeSaved?.(recipe) ? styles.saveRecipeBtnSaved : null]}
+                                                activeOpacity={0.85}
+                                                onPress={() => onSaveRecipe(recipe)}
+                                                disabled={savingRecipeKey === (recipe.id || recipe.title) || isRecipeSaved?.(recipe)}
+                                            >
+                                                <Text style={styles.saveRecipeBtnText}>
+                                                    {savingRecipeKey === (recipe.id || recipe.title)
+                                                        ? t('saving_ellipsis')
+                                                        : isRecipeSaved?.(recipe)
+                                                            ? t('results_saved_badge')
+                                                            : t('save_short_btn')}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
                                 ))}
                             </View>
                         )}
                     </ScrollView>
-
-                    <LeftoverRecipeDetailModal
-                        recipe={selectedRecipe}
-                        onClose={onCloseRecipeDetail}
-                    />
                 </View>
             </View>
         </Modal>
@@ -225,6 +253,35 @@ const styles = StyleSheet.create({
         fontFamily: 'Jost-Medium',
         fontSize: 13,
         lineHeight: 18,
+    },
+    leftoverPhotoPreviewRow: {
+        marginTop: 16,
+        alignItems: 'center',
+    },
+    leftoverPhotoPreview: {
+        width: 120,
+        height: 120,
+        borderRadius: 14,
+        borderWidth: 1,
+        borderColor: '#CFBEA7',
+    },
+    leftoverRemovePhotoBtn: {
+        position: 'absolute',
+        top: -8,
+        right: '50%',
+        marginRight: -68,
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        backgroundColor: '#2A1A11',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    leftoverRemovePhotoText: {
+        color: '#FBF8F2',
+        fontFamily: 'Jost-Bold',
+        fontSize: 16,
+        lineHeight: 16,
     },
     leftoverPrimaryAction: {
         marginTop: 22,
@@ -364,18 +421,44 @@ const styles = StyleSheet.create({
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
-    viewRecipeBtn: {
+    recipeActionsRow: {
         marginTop: 12,
+        flexDirection: 'row',
+        alignItems: 'stretch',
+        gap: 10,
+    },
+    viewRecipeBtn: {
+        flex: 1,
         borderRadius: 12,
         backgroundColor: '#173E20',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 12,
+        paddingHorizontal: 10,
     },
     viewRecipeBtnText: {
         color: '#F2F8F2',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
+        letterSpacing: 0.3,
+    },
+    saveRecipeBtn: {
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#CFBEA7',
+        backgroundColor: '#F8F5EF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+    },
+    saveRecipeBtnSaved: {
+        opacity: 0.7,
+    },
+    saveRecipeBtnText: {
+        color: '#2B2017',
+        fontFamily: 'Jost-Bold',
+        fontSize: 11,
         letterSpacing: 0.3,
     },
 });

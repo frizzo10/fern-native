@@ -44,7 +44,7 @@ function normalizeRecipe(recipe, index) {
         : [];
 
     return {
-        id: `leftover-${Date.now()}-${index}`,
+        id: `fridge-${Date.now()}-${index}`,
         title: String(recipe?.title || fallbackTitle).trim(),
         description: String(recipe?.description || '').trim(),
         time: String(recipe?.time || '').trim(),
@@ -75,23 +75,23 @@ function buildImageContentBlocks(photos) {
         }));
 }
 
-export async function fetchLeftoverRecipes({ ingredients, photos, locale }) {
+export async function fetchFridgeChallengeRecipes({ photos, ingredients, locale }) {
     const normalizedIngredients = String(ingredients || '').trim();
     const imageBlocks = buildImageContentBlocks(photos);
 
     const textPrompt = imageBlocks.length
-        ? `Here are photo(s) of my leftovers.${normalizedIngredients ? ` I also have: ${normalizedIngredients}.` : ''} What 3 recipes can I make? Return JSON only.`
+        ? `Here are photo(s) of my fridge/pantry.${normalizedIngredients ? ` I also have: ${normalizedIngredients}.` : ''} What 3 recipes can I make? Return JSON only.`
         : `I have: ${normalizedIngredients}. What 3 recipes can I make? Return JSON only.`;
 
     const payload = {
-        system: 'You are a creative chef. Given photo(s) of leftovers and/or a list of ingredients, return ONLY a JSON object: {"recipes":[{"title":"","description":"","time":"","difficulty":"Easy|Medium|Ambitious","ingredients":[{"amount":"","unit":"","item":""}],"instructions":[""],"cuisine":"","emoji":""}]} - exactly 3 recipes from easy to ambitious. No markdown.',
+        system: 'You are a creative chef running a daily "fridge challenge". Given photo(s) of a fridge/pantry and/or a list of ingredients, return ONLY a JSON object: {"recipes":[{"title":"","description":"","time":"","difficulty":"Easy|Medium|Ambitious","ingredients":[{"amount":"","unit":"","item":""}],"instructions":[""],"cuisine":"","emoji":""}]} - exactly 3 recipes from easy to ambitious. No markdown.',
         messages: [
             {
                 role: 'user',
-                content: imageBlocks.length ? [...imageBlocks, { type: 'text', text: textPrompt }] : textPrompt,
+                content: [...imageBlocks, { type: 'text', text: textPrompt }],
             },
         ],
-        feature: 'recipe_search',
+        feature: 'fridge_challenge',
         locale: locale || 'en',
     };
 
@@ -105,7 +105,7 @@ export async function fetchLeftoverRecipes({ ingredients, photos, locale }) {
     });
 
     if (!res.ok) {
-        throw new Error(`Leftover Magic API failed (${res.status})`);
+        throw new Error(`Fridge Challenge API failed (${res.status})`);
     }
 
     const responseJson = await res.json();
