@@ -64,7 +64,7 @@ function dateKey(d) {
 function sanitizeEmoji(emoji) {
   const defaultEmoji = '🍽️';
   if (!emoji || typeof emoji !== 'string') return defaultEmoji;
-  if (emoji.includes('')) return defaultEmoji;
+  if (emoji.includes('�')) return defaultEmoji;
   return emoji;
 }
 
@@ -1269,20 +1269,20 @@ export default function HomeScreen({ user }) {
             const onPress = toolHandlers[label];
 
             return (
-            <TouchableOpacity
-              key={label}
-              activeOpacity={onPress ? 0.88 : 1}
-              disabled={!onPress}
-              onPress={onPress}
-              style={[
-                styles.mainCard,
-                shadow.card,
-                { backgroundColor: color }
-              ]}
-            >
-              <Text style={styles.mainVal}>{val}</Text>
-              <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                key={label}
+                activeOpacity={onPress ? 0.88 : 1}
+                disabled={!onPress}
+                onPress={onPress}
+                style={[
+                  styles.mainCard,
+                  shadow.card,
+                  { backgroundColor: color }
+                ]}
+              >
+                <Text style={styles.mainVal}>{val}</Text>
+                <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
+              </TouchableOpacity>
             );
           })}
         </View>
