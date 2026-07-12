@@ -3,6 +3,8 @@ import {
     ActionSheetIOS,
     Alert,
     Image,
+    Keyboard,
+    KeyboardAvoidingView,
     Modal,
     Platform,
     ScrollView,
@@ -10,6 +12,7 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
@@ -82,7 +85,11 @@ export default function FridgeChallengeModal({
             visible={visible}
             onRequestClose={onClose}
         >
-            <View style={styles.backdrop}>
+            <KeyboardAvoidingView
+                style={styles.backdrop}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.sheet}>
                     <View style={styles.topBar}>
                         <Text style={styles.title}>{`🧊 ${t('fridge_challenge_title')}`}</Text>
@@ -242,7 +249,8 @@ export default function FridgeChallengeModal({
                         )}
                     </ScrollView>
                 </View>
-            </View>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }

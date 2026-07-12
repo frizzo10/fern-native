@@ -119,12 +119,12 @@ export default function RecipeDetailModal({
 
                   <Text style={styles.overlaySectionTitle}>{t('ingredients_title')} <Text style={styles.overlayServings}>• {recipe.servings} {t('servings_label')}</Text></Text>
 
-                  <View style={styles.overlayTopActionsRow}>
+                  {/* <View style={styles.overlayTopActionsRow}>
                     <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_scale')}</Text></TouchableOpacity>
                     <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_pair')}</Text></TouchableOpacity>
                     <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_plate')}</Text></TouchableOpacity>
                     <TouchableOpacity style={[styles.overlayActionPill, styles.overlayActionPillCook]}><Text style={styles.overlayActionText}>{t('action_cook')}</Text></TouchableOpacity>
-                  </View>
+                  </View> */}
 
                   <View style={styles.overlayDivider} />
 

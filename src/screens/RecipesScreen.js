@@ -24,6 +24,7 @@ import {
   getRawRecipeId,
 } from '../utils/recipeNormalize';
 import { fetchRecipeImage } from '../utils/recipeImage';
+import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import useLanguage from '../hooks/useLanguage';
 
 function normalizeBook(item, index) {
@@ -147,6 +148,32 @@ export default function RecipesScreen({ user }) {
       setSelectedRecipe(null);
     } catch (e) {
       console.warn('Save recipe note failed:', e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAddSelectedRecipeToShoppingList = async () => {
+    if (!selectedRecipe) return;
+
+    const ingredients = Array.isArray(selectedRecipe.ingredients) ? selectedRecipe.ingredients : [];
+    if (!ingredients.length) {
+      Alert.alert(t('no_items'), t('no_items_desc'));
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+      const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(selectedRecipe, existingItems);
+
+      await pushAllFromStorage();
+      await pull();
+
+      Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
+    } catch (e) {
+      console.warn('Add to shopping list failed:', e);
+      Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));
     } finally {
       setIsSaving(false);
     }
@@ -670,6 +697,7 @@ export default function RecipesScreen({ user }) {
         isSaving={isSaving}
         onSaveNote={persistRecipeNote}
         onDeleteRecipe={handleDeleteRecipe}
+        onAddToList={handleAddSelectedRecipeToShoppingList}
       />
     </View>
   );

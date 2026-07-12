@@ -1,4 +1,13 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(node -e ' *)",
+      "Bash(python3 -)",
+      "Bash(grep -rnE \"\\\\|\\\\|\\\\s*'[A-Z][a-zA-Z ]{3,}'\" src/screens src/components)",
+      "Bash(grep -nE \"'[A-Z][a-zA-Z ]{4,}'\" src/components/modals/LeftoverMagicModal.js src/components/modals/WinePairingModal.js src/components/modals/EventPlanResultModal.js src/components/modals/LanguageModal.js src/components/EventPlannerQuestionFlow.js src/components/EventPlannerQuestionTypes.js src/components/RecipeDetailModal.js src/screens/FindScreen.js src/screens/FamilyScreen.js src/screens/LoginScreen.js)",
+      "Bash(grep -n \"backdrop}>\\\\|</Modal>\\\\|^        </View>\\\\|^    \\);$\" /Users/haid3r/Repos/fern-native/src/components/modals/FridgeChallengeModal.js)"
+    ]
+  },
   "enabledPlugins": {
     "expo@claude-plugins-official": true
   }

@@ -112,7 +112,7 @@ export function useFernVoice({ onError } = {}) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ text: cleanText, lang: locale }),
+                body: JSON.stringify({ text: cleanText, locale }),
             });
 
             if (!response.ok) {
@@ -138,7 +138,7 @@ export function useFernVoice({ onError } = {}) {
             onError?.(error?.message ?? 'Unable to generate speech');
             return null;
         }
-    }, [onError, stopSpeaking]);
+    }, [onError, stopSpeaking, locale]);
 
     const getFernReply = useCallback(async (input, { speak = false } = {}) => {
         const message = input?.trim?.();
@@ -162,7 +162,7 @@ export function useFernVoice({ onError } = {}) {
                         },
                     ],
                     system: 'You are Fern, a personal AI food assistant. Be brief and conversational.',
-                    lang: locale
+                    locale,
                 }),
             });
 
@@ -190,7 +190,7 @@ export function useFernVoice({ onError } = {}) {
                 setIsThinking(false);
             }
         }
-    }, [onError, speakText]);
+    }, [onError, speakText, locale]);
 
     return {
         isThinking,

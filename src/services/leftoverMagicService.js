@@ -62,33 +62,22 @@ function getDifficultyRank(difficulty) {
     return 3;
 }
 
-function buildImageContentBlocks(photos) {
-    return (Array.isArray(photos) ? photos : [])
-        .filter((photo) => photo?.base64)
-        .map((photo) => ({
-            type: 'image',
-            source: {
-                type: 'base64',
-                media_type: photo.mimeType || 'image/jpeg',
-                data: photo.base64,
-            },
-        }));
-}
-
 export async function fetchLeftoverRecipes({ ingredients, photos, locale }) {
     const normalizedIngredients = String(ingredients || '').trim();
-    const imageBlocks = buildImageContentBlocks(photos);
+    const hasPhotos = Array.isArray(photos) && photos.some(Boolean);
 
-    const textPrompt = imageBlocks.length
-        ? `Here are photo(s) of my leftovers.${normalizedIngredients ? ` I also have: ${normalizedIngredients}.` : ''} What 3 recipes can I make? Return JSON only.`
-        : `I have: ${normalizedIngredients}. What 3 recipes can I make? Return JSON only.`;
+    const textPrompt = normalizedIngredients
+        ? `I have: ${normalizedIngredients}. What 3 recipes can I make? One easy, one medium, one ambitious. Return JSON only.`
+        : hasPhotos
+            ? `I just took a photo of my leftovers. Suggest 3 recipes I could likely make with common leftover ingredients. One easy, one medium, one ambitious. Return JSON only.`
+            : `What 3 recipes can I make with common leftover ingredients? One easy, one medium, one ambitious. Return JSON only.`;
 
     const payload = {
-        system: 'You are a creative chef. Given photo(s) of leftovers and/or a list of ingredients, return ONLY a JSON object: {"recipes":[{"title":"","description":"","time":"","difficulty":"Easy|Medium|Ambitious","ingredients":[{"amount":"","unit":"","item":""}],"instructions":[""],"cuisine":"","emoji":""}]} - exactly 3 recipes from easy to ambitious. No markdown.',
+        system: 'You are a creative chef. Given a list of ingredients someone has at home, return ONLY a JSON object: {"recipes":[{"title":"","description":"","time":"","difficulty":"Easy|Medium|Ambitious","ingredients":[{"amount":"","unit":"","item":""}],"instructions":[""],"cuisine":"","emoji":""}]} — exactly 3 recipes: one Easy, one Medium, one Ambitious. No markdown.',
         messages: [
             {
                 role: 'user',
-                content: imageBlocks.length ? [...imageBlocks, { type: 'text', text: textPrompt }] : textPrompt,
+                content: textPrompt,
             },
         ],
         feature: 'recipe_search',

@@ -1,11 +1,15 @@
 import React from 'react';
 import {
+    Keyboard,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
@@ -35,7 +39,11 @@ export default function WinePairingModal({
             visible={visible}
             onRequestClose={onClose}
         >
-            <View style={styles.wineBackdrop}>
+            <KeyboardAvoidingView
+                style={styles.wineBackdrop}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.wineSheet}>
                     <TouchableOpacity style={styles.wineCloseBtn} activeOpacity={0.85} onPress={onClose}>
                         <Text style={styles.wineCloseText}>×</Text>
@@ -140,7 +148,8 @@ export default function WinePairingModal({
                         </View>
                     ) : null}
                 </View>
-            </View>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }

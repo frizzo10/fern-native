@@ -2,45 +2,52 @@ import React from 'react';
 import {
     ActivityIndicator,
     Image,
+    Keyboard,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
 
+// `value` is the literal string sent to the charcuterie-board API's
+// `occasion`/`dietary` fields (backend contract, kept in English) —
+// `labelKey` is the translated display text shown on the chip/option.
 const CHARCUTERIE_OCCASIONS = [
-    'Date Night',
-    'House Party',
-    'Wine Tasting',
-    'Game Night',
-    'Holiday Gathering',
-    'Baby Shower',
-    'Birthday Party',
-    'Corporate Event',
-    'Casual Hangout',
-    'Movie Night',
+    { value: 'Date Night', labelKey: 'charcuterie_occasion_date_night' },
+    { value: 'House Party', labelKey: 'charcuterie_occasion_house_party' },
+    { value: 'Wine Tasting', labelKey: 'charcuterie_occasion_wine_tasting' },
+    { value: 'Game Night', labelKey: 'charcuterie_occasion_game_night' },
+    { value: 'Holiday Gathering', labelKey: 'charcuterie_occasion_holiday_gathering' },
+    { value: 'Baby Shower', labelKey: 'charcuterie_occasion_baby_shower' },
+    { value: 'Birthday Party', labelKey: 'charcuterie_occasion_birthday_party' },
+    { value: 'Corporate Event', labelKey: 'charcuterie_occasion_corporate_event' },
+    { value: 'Casual Hangout', labelKey: 'charcuterie_occasion_casual_hangout' },
+    { value: 'Movie Night', labelKey: 'charcuterie_occasion_movie_night' },
 ];
 
 const CHARCUTERIE_BOARD_STYLES = [
-    { id: 'classic', emoji: '🧀', title: 'Classic', subtitle: 'Meats, cheeses & all the classics' },
-    { id: 'italian', emoji: '🇮🇹', title: 'Italian', subtitle: 'Prosciutto, parmigiano, olives' },
-    { id: 'french', emoji: '🇫🇷', title: 'French', subtitle: 'Brie, pate, cornichons' },
-    { id: 'vegan', emoji: '🌱', title: 'Vegan', subtitle: 'Plant-based cheeses & spreads' },
-    { id: 'mediterranean', emoji: '🫒', title: 'Mediterranean', subtitle: 'Hummus, pita, feta, olives' },
-    { id: 'dessert', emoji: '🍫', title: 'Dessert', subtitle: 'Sweet board with chocolate & fruit' },
+    { id: 'classic', emoji: '🧀', titleKey: 'charcuterie_style_classic_title', subtitleKey: 'charcuterie_style_classic_subtitle' },
+    { id: 'italian', emoji: '🇮🇹', titleKey: 'charcuterie_style_italian_title', subtitleKey: 'charcuterie_style_italian_subtitle' },
+    { id: 'french', emoji: '🇫🇷', titleKey: 'charcuterie_style_french_title', subtitleKey: 'charcuterie_style_french_subtitle' },
+    { id: 'vegan', emoji: '🌱', titleKey: 'charcuterie_style_vegan_title', subtitleKey: 'charcuterie_style_vegan_subtitle' },
+    { id: 'mediterranean', emoji: '🫒', titleKey: 'charcuterie_style_mediterranean_title', subtitleKey: 'charcuterie_style_mediterranean_subtitle' },
+    { id: 'dessert', emoji: '🍫', titleKey: 'charcuterie_style_dessert_title', subtitleKey: 'charcuterie_style_dessert_subtitle' },
 ];
 
 const CHARCUTERIE_DIETARY_OPTIONS = [
-    'None',
-    'Vegetarian',
-    'Vegan',
-    'GF',
-    'Halal',
+    { value: 'None', labelKey: 'charcuterie_dietary_none' },
+    { value: 'Vegetarian', labelKey: 'charcuterie_dietary_vegetarian' },
+    { value: 'Vegan', labelKey: 'charcuterie_dietary_vegan' },
+    { value: 'GF', labelKey: 'charcuterie_dietary_gf' },
+    { value: 'Halal', labelKey: 'charcuterie_dietary_halal' },
 ];
 
 export default function CharcuterieModal({
@@ -71,6 +78,7 @@ export default function CharcuterieModal({
 }) {
     const { t } = useLanguage();
     const hasBoard = Boolean(charcuterieResult);
+    const selectedDietaryOption = CHARCUTERIE_DIETARY_OPTIONS.find((option) => option.value === charcuterieDietary);
     const garnishChips = [
         ...(Array.isArray(charcuterieResult?.garnishes) ? charcuterieResult.garnishes : []),
         ...(Array.isArray(charcuterieResult?.drizzles) ? charcuterieResult.drizzles : []),
@@ -100,7 +108,11 @@ export default function CharcuterieModal({
             visible={visible}
             onRequestClose={onClose}
         >
-            <View style={styles.charcuterieBackdrop}>
+            <KeyboardAvoidingView
+                style={styles.charcuterieBackdrop}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.charcuterieSheet}>
                     <TouchableOpacity style={styles.charcuterieCloseBtn} activeOpacity={0.85} onPress={onClose}>
                         <Text style={styles.charcuterieCloseText}>×</Text>
@@ -122,7 +134,7 @@ export default function CharcuterieModal({
                                     <Text style={styles.charcuterieResultHeroTitle}>{charcuterieResult.title}</Text>
                                     {charcuterieResult.tagline ? <Text style={styles.charcuterieResultHeroTagline}>{charcuterieResult.tagline}</Text> : null}
                                     <View style={styles.charcuterieResultHeroMetaRow}>
-                                        <Text style={styles.charcuterieResultHeroMetaText}>{`👥 Serves ${charcuterieResult.serves || charcuteriePeople}`}</Text>
+                                        <Text style={styles.charcuterieResultHeroMetaText}>{t('charcuterie_serves_label', { count: charcuterieResult.serves || charcuteriePeople })}</Text>
                                         {charcuterieResult.estimatedCost ? <Text style={styles.charcuterieResultHeroMetaText}>{`💰 ${charcuterieResult.estimatedCost}`}</Text> : null}
                                     </View>
                                 </View>
@@ -255,15 +267,15 @@ export default function CharcuterieModal({
                                 <Text style={styles.charcuterieSectionLabel}>{t('occasion_label')}</Text>
                                 <View style={styles.charcuterieOccasionWrap}>
                                     {CHARCUTERIE_OCCASIONS.map((occasion) => {
-                                        const selected = charcuterieOccasion === occasion;
+                                        const selected = charcuterieOccasion === occasion.value;
                                         return (
                                             <TouchableOpacity
-                                                key={occasion}
+                                                key={occasion.value}
                                                 activeOpacity={0.85}
                                                 style={[styles.charcuterieChip, selected ? styles.charcuterieChipActive : null]}
-                                                onPress={() => setCharcuterieOccasion(occasion)}
+                                                onPress={() => setCharcuterieOccasion(occasion.value)}
                                             >
-                                                <Text style={[styles.charcuterieChipText, selected ? styles.charcuterieChipTextActive : null]}>{occasion}</Text>
+                                                <Text style={[styles.charcuterieChipText, selected ? styles.charcuterieChipTextActive : null]}>{t(occasion.labelKey)}</Text>
                                             </TouchableOpacity>
                                         );
                                     })}
@@ -281,10 +293,10 @@ export default function CharcuterieModal({
                                                 onPress={() => setCharcuterieBoardStyle(styleItem.id)}
                                             >
                                                 <Text style={[styles.charcuterieBoardTitle, selected ? styles.charcuterieBoardTitleActive : null]}>
-                                                    {`${styleItem.emoji} ${styleItem.title}`}
+                                                    {`${styleItem.emoji} ${t(styleItem.titleKey)}`}
                                                 </Text>
                                                 <Text style={[styles.charcuterieBoardSub, selected ? styles.charcuterieBoardSubActive : null]}>
-                                                    {styleItem.subtitle}
+                                                    {t(styleItem.subtitleKey)}
                                                 </Text>
                                             </TouchableOpacity>
                                         );
@@ -324,7 +336,7 @@ export default function CharcuterieModal({
                                                 style={styles.charcuterieDropdownButton}
                                                 onPress={() => setIsDietaryMenuOpen((v) => !v)}
                                             >
-                                                <Text style={styles.charcuterieDropdownText}>{charcuterieDietary}</Text>
+                                                <Text style={styles.charcuterieDropdownText}>{selectedDietaryOption ? t(selectedDietaryOption.labelKey) : charcuterieDietary}</Text>
                                                 <Text style={styles.charcuterieDropdownArrow}>⌄</Text>
                                             </TouchableOpacity>
 
@@ -332,15 +344,15 @@ export default function CharcuterieModal({
                                                 <View style={styles.charcuterieDropdownMenu}>
                                                     {CHARCUTERIE_DIETARY_OPTIONS.map((option) => (
                                                         <TouchableOpacity
-                                                            key={option}
+                                                            key={option.value}
                                                             style={styles.charcuterieDropdownItem}
                                                             activeOpacity={0.8}
                                                             onPress={() => {
-                                                                setCharcuterieDietary(option);
+                                                                setCharcuterieDietary(option.value);
                                                                 setIsDietaryMenuOpen(false);
                                                             }}
                                                         >
-                                                            <Text style={styles.charcuterieDropdownItemText}>{option}</Text>
+                                                            <Text style={styles.charcuterieDropdownItemText}>{t(option.labelKey)}</Text>
                                                         </TouchableOpacity>
                                                     ))}
                                                 </View>
@@ -365,7 +377,8 @@ export default function CharcuterieModal({
                         )}
                     </ScrollView>
                 </View>
-            </View>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }

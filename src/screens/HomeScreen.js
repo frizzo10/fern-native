@@ -1,8 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   TextInput,
+  TouchableWithoutFeedback,
   View,
   Text,
   ScrollView,
@@ -21,7 +25,9 @@ import { fetchWinePairings } from '../services/winePairingService';
 import { fetchCharcuterieBoard } from '../services/charcuterieService';
 import { fetchLeftoverRecipes } from '../services/leftoverMagicService';
 import { fetchFridgeChallengeRecipes } from '../services/fridgeChallengeService';
+import { fetchQuickDinnerRecipes } from '../services/whatsForDinnerService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
+import { fetchRecipeImage } from '../utils/recipeImage';
 import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
@@ -29,6 +35,7 @@ import WinePairingModal from '../components/modals/WinePairingModal';
 import EventPlannerIntakeModal from '../components/modals/EventPlannerIntakeModal';
 import LeftoverMagicModal from '../components/modals/LeftoverMagicModal';
 import FridgeChallengeModal from '../components/modals/FridgeChallengeModal';
+import TwentyMinDinnerModal from '../components/modals/TwentyMinDinnerModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
@@ -111,6 +118,11 @@ export default function HomeScreen({ user }) {
   const [fridgeChallengePhotos, setFridgeChallengePhotos] = useState([null, null, null]);
   const [isFridgeChallengeSearching, setIsFridgeChallengeSearching] = useState(false);
   const [hasPlayedFridgeChallengeToday, setHasPlayedFridgeChallengeToday] = useState(false);
+  const [isQuickDinnerOpen, setIsQuickDinnerOpen] = useState(false);
+  const [quickDinnerSelectedPicks, setQuickDinnerSelectedPicks] = useState([]);
+  const [quickDinnerIngredientsInput, setQuickDinnerIngredientsInput] = useState('');
+  const [isQuickDinnerSearching, setIsQuickDinnerSearching] = useState(false);
+  const [quickDinnerHasError, setQuickDinnerHasError] = useState(false);
   const [wineDishInput, setWineDishInput] = useState('');
   const [isWineSearching, setIsWineSearching] = useState(false);
   const [wineSummary, setWineSummary] = useState('');
@@ -131,6 +143,7 @@ export default function HomeScreen({ user }) {
 
   const leftover = useAiRecipeCollection({ source: 'leftover', data, pushAllFromStorage, pull, t });
   const fridgeChallenge = useAiRecipeCollection({ source: 'fridge', data, pushAllFromStorage, pull, t });
+  const quickDinner = useAiRecipeCollection({ source: 'quick-dinner', data, pushAllFromStorage, pull, t });
 
   useFocusEffect(
     useMemo(() => () => {
@@ -155,7 +168,7 @@ export default function HomeScreen({ user }) {
             'Content-Type': 'application/json',
             'User-Agent': 'FernApp/1.0 (myaifern.com)',
           },
-          body: JSON.stringify({ message: text, context: 'family_hub', userId: user?.id }),
+          body: JSON.stringify({ message: text, context: 'family_hub', userId: user?.id, locale }),
         });
         const d = await res.json();
         setFernReply(d.reply || '');
@@ -734,9 +747,107 @@ export default function HomeScreen({ user }) {
     fridgeChallenge.viewRecipe(recipe, { onOpenDetail: () => setIsFridgeChallengeOpen(false) });
   };
 
-  const selectedAiRecipe = leftover.selectedRecipe || fridgeChallenge.selectedRecipe;
-  const activeAiRecipeCollection = leftover.selectedRecipe ? leftover : (fridgeChallenge.selectedRecipe ? fridgeChallenge : null);
-  const closeSelectedAiRecipeDetail = leftover.selectedRecipe ? closeLeftoverRecipeDetail : closeFridgeChallengeRecipeDetail;
+  const resetQuickDinnerModal = () => {
+    setQuickDinnerSelectedPicks([]);
+    setQuickDinnerIngredientsInput('');
+    setIsQuickDinnerSearching(false);
+    setQuickDinnerHasError(false);
+    quickDinner.reset();
+  };
+
+  const closeQuickDinnerRecipeDetail = () => {
+    quickDinner.setSelectedRecipe(null);
+    setIsQuickDinnerOpen(true);
+  };
+
+  const openQuickDinnerModal = () => {
+    resetQuickDinnerModal();
+    setIsQuickDinnerOpen(true);
+  };
+
+  const closeQuickDinnerModal = () => {
+    setIsQuickDinnerOpen(false);
+    resetQuickDinnerModal();
+  };
+
+  const handleAskFernQuickDinner = () => {
+    closeQuickDinnerModal();
+    if (!isListening) {
+      start();
+    }
+  };
+
+  const toggleQuickDinnerPick = (option) => {
+    setQuickDinnerSelectedPicks((current) => (
+      current.includes(option) ? current.filter((item) => item !== option) : [...current, option]
+    ));
+  };
+
+  const goBackToQuickDinnerSelection = () => {
+    quickDinner.setRecipes([]);
+    setQuickDinnerHasError(false);
+  };
+
+  const runQuickDinnerSearch = async () => {
+    if (!quickDinnerSelectedPicks.length && !quickDinnerIngredientsInput.trim()) {
+      Alert.alert(t('dish_required'), t('quick_dinner_selection_required_desc'));
+      return;
+    }
+
+    setIsQuickDinnerSearching(true);
+    setQuickDinnerHasError(false);
+    quickDinner.setRecipes([]);
+
+    try {
+      const result = await fetchQuickDinnerRecipes({
+        quickPicks: quickDinnerSelectedPicks,
+        ingredients: quickDinnerIngredientsInput.trim(),
+        servings: 4,
+        locale,
+      });
+
+      console.log('[quick-dinner] request payload', result.payload);
+      console.log('[quick-dinner] response', result.responseJson);
+
+      const recipesWithImages = await Promise.all(result.recipes.map(async (recipe) => {
+        const image = await fetchRecipeImage(`${recipe.title} ${recipe.cuisine} food`.trim());
+        return { ...recipe, image };
+      }));
+
+      quickDinner.setRecipes(recipesWithImages);
+
+      if (!recipesWithImages.length) {
+        setQuickDinnerHasError(true);
+      }
+    } catch (e) {
+      console.log('[quick-dinner] search failed', e?.message || e);
+      setQuickDinnerHasError(true);
+    } finally {
+      setIsQuickDinnerSearching(false);
+    }
+  };
+
+  const handleViewQuickDinnerRecipe = (recipe) => {
+    quickDinner.viewRecipe(recipe, { onOpenDetail: () => setIsQuickDinnerOpen(false) });
+  };
+
+  const handleAddQuickDinnerRecipeToList = (recipe) => {
+    quickDinner.addIngredientsToShoppingList(recipe);
+  };
+
+  const selectedAiRecipe = leftover.selectedRecipe || fridgeChallenge.selectedRecipe || quickDinner.selectedRecipe;
+  const activeAiRecipeCollection = leftover.selectedRecipe
+    ? leftover
+    : fridgeChallenge.selectedRecipe
+      ? fridgeChallenge
+      : quickDinner.selectedRecipe
+        ? quickDinner
+        : null;
+  const closeSelectedAiRecipeDetail = leftover.selectedRecipe
+    ? closeLeftoverRecipeDetail
+    : fridgeChallenge.selectedRecipe
+      ? closeFridgeChallengeRecipeDetail
+      : closeQuickDinnerRecipeDetail;
 
   const closeWineModal = () => {
     setIsWineModalOpen(false);
@@ -796,7 +907,7 @@ export default function HomeScreen({ user }) {
       parts.push('✨');
     }
     parts.push(getPairingIcon(item));
-    parts.push(item?.name || 'Pairing');
+    parts.push(item?.name || t('pairing_fallback_label'));
     if (item?.region) {
       parts.push(`• ${item.region}`);
     }
@@ -859,7 +970,7 @@ export default function HomeScreen({ user }) {
   };
 
   const userName = user?.name?.split(' ')[0] || 'Frank';
-  const dietary = data?.userProfile?.dietary || data?.profile?.dietary || user?.dietary || 'Vegan';
+  const dietary = data?.userProfile?.dietary || data?.profile?.dietary || user?.dietary || t('dietary_fallback_vegan');
 
   const tinyProgressDots = (value, total = 7) => (
     <View style={styles.tinyDotsRow}>
@@ -1043,10 +1154,10 @@ export default function HomeScreen({ user }) {
 
                     <View style={styles.storeInfo}>
                       <Text numberOfLines={2} style={styles.storeName}>
-                        {store.name || 'Store'}
+                        {store.name || t('store_fallback_label')}
                       </Text>
                       <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeAddress}>
-                        {store.address || 'Address unavailable'}
+                        {store.address || t('address_unavailable_label')}
                       </Text>
                     </View>
 
@@ -1149,18 +1260,20 @@ export default function HomeScreen({ user }) {
             { label: 'AI Meal Planner', val: '🗓', color: 'rgb(56, 89, 45)' },
             { label: 'Semi-Homemade', val: '🥫', color: 'rgb(30, 57, 30)' },
             { label: 'Family Vault', val: '📖', color: 'rgb(216, 109, 51)' },
-          ].map(({ label, val, color }) => (
+          ].map(({ label, val, color }) => {
+            const toolHandlers = {
+              'Leftover Magic': openLeftoverMagicModal,
+              'Fridge Challenge': openFridgeChallengeModal,
+              '20-Min Dinner': openQuickDinnerModal,
+            };
+            const onPress = toolHandlers[label];
+
+            return (
             <TouchableOpacity
               key={label}
-              activeOpacity={label === 'Leftover Magic' || label === 'Fridge Challenge' ? 0.88 : 1}
-              disabled={label !== 'Leftover Magic' && label !== 'Fridge Challenge'}
-              onPress={
-                label === 'Leftover Magic'
-                  ? openLeftoverMagicModal
-                  : label === 'Fridge Challenge'
-                    ? openFridgeChallengeModal
-                    : undefined
-              }
+              activeOpacity={onPress ? 0.88 : 1}
+              disabled={!onPress}
+              onPress={onPress}
               style={[
                 styles.mainCard,
                 shadow.card,
@@ -1170,7 +1283,8 @@ export default function HomeScreen({ user }) {
               <Text style={styles.mainVal}>{val}</Text>
               <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
 
         <View style={styles.bottomSpacer} />
@@ -1183,78 +1297,83 @@ export default function HomeScreen({ user }) {
         visible={isAddStoreModalOpen}
         onRequestClose={closeAddStoreModal}
       >
-        <View style={styles.addStoreBackdrop}>
-          <View style={styles.addStoreSheet}>
-            <View style={styles.addStoreHeaderRow}>
-              <Text style={styles.addStoreTitle}>{t('add_store_title')}</Text>
-              <TouchableOpacity style={styles.addStoreCloseBtn} activeOpacity={0.85} onPress={closeAddStoreModal}>
-                <Text style={styles.addStoreCloseText}>×</Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.addStorePresetRow}>
-              {STORE_PRESETS.map((label) => {
-                const plainName = toPlainStoreName(label);
-                const selected = storeNameInput.trim().toLowerCase() === plainName.toLowerCase();
-                return (
-                  <TouchableOpacity
-                    key={label}
-                    activeOpacity={0.85}
-                    onPress={() => setStoreNameInput(plainName)}
-                    style={[styles.addStorePresetChip, selected ? styles.addStorePresetChipActive : null]}
-                  >
-                    <Text style={[styles.addStorePresetText, selected ? styles.addStorePresetTextActive : null]}>{label}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <Text style={styles.addStoreFieldLabel}>{t('or_enter_store')}</Text>
-            <TextInput
-              value={storeNameInput}
-              onChangeText={setStoreNameInput}
-              placeholder={t('store_name_placeholder')}
-              placeholderTextColor="#A3A3A3"
-              style={styles.addStoreInput}
-            />
-
-            <Text style={styles.addStoreFieldLabel}>{t('your_zip_code')}</Text>
-            <View style={styles.addStoreZipRow}>
-              <TextInput
-                value={zipCodeInput}
-                onChangeText={setZipCodeInput}
-                placeholder={t('zip_code_placeholder')}
-                placeholderTextColor="#A3A3A3"
-                style={[styles.addStoreInput, styles.addStoreZipInput]}
-                keyboardType="number-pad"
-              />
-              <TouchableOpacity
-                style={[styles.addStoreFindBtn, isFindingStore ? styles.addStoreFindBtnDisabled : null]}
-                activeOpacity={0.85}
-                onPress={handleFindStore}
-                disabled={isFindingStore}
-              >
-                <Text style={styles.addStoreFindBtnText}>{isFindingStore ? t('finding_btn') : t('find_btn')}</Text>
-              </TouchableOpacity>
-            </View>
-
-            {foundStoreCandidate ? (
-              <View style={styles.addStoreResultCard}>
-                <Text style={styles.addStoreResultName}>{foundStoreCandidate.name}</Text>
-                <Text style={styles.addStoreResultAddress}>{foundStoreCandidate.address}</Text>
+        <KeyboardAvoidingView
+          style={styles.addStoreBackdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.addStoreSheet}>
+              <View style={styles.addStoreHeaderRow}>
+                <Text style={styles.addStoreTitle}>{t('add_store_title')}</Text>
+                <TouchableOpacity style={styles.addStoreCloseBtn} activeOpacity={0.85} onPress={closeAddStoreModal}>
+                  <Text style={styles.addStoreCloseText}>×</Text>
+                </TouchableOpacity>
               </View>
-            ) : null}
 
-            <TouchableOpacity
-              style={[styles.addStoreSaveBtn, isSavingStore ? styles.addStoreSaveBtnDisabled : null]}
-              activeOpacity={0.85}
-              onPress={handleAddStore}
-              disabled={isSavingStore}
-            >
-              <Text style={styles.addStoreSaveBtnText}>{isSavingStore ? t('saving_btn') : t('add_this_store_btn')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+              <View style={styles.addStorePresetRow}>
+                {STORE_PRESETS.map((label) => {
+                  const plainName = toPlainStoreName(label);
+                  const selected = storeNameInput.trim().toLowerCase() === plainName.toLowerCase();
+                  return (
+                    <TouchableOpacity
+                      key={label}
+                      activeOpacity={0.85}
+                      onPress={() => setStoreNameInput(plainName)}
+                      style={[styles.addStorePresetChip, selected ? styles.addStorePresetChipActive : null]}
+                    >
+                      <Text style={[styles.addStorePresetText, selected ? styles.addStorePresetTextActive : null]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <Text style={styles.addStoreFieldLabel}>{t('or_enter_store')}</Text>
+              <TextInput
+                value={storeNameInput}
+                onChangeText={setStoreNameInput}
+                placeholder={t('store_name_placeholder')}
+                placeholderTextColor="#A3A3A3"
+                style={styles.addStoreInput}
+              />
+
+              <Text style={styles.addStoreFieldLabel}>{t('your_zip_code')}</Text>
+              <View style={styles.addStoreZipRow}>
+                <TextInput
+                  value={zipCodeInput}
+                  onChangeText={setZipCodeInput}
+                  placeholder={t('zip_code_placeholder')}
+                  placeholderTextColor="#A3A3A3"
+                  style={[styles.addStoreInput, styles.addStoreZipInput]}
+                  keyboardType="number-pad"
+                />
+                <TouchableOpacity
+                  style={[styles.addStoreFindBtn, isFindingStore ? styles.addStoreFindBtnDisabled : null]}
+                  activeOpacity={0.85}
+                  onPress={handleFindStore}
+                  disabled={isFindingStore}
+                >
+                  <Text style={styles.addStoreFindBtnText}>{isFindingStore ? t('finding_btn') : t('find_btn')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {foundStoreCandidate ? (
+                <View style={styles.addStoreResultCard}>
+                  <Text style={styles.addStoreResultName}>{foundStoreCandidate.name}</Text>
+                  <Text style={styles.addStoreResultAddress}>{foundStoreCandidate.address}</Text>
+                </View>
+              ) : null}
+
+              <TouchableOpacity
+                style={[styles.addStoreSaveBtn, isSavingStore ? styles.addStoreSaveBtnDisabled : null]}
+                activeOpacity={0.85}
+                onPress={handleAddStore}
+                disabled={isSavingStore}
+              >
+                <Text style={styles.addStoreSaveBtnText}>{isSavingStore ? t('saving_btn') : t('add_this_store_btn')}</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
       </Modal>
 
       <LanguageModal
@@ -1360,11 +1479,29 @@ export default function HomeScreen({ user }) {
         isRecipeSaved={fridgeChallenge.isRecipeSaved}
       />
 
+      <TwentyMinDinnerModal
+        visible={isQuickDinnerOpen}
+        onClose={closeQuickDinnerModal}
+        onAskFern={handleAskFernQuickDinner}
+        selectedQuickPicks={quickDinnerSelectedPicks}
+        onToggleQuickPick={toggleQuickDinnerPick}
+        ingredientsInput={quickDinnerIngredientsInput}
+        setIngredientsInput={setQuickDinnerIngredientsInput}
+        isSearching={isQuickDinnerSearching}
+        hasError={quickDinnerHasError}
+        onSearch={runQuickDinnerSearch}
+        onRetry={runQuickDinnerSearch}
+        recipes={quickDinner.recipes}
+        onChangeSelection={goBackToQuickDinnerSelection}
+        onViewRecipe={handleViewQuickDinnerRecipe}
+        onAddToList={handleAddQuickDinnerRecipeToList}
+      />
+
       <RecipeDetailModal
         recipe={selectedAiRecipe}
         onClose={closeSelectedAiRecipeDetail}
         noteText={activeAiRecipeCollection?.noteText ?? ''}
-        onChangeNoteText={activeAiRecipeCollection?.setNoteText ?? (() => {})}
+        onChangeNoteText={activeAiRecipeCollection?.setNoteText ?? (() => { })}
         isSaving={activeAiRecipeCollection?.isSaving ?? false}
         onSaveNote={() => activeAiRecipeCollection?.persistSelectedNote(closeSelectedAiRecipeDetail)}
         isAlreadySaved={selectedAiRecipe ? Boolean(activeAiRecipeCollection?.isRecipeSaved(selectedAiRecipe)) : false}

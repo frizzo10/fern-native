@@ -98,7 +98,6 @@ export default function FindScreen({ user }) {
     autoSpeakReply: false, locale: locale,
     onTranscript: async (transcript) => {
       console.log('[FindScreen] transcript received:', transcript);
-      consol.log({ locale })
       // Check stop words - stop listening first
       if (STOP_WORDS.some(w => transcript.toLowerCase().includes(w))) {
         stop();
@@ -169,7 +168,8 @@ export default function FindScreen({ user }) {
           messages: [
             ...messages.slice(-6).map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
             { role: 'user', content: userText }
-          ]
+          ],
+          locale,
         })
       });
       const aiData = await aiRes.json();
@@ -203,7 +203,7 @@ export default function FindScreen({ user }) {
       console.log('TTS Request:', { TTS_URL, text });
 
       // Match the payload format from useContinuousMic hook
-      const payload = { text };
+      const payload = { text, locale };
       console.log('TTS Payload:', JSON.stringify(payload));
 
       const ttsRes = await fetch(TTS_URL, {

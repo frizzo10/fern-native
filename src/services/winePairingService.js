@@ -17,7 +17,7 @@ export async function fetchWinePairings({ userId, dish, locale }) {
   const payload = {
     action: 'wine_pairing',
     userId,
-    locale: locale,
+    locale: locale || 'en',
     recipe: {
       title: titledDish,
       cuisine: '',

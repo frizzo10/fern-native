@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { pickFirst, normalizeRecipe } from '../utils/recipeNormalize';
+import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 
 // Shared "AI suggests recipes from what you have" collection logic: save to
 // the recipe library, edit/delete a saved note, and add ingredients to the
@@ -39,7 +40,9 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
     const normalizeToDetail = (recipe) => {
         const ingredients = Array.isArray(recipe?.ingredients)
             ? recipe.ingredients
-                .map((ingredient) => [ingredient?.amount, ingredient?.unit, ingredient?.item].filter(Boolean).join(' ').trim())
+                .map((ingredient) => (typeof ingredient === 'string'
+                    ? ingredient.trim()
+                    : [ingredient?.amount, ingredient?.unit, ingredient?.item].filter(Boolean).join(' ').trim()))
                 .filter(Boolean)
             : [];
         const methodSteps = Array.isArray(recipe?.instructions) ? recipe.instructions.filter(Boolean) : [];
@@ -48,13 +51,13 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
             id: recipe?.id,
             title: recipe?.title,
             category: recipe?.cuisine || 'Dinner',
-            meal: 'Dinner',
+            meal: recipe?.mealType || 'Dinner',
             time: recipe?.time || '',
             difficulty: recipe?.difficulty || 'Medium',
             emoji: recipe?.emoji || '🍽️',
             image: recipe?.image || null,
-            description: recipe?.description || '',
-            servings: '4',
+            description: recipe?.description || recipe?.tagline || '',
+            servings: String(recipe?.servings || '4'),
             ingredients: ingredients.length ? ingredients : ['No ingredients listed yet'],
             methodSteps: methodSteps.length ? methodSteps : ['No method steps listed yet'],
             note: '',
@@ -196,50 +199,25 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         );
     };
 
-    const handleAddToShoppingList = async () => {
-        if (!selectedRecipe) return;
+    const addIngredientsToShoppingList = async (recipeLike) => {
+        if (!recipeLike) return;
 
-        const ingredients = Array.isArray(selectedRecipe.ingredients) ? selectedRecipe.ingredients : [];
+        const ingredients = Array.isArray(recipeLike.ingredients) ? recipeLike.ingredients : [];
         if (!ingredients.length) {
             Alert.alert(t('no_items'), t('no_items_desc'));
             return;
         }
 
         const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
-        const recipeLabel = String(selectedRecipe.title || '').trim().toUpperCase();
-        const existingSignatures = new Set(
-            existingItems.map((entry) => `${String(entry?.text || '').trim().toLowerCase()}|${String(entry?.recipe || '').trim().toLowerCase()}`)
-        );
-
-        const additions = ingredients
-            .filter((item) => !existingSignatures.has(`${String(item).trim().toLowerCase()}|${recipeLabel.toLowerCase()}`))
-            .map((item, index) => ({
-                id: `${source}-shop-${Date.now()}-${index}`,
-                text: String(item).trim(),
-                recipe: recipeLabel,
-                checked: false,
-            }));
-
-        if (!additions.length) {
-            Alert.alert(t('already_added'), t('leftover_items_already_added_desc'));
-            return;
-        }
-
-        const nextShopping = [...existingItems, ...additions];
 
         setIsSaving(true);
         try {
-            await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(nextShopping));
-
-            const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
-            await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
-                ...cache,
-                shopping: nextShopping,
-            }));
+            const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(recipeLike, existingItems);
 
             await pushAllFromStorage();
             await pull();
-            Alert.alert(t('added_title'), t('items_added_success'));
+
+            Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
         } catch (e) {
             console.log(`[${source}] add to shopping list failed`, e?.message || e);
             Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));
@@ -247,6 +225,8 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
             setIsSaving(false);
         }
     };
+
+    const handleAddToShoppingList = () => addIngredientsToShoppingList(selectedRecipe);
 
     const viewRecipe = async (recipe, { onOpenDetail } = {}) => {
         if (!recipe) return;
@@ -288,6 +268,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         persistSelectedNote,
         handleDeleteSelected,
         handleAddToShoppingList,
+        addIngredientsToShoppingList,
         viewRecipe,
     };
 }

@@ -80,7 +80,7 @@ export async function fetchCharcuterieBoard({ occasion, boardType, people, budge
         people: Number.parseInt(people, 10) || 1,
         budget: Number.parseInt(budget, 10) || 1,
         dietary: String(dietary || 'None').trim(),
-        locale: locale
+        locale: locale || 'en'
     };
 
     const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/charcuterie-board', {

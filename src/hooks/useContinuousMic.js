@@ -56,6 +56,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
           ],
           system:
             'You are Fern, a personal AI food assistant. Be brief and conversational.',
+          locale,
         }),
       });
 
@@ -79,6 +80,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
         },
         body: JSON.stringify({
           text: fernReply,
+          locale,
         }),
       });
       const arrayBuffer = await speechResponse.arrayBuffer();
@@ -120,7 +122,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
     } catch (err) {
       console.warn('[fern] error:', err);
     }
-  }, [recorder]);
+  }, [recorder, locale]);
 
   useEffect(() => {
     if (!audioUri || !player) return;

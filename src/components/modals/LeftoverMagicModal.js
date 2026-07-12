@@ -1,12 +1,16 @@
 import React from 'react';
 import {
     Image,
+    Keyboard,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
@@ -38,7 +42,11 @@ export default function LeftoverMagicModal({
             visible={visible}
             onRequestClose={onClose}
         >
-            <View style={styles.leftoverBackdrop}>
+            <KeyboardAvoidingView
+                style={styles.leftoverBackdrop}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            >
+                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.leftoverSheet}>
                     <View style={styles.leftoverTopBar}>
                         <Text style={styles.leftoverTitle}>{`📸 ${t('leftover_magic_title')}`}</Text>
@@ -167,7 +175,8 @@ export default function LeftoverMagicModal({
                         )}
                     </ScrollView>
                 </View>
-            </View>
+                </TouchableWithoutFeedback>
+            </KeyboardAvoidingView>
         </Modal>
     );
 }

@@ -4,13 +4,17 @@ import {
     Alert,
     Image,
     ImageBackground,
+    Keyboard,
+    KeyboardAvoidingView,
     Linking,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
+    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +27,7 @@ import { useSync } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import { pickFirst, getRawRecipeId, normalizeRecipe, normalizeAiRecipe } from '../utils/recipeNormalize';
 import { fetchRecipeImage } from '../utils/recipeImage';
+import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import useLanguage from '../hooks/useLanguage';
 
 const AI_SEARCH_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
@@ -175,10 +180,10 @@ export default function SearchScreen({ user }) {
         return {
             id: item?.id || featured?.id,
             url: item?.url || featured?.url || '',
-            name: item?.name || featured?.name || 'Unknown blogger',
+            name: item?.name || featured?.name || t('unknown_blogger_label'),
             color: item?.color || featured?.color || '#4A7C2F',
             emoji: item?.emoji || featured?.emoji || '🍽',
-            specialty: item?.specialty || featured?.specialty || 'Food recipes',
+            specialty: item?.specialty || featured?.specialty || t('food_recipes_label'),
         };
     };
 
@@ -431,6 +436,32 @@ export default function SearchScreen({ user }) {
         } catch (e) {
             console.warn('[ai-search] save recipe failed', e);
             Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
+        } finally {
+            setIsSavingRecipe(false);
+        }
+    };
+
+    const handleAddSelectedRecipeToShoppingList = async () => {
+        if (!selectedRecipe) return;
+
+        const ingredients = Array.isArray(selectedRecipe.ingredients) ? selectedRecipe.ingredients : [];
+        if (!ingredients.length) {
+            Alert.alert(t('no_items'), t('no_items_desc'));
+            return;
+        }
+
+        setIsSavingRecipe(true);
+        try {
+            const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+            const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(selectedRecipe, existingItems);
+
+            await pushAllFromStorage();
+            await pull();
+
+            Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
+        } catch (e) {
+            console.warn('[ai-search] add to shopping list failed', e);
+            Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));
         } finally {
             setIsSavingRecipe(false);
         }
@@ -707,7 +738,11 @@ export default function SearchScreen({ user }) {
                     visible={isBloggersModalOpen}
                     onRequestClose={() => setIsBloggersModalOpen(false)}
                 >
-                    <View style={styles.modalBackdrop}>
+                    <KeyboardAvoidingView
+                        style={styles.modalBackdrop}
+                        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    >
+                        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                         <SafeAreaView style={styles.modalSafeArea}>
                             <View style={styles.modalCard}>
                                 <View style={styles.modalHeader}>
@@ -788,7 +823,8 @@ export default function SearchScreen({ user }) {
                                 </ScrollView>
                             </View>
                         </SafeAreaView>
-                    </View>
+                        </TouchableWithoutFeedback>
+                    </KeyboardAvoidingView>
                 </Modal>
 
                 <RecipeDetailModal
@@ -801,6 +837,7 @@ export default function SearchScreen({ user }) {
                     isAlreadySaved={selectedIsSaved}
                     showSavedIndicator
                     onDeleteRecipe={selectedIsSaved ? handleDeleteSelectedRecipe : undefined}
+                    onAddToList={handleAddSelectedRecipeToShoppingList}
                 />
             </LinearGradient>
         </SafeAreaView>

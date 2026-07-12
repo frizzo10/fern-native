@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import {
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   View,
   Text,
   TouchableOpacity,
@@ -19,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventPlannerQuestionFlow from '../EventPlannerQuestionFlow';
 import RecipeDetailModal from '../RecipeDetailModal';
 import { generateEventPlan } from '../../services/eventPlannerService';
+import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
 
 const styles = StyleSheet.create({
   backdrop: {
@@ -271,7 +275,7 @@ function RecipeCard({ recipe, onPress, styles, t }) {
 
 export default function EventPlannerIntakeModal({ visible, onClose, user, locale }) {
   const { t } = useLanguage();
-  const { pushChangedFromStorage } = useSync(user);
+  const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
   const [screen, setScreen] = useState('intake');
   const [planResult, setPlanResult] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -400,36 +404,18 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
     }
     const ingredients = Array.isArray(selectedRecipe.ingredients) ? selectedRecipe.ingredients : [];
     if (!ingredients.length) {
-      Alert.alert(t('no_items'), t('no_ingredients_to_add') || 'No ingredients to add.');
+      Alert.alert(t('no_items'), t('no_items_desc'));
       return;
     }
     setIsSaving(true);
     try {
-      const stored = JSON.parse(await AsyncStorage.getItem('rv4_master_shop') || '[]');
-      const existingSignatures = new Set(
-        stored.map((e) => `${String(e?.text || '').trim().toLowerCase()}|${String(e?.recipe || '').trim().toLowerCase()}`)
-      );
-      const recipeLabel = selectedRecipe.title || 'Event Recipe';
-      const additions = ingredients
-        .map((ing) => String(ing || '').trim())
-        .filter(Boolean)
-        .filter((ing) => !existingSignatures.has(`${ing.toLowerCase()}|${recipeLabel.toLowerCase()}`))
-        .map((ing, i) => ({
-          id: `event-ing-${Date.now()}-${i}`,
-          text: ing,
-          recipe: recipeLabel,
-          checked: false,
-        }));
-      if (!additions.length) {
-        Alert.alert(t('already_added'), t('charcuterie_items_already_added_desc'));
-        return;
-      }
-      const nextShopping = [...stored, ...additions];
-      await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(nextShopping));
-      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
-      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, shopping: nextShopping }));
-      await pushChangedFromStorage({ shopping: nextShopping });
-      Alert.alert(t('added_title'), `${additions.length} ${t('items_added_success') || 'items added to your list.'}`);
+      const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+      const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(selectedRecipe, existingItems);
+
+      await pushAllFromStorage();
+      await pull();
+
+      Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
     } catch (e) {
       console.warn('[EventPlanner] Add to list failed:', e);
       Alert.alert(t('error'), t('save_error_desc'));
@@ -446,11 +432,17 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
         visible={visible && selectedRecipe === null}
         onRequestClose={handleClose}
       >
-        <View style={styles.backdrop}>
+        <KeyboardAvoidingView
+          style={styles.backdrop}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
-            onPress={handleClose}
+            onPress={() => {
+              Keyboard.dismiss();
+              handleClose();
+            }}
           />
 
           <View style={styles.sheetContainer}>
@@ -619,7 +611,7 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
               )}
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       <RecipeDetailModal
