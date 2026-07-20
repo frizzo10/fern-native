@@ -47,134 +47,134 @@ export default function LeftoverMagicModal({
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.leftoverSheet}>
-                    <View style={styles.leftoverTopBar}>
-                        <Text style={styles.leftoverTitle}>{`📸 ${t('leftover_magic_title')}`}</Text>
-                        <TouchableOpacity style={styles.leftoverAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
-                            <Text style={styles.leftoverAskFernText}>{t('leftover_ask_fern_btn')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.leftoverCloseBtn} activeOpacity={0.85} onPress={onClose}>
-                            <Text style={styles.leftoverCloseText}>×</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <View style={styles.leftoverSheet}>
+                        <View style={styles.leftoverTopBar}>
+                            <Text style={styles.leftoverTitle}>{`📸 ${t('leftover_magic_title')}`}</Text>
+                            <TouchableOpacity style={styles.leftoverAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                                <Text style={styles.leftoverAskFernText}>{t('leftover_ask_fern_btn')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.leftoverCloseBtn} activeOpacity={0.85} onPress={onClose}>
+                                <Text style={styles.leftoverCloseText}>×</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        contentContainerStyle={styles.leftoverScrollContent}
-                    >
-                        {!recipes.length ? (
-                            <View>
-                                <Text style={styles.leftoverHeroEmoji}>📸</Text>
-                                <Text style={styles.leftoverHeading}>{t('leftover_whats_in_fridge')}</Text>
-                                <Text style={styles.leftoverSubheading}>{t('leftover_subtitle')}</Text>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            contentContainerStyle={styles.leftoverScrollContent}
+                        >
+                            {!recipes.length ? (
+                                <View>
+                                    <Text style={styles.leftoverHeroEmoji}>📸</Text>
+                                    <Text style={styles.leftoverHeading}>{t('leftover_whats_in_fridge')}</Text>
+                                    <Text style={styles.leftoverSubheading}>{t('leftover_subtitle')}</Text>
 
-                                {photo ? (
-                                    <View style={styles.leftoverPhotoPreviewRow}>
-                                        <Image source={{ uri: photo.uri }} style={styles.leftoverPhotoPreview} />
-                                        <TouchableOpacity
-                                            style={styles.leftoverRemovePhotoBtn}
-                                            activeOpacity={0.85}
-                                            onPress={onRemovePhoto}
-                                        >
-                                            <Text style={styles.leftoverRemovePhotoText}>×</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                ) : null}
+                                    {photo ? (
+                                        <View style={styles.leftoverPhotoPreviewRow}>
+                                            <Image source={{ uri: photo.uri }} style={styles.leftoverPhotoPreview} />
+                                            <TouchableOpacity
+                                                style={styles.leftoverRemovePhotoBtn}
+                                                activeOpacity={0.85}
+                                                onPress={onRemovePhoto}
+                                            >
+                                                <Text style={styles.leftoverRemovePhotoText}>×</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    ) : null}
 
-                                <TouchableOpacity
-                                    style={styles.leftoverPrimaryAction}
-                                    activeOpacity={0.85}
-                                    onPress={onTakePhoto}
-                                    disabled={isSearching}
-                                >
-                                    <Text style={styles.leftoverPrimaryActionText}>{t('leftover_take_photo_btn')}</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={styles.leftoverSecondaryAction}
-                                    activeOpacity={0.85}
-                                    onPress={onPickPhotoFromLibrary}
-                                    disabled={isSearching}
-                                >
-                                    <Text style={styles.leftoverSecondaryActionText}>{t('leftover_upload_library_btn')}</Text>
-                                </TouchableOpacity>
-
-                                <View style={styles.leftoverDividerRow}>
-                                    <View style={styles.leftoverDivider} />
-                                    <Text style={styles.leftoverDividerText}>{t('leftover_or_tell_fern')}</Text>
-                                    <View style={styles.leftoverDivider} />
-                                </View>
-
-                                <View style={styles.leftoverInputRow}>
-                                    <TextInput
-                                        value={ingredientsInput}
-                                        onChangeText={setIngredientsInput}
-                                        placeholder={t('leftover_input_placeholder')}
-                                        placeholderTextColor="#9A8D7F"
-                                        style={styles.leftoverInput}
-                                    />
                                     <TouchableOpacity
-                                        style={[styles.leftoverGoBtn, isSearching ? styles.leftoverGoBtnDisabled : null]}
+                                        style={styles.leftoverPrimaryAction}
                                         activeOpacity={0.85}
-                                        onPress={onSearch}
+                                        onPress={onTakePhoto}
                                         disabled={isSearching}
                                     >
-                                        <Text style={styles.leftoverGoBtnText}>{isSearching ? t('searching_ellipsis') : t('leftover_go_btn')}</Text>
+                                        <Text style={styles.leftoverPrimaryActionText}>{t('leftover_take_photo_btn')}</Text>
                                     </TouchableOpacity>
-                                </View>
-                            </View>
-                        ) : (
-                            <View>
-                                <Text style={styles.leftoverResultsTitle}>{t('leftover_results_title')}</Text>
 
-                                {recipes.map((recipe, index) => (
-                                    <View key={recipe.id || `leftover-card-${index}`} style={styles.recipeCard}>
-                                        <View style={styles.recipeHeader}>
-                                            <Text style={styles.recipeTitle} numberOfLines={2}>{`${recipe.emoji} ${recipe.title}`}</Text>
-                                            <View style={[styles.difficultyPill, recipe.difficulty === 'Easy'
-                                                ? styles.difficultyEasy
-                                                : recipe.difficulty === 'Medium'
-                                                    ? styles.difficultyMedium
-                                                    : styles.difficultyAmbitious
-                                            ]}>
-                                                <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+                                    <TouchableOpacity
+                                        style={styles.leftoverSecondaryAction}
+                                        activeOpacity={0.85}
+                                        onPress={onPickPhotoFromLibrary}
+                                        disabled={isSearching}
+                                    >
+                                        <Text style={styles.leftoverSecondaryActionText}>{t('leftover_upload_library_btn')}</Text>
+                                    </TouchableOpacity>
+
+                                    <View style={styles.leftoverDividerRow}>
+                                        <View style={styles.leftoverDivider} />
+                                        <Text style={styles.leftoverDividerText}>{t('leftover_or_tell_fern')}</Text>
+                                        <View style={styles.leftoverDivider} />
+                                    </View>
+
+                                    <View style={styles.leftoverInputRow}>
+                                        <TextInput
+                                            value={ingredientsInput}
+                                            onChangeText={setIngredientsInput}
+                                            placeholder={t('leftover_input_placeholder')}
+                                            placeholderTextColor="#9A8D7F"
+                                            style={styles.leftoverInput}
+                                        />
+                                        <TouchableOpacity
+                                            style={[styles.leftoverGoBtn, isSearching ? styles.leftoverGoBtnDisabled : null]}
+                                            activeOpacity={0.85}
+                                            onPress={onSearch}
+                                            disabled={isSearching}
+                                        >
+                                            <Text style={styles.leftoverGoBtnText}>{isSearching ? t('searching_ellipsis') : t('leftover_go_btn')}</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : (
+                                <View>
+                                    <Text style={styles.leftoverResultsTitle}>{t('leftover_results_title')}</Text>
+
+                                    {recipes.map((recipe, index) => (
+                                        <View key={recipe.id || `leftover-card-${index}`} style={styles.recipeCard}>
+                                            <View style={styles.recipeHeader}>
+                                                <Text style={styles.recipeTitle} numberOfLines={2}>{`${recipe.emoji} ${recipe.title}`}</Text>
+                                                <View style={[styles.difficultyPill, recipe.difficulty === 'Easy'
+                                                    ? styles.difficultyEasy
+                                                    : recipe.difficulty === 'Medium'
+                                                        ? styles.difficultyMedium
+                                                        : styles.difficultyAmbitious
+                                                ]}>
+                                                    <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+                                                </View>
+                                            </View>
+
+                                            <Text style={styles.recipeDescription}>{recipe.description}</Text>
+                                            <Text style={styles.recipeTime}>{`⏱ ${recipe.time}`}</Text>
+
+                                            <View style={styles.recipeActionsRow}>
+                                                <TouchableOpacity
+                                                    style={styles.viewRecipeBtn}
+                                                    activeOpacity={0.85}
+                                                    onPress={() => onViewRecipe(recipe)}
+                                                >
+                                                    <Text style={styles.viewRecipeBtnText}>{t('leftover_view_recipe_btn')}</Text>
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity
+                                                    style={[styles.saveRecipeBtn, isRecipeSaved?.(recipe) ? styles.saveRecipeBtnSaved : null]}
+                                                    activeOpacity={0.85}
+                                                    onPress={() => onSaveRecipe(recipe)}
+                                                    disabled={savingRecipeKey === (recipe.id || recipe.title) || isRecipeSaved?.(recipe)}
+                                                >
+                                                    <Text style={styles.saveRecipeBtnText}>
+                                                        {savingRecipeKey === (recipe.id || recipe.title)
+                                                            ? t('saving_ellipsis')
+                                                            : isRecipeSaved?.(recipe)
+                                                                ? t('results_saved_badge')
+                                                                : t('save_short_btn')}
+                                                    </Text>
+                                                </TouchableOpacity>
                                             </View>
                                         </View>
-
-                                        <Text style={styles.recipeDescription}>{recipe.description}</Text>
-                                        <Text style={styles.recipeTime}>{`⏱ ${recipe.time}`}</Text>
-
-                                        <View style={styles.recipeActionsRow}>
-                                            <TouchableOpacity
-                                                style={styles.viewRecipeBtn}
-                                                activeOpacity={0.85}
-                                                onPress={() => onViewRecipe(recipe)}
-                                            >
-                                                <Text style={styles.viewRecipeBtnText}>{t('leftover_view_recipe_btn')}</Text>
-                                            </TouchableOpacity>
-
-                                            <TouchableOpacity
-                                                style={[styles.saveRecipeBtn, isRecipeSaved?.(recipe) ? styles.saveRecipeBtnSaved : null]}
-                                                activeOpacity={0.85}
-                                                onPress={() => onSaveRecipe(recipe)}
-                                                disabled={savingRecipeKey === (recipe.id || recipe.title) || isRecipeSaved?.(recipe)}
-                                            >
-                                                <Text style={styles.saveRecipeBtnText}>
-                                                    {savingRecipeKey === (recipe.id || recipe.title)
-                                                        ? t('saving_ellipsis')
-                                                        : isRecipeSaved?.(recipe)
-                                                            ? t('results_saved_badge')
-                                                            : t('save_short_btn')}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
-                    </ScrollView>
-                </View>
+                                    ))}
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
         </Modal>
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
         color: '#8C6B46',
         fontFamily: 'Jost-Bold',
         fontSize: 24,
-        lineHeight: 24,
+        lineHeight: 30,
     },
     leftoverScrollContent: {
         paddingHorizontal: 18,

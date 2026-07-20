@@ -70,142 +70,142 @@ export default function TwentyMinDinnerModal({
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.sheet}>
-                    <View style={styles.topBar}>
-                        <Text style={styles.title}>{`⚡ ${t('quick_dinner_title')}`}</Text>
-                        <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
-                            <Text style={styles.askFernText}>{t('leftover_ask_fern_btn')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
-                            <Text style={styles.closeText}>×</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <View style={styles.sheet}>
+                        <View style={styles.topBar}>
+                            <Text style={styles.title}>{`⚡ ${t('quick_dinner_title')}`}</Text>
+                            <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                                <Text style={styles.askFernText}>{t('leftover_ask_fern_btn')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
+                                <Text style={styles.closeText}>×</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        contentContainerStyle={styles.scrollContent}
-                    >
-                        {hasError ? (
-                            <View style={styles.errorState}>
-                                <Text style={styles.errorEmoji}>😕</Text>
-                                <Text style={styles.errorText}>{t('quick_dinner_load_failed')}</Text>
-                                <TouchableOpacity style={styles.retryBtn} activeOpacity={0.85} onPress={onRetry}>
-                                    <Text style={styles.retryBtnText}>{`← ${t('quick_dinner_try_again_btn')}`}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ) : showResults ? (
-                            <View>
-                                <View style={styles.resultsHeaderRow}>
-                                    <Text style={styles.resultsHeading}>
-                                        {t('quick_dinner_results_heading', { count: recipes.length })}
-                                    </Text>
-                                    <TouchableOpacity activeOpacity={0.7} onPress={onChangeSelection}>
-                                        <Text style={styles.changeLink}>{`← ${t('quick_dinner_change_btn')}`}</Text>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            contentContainerStyle={styles.scrollContent}
+                        >
+                            {hasError ? (
+                                <View style={styles.errorState}>
+                                    <Text style={styles.errorEmoji}>😕</Text>
+                                    <Text style={styles.errorText}>{t('quick_dinner_load_failed')}</Text>
+                                    <TouchableOpacity style={styles.retryBtn} activeOpacity={0.85} onPress={onRetry}>
+                                        <Text style={styles.retryBtnText}>{`← ${t('quick_dinner_try_again_btn')}`}</Text>
                                     </TouchableOpacity>
                                 </View>
+                            ) : showResults ? (
+                                <View>
+                                    <View style={styles.resultsHeaderRow}>
+                                        <Text style={styles.resultsHeading}>
+                                            {t('quick_dinner_results_heading', { count: recipes.length })}
+                                        </Text>
+                                        <TouchableOpacity activeOpacity={0.7} onPress={onChangeSelection}>
+                                            <Text style={styles.changeLink}>{`← ${t('quick_dinner_change_btn')}`}</Text>
+                                        </TouchableOpacity>
+                                    </View>
 
-                                {recipes.map((recipe, index) => (
-                                    <View key={recipe.id || `quick-dinner-card-${index}`} style={styles.recipeCard}>
-                                        {recipe.image ? (
-                                            <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
-                                        ) : null}
-
-                                        <View style={styles.recipeCardBody}>
-                                            <Text style={styles.recipeTitle}>{recipe.title}</Text>
-                                            {recipe.tagline ? (
-                                                <Text style={styles.recipeTagline}>{recipe.tagline}</Text>
+                                    {recipes.map((recipe, index) => (
+                                        <View key={recipe.id || `quick-dinner-card-${index}`} style={styles.recipeCard}>
+                                            {recipe.image ? (
+                                                <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
                                             ) : null}
 
-                                            <View style={styles.pillRow}>
-                                                <View style={styles.timePill}>
-                                                    <Text style={styles.timePillText}>{`⚡ ${recipe.time}`}</Text>
-                                                </View>
-                                                {recipe.cuisine ? (
-                                                    <View style={styles.cuisinePill}>
-                                                        <Text style={styles.cuisinePillText}>{recipe.cuisine}</Text>
-                                                    </View>
+                                            <View style={styles.recipeCardBody}>
+                                                <Text style={styles.recipeTitle}>{recipe.title}</Text>
+                                                {recipe.tagline ? (
+                                                    <Text style={styles.recipeTagline}>{recipe.tagline}</Text>
                                                 ) : null}
-                                            </View>
 
-                                            <View style={styles.recipeActionsRow}>
-                                                <TouchableOpacity
-                                                    style={styles.previewBtn}
-                                                    activeOpacity={0.85}
-                                                    onPress={() => onViewRecipe(recipe)}
-                                                >
-                                                    <Text style={styles.previewBtnText}>{t('quick_dinner_preview_btn')}</Text>
-                                                </TouchableOpacity>
+                                                <View style={styles.pillRow}>
+                                                    <View style={styles.timePill}>
+                                                        <Text style={styles.timePillText}>{`⚡ ${recipe.time}`}</Text>
+                                                    </View>
+                                                    {recipe.cuisine ? (
+                                                        <View style={styles.cuisinePill}>
+                                                            <Text style={styles.cuisinePillText}>{recipe.cuisine}</Text>
+                                                        </View>
+                                                    ) : null}
+                                                </View>
 
-                                                <TouchableOpacity
-                                                    style={styles.listBtn}
-                                                    activeOpacity={0.85}
-                                                    onPress={() => onAddToList(recipe)}
-                                                >
-                                                    <Text style={styles.listBtnText}>{t('quick_dinner_list_btn')}</Text>
-                                                </TouchableOpacity>
+                                                <View style={styles.recipeActionsRow}>
+                                                    <TouchableOpacity
+                                                        style={styles.previewBtn}
+                                                        activeOpacity={0.85}
+                                                        onPress={() => onViewRecipe(recipe)}
+                                                    >
+                                                        <Text style={styles.previewBtnText}>{t('quick_dinner_preview_btn')}</Text>
+                                                    </TouchableOpacity>
+
+                                                    <TouchableOpacity
+                                                        style={styles.listBtn}
+                                                        activeOpacity={0.85}
+                                                        onPress={() => onAddToList(recipe)}
+                                                    >
+                                                        <Text style={styles.listBtnText}>{t('quick_dinner_list_btn')}</Text>
+                                                    </TouchableOpacity>
+                                                </View>
                                             </View>
                                         </View>
-                                    </View>
-                                ))}
-                            </View>
-                        ) : (
-                            <View>
-                                <Text style={styles.sectionHeading}>{t('quick_dinner_picks_heading')}</Text>
-
-                                <View style={styles.chipGrid}>
-                                    {QUICK_PICK_OPTIONS.map((option) => {
-                                        const isSelected = selectedQuickPicks.includes(option.value);
-                                        return (
-                                            <TouchableOpacity
-                                                key={option.value}
-                                                style={[styles.chip, isSelected ? styles.chipSelected : null]}
-                                                activeOpacity={0.85}
-                                                onPress={() => onToggleQuickPick(option.value)}
-                                            >
-                                                <Text style={[styles.chipText, isSelected ? styles.chipTextSelected : null]}>{t(option.labelKey)}</Text>
-                                            </TouchableOpacity>
-                                        );
-                                    })}
+                                    ))}
                                 </View>
+                            ) : (
+                                <View>
+                                    <Text style={styles.sectionHeading}>{t('quick_dinner_picks_heading')}</Text>
 
-                                <Text style={styles.sectionHeading}>{t('quick_dinner_type_heading')}</Text>
-                                <TextInput
-                                    value={ingredientsInput}
-                                    onChangeText={setIngredientsInput}
-                                    placeholder={t('quick_dinner_input_placeholder')}
-                                    placeholderTextColor="#9A8D7F"
-                                    style={styles.input}
-                                />
+                                    <View style={styles.chipGrid}>
+                                        {QUICK_PICK_OPTIONS.map((option) => {
+                                            const isSelected = selectedQuickPicks.includes(option.value);
+                                            return (
+                                                <TouchableOpacity
+                                                    key={option.value}
+                                                    style={[styles.chip, isSelected ? styles.chipSelected : null]}
+                                                    activeOpacity={0.85}
+                                                    onPress={() => onToggleQuickPick(option.value)}
+                                                >
+                                                    <Text style={[styles.chipText, isSelected ? styles.chipTextSelected : null]}>{t(option.labelKey)}</Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
 
-                                <Text style={styles.hintText}>
-                                    {hasSelection
-                                        ? t('quick_dinner_selected_prefix', {
-                                            items: [
-                                                ...selectedQuickPicks.map((value) => {
-                                                    const match = QUICK_PICK_OPTIONS.find((option) => option.value === value);
-                                                    return match ? t(match.labelKey) : value;
-                                                }),
-                                                ingredientsInput.trim(),
-                                            ].filter(Boolean).join(', '),
-                                        })
-                                        : t('quick_dinner_nothing_selected')}
-                                </Text>
+                                    <Text style={styles.sectionHeading}>{t('quick_dinner_type_heading')}</Text>
+                                    <TextInput
+                                        value={ingredientsInput}
+                                        onChangeText={setIngredientsInput}
+                                        placeholder={t('quick_dinner_input_placeholder')}
+                                        placeholderTextColor="#9A8D7F"
+                                        style={styles.input}
+                                    />
 
-                                <TouchableOpacity
-                                    style={[styles.primaryAction, !hasSelection ? styles.primaryActionDisabled : null]}
-                                    activeOpacity={0.85}
-                                    onPress={onSearch}
-                                    disabled={isSearching}
-                                >
-                                    <Text style={styles.primaryActionText}>
-                                        {isSearching ? t('searching_ellipsis') : `⚡ ${t('quick_dinner_find_btn')}`}
+                                    <Text style={styles.hintText}>
+                                        {hasSelection
+                                            ? t('quick_dinner_selected_prefix', {
+                                                items: [
+                                                    ...selectedQuickPicks.map((value) => {
+                                                        const match = QUICK_PICK_OPTIONS.find((option) => option.value === value);
+                                                        return match ? t(match.labelKey) : value;
+                                                    }),
+                                                    ingredientsInput.trim(),
+                                                ].filter(Boolean).join(', '),
+                                            })
+                                            : t('quick_dinner_nothing_selected')}
                                     </Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
-                    </ScrollView>
-                </View>
+
+                                    <TouchableOpacity
+                                        style={[styles.primaryAction, !hasSelection ? styles.primaryActionDisabled : null]}
+                                        activeOpacity={0.85}
+                                        onPress={onSearch}
+                                        disabled={isSearching}
+                                    >
+                                        <Text style={styles.primaryActionText}>
+                                            {isSearching ? t('searching_ellipsis') : `⚡ ${t('quick_dinner_find_btn')}`}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
         </Modal>
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
         color: '#8C6B46',
         fontFamily: 'Jost-Bold',
         fontSize: 24,
-        lineHeight: 24,
+        lineHeight: 30,
     },
     scrollContent: {
         paddingHorizontal: 18,

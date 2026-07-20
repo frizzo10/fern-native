@@ -27,7 +27,10 @@ import { fetchLeftoverRecipes } from '../services/leftoverMagicService';
 import { fetchFridgeChallengeRecipes } from '../services/fridgeChallengeService';
 import { fetchQuickDinnerRecipes } from '../services/whatsForDinnerService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
+import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
+import { fetchBudgetMealPlan } from '../services/budgetPlannerService';
 import { fetchRecipeImage } from '../utils/recipeImage';
+import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
@@ -35,6 +38,9 @@ import WinePairingModal from '../components/modals/WinePairingModal';
 import EventPlannerIntakeModal from '../components/modals/EventPlannerIntakeModal';
 import LeftoverMagicModal from '../components/modals/LeftoverMagicModal';
 import FridgeChallengeModal from '../components/modals/FridgeChallengeModal';
+import ScanCircularModal from '../components/modals/ScanCircularModal';
+import BudgetPlannerModal from '../components/modals/BudgetPlannerModal';
+import NutritionTrackerModal from '../components/modals/NutritionTrackerModal';
 import TwentyMinDinnerModal from '../components/modals/TwentyMinDinnerModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import useLanguage from '../hooks/useLanguage';
@@ -118,6 +124,27 @@ export default function HomeScreen({ user }) {
   const [fridgeChallengePhotos, setFridgeChallengePhotos] = useState([null, null, null]);
   const [isFridgeChallengeSearching, setIsFridgeChallengeSearching] = useState(false);
   const [hasPlayedFridgeChallengeToday, setHasPlayedFridgeChallengeToday] = useState(false);
+  const [isScanCircularOpen, setIsScanCircularOpen] = useState(false);
+  const [scanCircularStep, setScanCircularStep] = useState('select');
+  const [scanCircularPhoto, setScanCircularPhoto] = useState(null);
+  const [scanCircularResult, setScanCircularResult] = useState(null);
+  const [scanCircularSelectedItem, setScanCircularSelectedItem] = useState(null);
+  const [scanCircularDealIdeas, setScanCircularDealIdeas] = useState([]);
+  const [isLoadingScanCircularIdeas, setIsLoadingScanCircularIdeas] = useState(false);
+  const [isAddingScanCircularItemToList, setIsAddingScanCircularItemToList] = useState(false);
+  const [isNutritionTrackerOpen, setIsNutritionTrackerOpen] = useState(false);
+  const [isBudgetPlannerOpen, setIsBudgetPlannerOpen] = useState(false);
+  const [budgetPlannerStep, setBudgetPlannerStep] = useState('form');
+  const [budgetType, setBudgetType] = useState('weekly');
+  const [budgetInput, setBudgetInput] = useState('75');
+  const [budgetPeople, setBudgetPeople] = useState(4);
+  const [budgetDietary, setBudgetDietary] = useState('No restrictions');
+  const [budgetPlan, setBudgetPlan] = useState(null);
+  const [budgetShoppingItems, setBudgetShoppingItems] = useState([]);
+  const [isAddingBudgetItemRowOpen, setIsAddingBudgetItemRowOpen] = useState(false);
+  const [budgetNewItemText, setBudgetNewItemText] = useState('');
+  const [budgetConfirmItems, setBudgetConfirmItems] = useState(null);
+  const [isAddingBudgetItemsToShoppingList, setIsAddingBudgetItemsToShoppingList] = useState(false);
   const [isQuickDinnerOpen, setIsQuickDinnerOpen] = useState(false);
   const [quickDinnerSelectedPicks, setQuickDinnerSelectedPicks] = useState([]);
   const [quickDinnerIngredientsInput, setQuickDinnerIngredientsInput] = useState('');
@@ -144,6 +171,8 @@ export default function HomeScreen({ user }) {
   const leftover = useAiRecipeCollection({ source: 'leftover', data, pushAllFromStorage, pull, t });
   const fridgeChallenge = useAiRecipeCollection({ source: 'fridge', data, pushAllFromStorage, pull, t });
   const quickDinner = useAiRecipeCollection({ source: 'quick-dinner', data, pushAllFromStorage, pull, t });
+  const scanCircularDeals = useAiRecipeCollection({ source: 'scan_circular', data, pushAllFromStorage, pull, t });
+  const budgetPlanner = useAiRecipeCollection({ source: 'budget_planner', data, pushAllFromStorage, pull, t });
 
   useFocusEffect(
     useMemo(() => () => {
@@ -704,6 +733,323 @@ export default function HomeScreen({ user }) {
     setFridgeChallengeStep('photos');
   };
 
+  const resetScanCircularModal = () => {
+    setScanCircularStep('select');
+    setScanCircularPhoto(null);
+    setScanCircularResult(null);
+    setScanCircularSelectedItem(null);
+    setScanCircularDealIdeas([]);
+    setIsLoadingScanCircularIdeas(false);
+  };
+
+  const openScanCircularModal = () => {
+    resetScanCircularModal();
+    setIsScanCircularOpen(true);
+  };
+
+  const closeScanCircularModal = () => {
+    setIsScanCircularOpen(false);
+    resetScanCircularModal();
+  };
+
+  const pickScanCircularPhoto = async (fromCamera) => {
+    const result = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+    if (result.permissionDenied) {
+      Alert.alert(t('permission_needed_title'), t('photo_permission_denied_desc'));
+      return;
+    }
+    if (!result.photo) return;
+    setScanCircularPhoto(result.photo);
+  };
+
+  const handleScanCircularSubmit = async () => {
+    if (!scanCircularPhoto?.base64) return;
+
+    setScanCircularStep('loading');
+
+    try {
+      const result = await scanCircular({
+        userId: user?.id || '7c36273e-07b1-410c-ad1b-4c2b0295e140',
+        base64: scanCircularPhoto.base64,
+        mimeType: scanCircularPhoto.mimeType,
+      });
+      setScanCircularResult(result);
+      setScanCircularStep('results');
+    } catch (e) {
+      console.log('[scan-circular] scan failed', e?.message || e);
+      Alert.alert(t('scan_circular_scan_failed_title'), t('scan_circular_scan_failed_desc'));
+      setScanCircularStep('select');
+    }
+  };
+
+  const handleScanCircularAnother = () => {
+    resetScanCircularModal();
+  };
+
+  const handleScanCircularAskFern = () => {
+    closeScanCircularModal();
+    if (!isListening) {
+      start();
+    }
+  };
+
+  const loadScanCircularDealIdeas = async (item) => {
+    setScanCircularDealIdeas([]);
+    setIsLoadingScanCircularIdeas(true);
+    try {
+      const ideas = await fetchDealRecipeIdeas({ itemName: item.name, locale });
+      setScanCircularDealIdeas(ideas);
+      ideas.forEach((idea) => {
+        fetchRecipeImage(idea.title).then((url) => {
+          if (!url) return;
+          setScanCircularDealIdeas((prev) => prev.map((entry) => (entry.id === idea.id ? { ...entry, image: url } : entry)));
+        });
+      });
+    } catch (e) {
+      console.log('[scan-circular] deal ideas failed', e?.message || e);
+      Alert.alert(t('scan_circular_ideas_failed_title'), t('scan_circular_ideas_failed_desc'));
+    } finally {
+      setIsLoadingScanCircularIdeas(false);
+    }
+  };
+
+  const handleScanCircularFindRecipes = (item) => {
+    setScanCircularSelectedItem(item);
+    setScanCircularStep('item-detail');
+    loadScanCircularDealIdeas(item);
+  };
+
+  const handleScanCircularBackToDeals = () => {
+    setScanCircularStep('results');
+  };
+
+  const handleAddScanCircularItemToList = async () => {
+    if (!scanCircularSelectedItem) return;
+
+    setIsAddingScanCircularItemToList(true);
+    try {
+      const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+      const syntheticRecipe = {
+        id: scanCircularSelectedItem.id,
+        title: scanCircularSelectedItem.name,
+        ingredients: [scanCircularSelectedItem.name],
+      };
+      const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(syntheticRecipe, existingItems);
+
+      await pushAllFromStorage();
+      await pull();
+
+      Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
+    } catch (e) {
+      console.log('[scan-circular] add item to list failed', e?.message || e);
+      Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));
+    } finally {
+      setIsAddingScanCircularItemToList(false);
+    }
+  };
+
+  const handleRegenerateScanCircularIdeas = () => {
+    if (scanCircularSelectedItem) loadScanCircularDealIdeas(scanCircularSelectedItem);
+  };
+
+  const closeScanCircularRecipeDetail = () => {
+    scanCircularDeals.setSelectedRecipe(null);
+    setIsScanCircularOpen(true);
+  };
+
+  const handleChooseScanCircularIdea = async (idea) => {
+    if (!scanCircularSelectedItem) return;
+
+    try {
+      const fullRecipe = await fetchFullRecipeForDealIdea({
+        idea,
+        itemName: scanCircularSelectedItem.name,
+        locale,
+      });
+      scanCircularDeals.viewRecipe(fullRecipe, { onOpenDetail: () => setIsScanCircularOpen(false) });
+    } catch (e) {
+      console.log('[scan-circular] full recipe failed', e?.message || e);
+      Alert.alert(t('scan_circular_recipe_failed_title'), t('scan_circular_recipe_failed_desc'));
+    }
+  };
+
+  const resetBudgetPlannerModal = () => {
+    setBudgetPlannerStep('form');
+    setBudgetType('weekly');
+    setBudgetInput('75');
+    setBudgetPeople(4);
+    setBudgetDietary('No restrictions');
+    setBudgetPlan(null);
+    setBudgetShoppingItems([]);
+    setIsAddingBudgetItemRowOpen(false);
+    setBudgetNewItemText('');
+    setBudgetConfirmItems(null);
+  };
+
+  const openBudgetPlannerModal = () => {
+    resetBudgetPlannerModal();
+    setIsBudgetPlannerOpen(true);
+  };
+
+  const closeBudgetPlannerModal = () => {
+    setIsBudgetPlannerOpen(false);
+    resetBudgetPlannerModal();
+  };
+
+  const handleAskFernBudgetPlanner = () => {
+    closeBudgetPlannerModal();
+    if (!isListening) {
+      start();
+    }
+  };
+
+  const handleChangeBudgetInput = (text) => {
+    setBudgetInput(text.replace(/[^0-9]/g, ''));
+  };
+
+  const handleSelectBudgetPreset = (value) => {
+    setBudgetInput(String(value));
+  };
+
+  const handleSelectBudgetPeople = (value) => {
+    setBudgetPeople(value);
+  };
+
+  const handleSelectBudgetDietary = (value) => {
+    setBudgetDietary(value);
+  };
+
+  const handlePlanBudgetWeek = async () => {
+    const amount = Number.parseInt(budgetInput, 10) || 0;
+    if (amount <= 0) {
+      Alert.alert(t('budget_planner_budget_required_title'), t('budget_planner_budget_required_desc'));
+      return;
+    }
+
+    const weeklyBudget = budgetType === 'per_person' ? amount * budgetPeople * 7 : amount;
+
+    setBudgetPlannerStep('loading');
+
+    try {
+      const result = await fetchBudgetMealPlan({
+        weeklyBudget,
+        people: budgetPeople,
+        dietary: budgetDietary,
+        deals: [],
+        locale,
+      });
+
+      setBudgetPlan(result);
+      setBudgetShoppingItems(result.shoppingItems);
+      setBudgetPlannerStep('results');
+
+      result.dinners.forEach((dinner) => {
+        fetchRecipeImage(`${dinner.title} ${dinner.cuisine} food`.trim()).then((url) => {
+          if (!url) return;
+          setBudgetPlan((current) => {
+            if (!current) return current;
+            return {
+              ...current,
+              dinners: current.dinners.map((entry) => (entry.id === dinner.id ? { ...entry, image: url } : entry)),
+            };
+          });
+        });
+      });
+    } catch (e) {
+      console.log('[budget-planner] plan failed', e?.message || e);
+      Alert.alert(t('budget_planner_failed_title'), t('budget_planner_failed_desc'));
+      setBudgetPlannerStep('form');
+    }
+  };
+
+  const handleSaveBudgetDinner = (dinner) => {
+    budgetPlanner.handleSaveFromCard(dinner);
+  };
+
+  const handleAddBudgetDinnerToList = (dinner) => {
+    budgetPlanner.addIngredientsToShoppingList(dinner);
+  };
+
+  const closeBudgetPlannerRecipeDetail = () => {
+    budgetPlanner.setSelectedRecipe(null);
+    setIsBudgetPlannerOpen(true);
+  };
+
+  const handleViewBudgetDinner = (dinner) => {
+    budgetPlanner.viewRecipe(dinner, { onOpenDetail: () => setIsBudgetPlannerOpen(false) });
+  };
+
+  const handleToggleBudgetShoppingItem = (id) => {
+    setBudgetShoppingItems((current) => current.map((item) => (item.id === id ? { ...item, haveAlready: !item.haveAlready } : item)));
+  };
+
+  const handleRemoveBudgetShoppingItem = (id) => {
+    setBudgetShoppingItems((current) => current.filter((item) => item.id !== id));
+  };
+
+  const handleToggleAddBudgetItemRow = () => {
+    setIsAddingBudgetItemRowOpen((current) => !current);
+    setBudgetNewItemText('');
+  };
+
+  const handleConfirmAddBudgetItem = () => {
+    const text = budgetNewItemText.trim();
+    if (!text) return;
+
+    setBudgetShoppingItems((current) => [
+      ...current,
+      { id: `budget-shop-custom-${Date.now()}`, category: 'Other', text, haveAlready: false },
+    ]);
+    setBudgetNewItemText('');
+    setIsAddingBudgetItemRowOpen(false);
+  };
+
+  const handleReviewBudgetShoppingList = () => {
+    const confirmItems = budgetShoppingItems
+      .filter((item) => !item.haveAlready)
+      .map((item) => ({ id: item.id, text: item.text, selected: true }));
+    setBudgetConfirmItems(confirmItems);
+    setBudgetPlannerStep('confirm');
+  };
+
+  const handleToggleBudgetConfirmItem = (id) => {
+    setBudgetConfirmItems((current) => current.map((item) => (item.id === id ? { ...item, selected: !item.selected } : item)));
+  };
+
+  const handleBackToBudgetResults = () => {
+    setBudgetPlannerStep('results');
+  };
+
+  const handleConfirmAddBudgetItemsToShoppingList = async () => {
+    const selectedTexts = (budgetConfirmItems || []).filter((item) => item.selected).map((item) => item.text);
+    if (!selectedTexts.length) return;
+
+    setIsAddingBudgetItemsToShoppingList(true);
+    try {
+      const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+      const syntheticRecipe = { id: 'budget-plan', title: 'Budget Plan', ingredients: selectedTexts };
+      const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(syntheticRecipe, existingItems);
+
+      await pushAllFromStorage();
+      await pull();
+
+      Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
+      setBudgetPlannerStep('results');
+    } catch (e) {
+      console.log('[budget-planner] add to shopping list failed', e?.message || e);
+      Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));
+    } finally {
+      setIsAddingBudgetItemsToShoppingList(false);
+    }
+  };
+
+  const handleNewBudgetPlan = () => {
+    setBudgetPlannerStep('form');
+    setBudgetPlan(null);
+    setBudgetShoppingItems([]);
+    setBudgetConfirmItems(null);
+  };
+
   const handleSearchFridgeChallengeRecipes = async () => {
     const input = fridgeChallengeIngredientsInput.trim();
     const photos = fridgeChallengePhotos.filter(Boolean);
@@ -835,19 +1181,27 @@ export default function HomeScreen({ user }) {
     quickDinner.addIngredientsToShoppingList(recipe);
   };
 
-  const selectedAiRecipe = leftover.selectedRecipe || fridgeChallenge.selectedRecipe || quickDinner.selectedRecipe;
+  const selectedAiRecipe = leftover.selectedRecipe || fridgeChallenge.selectedRecipe || quickDinner.selectedRecipe || scanCircularDeals.selectedRecipe || budgetPlanner.selectedRecipe;
   const activeAiRecipeCollection = leftover.selectedRecipe
     ? leftover
     : fridgeChallenge.selectedRecipe
       ? fridgeChallenge
       : quickDinner.selectedRecipe
         ? quickDinner
-        : null;
+        : scanCircularDeals.selectedRecipe
+          ? scanCircularDeals
+          : budgetPlanner.selectedRecipe
+            ? budgetPlanner
+            : null;
   const closeSelectedAiRecipeDetail = leftover.selectedRecipe
     ? closeLeftoverRecipeDetail
     : fridgeChallenge.selectedRecipe
       ? closeFridgeChallengeRecipeDetail
-      : closeQuickDinnerRecipeDetail;
+      : quickDinner.selectedRecipe
+        ? closeQuickDinnerRecipeDetail
+        : scanCircularDeals.selectedRecipe
+          ? closeScanCircularRecipeDetail
+          : closeBudgetPlannerRecipeDetail;
 
   const closeWineModal = () => {
     setIsWineModalOpen(false);
@@ -1061,7 +1415,9 @@ export default function HomeScreen({ user }) {
                         ? () => setIsWineModalOpen(true)
                         : label === 'Personal Shopper'
                           ? () => navigation.navigate('Shopping')
-                          : undefined
+                          : label === 'Weekly Nutrition'
+                            ? () => setIsNutritionTrackerOpen(true)
+                            : undefined
               }
               style={[
                 styles.mainCard,
@@ -1161,7 +1517,7 @@ export default function HomeScreen({ user }) {
                       </Text>
                     </View>
 
-                    <TouchableOpacity style={styles.scanCircularBtn} activeOpacity={0.85}>
+                    <TouchableOpacity style={styles.scanCircularBtn} activeOpacity={0.85} onPress={openScanCircularModal}>
                       <Text style={styles.scanCircularBtnText}>{t('scan_circular')}</Text>
                     </TouchableOpacity>
 
@@ -1265,6 +1621,7 @@ export default function HomeScreen({ user }) {
               'Leftover Magic': openLeftoverMagicModal,
               'Fridge Challenge': openFridgeChallengeModal,
               '20-Min Dinner': openQuickDinnerModal,
+              'Budget Planner': openBudgetPlannerModal,
             };
             const onPress = toolHandlers[label];
 
@@ -1477,6 +1834,73 @@ export default function HomeScreen({ user }) {
         onSaveRecipe={fridgeChallenge.handleSaveFromCard}
         savingRecipeKey={fridgeChallenge.savingKey}
         isRecipeSaved={fridgeChallenge.isRecipeSaved}
+      />
+
+      <ScanCircularModal
+        visible={isScanCircularOpen}
+        onClose={closeScanCircularModal}
+        step={scanCircularStep}
+        photo={scanCircularPhoto}
+        onTakePhoto={() => pickScanCircularPhoto(true)}
+        onPickFromLibrary={() => pickScanCircularPhoto(false)}
+        onRemovePhoto={() => setScanCircularPhoto(null)}
+        onSubmit={handleScanCircularSubmit}
+        result={scanCircularResult}
+        onScanAnother={handleScanCircularAnother}
+        onAskFern={handleScanCircularAskFern}
+        onFindRecipes={handleScanCircularFindRecipes}
+        selectedItem={scanCircularSelectedItem}
+        dealIdeas={scanCircularDealIdeas}
+        isLoadingDealIdeas={isLoadingScanCircularIdeas}
+        onBackToDeals={handleScanCircularBackToDeals}
+        onAddItemToList={handleAddScanCircularItemToList}
+        isAddingItemToList={isAddingScanCircularItemToList}
+        onChooseIdea={handleChooseScanCircularIdea}
+        onRegenerateIdeas={handleRegenerateScanCircularIdeas}
+      />
+
+      <BudgetPlannerModal
+        visible={isBudgetPlannerOpen}
+        onClose={closeBudgetPlannerModal}
+        step={budgetPlannerStep}
+        onAskFern={handleAskFernBudgetPlanner}
+        budgetType={budgetType}
+        onSelectBudgetType={setBudgetType}
+        budgetInput={budgetInput}
+        onChangeBudgetInput={handleChangeBudgetInput}
+        onSelectPreset={handleSelectBudgetPreset}
+        people={budgetPeople}
+        onSelectPeople={handleSelectBudgetPeople}
+        dietary={budgetDietary}
+        onSelectDietary={handleSelectBudgetDietary}
+        onPlan={handlePlanBudgetWeek}
+        plan={budgetPlan}
+        onSaveDinner={handleSaveBudgetDinner}
+        onAddDinnerToList={handleAddBudgetDinnerToList}
+        onViewDinner={handleViewBudgetDinner}
+        isDinnerSaved={budgetPlanner.isRecipeSaved}
+        savingDinnerKey={budgetPlanner.savingKey}
+        shoppingItems={budgetShoppingItems}
+        onToggleShoppingItem={handleToggleBudgetShoppingItem}
+        onRemoveShoppingItem={handleRemoveBudgetShoppingItem}
+        isAddingItemRowOpen={isAddingBudgetItemRowOpen}
+        onToggleAddItemRow={handleToggleAddBudgetItemRow}
+        newItemText={budgetNewItemText}
+        onChangeNewItemText={setBudgetNewItemText}
+        onConfirmAddItem={handleConfirmAddBudgetItem}
+        onReviewShoppingList={handleReviewBudgetShoppingList}
+        onNewPlan={handleNewBudgetPlan}
+        confirmItems={budgetConfirmItems}
+        onToggleConfirmItem={handleToggleBudgetConfirmItem}
+        onConfirmAddToShoppingList={handleConfirmAddBudgetItemsToShoppingList}
+        isAddingToShoppingList={isAddingBudgetItemsToShoppingList}
+        onBackToResults={handleBackToBudgetResults}
+      />
+
+      <NutritionTrackerModal
+        visible={isNutritionTrackerOpen}
+        onClose={() => setIsNutritionTrackerOpen(false)}
+        navigation={navigation}
       />
 
       <TwentyMinDinnerModal

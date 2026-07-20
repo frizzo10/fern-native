@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -11,7 +11,6 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    TouchableWithoutFeedback,
     View,
 } from 'react-native';
 import { colors } from '../../constants/tokens';
@@ -83,6 +82,13 @@ export default function CharcuterieModal({
         ...(Array.isArray(charcuterieResult?.garnishes) ? charcuterieResult.garnishes : []),
         ...(Array.isArray(charcuterieResult?.drizzles) ? charcuterieResult.drizzles : []),
     ];
+    const scrollRef = useRef(null);
+
+    useEffect(() => {
+        if (charcuterieResult) {
+            scrollRef.current?.scrollTo({ y: 0, animated: false });
+        }
+    }, [charcuterieResult]);
 
     const renderIngredientSection = (title, emoji, items) => {
         if (!Array.isArray(items) || !items.length) return null;
@@ -112,16 +118,18 @@ export default function CharcuterieModal({
                 style={styles.charcuterieBackdrop}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
                 <View style={styles.charcuterieSheet}>
                     <TouchableOpacity style={styles.charcuterieCloseBtn} activeOpacity={0.85} onPress={onClose}>
                         <Text style={styles.charcuterieCloseText}>×</Text>
                     </TouchableOpacity>
 
                     <ScrollView
+                        ref={scrollRef}
+                        style={styles.charcuterieScrollView}
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={styles.charcuterieContentScroll}
                         keyboardShouldPersistTaps="handled"
+                        onScrollBeginDrag={Keyboard.dismiss}
                     >
                         <View style={styles.charcuterieTopRow}>
                             <Text style={styles.charcuterieTopTitle}>{`🧀 ${t('charcuterie_title')}`}</Text>
@@ -377,7 +385,6 @@ export default function CharcuterieModal({
                         )}
                     </ScrollView>
                 </View>
-                </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
         </Modal>
     );
@@ -399,6 +406,10 @@ const styles = StyleSheet.create({
         paddingTop: 14,
         paddingBottom: 16,
         height: '86%',
+        overflow: 'hidden',
+    },
+    charcuterieScrollView: {
+        flex: 1,
     },
     charcuterieCloseBtn: {
         position: 'absolute',

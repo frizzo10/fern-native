@@ -90,165 +90,165 @@ export default function FridgeChallengeModal({
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.sheet}>
-                    <View style={styles.topBar}>
-                        <Text style={styles.title}>{`🧊 ${t('fridge_challenge_title')}`}</Text>
-                        <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
-                            <Text style={styles.askFernText}>{t('leftover_ask_fern_btn')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
-                            <Text style={styles.closeText}>×</Text>
-                        </TouchableOpacity>
-                    </View>
+                    <View style={styles.sheet}>
+                        <View style={styles.topBar}>
+                            <Text style={styles.title}>{`🧊 ${t('fridge_challenge_title')}`}</Text>
+                            <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                                <Text style={styles.askFernText}>{t('leftover_ask_fern_btn')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
+                                <Text style={styles.closeText}>×</Text>
+                            </TouchableOpacity>
+                        </View>
 
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        keyboardShouldPersistTaps="handled"
-                        contentContainerStyle={styles.scrollContent}
-                    >
-                        {showResults ? (
-                            <View>
-                                <Text style={styles.resultsTitle}>{t('fridge_challenge_results_title')}</Text>
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            keyboardShouldPersistTaps="handled"
+                            contentContainerStyle={styles.scrollContent}
+                        >
+                            {showResults ? (
+                                <View>
+                                    <Text style={styles.resultsTitle}>{t('fridge_challenge_results_title')}</Text>
 
-                                {recipes.map((recipe, index) => (
-                                    <View key={recipe.id || `fridge-card-${index}`} style={styles.recipeCard}>
-                                        <View style={styles.recipeHeader}>
-                                            <Text style={styles.recipeTitle} numberOfLines={2}>{`${recipe.emoji} ${recipe.title}`}</Text>
-                                            <View style={[styles.difficultyPill, recipe.difficulty === 'Easy'
-                                                ? styles.difficultyEasy
-                                                : recipe.difficulty === 'Medium'
-                                                    ? styles.difficultyMedium
-                                                    : styles.difficultyAmbitious
-                                            ]}>
-                                                <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+                                    {recipes.map((recipe, index) => (
+                                        <View key={recipe.id || `fridge-card-${index}`} style={styles.recipeCard}>
+                                            <View style={styles.recipeHeader}>
+                                                <Text style={styles.recipeTitle} numberOfLines={2}>{`${recipe.emoji} ${recipe.title}`}</Text>
+                                                <View style={[styles.difficultyPill, recipe.difficulty === 'Easy'
+                                                    ? styles.difficultyEasy
+                                                    : recipe.difficulty === 'Medium'
+                                                        ? styles.difficultyMedium
+                                                        : styles.difficultyAmbitious
+                                                ]}>
+                                                    <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+                                                </View>
+                                            </View>
+
+                                            <Text style={styles.recipeDescription}>{recipe.description}</Text>
+                                            <Text style={styles.recipeTime}>{`⏱ ${recipe.time}`}</Text>
+
+                                            <View style={styles.recipeActionsRow}>
+                                                <TouchableOpacity
+                                                    style={styles.viewRecipeBtn}
+                                                    activeOpacity={0.85}
+                                                    onPress={() => onViewRecipe(recipe)}
+                                                >
+                                                    <Text style={styles.viewRecipeBtnText}>{t('leftover_view_recipe_btn')}</Text>
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity
+                                                    style={[styles.saveRecipeBtn, isRecipeSaved?.(recipe) ? styles.saveRecipeBtnSaved : null]}
+                                                    activeOpacity={0.85}
+                                                    onPress={() => onSaveRecipe(recipe)}
+                                                    disabled={savingRecipeKey === (recipe.id || recipe.title) || isRecipeSaved?.(recipe)}
+                                                >
+                                                    <Text style={styles.saveRecipeBtnText}>
+                                                        {savingRecipeKey === (recipe.id || recipe.title)
+                                                            ? t('saving_ellipsis')
+                                                            : isRecipeSaved?.(recipe)
+                                                                ? t('results_saved_badge')
+                                                                : t('save_short_btn')}
+                                                    </Text>
+                                                </TouchableOpacity>
                                             </View>
                                         </View>
-
-                                        <Text style={styles.recipeDescription}>{recipe.description}</Text>
-                                        <Text style={styles.recipeTime}>{`⏱ ${recipe.time}`}</Text>
-
-                                        <View style={styles.recipeActionsRow}>
-                                            <TouchableOpacity
-                                                style={styles.viewRecipeBtn}
-                                                activeOpacity={0.85}
-                                                onPress={() => onViewRecipe(recipe)}
-                                            >
-                                                <Text style={styles.viewRecipeBtnText}>{t('leftover_view_recipe_btn')}</Text>
-                                            </TouchableOpacity>
-
-                                            <TouchableOpacity
-                                                style={[styles.saveRecipeBtn, isRecipeSaved?.(recipe) ? styles.saveRecipeBtnSaved : null]}
-                                                activeOpacity={0.85}
-                                                onPress={() => onSaveRecipe(recipe)}
-                                                disabled={savingRecipeKey === (recipe.id || recipe.title) || isRecipeSaved?.(recipe)}
-                                            >
-                                                <Text style={styles.saveRecipeBtnText}>
-                                                    {savingRecipeKey === (recipe.id || recipe.title)
-                                                        ? t('saving_ellipsis')
-                                                        : isRecipeSaved?.(recipe)
-                                                            ? t('results_saved_badge')
-                                                            : t('save_short_btn')}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                ))}
-                            </View>
-                        ) : step === 'photos' ? (
-                            <View>
-                                <Text style={styles.photosHeading}>{`📸 ${t('fridge_challenge_photos_heading')}`}</Text>
-                                <Text style={styles.subheading}>{t('fridge_challenge_photos_subtitle')}</Text>
-
-                                <View style={styles.photoSlotRow}>
-                                    {photos.map((photo, index) => (
-                                        <TouchableOpacity
-                                            key={`photo-slot-${index}`}
-                                            style={styles.photoSlot}
-                                            activeOpacity={0.85}
-                                            onPress={() => handlePhotoSlotPress(index)}
-                                        >
-                                            {photo ? (
-                                                <Image source={{ uri: photo.uri }} style={styles.photoSlotImage} />
-                                            ) : (
-                                                <>
-                                                    <Text style={styles.photoSlotEmoji}>📷</Text>
-                                                    <Text style={styles.photoSlotLabel}>{t('fridge_challenge_photo_slot_label', { index: index + 1 })}</Text>
-                                                    <Text style={styles.photoSlotHint}>{t('fridge_challenge_tap_to_add')}</Text>
-                                                </>
-                                            )}
-                                        </TouchableOpacity>
                                     ))}
                                 </View>
+                            ) : step === 'photos' ? (
+                                <View>
+                                    <Text style={styles.photosHeading}>{`📸 ${t('fridge_challenge_photos_heading')}`}</Text>
+                                    <Text style={styles.subheading}>{t('fridge_challenge_photos_subtitle')}</Text>
 
-                                <TouchableOpacity
-                                    style={[styles.primaryAction, (!photoCount && !ingredientsInput.trim()) ? styles.primaryActionDisabled : null]}
-                                    activeOpacity={0.85}
-                                    onPress={onSearch}
-                                    disabled={isSearching || hasPlayedToday}
-                                >
-                                    <Text style={styles.primaryActionText}>
-                                        {isSearching
-                                            ? t('searching_ellipsis')
-                                            : photoCount
-                                                ? t('fridge_challenge_find_recipes_btn')
-                                                : t('fridge_challenge_add_at_least_one_btn')}
-                                    </Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity style={styles.backLink} activeOpacity={0.7} onPress={onBackToIntro}>
-                                    <Text style={styles.backLinkText}>{`‹ ${t('fridge_challenge_or_tell_fern')}`}</Text>
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <View>
-                                <Text style={styles.heroEmoji}>📸</Text>
-                                <Text style={styles.heading}>{t('fridge_challenge_heading')}</Text>
-                                <Text style={styles.subheading}>{t('fridge_challenge_subtitle')}</Text>
-
-                                {hasPlayedToday ? (
-                                    <View style={styles.playedNotice}>
-                                        <Text style={styles.playedNoticeText}>{t('fridge_challenge_already_played_desc')}</Text>
+                                    <View style={styles.photoSlotRow}>
+                                        {photos.map((photo, index) => (
+                                            <TouchableOpacity
+                                                key={`photo-slot-${index}`}
+                                                style={styles.photoSlot}
+                                                activeOpacity={0.85}
+                                                onPress={() => handlePhotoSlotPress(index)}
+                                            >
+                                                {photo ? (
+                                                    <Image source={{ uri: photo.uri }} style={styles.photoSlotImage} />
+                                                ) : (
+                                                    <>
+                                                        <Text style={styles.photoSlotEmoji}>📷</Text>
+                                                        <Text style={styles.photoSlotLabel}>{t('fridge_challenge_photo_slot_label', { index: index + 1 })}</Text>
+                                                        <Text style={styles.photoSlotHint}>{t('fridge_challenge_tap_to_add')}</Text>
+                                                    </>
+                                                )}
+                                            </TouchableOpacity>
+                                        ))}
                                     </View>
-                                ) : (
-                                    <TouchableOpacity
-                                        style={styles.primaryAction}
-                                        activeOpacity={0.85}
-                                        onPress={onGoToPhotos}
-                                    >
-                                        <Text style={styles.primaryActionText}>{t('fridge_challenge_take_photos_btn')}</Text>
-                                    </TouchableOpacity>
-                                )}
 
-                                <View style={styles.dividerRow}>
-                                    <View style={styles.divider} />
-                                    <Text style={styles.dividerText}>{t('fridge_challenge_or_tell_fern')}</Text>
-                                    <View style={styles.divider} />
-                                </View>
-
-                                <View style={styles.inputRow}>
-                                    <TextInput
-                                        value={ingredientsInput}
-                                        onChangeText={setIngredientsInput}
-                                        placeholder={t('fridge_challenge_input_placeholder')}
-                                        placeholderTextColor="#9A8D7F"
-                                        style={styles.input}
-                                        editable={!hasPlayedToday}
-                                    />
                                     <TouchableOpacity
-                                        style={[styles.goBtn, (isSearching || hasPlayedToday) ? styles.goBtnDisabled : null]}
+                                        style={[styles.primaryAction, (!photoCount && !ingredientsInput.trim()) ? styles.primaryActionDisabled : null]}
                                         activeOpacity={0.85}
                                         onPress={onSearch}
                                         disabled={isSearching || hasPlayedToday}
                                     >
-                                        <Text style={styles.goBtnText}>{isSearching ? t('searching_ellipsis') : t('fridge_challenge_go_btn')}</Text>
+                                        <Text style={styles.primaryActionText}>
+                                            {isSearching
+                                                ? t('searching_ellipsis')
+                                                : photoCount
+                                                    ? t('fridge_challenge_find_recipes_btn')
+                                                    : t('fridge_challenge_add_at_least_one_btn')}
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity style={styles.backLink} activeOpacity={0.7} onPress={onBackToIntro}>
+                                        <Text style={styles.backLinkText}>{`‹ ${t('fridge_challenge_or_tell_fern')}`}</Text>
                                     </TouchableOpacity>
                                 </View>
+                            ) : (
+                                <View>
+                                    <Text style={styles.heroEmoji}>📸</Text>
+                                    <Text style={styles.heading}>{t('fridge_challenge_heading')}</Text>
+                                    <Text style={styles.subheading}>{t('fridge_challenge_subtitle')}</Text>
 
-                                <Text style={styles.onePlayNote}>{t('fridge_challenge_one_play_note')}</Text>
-                            </View>
-                        )}
-                    </ScrollView>
-                </View>
+                                    {hasPlayedToday ? (
+                                        <View style={styles.playedNotice}>
+                                            <Text style={styles.playedNoticeText}>{t('fridge_challenge_already_played_desc')}</Text>
+                                        </View>
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={styles.primaryAction}
+                                            activeOpacity={0.85}
+                                            onPress={onGoToPhotos}
+                                        >
+                                            <Text style={styles.primaryActionText}>{t('fridge_challenge_take_photos_btn')}</Text>
+                                        </TouchableOpacity>
+                                    )}
+
+                                    <View style={styles.dividerRow}>
+                                        <View style={styles.divider} />
+                                        <Text style={styles.dividerText}>{t('fridge_challenge_or_tell_fern')}</Text>
+                                        <View style={styles.divider} />
+                                    </View>
+
+                                    <View style={styles.inputRow}>
+                                        <TextInput
+                                            value={ingredientsInput}
+                                            onChangeText={setIngredientsInput}
+                                            placeholder={t('fridge_challenge_input_placeholder')}
+                                            placeholderTextColor="#9A8D7F"
+                                            style={styles.input}
+                                            editable={!hasPlayedToday}
+                                        />
+                                        <TouchableOpacity
+                                            style={[styles.goBtn, (isSearching || hasPlayedToday) ? styles.goBtnDisabled : null]}
+                                            activeOpacity={0.85}
+                                            onPress={onSearch}
+                                            disabled={isSearching || hasPlayedToday}
+                                        >
+                                            <Text style={styles.goBtnText}>{isSearching ? t('searching_ellipsis') : t('fridge_challenge_go_btn')}</Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    <Text style={styles.onePlayNote}>{t('fridge_challenge_one_play_note')}</Text>
+                                </View>
+                            )}
+                        </ScrollView>
+                    </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
         </Modal>
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
         color: '#8C6B46',
         fontFamily: 'Jost-Bold',
         fontSize: 24,
-        lineHeight: 24,
+        lineHeight: 30,
     },
     scrollContent: {
         paddingHorizontal: 18,

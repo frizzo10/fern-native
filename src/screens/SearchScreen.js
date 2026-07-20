@@ -28,6 +28,9 @@ import RecipeDetailModal from '../components/RecipeDetailModal';
 import { pickFirst, getRawRecipeId, normalizeRecipe, normalizeAiRecipe } from '../utils/recipeNormalize';
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
+import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
+import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
+import ScanCircularModal from '../components/modals/ScanCircularModal';
 import useLanguage from '../hooks/useLanguage';
 
 const AI_SEARCH_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
@@ -144,6 +147,15 @@ export default function SearchScreen({ user }) {
     const [selectedRecipe, setSelectedRecipe] = useState(null);
     const [noteText, setNoteText] = useState('');
     const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+    const [isScanCircularOpen, setIsScanCircularOpen] = useState(false);
+    const [scanCircularStep, setScanCircularStep] = useState('select');
+    const [scanCircularPhoto, setScanCircularPhoto] = useState(null);
+    const [scanCircularResult, setScanCircularResult] = useState(null);
+    const [scanCircularSelectedItem, setScanCircularSelectedItem] = useState(null);
+    const [scanCircularDealIdeas, setScanCircularDealIdeas] = useState([]);
+    const [isLoadingScanCircularIdeas, setIsLoadingScanCircularIdeas] = useState(false);
+    const [isAddingScanCircularItemToList, setIsAddingScanCircularItemToList] = useState(false);
+    const [scanCircularRecipeDetailActive, setScanCircularRecipeDetailActive] = useState(false);
     const syncTimerRef = useRef(null);
     const isSyncingRef = useRef(false);
     const scrollRef = useRef(null);
@@ -154,6 +166,15 @@ export default function SearchScreen({ user }) {
             navigation.setParams({ openBloggers: false });
         }
     }, [route?.params?.openBloggers, navigation]);
+
+    useEffect(() => {
+        const prefillQuery = route?.params?.prefillQuery;
+        if (prefillQuery) {
+            setSearchText(prefillQuery);
+            performSearch(prefillQuery);
+            navigation.setParams({ prefillQuery: undefined });
+        }
+    }, [route?.params?.prefillQuery, navigation]);
 
     useEffect(() => {
         if (isBloggersModalOpen) {
@@ -552,6 +573,159 @@ export default function SearchScreen({ user }) {
         }
     };
 
+    const resetScanCircularModal = () => {
+        setScanCircularStep('select');
+        setScanCircularPhoto(null);
+        setScanCircularResult(null);
+        setScanCircularSelectedItem(null);
+        setScanCircularDealIdeas([]);
+        setIsLoadingScanCircularIdeas(false);
+    };
+
+    const openScanCircularModal = () => {
+        resetScanCircularModal();
+        setIsScanCircularOpen(true);
+    };
+
+    const closeScanCircularModal = () => {
+        setIsScanCircularOpen(false);
+        resetScanCircularModal();
+    };
+
+    const pickScanCircularPhoto = async (fromCamera) => {
+        const result = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+        if (result.permissionDenied) {
+            Alert.alert(t('permission_needed_title'), t('photo_permission_denied_desc'));
+            return;
+        }
+        if (!result.photo) return;
+        setScanCircularPhoto(result.photo);
+    };
+
+    const handleScanCircularSubmit = async () => {
+        if (!scanCircularPhoto?.base64) return;
+
+        setScanCircularStep('loading');
+
+        try {
+            const result = await scanCircular({
+                userId: user?.id || '7c36273e-07b1-410c-ad1b-4c2b0295e140',
+                base64: scanCircularPhoto.base64,
+                mimeType: scanCircularPhoto.mimeType,
+            });
+            setScanCircularResult(result);
+            setScanCircularStep('results');
+        } catch (e) {
+            console.warn('[scan-circular] scan failed', e);
+            Alert.alert(t('scan_circular_scan_failed_title'), t('scan_circular_scan_failed_desc'));
+            setScanCircularStep('select');
+        }
+    };
+
+    const handleScanCircularAnother = () => {
+        resetScanCircularModal();
+    };
+
+    const handleScanCircularAskFern = () => {
+        closeScanCircularModal();
+        Alert.alert(t('ask_fern_btn'), t('ask_fern_stub_desc'));
+    };
+
+    const loadScanCircularDealIdeas = async (item) => {
+        setScanCircularDealIdeas([]);
+        setIsLoadingScanCircularIdeas(true);
+        try {
+            const ideas = await fetchDealRecipeIdeas({ itemName: item.name, locale });
+            setScanCircularDealIdeas(ideas);
+            ideas.forEach((idea) => {
+                fetchRecipeImage(idea.title).then((url) => {
+                    if (!url) return;
+                    setScanCircularDealIdeas((prev) => prev.map((entry) => (entry.id === idea.id ? { ...entry, image: url } : entry)));
+                });
+            });
+        } catch (e) {
+            console.warn('[scan-circular] deal ideas failed', e);
+            Alert.alert(t('scan_circular_ideas_failed_title'), t('scan_circular_ideas_failed_desc'));
+        } finally {
+            setIsLoadingScanCircularIdeas(false);
+        }
+    };
+
+    const handleScanCircularFindRecipes = (item) => {
+        setScanCircularSelectedItem(item);
+        setScanCircularStep('item-detail');
+        loadScanCircularDealIdeas(item);
+    };
+
+    const handleScanCircularBackToDeals = () => {
+        setScanCircularStep('results');
+    };
+
+    const handleAddScanCircularItemToList = async () => {
+        if (!scanCircularSelectedItem) return;
+
+        setIsAddingScanCircularItemToList(true);
+        try {
+            const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+            const syntheticRecipe = {
+                id: scanCircularSelectedItem.id,
+                title: scanCircularSelectedItem.name,
+                ingredients: [scanCircularSelectedItem.name],
+            };
+            const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(syntheticRecipe, existingItems);
+
+            await pushAllFromStorage();
+            await pull();
+
+            Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
+        } catch (e) {
+            console.warn('[scan-circular] add item to list failed', e);
+            Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));
+        } finally {
+            setIsAddingScanCircularItemToList(false);
+        }
+    };
+
+    const handleRegenerateScanCircularIdeas = () => {
+        if (scanCircularSelectedItem) loadScanCircularDealIdeas(scanCircularSelectedItem);
+    };
+
+    const handleChooseScanCircularIdea = async (idea) => {
+        if (!scanCircularSelectedItem) return;
+
+        try {
+            const fullRecipe = await fetchFullRecipeForDealIdea({
+                idea,
+                itemName: scanCircularSelectedItem.name,
+                locale,
+            });
+            const normalized = normalizeAiRecipe(fullRecipe, 0);
+
+            setScanCircularRecipeDetailActive(true);
+            setIsScanCircularOpen(false);
+            setSelectedRecipe(normalized);
+            setNoteText('');
+
+            const imageQuery = `${fullRecipe.title || ''} ${fullRecipe.cuisine || ''} food`.trim();
+            const imageUrl = await fetchRecipeImage(imageQuery);
+            if (!imageUrl) return;
+            setSelectedRecipe((current) => (
+                current && current.id === normalized.id ? { ...current, image: imageUrl, _cloudPhotos: [imageUrl] } : current
+            ));
+        } catch (e) {
+            console.warn('[scan-circular] full recipe failed', e);
+            Alert.alert(t('scan_circular_recipe_failed_title'), t('scan_circular_recipe_failed_desc'));
+        }
+    };
+
+    const closeSelectedRecipeDetail = () => {
+        setSelectedRecipe(null);
+        if (scanCircularRecipeDetailActive) {
+            setScanCircularRecipeDetailActive(false);
+            setIsScanCircularOpen(true);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
             <LinearGradient colors={['#FBF7EF', '#F7F1E6', '#FBF8F1']} style={styles.background}>
@@ -607,7 +781,7 @@ export default function SearchScreen({ user }) {
                                 <ActionButton
                                     label={t('circular_scanner')}
                                     icon="📸"
-                                    onPress={() => Alert.alert(t('circular_scanner'), t('circular_scanner_stub_desc'))}
+                                    onPress={openScanCircularModal}
                                     style={styles.quickActionLeft}
                                 />
                                 <ActionButton
@@ -829,7 +1003,7 @@ export default function SearchScreen({ user }) {
 
                 <RecipeDetailModal
                     recipe={selectedRecipe}
-                    onClose={() => setSelectedRecipe(null)}
+                    onClose={closeSelectedRecipeDetail}
                     noteText={noteText}
                     onChangeNoteText={setNoteText}
                     isSaving={isSavingRecipe}
@@ -838,6 +1012,29 @@ export default function SearchScreen({ user }) {
                     showSavedIndicator
                     onDeleteRecipe={selectedIsSaved ? handleDeleteSelectedRecipe : undefined}
                     onAddToList={handleAddSelectedRecipeToShoppingList}
+                />
+
+                <ScanCircularModal
+                    visible={isScanCircularOpen}
+                    onClose={closeScanCircularModal}
+                    step={scanCircularStep}
+                    photo={scanCircularPhoto}
+                    onTakePhoto={() => pickScanCircularPhoto(true)}
+                    onPickFromLibrary={() => pickScanCircularPhoto(false)}
+                    onRemovePhoto={() => setScanCircularPhoto(null)}
+                    onSubmit={handleScanCircularSubmit}
+                    result={scanCircularResult}
+                    onScanAnother={handleScanCircularAnother}
+                    onAskFern={handleScanCircularAskFern}
+                    onFindRecipes={handleScanCircularFindRecipes}
+                    selectedItem={scanCircularSelectedItem}
+                    dealIdeas={scanCircularDealIdeas}
+                    isLoadingDealIdeas={isLoadingScanCircularIdeas}
+                    onBackToDeals={handleScanCircularBackToDeals}
+                    onAddItemToList={handleAddScanCircularItemToList}
+                    isAddingItemToList={isAddingScanCircularItemToList}
+                    onChooseIdea={handleChooseScanCircularIdea}
+                    onRegenerateIdeas={handleRegenerateScanCircularIdeas}
                 />
             </LinearGradient>
         </SafeAreaView>
