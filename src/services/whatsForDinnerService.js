@@ -25,12 +25,13 @@ function normalizeRecipe(recipe, index) {
     };
 }
 
-export async function fetchQuickDinnerRecipes({ quickPicks, ingredients, servings, locale }) {
+export async function fetchQuickDinnerRecipes({ quickPicks, ingredients, servings, locale, token }) {
     const payload = {
         quickPicks: Array.isArray(quickPicks) ? quickPicks.filter(Boolean) : [],
         ingredients: String(ingredients || '').trim(),
         servings: Number.parseInt(servings, 10) || 4,
         locale: locale || 'en',
+        token,
     };
 
     const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/whats-for-dinner', {

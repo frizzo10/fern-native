@@ -9,7 +9,7 @@ import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 // the recipe library, edit/delete a saved note, and add ingredients to the
 // shopping list. Used by both Leftover Magic and Fridge Challenge, which are
 // the same feature shape (photos/ingredients -> 3 AI recipes -> view/save).
-export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, t }) {
+export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, t, token }) {
     const [recipes, setRecipes] = useState([]);
     const [selectedRecipe, setSelectedRecipe] = useState(null);
     const [noteText, setNoteText] = useState('');
@@ -76,7 +76,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
 
         let imageUrl = detailRecipe.image || null;
         if (!imageUrl) {
-            imageUrl = await fetchRecipeImage(`${detailRecipe.title || ''} ${detailRecipe.category || ''} food`.trim());
+            imageUrl = await fetchRecipeImage(`${detailRecipe.title || ''} ${detailRecipe.category || ''} food`.trim(), token);
         }
 
         const nextSaved = [
@@ -241,7 +241,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         if (detailRecipe.image) return;
 
         const imageQuery = `${recipe.title || ''} ${recipe.cuisine || ''} food`.trim();
-        const imageUrl = await fetchRecipeImage(imageQuery);
+        const imageUrl = await fetchRecipeImage(imageQuery, token);
         if (!imageUrl) return;
 
         setSelectedRecipe((current) => {

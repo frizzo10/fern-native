@@ -44,7 +44,7 @@ function normalizeShoppingList(shoppingList) {
     return items;
 }
 
-export async function fetchBudgetMealPlan({ weeklyBudget, people, dietary, deals, locale }) {
+export async function fetchBudgetMealPlan({ weeklyBudget, people, dietary, deals, locale, token }) {
     const res = await fetch(BUDGET_PLANNER_URL, {
         method: 'POST',
         headers: {
@@ -57,6 +57,7 @@ export async function fetchBudgetMealPlan({ weeklyBudget, people, dietary, deals
             dietary,
             deals: Array.isArray(deals) ? deals : [],
             locale: locale || 'en',
+            token,
         }),
     });
 

@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 import useLanguage from '../hooks/useLanguage';
+import { useTour } from '../services/TourContext';
 
 const QUICK_ADD_ITEMS = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Butter', 'Pasta'];
 const FERN_STARTER_ITEMS = ['Olive oil', 'Garlic', 'Onion', 'Chicken', 'Rice'];
@@ -52,10 +53,15 @@ function toSyncPayload(list) {
 
 export default function ShoppingScreen({ user }) {
   const { t } = useLanguage();
+  const { maybeAutoStart } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    maybeAutoStart('shopping');
+  }, []);
 
   useFocusEffect(
     useMemo(() => () => {

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   View,
@@ -26,6 +26,7 @@ import {
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import useLanguage from '../hooks/useLanguage';
+import { useTour } from '../services/TourContext';
 
 function normalizeBook(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.book_title, item?.label, `Cookbook ${index + 1}`);
@@ -71,7 +72,12 @@ function normalizeBook(item, index) {
 export default function RecipesScreen({ user }) {
   const { t } = useLanguage();
   const route = useRoute();
+  const { maybeAutoStart } = useTour();
   const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
+
+  useEffect(() => {
+    maybeAutoStart('recipes');
+  }, []);
   const [tab, setTab] = useState('recipes');
   const [query, setQuery] = useState('');
   const [selectedBook, setSelectedBook] = useState(null);
@@ -316,7 +322,7 @@ export default function RecipesScreen({ user }) {
       if (recipe.image || attemptedImageFetchIds.current.has(recipe.id)) return;
       attemptedImageFetchIds.current.add(recipe.id);
 
-      fetchRecipeImage(recipe.title).then((url) => {
+      fetchRecipeImage(recipe.title, user?.token).then((url) => {
         if (!url) return;
         setRecipesLocal((prev) => prev.map((item, index) => (
           getRawRecipeId(item, index) === String(recipe.id) ? { ...item, _cloudPhotos: [url] } : item

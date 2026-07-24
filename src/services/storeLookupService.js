@@ -1,7 +1,8 @@
-export async function findStoreLocationByZip(storeName, zipCode) {
+export async function findStoreLocationByZip(storeName, zipCode, token) {
   const query = encodeURIComponent(String(storeName || '').trim());
   const zip = encodeURIComponent(String(zipCode || '').trim());
-  const url = `https://app.clickpickandcook.com/.netlify/functions/geocode?q=${query}&zip=${zip}`;
+  const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+  const url = `https://app.clickpickandcook.com/.netlify/functions/geocode?q=${query}&zip=${zip}${tokenParam}`;
 
   const res = await fetch(url, {
     method: 'GET',

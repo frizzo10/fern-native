@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
 import { Image, Text, View, StyleSheet, TouchableOpacity, Animated, Modal, Pressable, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
@@ -22,6 +22,11 @@ import { colors, radius, shadow } from './src/constants/tokens';
 import { useFonts } from 'expo-font';
 import { LanguageProvider } from './src/services/LanguageContext';
 import { useLanguage } from './src/hooks/useLanguage';
+import ChatSheetModal from './src/components/modals/ChatSheetModal';
+import AccountScreen from './src/screens/AccountScreen';
+import { AccountModalProvider, useAccountModal } from './src/services/AccountModalContext';
+import { TourProvider, useTour } from './src/services/TourContext';
+import TourModal from './src/components/TourModal';
 
 const Tab = createBottomTabNavigator();
 
@@ -141,8 +146,11 @@ async function checkForUpdate() {
 
 function AppNavigator({ user, signOut }) {
   const { t } = useLanguage();
+  const { visible: isAccountOpen, open: openAccount, close: closeAccount } = useAccountModal();
+  const { tour: activeTour, storageKey: activeTourStorageKey, closeTour } = useTour();
   const [arrivedStore, setArrivedStore] = useState(null);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const navigationRef = React.useRef(null);
 
   // Mock stores — replace with sync from useSync
@@ -180,7 +188,7 @@ function AppNavigator({ user, signOut }) {
         onClose={() => setIsMoreOpen(false)}
         onProfile={() => {
           setIsMoreOpen(false);
-          navigationRef.current?.navigate('Home');
+          openAccount();
         }}
         onCookbooks={() => {
           setIsMoreOpen(false);
@@ -195,6 +203,38 @@ function AppNavigator({ user, signOut }) {
           signOut();
         }}
       />
+
+      <ChatSheetModal
+        visible={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        user={user}
+      />
+
+      <AccountScreen
+        visible={isAccountOpen}
+        onClose={closeAccount}
+        user={user}
+        signOut={signOut}
+        onOpenShopping={() => navigationRef.current?.navigate('Shopping')}
+      />
+
+      <TourModal
+        visible={!!activeTour}
+        tour={activeTour}
+        storageKey={activeTourStorageKey}
+        onClose={closeTour}
+      />
+
+      {!isChatOpen && (
+        <TouchableOpacity
+          style={styles.chatFab}
+          activeOpacity={0.85}
+          onPress={() => setIsChatOpen(true)}
+          accessibilityLabel={t('ask_fern_btn')}
+        >
+          <Text style={styles.chatFabText}>🌿</Text>
+        </TouchableOpacity>
+      )}
 
       <Tab.Navigator
         screenOptions={{
@@ -355,9 +395,15 @@ export default function App() {
   });
 
   return (
-    <LanguageProvider>
-      <MainAppContent />
-    </LanguageProvider>
+    <SafeAreaProvider>
+      <LanguageProvider>
+        <AccountModalProvider>
+          <TourProvider>
+            <MainAppContent />
+          </TourProvider>
+        </AccountModalProvider>
+      </LanguageProvider>
+    </SafeAreaProvider>
   );
 }
 
@@ -409,6 +455,21 @@ const styles = StyleSheet.create({
   bannerBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   bannerClose: { padding: 6 },
   bannerCloseText: { color: 'rgba(255,255,255,0.4)', fontSize: 18 },
+
+  chatFab: {
+    position: 'absolute',
+    right: 18,
+    bottom: 86,
+    zIndex: 998,
+    width: 56,
+    height: 56,
+    borderRadius: radius.full,
+    backgroundColor: colors.orange,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadow.strong,
+  },
+  chatFabText: { fontSize: 26 },
 
   moreBackdrop: {
     flex: 1,

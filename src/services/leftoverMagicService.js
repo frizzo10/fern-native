@@ -62,7 +62,7 @@ function getDifficultyRank(difficulty) {
     return 3;
 }
 
-export async function fetchLeftoverRecipes({ ingredients, photos, locale }) {
+export async function fetchLeftoverRecipes({ ingredients, photos, locale, token }) {
     const normalizedIngredients = String(ingredients || '').trim();
     const hasPhotos = Array.isArray(photos) && photos.some(Boolean);
 
@@ -82,6 +82,7 @@ export async function fetchLeftoverRecipes({ ingredients, photos, locale }) {
         ],
         feature: 'recipe_search',
         locale: locale || 'en',
+        token,
     };
 
     const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/ai', {

@@ -295,7 +295,7 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
 
     try {
       console.log('[EventPlanner] Calling generateEventPlan with intake:', JSON.stringify(intake, null, 2));
-      const result = await generateEventPlan(user.id, locale, intake);
+      const result = await generateEventPlan(user.id, locale, intake, user.token);
       console.log('[EventPlanner] Got result from service:', result);
 
       if (!result) {

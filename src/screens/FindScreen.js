@@ -95,7 +95,7 @@ export default function FindScreen({ user }) {
 
   // Use the continuous mic hook
   const { isListening, isProcessing, start, stop } = useContinuousMic({
-    autoSpeakReply: false, locale: locale,
+    autoSpeakReply: false, locale: locale, token: user?.token,
     onTranscript: async (transcript) => {
       console.log('[FindScreen] transcript received:', transcript);
       // Check stop words - stop listening first
@@ -170,6 +170,7 @@ export default function FindScreen({ user }) {
             { role: 'user', content: userText }
           ],
           locale,
+          token: user?.token,
         })
       });
       const aiData = await aiRes.json();
@@ -203,7 +204,7 @@ export default function FindScreen({ user }) {
       console.log('TTS Request:', { TTS_URL, text });
 
       // Match the payload format from useContinuousMic hook
-      const payload = { text, locale };
+      const payload = { text, locale, token: user?.token };
       console.log('TTS Payload:', JSON.stringify(payload));
 
       const ttsRes = await fetch(TTS_URL, {

@@ -101,7 +101,7 @@ function parseResponseTextAsJson(text) {
     }
 }
 
-function normalizeAnalysisResult(raw) {
+function normalizeAnalysisResult(raw, basedOnSuggestion) {
     const days = Array.isArray(raw?.days)
         ? raw.days.map((d) => ({
             day: String(d?.day || ''),
@@ -125,6 +125,7 @@ function normalizeAnalysisResult(raw) {
         tip: String(raw?.tip || ''),
         offGoalDays: Array.isArray(raw?.off_goal_days) ? raw.off_goal_days.map(String) : [],
         goalRecipeSuggestion: String(raw?.goal_recipe_suggestion || ''),
+        basedOnSuggestion: Boolean(basedOnSuggestion),
     };
 }
 
@@ -150,7 +151,7 @@ function OptionGrid({ options, selectedValue, onSelect, t }) {
     );
 }
 
-export default function NutritionTrackerModal({ visible, onClose, navigation }) {
+export default function NutritionTrackerModal({ visible, onClose, navigation, user }) {
     const { t, locale } = useLanguage();
     const [step, setStep] = useState('form');
     const [goals, setGoals] = useState(EMPTY_GOALS);
@@ -219,10 +220,7 @@ export default function NutritionTrackerModal({ visible, onClose, navigation }) 
         await AsyncStorage.setItem(NUTRITION_GOALS_STORAGE_KEY, JSON.stringify(goals));
 
         const mealLines = await buildWeekMealLines();
-        if (!mealLines.length) {
-            Alert.alert(t('nutrition_tracker_no_meals_title'), t('nutrition_tracker_no_meals_desc'));
-            return;
-        }
+        const hasMealPlan = mealLines.length > 0;
 
         setStep('analyzing');
 
@@ -237,7 +235,9 @@ export default function NutritionTrackerModal({ visible, onClose, navigation }) 
             const carbLabel = carbOption?.englishLabel || 'any';
             const focusLabel = dietaryOption?.englishLabel || 'Balanced';
 
-            const promptContent = `User goals: calories=${calorieLabel}, protein=${proteinLabel}, carbs=${carbLabel}, focus=${focusLabel}. Analyze these meals. For each day estimate calories and macros. Also set goal_met:true/false based on whether the day matches the user goals above. Meals: ${mealLines.join(', ')}. Respond ONLY with valid JSON no markdown: {"days":[{"day":"Mon","calories":1800,"protein":80,"carbs":200,"fat":60,"goal_met":true,"highlight":""}],"weekly_avg":{"calories":0,"protein":0,"carbs":0,"fat":0},"tip":"","off_goal_days":["Tue","Thu"],"goal_recipe_suggestion":""}`;
+            const promptContent = hasMealPlan
+                ? `User goals: calories=${calorieLabel}, protein=${proteinLabel}, carbs=${carbLabel}, focus=${focusLabel}. Analyze these meals. For each day estimate calories and macros. Also set goal_met:true/false based on whether the day matches the user goals above. Meals: ${mealLines.join(', ')}. Respond ONLY with valid JSON no markdown: {"days":[{"day":"Mon","calories":1800,"protein":80,"carbs":200,"fat":60,"goal_met":true,"highlight":""}],"weekly_avg":{"calories":0,"protein":0,"carbs":0,"fat":0},"tip":"","off_goal_days":["Tue","Thu"],"goal_recipe_suggestion":""}`
+                : `User goals: calories=${calorieLabel}, protein=${proteinLabel}, carbs=${carbLabel}, focus=${focusLabel}. This user hasn't planned any meals this week — a meal plan is optional, so instead suggest a realistic sample 7-day dinner for each day that fits these goals, and estimate its nutrition. Put the suggested dish name in "highlight" for each day. Set goal_met:true/false based on whether the suggested dish matches the goals above. Respond ONLY with valid JSON no markdown: {"days":[{"day":"Mon","calories":1800,"protein":80,"carbs":200,"fat":60,"goal_met":true,"highlight":"Grilled salmon with quinoa and greens"}],"weekly_avg":{"calories":0,"protein":0,"carbs":0,"fat":0},"tip":"","off_goal_days":[],"goal_recipe_suggestion":""}`;
 
             const res = await fetch(AI_URL, {
                 method: 'POST',
@@ -250,6 +250,7 @@ export default function NutritionTrackerModal({ visible, onClose, navigation }) 
                     messages: [{ role: 'user', content: promptContent }],
                     feature: 'nutrition',
                     locale: locale || 'en',
+                    token: user?.token,
                 }),
             });
 
@@ -265,7 +266,7 @@ export default function NutritionTrackerModal({ visible, onClose, navigation }) 
                 throw new Error('Nutrition analysis returned invalid JSON');
             }
 
-            const normalized = normalizeAnalysisResult(parsed);
+            const normalized = normalizeAnalysisResult(parsed, !hasMealPlan);
 
             await AsyncStorage.setItem(
                 NUTRITION_ANALYSIS_STORAGE_KEY,
@@ -345,6 +346,14 @@ export default function NutritionTrackerModal({ visible, onClose, navigation }) 
                             </View>
                         ) : step === 'results' && result ? (
                             <View>
+                                {result.basedOnSuggestion ? (
+                                    <View style={styles.suggestedPlanBanner}>
+                                        <Text style={styles.suggestedPlanText}>
+                                            {`📋 ${t('nutrition_tracker_suggested_plan_banner')}`}
+                                        </Text>
+                                    </View>
+                                ) : null}
+
                                 <View style={styles.goalsBar}>
                                     <Text style={styles.goalsBarText}>{buildGoalsBarText(goals)}</Text>
                                     <TouchableOpacity activeOpacity={0.7} onPress={handleEditGoals}>
@@ -571,6 +580,19 @@ const styles = StyleSheet.create({
     aiEstimationLabel: {
         color: '#2F6B2F',
         fontFamily: 'Jost-Bold',
+    },
+    suggestedPlanBanner: {
+        borderRadius: 14,
+        backgroundColor: '#FBEEE0',
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        marginTop: 12,
+    },
+    suggestedPlanText: {
+        color: '#8C5A1E',
+        fontFamily: 'Jost-Regular',
+        fontSize: 13,
+        lineHeight: 20,
     },
 
     // Loading step

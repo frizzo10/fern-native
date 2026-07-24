@@ -45,7 +45,7 @@ async function postToAi(payload) {
     return res.json();
 }
 
-export async function fetchDealRecipeIdeas({ itemName, locale }) {
+export async function fetchDealRecipeIdeas({ itemName, locale, token }) {
     const json = await postToAi({
         system: 'Return ONLY a JSON array of 3 recipe objects. No text before or after. Example: [{"title":"Chicken Stir Fry","time":"25 min","emoji":"🍳","why":"Uses the chicken as the star"},{"title":"Chicken Soup","time":"40 min","emoji":"🥣","why":"A classic comfort meal"},{"title":"Grilled Chicken Salad","time":"20 min","emoji":"🥗","why":"Light and fresh option"}]',
         messages: [
@@ -56,6 +56,7 @@ export async function fetchDealRecipeIdeas({ itemName, locale }) {
         ],
         feature: 'fern_chat',
         locale: locale || 'en',
+        token,
     });
 
     const parsed = parseJsonLoose(extractResponseText(json));
@@ -72,7 +73,7 @@ export async function fetchDealRecipeIdeas({ itemName, locale }) {
         .filter((idea) => idea.title);
 }
 
-export async function fetchFullRecipeForDealIdea({ idea, itemName, locale }) {
+export async function fetchFullRecipeForDealIdea({ idea, itemName, locale, token }) {
     const json = await postToAi({
         system: 'You are a world-class chef. Return ONLY a single JSON object (no array, no markdown, no explanation) for one full recipe: {"title":"","cuisine":"","mealType":"Dinner","time":"","difficulty":"Easy|Medium|Hard","description":"","ingredients":["2 cups flour"],"instructions":["step one"],"emoji":"🍽️"}',
         messages: [
@@ -83,6 +84,7 @@ export async function fetchFullRecipeForDealIdea({ idea, itemName, locale }) {
         ],
         feature: 'recipe_search',
         locale: locale || 'en',
+        token,
     });
 
     const parsed = parseJsonLoose(extractResponseText(json)) || {};
@@ -162,7 +164,7 @@ function computeTotalSavings(items) {
     return hasNumericSavings ? total : null;
 }
 
-export async function scanCircular({ userId, base64, mimeType }) {
+export async function scanCircular({ userId, base64, mimeType, token }) {
     const res = await fetch(SCAN_CIRCULAR_URL, {
         method: 'POST',
         headers: {
@@ -172,6 +174,7 @@ export async function scanCircular({ userId, base64, mimeType }) {
         body: JSON.stringify({
             mediaType: mimeType || 'image/jpeg',
             userId,
+            token,
             imageData: base64,
         }),
     });

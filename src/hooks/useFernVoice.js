@@ -37,7 +37,7 @@ const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-spe
 
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
-export function useFernVoice({ onError } = {}) {
+export function useFernVoice({ onError, token } = {}) {
     const { t, locale } = useLanguage();
     const [audioUri, setAudioUri] = useState(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -112,7 +112,7 @@ export function useFernVoice({ onError } = {}) {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ text: cleanText, locale }),
+                body: JSON.stringify({ text: cleanText, locale, token }),
             });
 
             if (!response.ok) {
@@ -138,7 +138,7 @@ export function useFernVoice({ onError } = {}) {
             onError?.(error?.message ?? 'Unable to generate speech');
             return null;
         }
-    }, [onError, stopSpeaking, locale]);
+    }, [onError, stopSpeaking, locale, token]);
 
     const getFernReply = useCallback(async (input, { speak = false } = {}) => {
         const message = input?.trim?.();
@@ -163,6 +163,7 @@ export function useFernVoice({ onError } = {}) {
                     ],
                     system: 'You are Fern, a personal AI food assistant. Be brief and conversational.',
                     locale,
+                    token,
                 }),
             });
 
@@ -190,7 +191,7 @@ export function useFernVoice({ onError } = {}) {
                 setIsThinking(false);
             }
         }
-    }, [onError, speakText, locale]);
+    }, [onError, speakText, locale, token]);
 
     return {
         isThinking,

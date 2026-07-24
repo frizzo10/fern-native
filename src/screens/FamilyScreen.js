@@ -28,10 +28,11 @@ export default function FamilyScreen({ user }) {
             console.warn('[FamilyScreen] voice error:', message);
             Alert.alert(t('voice_error_title'), message);
         },
+        token: user?.token,
     });
 
     const { isListening, isProcessing, start, stop } = useContinuousMic({
-        autoSpeakReply: false, locale: locale,
+        autoSpeakReply: false, locale: locale, token: user?.token,
         onTranscript: async (transcript) => {
             const cleanTranscript = transcript?.trim?.() || '';
             console.log('[FamilyScreen] transcript received:', cleanTranscript);

@@ -32,6 +32,7 @@ import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPick
 import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
 import ScanCircularModal from '../components/modals/ScanCircularModal';
 import useLanguage from '../hooks/useLanguage';
+import { useTour } from '../services/TourContext';
 
 const AI_SEARCH_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 
@@ -133,7 +134,12 @@ export default function SearchScreen({ user }) {
     const navigation = useNavigation();
     const route = useRoute();
     const { t, locale } = useLanguage();
+    const { maybeAutoStart } = useTour();
     const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
+
+    useEffect(() => {
+        maybeAutoStart('find');
+    }, []);
     const [searchText, setSearchText] = useState('');
     const [cravingText, setCravingText] = useState('');
     const [isBloggersModalOpen, setIsBloggersModalOpen] = useState(false);
@@ -341,6 +347,7 @@ export default function SearchScreen({ user }) {
                     messages: [{ role: 'user', content: buildSearchUserMessage(query) }],
                     feature: 'recipe_search',
                     userId: user?.id || '',
+                    token: user?.token,
                     locale: locale,
                 }),
             });
@@ -352,7 +359,7 @@ export default function SearchScreen({ user }) {
 
             // Emoji is just a placeholder until each recipe's real photo loads in.
             recipes.forEach((recipe) => {
-                fetchRecipeImage(recipe.photoSearch || recipe.title).then((url) => {
+                fetchRecipeImage(recipe.photoSearch || recipe.title, user?.token).then((url) => {
                     if (!url) return;
                     setSearchResults((prev) => prev.map((item) => (
                         item.id === recipe.id ? { ...item, image: url, _cloudPhotos: [url] } : item
@@ -612,6 +619,7 @@ export default function SearchScreen({ user }) {
                 userId: user?.id || '7c36273e-07b1-410c-ad1b-4c2b0295e140',
                 base64: scanCircularPhoto.base64,
                 mimeType: scanCircularPhoto.mimeType,
+                token: user?.token,
             });
             setScanCircularResult(result);
             setScanCircularStep('results');
@@ -635,10 +643,10 @@ export default function SearchScreen({ user }) {
         setScanCircularDealIdeas([]);
         setIsLoadingScanCircularIdeas(true);
         try {
-            const ideas = await fetchDealRecipeIdeas({ itemName: item.name, locale });
+            const ideas = await fetchDealRecipeIdeas({ itemName: item.name, locale, token: user?.token });
             setScanCircularDealIdeas(ideas);
             ideas.forEach((idea) => {
-                fetchRecipeImage(idea.title).then((url) => {
+                fetchRecipeImage(idea.title, user?.token).then((url) => {
                     if (!url) return;
                     setScanCircularDealIdeas((prev) => prev.map((entry) => (entry.id === idea.id ? { ...entry, image: url } : entry)));
                 });
@@ -698,6 +706,7 @@ export default function SearchScreen({ user }) {
                 idea,
                 itemName: scanCircularSelectedItem.name,
                 locale,
+                token: user?.token,
             });
             const normalized = normalizeAiRecipe(fullRecipe, 0);
 
@@ -707,7 +716,7 @@ export default function SearchScreen({ user }) {
             setNoteText('');
 
             const imageQuery = `${fullRecipe.title || ''} ${fullRecipe.cuisine || ''} food`.trim();
-            const imageUrl = await fetchRecipeImage(imageQuery);
+            const imageUrl = await fetchRecipeImage(imageQuery, user?.token);
             if (!imageUrl) return;
             setSelectedRecipe((current) => (
                 current && current.id === normalized.id ? { ...current, image: imageUrl, _cloudPhotos: [imageUrl] } : current

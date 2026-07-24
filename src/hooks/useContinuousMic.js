@@ -7,7 +7,7 @@ const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
 
 
-export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true, locale = 'en' } = {}) {
+export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true, locale = 'en', token } = {}) {
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -57,6 +57,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
           system:
             'You are Fern, a personal AI food assistant. Be brief and conversational.',
           locale,
+          token,
         }),
       });
 
@@ -81,6 +82,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
         body: JSON.stringify({
           text: fernReply,
           locale,
+          token,
         }),
       });
       const arrayBuffer = await speechResponse.arrayBuffer();
@@ -122,7 +124,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
     } catch (err) {
       console.warn('[fern] error:', err);
     }
-  }, [recorder, locale]);
+  }, [recorder, locale, token]);
 
   useEffect(() => {
     if (!audioUri || !player) return;
@@ -136,26 +138,6 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
       console.warn('[tts] play error', e);
     }
   }, [audioUri, player]);
-
-  useEffect(() => {
-    if (!player) return;
-
-    const sub = player.addListener(
-      'playbackStatusUpdate',
-      async (status) => {
-        if (status.didJustFinish) {
-
-          console.log('[tts] finished');
-
-          if (!activeRef.current) {
-            await start();
-          }
-        }
-      }
-    );
-
-    return () => sub?.remove?.();
-  }, [player, start]);
 
   const stopPlayback = useCallback(() => {
 
@@ -372,6 +354,26 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
       );
     }
   }, [recorder, onError]);
+
+  useEffect(() => {
+    if (!player) return;
+
+    const sub = player.addListener(
+      'playbackStatusUpdate',
+      async (status) => {
+        if (status.didJustFinish) {
+
+          console.log('[tts] finished');
+
+          if (!activeRef.current) {
+            await start();
+          }
+        }
+      }
+    );
+
+    return () => sub?.remove?.();
+  }, [player, start]);
 
   const stop = useCallback(async () => {
     if (vadIntervalRef.current) {

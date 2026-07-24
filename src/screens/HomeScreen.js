@@ -45,6 +45,8 @@ import TwentyMinDinnerModal from '../components/modals/TwentyMinDinnerModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
+import { useAccountModal } from '../services/AccountModalContext';
+import { useTour } from '../services/TourContext';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
 
@@ -84,6 +86,12 @@ export default function HomeScreen({ user }) {
   const { t, locale, changeLanguage } = useLanguage();
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const navigation = useNavigation();
+  const { open: openAccount } = useAccountModal();
+  const { maybeAutoStart } = useTour();
+
+  useEffect(() => {
+    maybeAutoStart('home');
+  }, []);
 
   const toolKeysMap = {
     'Alexa Skill': 'tool_alexa',
@@ -103,6 +111,7 @@ export default function HomeScreen({ user }) {
 
   const [fernReply, setFernReply] = useState('');
   const [lastTranscript, setLastTranscript] = useState('');
+  const [voiceHistory, setVoiceHistory] = useState([]); // {role:'user'|'assistant', content}[] — last few turns, so a follow-up like "what about tomorrow?" has something to refer back to
   const [userStoresLocal, setUserStoresLocal] = useState([]);
   const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
   const [storeNameInput, setStoreNameInput] = useState('');
@@ -168,11 +177,11 @@ export default function HomeScreen({ user }) {
   const [isSavingCharcuterieBoard, setIsSavingCharcuterieBoard] = useState(false);
   const { data, loading, pull, pushAllFromStorage } = useSync(user);
 
-  const leftover = useAiRecipeCollection({ source: 'leftover', data, pushAllFromStorage, pull, t });
-  const fridgeChallenge = useAiRecipeCollection({ source: 'fridge', data, pushAllFromStorage, pull, t });
-  const quickDinner = useAiRecipeCollection({ source: 'quick-dinner', data, pushAllFromStorage, pull, t });
-  const scanCircularDeals = useAiRecipeCollection({ source: 'scan_circular', data, pushAllFromStorage, pull, t });
-  const budgetPlanner = useAiRecipeCollection({ source: 'budget_planner', data, pushAllFromStorage, pull, t });
+  const leftover = useAiRecipeCollection({ source: 'leftover', data, pushAllFromStorage, pull, t, token: user?.token });
+  const fridgeChallenge = useAiRecipeCollection({ source: 'fridge', data, pushAllFromStorage, pull, t, token: user?.token });
+  const quickDinner = useAiRecipeCollection({ source: 'quick-dinner', data, pushAllFromStorage, pull, t, token: user?.token });
+  const scanCircularDeals = useAiRecipeCollection({ source: 'scan_circular', data, pushAllFromStorage, pull, t, token: user?.token });
+  const budgetPlanner = useAiRecipeCollection({ source: 'budget_planner', data, pushAllFromStorage, pull, t, token: user?.token });
 
   useFocusEffect(
     useMemo(() => () => {
@@ -188,19 +197,33 @@ export default function HomeScreen({ user }) {
 
   const { isListening, isProcessing, start, stop } = useContinuousMic({
     locale: locale,
+    token: user?.token,
     onTranscript: async (text) => {
       setLastTranscript(text);
       try {
+        // The family_hub endpoint only ever took a single `message` string
+        // (no messages array like useFernVoice/ChatSheetModal use), so a
+        // follow-up such as "what about tomorrow?" had nothing to refer
+        // back to. Folding the last few turns into the message text keeps
+        // the request shape (message/context/userId/locale) unchanged
+        // while giving the model something to work with.
+        const transcript = voiceHistory
+          .map((turn) => `${turn.role === 'user' ? 'You' : 'Fern'}: ${turn.content}`)
+          .join('\n');
+        const message = transcript ? `${transcript}\nYou: ${text}` : text;
+
         const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/ai', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'User-Agent': 'FernApp/1.0 (myaifern.com)',
           },
-          body: JSON.stringify({ message: text, context: 'family_hub', userId: user?.id, locale }),
+          body: JSON.stringify({ message, context: 'family_hub', userId: user?.id, token: user?.token, locale }),
         });
         const d = await res.json();
-        setFernReply(d.reply || '');
+        const reply = d.reply || '';
+        setFernReply(reply);
+        setVoiceHistory((prev) => [...prev, { role: 'user', content: text }, { role: 'assistant', content: reply }].slice(-8));
       } catch { }
     },
     onError: (e) => console.warn('Mic error:', e),
@@ -328,7 +351,7 @@ export default function HomeScreen({ user }) {
     setFoundStoreCandidate(null);
 
     try {
-      const location = await findStoreLocationByZip(trimmedName, trimmedZip);
+      const location = await findStoreLocationByZip(trimmedName, trimmedZip, user?.token);
       console.log('[stores-sync] finding store', { storeName: trimmedName, zipCode: trimmedZip, found: Boolean(location) });
 
       if (!location) {
@@ -470,7 +493,8 @@ export default function HomeScreen({ user }) {
         people: peopleCount,
         budget: budgetValue,
         dietary: charcuterieDietary,
-        locale: locale
+        locale: locale,
+        token: user?.token,
       });
 
       console.log('[charcuterie] request payload', result.payload);
@@ -652,6 +676,7 @@ export default function HomeScreen({ user }) {
         ingredients: input,
         photos: leftoverPhoto ? [leftoverPhoto] : [],
         locale,
+        token: user?.token,
       });
 
       console.log('[leftover-magic] request payload', result.payload);
@@ -772,6 +797,7 @@ export default function HomeScreen({ user }) {
         userId: user?.id || '7c36273e-07b1-410c-ad1b-4c2b0295e140',
         base64: scanCircularPhoto.base64,
         mimeType: scanCircularPhoto.mimeType,
+        token: user?.token,
       });
       setScanCircularResult(result);
       setScanCircularStep('results');
@@ -797,10 +823,10 @@ export default function HomeScreen({ user }) {
     setScanCircularDealIdeas([]);
     setIsLoadingScanCircularIdeas(true);
     try {
-      const ideas = await fetchDealRecipeIdeas({ itemName: item.name, locale });
+      const ideas = await fetchDealRecipeIdeas({ itemName: item.name, locale, token: user?.token });
       setScanCircularDealIdeas(ideas);
       ideas.forEach((idea) => {
-        fetchRecipeImage(idea.title).then((url) => {
+        fetchRecipeImage(idea.title, user?.token).then((url) => {
           if (!url) return;
           setScanCircularDealIdeas((prev) => prev.map((entry) => (entry.id === idea.id ? { ...entry, image: url } : entry)));
         });
@@ -865,6 +891,7 @@ export default function HomeScreen({ user }) {
         idea,
         itemName: scanCircularSelectedItem.name,
         locale,
+        token: user?.token,
       });
       scanCircularDeals.viewRecipe(fullRecipe, { onOpenDetail: () => setIsScanCircularOpen(false) });
     } catch (e) {
@@ -937,6 +964,7 @@ export default function HomeScreen({ user }) {
         dietary: budgetDietary,
         deals: [],
         locale,
+        token: user?.token,
       });
 
       setBudgetPlan(result);
@@ -944,7 +972,7 @@ export default function HomeScreen({ user }) {
       setBudgetPlannerStep('results');
 
       result.dinners.forEach((dinner) => {
-        fetchRecipeImage(`${dinner.title} ${dinner.cuisine} food`.trim()).then((url) => {
+        fetchRecipeImage(`${dinner.title} ${dinner.cuisine} food`.trim(), user?.token).then((url) => {
           if (!url) return;
           setBudgetPlan((current) => {
             if (!current) return current;
@@ -1067,6 +1095,7 @@ export default function HomeScreen({ user }) {
         photos,
         ingredients: input,
         locale,
+        token: user?.token,
       });
 
       console.log('[fridge-challenge] request payload', result.payload);
@@ -1150,13 +1179,14 @@ export default function HomeScreen({ user }) {
         ingredients: quickDinnerIngredientsInput.trim(),
         servings: 4,
         locale,
+        token: user?.token,
       });
 
       console.log('[quick-dinner] request payload', result.payload);
       console.log('[quick-dinner] response', result.responseJson);
 
       const recipesWithImages = await Promise.all(result.recipes.map(async (recipe) => {
-        const image = await fetchRecipeImage(`${recipe.title} ${recipe.cuisine} food`.trim());
+        const image = await fetchRecipeImage(`${recipe.title} ${recipe.cuisine} food`.trim(), user?.token);
         return { ...recipe, image };
       }));
 
@@ -1226,7 +1256,8 @@ export default function HomeScreen({ user }) {
     try {
       const result = await fetchWinePairings({
         userId: user?.id || '7c36273e-07b1-410c-ad1b-4c2b0295e140',
-        dish, locale
+        dish, locale,
+        token: user?.token,
       });
       console.log('[wine-pairing] request payload', result.payload);
       console.log('[wine-pairing] response', result.responseJson);
@@ -1365,9 +1396,13 @@ export default function HomeScreen({ user }) {
             <View style={styles.proBadge}>
               <Text style={styles.proBadgeText}>{t('pro_max')}</Text>
             </View>
-            <View style={styles.iconBadge}>
+            <TouchableOpacity
+              style={styles.iconBadge}
+              activeOpacity={0.85}
+              onPress={openAccount}
+            >
               <Text style={styles.iconBadgeText}>👤</Text>
-            </View>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.langBadge}
               activeOpacity={0.85}
@@ -1901,6 +1936,7 @@ export default function HomeScreen({ user }) {
         visible={isNutritionTrackerOpen}
         onClose={() => setIsNutritionTrackerOpen(false)}
         navigation={navigation}
+        user={user}
       />
 
       <TwentyMinDinnerModal

@@ -6,7 +6,7 @@ const API_HEADERS = {
   'User-Agent': 'FernApp/1.0 (myaifern.com)',
 };
 
-export async function generateEventPlan(userId, locale, intake) {
+export async function generateEventPlan(userId, locale, intake, token) {
   try {
     console.log('[eventPlanner] Calling API with intake:', intake);
     const response = await fetch(EVENT_PLANNER_URL, {
@@ -15,6 +15,7 @@ export async function generateEventPlan(userId, locale, intake) {
       body: JSON.stringify({
         action: 'generate',
         userId,
+        token,
         locale,
         eventType: 'dinner_party',
         intake,
@@ -34,7 +35,7 @@ export async function generateEventPlan(userId, locale, intake) {
     console.log('[eventPlanner] Normalized result:', JSON.stringify(normalized, null, 2));
 
     // Fetch images for all recipes
-    await fetchImagesForPlan(normalized);
+    await fetchImagesForPlan(normalized, token);
 
     return normalized;
   } catch (e) {
@@ -43,7 +44,7 @@ export async function generateEventPlan(userId, locale, intake) {
   }
 }
 
-export async function fetchImagesForPlan(planResult) {
+export async function fetchImagesForPlan(planResult, token) {
   if (!planResult?.menu) return;
 
   const allRecipes = [
@@ -57,7 +58,7 @@ export async function fetchImagesForPlan(planResult) {
 
   for (const recipe of allRecipes) {
     try {
-      const imageUrl = await fetchRecipeImage(recipe.title);
+      const imageUrl = await fetchRecipeImage(recipe.title, token);
       if (imageUrl) {
         recipe.image = imageUrl;
         recipe._cloudPhotos = [imageUrl];
