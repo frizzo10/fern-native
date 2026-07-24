@@ -24,6 +24,7 @@ import { LanguageProvider } from './src/services/LanguageContext';
 import { useLanguage } from './src/hooks/useLanguage';
 import ChatSheetModal from './src/components/modals/ChatSheetModal';
 import AccountScreen from './src/screens/AccountScreen';
+import HelpModal from './src/components/modals/HelpModal';
 import { AccountModalProvider, useAccountModal } from './src/services/AccountModalContext';
 import { TourProvider, useTour } from './src/services/TourContext';
 import TourModal from './src/components/TourModal';
@@ -151,6 +152,7 @@ function AppNavigator({ user, signOut }) {
   const [arrivedStore, setArrivedStore] = useState(null);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isHelpOpen, setIsHelpOpen] = useState(false);
   const navigationRef = React.useRef(null);
 
   // Mock stores — replace with sync from useSync
@@ -196,7 +198,7 @@ function AppNavigator({ user, signOut }) {
         }}
         onHelp={() => {
           setIsMoreOpen(false);
-          Alert.alert(t('more_help'), t('coming_soon'));
+          setIsHelpOpen(true);
         }}
         onLogout={() => {
           setIsMoreOpen(false);
@@ -208,6 +210,11 @@ function AppNavigator({ user, signOut }) {
         visible={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         user={user}
+      />
+
+      <HelpModal
+        visible={isHelpOpen}
+        onClose={() => setIsHelpOpen(false)}
       />
 
       <AccountScreen

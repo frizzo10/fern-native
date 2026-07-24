@@ -85,6 +85,7 @@ export default function ChatSheetModal({ visible, onClose, user }) {
   const { speakText, stopSpeaking, isSpeaking } = useFernVoice({
     onError: (message) => console.warn('[ChatSheetModal] voice error:', message),
     token: user?.token,
+    enabled: visible,
   });
   const { data, pull, pushAllFromStorage } = useSync(user);
   const shoppingRef = useRef(data.shopping);
@@ -189,7 +190,7 @@ export default function ChatSheetModal({ visible, onClose, user }) {
       if (isListening) stop();
       stopSpeaking();
     }
-  }, [visible]);
+  }, [visible, isListening, stop, stopSpeaking]);
 
   // First time the sheet is opened with no conversation yet, kick things
   // off ourselves instead of leaving the person looking at an empty sheet.

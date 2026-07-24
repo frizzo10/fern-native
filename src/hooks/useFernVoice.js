@@ -30,14 +30,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAudioPlayer } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLanguage from '../hooks/useLanguage';
 
 const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
+const FERN_VOICE_ENABLED_KEY = 'fern_voice_enabled';
 
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
-export function useFernVoice({ onError, token } = {}) {
+function isFernVoiceEnabledValue(raw) {
+    if (raw == null) return true;
+    const normalized = String(raw).trim().toLowerCase();
+    return !['0', 'false', 'off', 'disabled'].includes(normalized);
+}
+
+export function useFernVoice({ onError, token, enabled = true } = {}) {
     const { t, locale } = useLanguage();
     const [audioUri, setAudioUri] = useState(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -45,6 +53,7 @@ export function useFernVoice({ onError, token } = {}) {
     const [lastReply, setLastReply] = useState('');
 
     const isMountedRef = useRef(true);
+    const enabledRef = useRef(enabled);
     const lastPlayedUriRef = useRef(null);
     const player = useAudioPlayer(audioUri ? { uri: audioUri } : null);
 
@@ -55,7 +64,25 @@ export function useFernVoice({ onError, token } = {}) {
     }, []);
 
     useEffect(() => {
-        if (!audioUri || !player) return;
+        enabledRef.current = enabled;
+        if (!enabled) {
+            lastPlayedUriRef.current = null;
+            setAudioUri(null);
+            if (isMountedRef.current) {
+                setIsSpeaking(false);
+                setIsThinking(false);
+            }
+            try {
+                player?.pause?.();
+                player?.seekTo?.(0);
+            } catch {
+                // Ignore cleanup errors while the sheet is closing.
+            }
+        }
+    }, [enabled, player]);
+
+    useEffect(() => {
+        if (!enabled || !audioUri || !player) return;
 
         // Guard against replaying the same file when player identity changes on re-render.
         if (lastPlayedUriRef.current === audioUri) return;
@@ -73,7 +100,7 @@ export function useFernVoice({ onError, token } = {}) {
             }
             onError?.(error?.message ?? 'Unable to play audio');
         }
-    }, [audioUri, player, onError]);
+    }, [enabled, audioUri, player, onError]);
 
     useEffect(() => {
         if (!player) return;
@@ -99,9 +126,21 @@ export function useFernVoice({ onError, token } = {}) {
         }
     }, [player]);
 
+    const isVoiceEnabled = useCallback(async () => {
+        try {
+            const raw = await AsyncStorage.getItem(FERN_VOICE_ENABLED_KEY);
+            return isFernVoiceEnabledValue(raw);
+        } catch {
+            return true;
+        }
+    }, []);
+
     const speakText = useCallback(async (text) => {
         const cleanText = text?.trim?.();
         if (!cleanText) return null;
+        if (!enabledRef.current) return null;
+        const voiceOn = await isVoiceEnabled();
+        if (!voiceOn) return null;
 
         // If something is already speaking, stop it before starting new playback.
         stopSpeaking();
@@ -128,7 +167,7 @@ export function useFernVoice({ onError, token } = {}) {
                 encoding: FileSystem.EncodingType.Base64,
             });
 
-            if (isMountedRef.current) {
+            if (isMountedRef.current && enabledRef.current) {
                 lastPlayedUriRef.current = null;
                 setAudioUri(nextAudioUri);
             }
@@ -138,7 +177,7 @@ export function useFernVoice({ onError, token } = {}) {
             onError?.(error?.message ?? 'Unable to generate speech');
             return null;
         }
-    }, [onError, stopSpeaking, locale, token]);
+    }, [onError, stopSpeaking, locale, token, isVoiceEnabled]);
 
     const getFernReply = useCallback(async (input, { speak = false } = {}) => {
         const message = input?.trim?.();
@@ -179,6 +218,7 @@ export function useFernVoice({ onError, token } = {}) {
             }
 
             if (reply && speak) {
+                if (!enabledRef.current) return reply;
                 await speakText(reply);
             }
 

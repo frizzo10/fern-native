@@ -1,10 +1,18 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useAudioPlayer, AudioModule, useAudioRecorder, RecordingPresets } from 'expo-audio';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import * as FileSystem from 'expo-file-system/legacy';
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
+const FERN_VOICE_ENABLED_KEY = 'fern_voice_enabled';
+
+function isFernVoiceEnabledValue(raw) {
+  if (raw == null) return true;
+  const normalized = String(raw).trim().toLowerCase();
+  return !['0', 'false', 'off', 'disabled'].includes(normalized);
+}
 
 
 export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true, locale = 'en', token } = {}) {
@@ -73,6 +81,12 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
       }
 
       console.log('[fern] reply:', fernReply);
+
+      const voiceSetting = await AsyncStorage.getItem(FERN_VOICE_ENABLED_KEY);
+      if (!isFernVoiceEnabledValue(voiceSetting)) {
+        console.log('[fern] voice disabled, skipping speak API');
+        return;
+      }
 
       const speechResponse = await fetch(GROQ_SPEAK, {
         method: 'POST',
