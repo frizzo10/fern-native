@@ -24,8 +24,10 @@ import { LanguageProvider } from './src/services/LanguageContext';
 import { useLanguage } from './src/hooks/useLanguage';
 import ChatSheetModal from './src/components/modals/ChatSheetModal';
 import AccountScreen from './src/screens/AccountScreen';
+import PlansScreen from './src/screens/PlansScreen';
 import HelpModal from './src/components/modals/HelpModal';
 import { AccountModalProvider, useAccountModal } from './src/services/AccountModalContext';
+import { PlansModalProvider, usePlansModal } from './src/services/PlansModalContext';
 import { TourProvider, useTour } from './src/services/TourContext';
 import TourModal from './src/components/TourModal';
 
@@ -148,6 +150,7 @@ async function checkForUpdate() {
 function AppNavigator({ user, signOut }) {
   const { t } = useLanguage();
   const { visible: isAccountOpen, open: openAccount, close: closeAccount } = useAccountModal();
+  const { visible: isPlansOpen, open: openPlans, close: closePlans } = usePlansModal();
   const { tour: activeTour, storageKey: activeTourStorageKey, closeTour } = useTour();
   const [arrivedStore, setArrivedStore] = useState(null);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
@@ -223,6 +226,11 @@ function AppNavigator({ user, signOut }) {
         user={user}
         signOut={signOut}
         onOpenShopping={() => navigationRef.current?.navigate('Shopping')}
+      />
+
+      <PlansScreen
+        visible={isPlansOpen}
+        onClose={closePlans}
       />
 
       <TourModal
@@ -405,9 +413,11 @@ export default function App() {
     <SafeAreaProvider>
       <LanguageProvider>
         <AccountModalProvider>
-          <TourProvider>
-            <MainAppContent />
-          </TourProvider>
+          <PlansModalProvider>
+            <TourProvider>
+              <MainAppContent />
+            </TourProvider>
+          </PlansModalProvider>
         </AccountModalProvider>
       </LanguageProvider>
     </SafeAreaProvider>

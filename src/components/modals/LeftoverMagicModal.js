@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     Image,
     Keyboard,
@@ -14,6 +14,10 @@ import {
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 export default function LeftoverMagicModal({
     visible,
@@ -34,6 +38,16 @@ export default function LeftoverMagicModal({
     onAskFern,
 }) {
     const { t } = useLanguage();
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('leftover_magic');
+    }, [visible]);
+
+    if (visible && !hasAccess(TIERS.PRO)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    }
 
     return (
         <Modal

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Modal,
   View,
@@ -13,6 +13,10 @@ import {
 } from 'react-native';
 import { colors, radius } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 const styles = StyleSheet.create({
   backdrop: {
@@ -197,6 +201,12 @@ export default function EventPlanResultModal({
   user,
 }) {
   const { t } = useLanguage();
+  const { maybeAutoStart } = useTour();
+  const { hasAccess } = useEntitlement();
+
+  useEffect(() => {
+    if (visible) maybeAutoStart('dinner_party');
+  }, [visible]);
 
   const handleShareShoppingList = async () => {
     if (!planResult?.shoppingList) return;
@@ -212,6 +222,10 @@ export default function EventPlanResultModal({
       console.warn('Share failed:', e);
     }
   };
+
+  if (visible && !hasAccess(TIERS.PRO_MAX)) {
+    return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO_MAX} />;
+  }
 
   if (!planResult) return null;
 

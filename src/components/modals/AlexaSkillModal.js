@@ -1,10 +1,25 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 export default function AlexaSkillModal({ visible, onClose }) {
     const { t } = useLanguage();
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('alexa_skill');
+    }, [visible]);
+
+    if (visible && !hasAccess(TIERS.PRO_MAX)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO_MAX} />;
+    }
+
     return (
         <Modal
             transparent

@@ -15,6 +15,10 @@ import {
 } from 'react-native';
 import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 // `value` is the literal string sent to the charcuterie-board API's
 // `occasion`/`dietary` fields (backend contract, kept in English) —
@@ -76,19 +80,30 @@ export default function CharcuterieModal({
     onAskFern,
 }) {
     const { t } = useLanguage();
-    const hasBoard = Boolean(charcuterieResult);
-    const selectedDietaryOption = CHARCUTERIE_DIETARY_OPTIONS.find((option) => option.value === charcuterieDietary);
-    const garnishChips = [
-        ...(Array.isArray(charcuterieResult?.garnishes) ? charcuterieResult.garnishes : []),
-        ...(Array.isArray(charcuterieResult?.drizzles) ? charcuterieResult.drizzles : []),
-    ];
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
     const scrollRef = useRef(null);
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('charcuterie');
+    }, [visible]);
 
     useEffect(() => {
         if (charcuterieResult) {
             scrollRef.current?.scrollTo({ y: 0, animated: false });
         }
     }, [charcuterieResult]);
+
+    if (visible && !hasAccess(TIERS.PRO_MAX)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO_MAX} />;
+    }
+
+    const hasBoard = Boolean(charcuterieResult);
+    const selectedDietaryOption = CHARCUTERIE_DIETARY_OPTIONS.find((option) => option.value === charcuterieDietary);
+    const garnishChips = [
+        ...(Array.isArray(charcuterieResult?.garnishes) ? charcuterieResult.garnishes : []),
+        ...(Array.isArray(charcuterieResult?.drizzles) ? charcuterieResult.drizzles : []),
+    ];
 
     const renderIngredientSection = (title, emoji, items) => {
         if (!Array.isArray(items) || !items.length) return null;

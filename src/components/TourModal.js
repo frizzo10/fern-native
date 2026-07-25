@@ -31,11 +31,18 @@ export default function TourModal({ visible, tour, storageKey, onClose }) {
         </View>
 
         <View style={styles.cardOuter}>
+          <View style={styles.fernAvatar}>
+            <Text style={styles.fernAvatarEmoji}>🌳</Text>
+          </View>
+
           <View style={[styles.card, shadow.strong]}>
-            <Text style={styles.eyebrow}>
-              {title.toUpperCase()} · {t('tour_of', { current: stepIndex + 1, total: tour.steps.length })}
-            </Text>
-            <Text style={styles.body}>{body}</Text>
+            <View style={styles.bubble}>
+              <Text style={styles.eyebrow}>
+                {title.toUpperCase()} · {t('tour_of', { current: stepIndex + 1, total: tour.steps.length })}
+              </Text>
+              <Text style={styles.body}>{body}</Text>
+              <View style={styles.bubbleTail} />
+            </View>
 
             <View style={styles.dotsRow}>
               {tour.steps.map((_, i) => (
@@ -72,30 +79,66 @@ const styles = StyleSheet.create({
   },
   skipText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
-  cardOuter: { paddingHorizontal: 20, paddingBottom: 34 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: radius.xl,
-    padding: 20,
+  cardOuter: { paddingHorizontal: 16, paddingBottom: 24, position: 'relative' },
+
+  fernAvatar: {
+    position: 'absolute',
+    left: -22,
+    bottom: 92,
+    width: 68,
+    height: 68,
+    borderRadius: 999,
+    backgroundColor: 'rgba(168,213,162,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
+  fernAvatarEmoji: { fontSize: 28, opacity: 0.9 },
+
+  card: {
+    backgroundColor: colors.forest,
+    borderRadius: radius.xl,
+    padding: 12,
+  },
+
+  bubble: {
+    backgroundColor: '#fff',
+    borderRadius: radius.lg,
+    padding: 14,
+    position: 'relative',
+  },
+  bubbleTail: {
+    position: 'absolute',
+    left: 28,
+    bottom: -12,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderTopWidth: 14,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#fff',
+  },
+
   eyebrow: {
     color: colors.orange,
     fontWeight: '800',
-    fontSize: 12,
-    letterSpacing: 0.6,
-    marginBottom: 10,
+    fontSize: 10,
+    letterSpacing: 0.5,
+    marginBottom: 6,
   },
-  body: { fontSize: 17, color: colors.ink, lineHeight: 24 },
+  body: { fontSize: 14, color: colors.ink, lineHeight: 19 },
 
-  dotsRow: { flexDirection: 'row', gap: 6, marginTop: 18, marginBottom: 18 },
-  dot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: colors.border },
+  dotsRow: { flexDirection: 'row', gap: 5, marginTop: 16, marginBottom: 12 },
+  dot: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)' },
   dotActive: { backgroundColor: colors.orange },
 
   nextBtn: {
     backgroundColor: colors.orange,
     borderRadius: radius.full,
-    paddingVertical: 15,
+    paddingVertical: 12,
     alignItems: 'center',
   },
-  nextBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
+  nextBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
 });

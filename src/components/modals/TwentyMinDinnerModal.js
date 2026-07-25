@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     Image,
     Keyboard,
@@ -14,6 +14,10 @@ import {
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 // `value` is the literal string sent to the whats-for-dinner API's `quickPicks`
 // field (backend contract, kept in English) — `labelKey` is the translated
@@ -55,6 +59,17 @@ export default function TwentyMinDinnerModal({
     onAddToList,
 }) {
     const { t } = useLanguage();
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('quick_dinner');
+    }, [visible]);
+
+    if (visible && !hasAccess(TIERS.PRO)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    }
+
     const hasSelection = selectedQuickPicks.length > 0 || ingredientsInput.trim().length > 0;
     const showResults = recipes.length > 0 && !hasError;
 

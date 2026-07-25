@@ -6,6 +6,14 @@ import useLanguage from '../hooks/useLanguage';
 import { useSync } from '../hooks/useSync';
 import { useTour } from '../services/TourContext';
 import { TOUR_LIST } from '../constants/tourContent';
+import useEntitlement from '../hooks/useEntitlement';
+import { TIERS } from '../constants/tiers';
+import UpgradeGateModal from '../components/UpgradeGateModal';
+
+const TIER_BY_TOUR_KEY = TOUR_LIST.reduce((acc, entry) => {
+    acc[entry.key] = entry.tier;
+    return acc;
+}, {});
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
 const FERN_VOICE_ENABLED_KEY = 'fern_voice_enabled';
@@ -21,31 +29,31 @@ const TOOL_SECTIONS = [
         titleKey: 'account_pro_tools',
         icon: '⭐',
         items: [
-            { key: 'end_to_end', icon: '✨', labelKey: 'account_end_to_end', tourKey: 'home' },
-            { key: 'instacart', icon: '🛍️', labelKey: 'account_order_via_instacart', tourKey: 'shopping' },
-            { key: 'fridge_challenge', icon: '🧊', labelKey: 'tool_fridge_challenge', completionKey: 'fridge_challenge' },
-            { key: 'leftover_magic', icon: '📸', labelKey: 'tool_leftover_magic' },
-            { key: 'twenty_min', icon: '⚡', labelKey: 'tool_20min_dinner' },
-            { key: 'budget_planner', icon: '💰', labelKey: 'tool_budget_planner' },
-            { key: 'ai_meal_plan', icon: '📅', labelKey: 'tool_ai_meal_planner' },
-            { key: 'semi_homemade', icon: '🥫', labelKey: 'tool_semi_homemade' },
-            { key: 'family_vault', icon: '📖', labelKey: 'tool_family_vault', tourKey: 'recipes' },
-            { key: 'alexa_skill', icon: '🔵', labelKey: 'tool_alexa' },
-            { key: 'recipe_nutrition', icon: '📊', labelKey: 'account_recipe_nutrition', tourKey: 'recipes' },
-            { key: 'weekly_nutrition', icon: '🥗', labelKey: 'tool_weekly_nutrition' },
-            { key: 'cook_mode', icon: '🎙️', labelKey: 'account_cook_mode', tourKey: 'home' },
-            { key: 'shopping_mode', icon: '🛒', labelKey: 'account_shopping_mode', tourKey: 'shopping' },
-            { key: 'ask_fern', icon: '🎤', labelKey: 'ask_fern_craving_title', tourKey: 'find' },
+            { key: 'end_to_end', icon: '✨', labelKey: 'account_end_to_end', tourKey: 'end_to_end' },
+            { key: 'instacart', icon: '🛍️', labelKey: 'account_order_via_instacart', tourKey: 'instacart' },
+            { key: 'fridge_challenge', icon: '🧊', labelKey: 'tool_fridge_challenge', tourKey: 'fridge_challenge', completionKey: 'fridge_challenge' },
+            { key: 'leftover_magic', icon: '📸', labelKey: 'tool_leftover_magic', tourKey: 'leftover_magic' },
+            { key: 'twenty_min', icon: '⚡', labelKey: 'tool_20min_dinner', tourKey: 'quick_dinner' },
+            { key: 'budget_planner', icon: '💰', labelKey: 'tool_budget_planner', tourKey: 'budget_planner' },
+            { key: 'ai_meal_plan', icon: '📅', labelKey: 'tool_ai_meal_planner', tourKey: 'meal_planner' },
+            { key: 'semi_homemade', icon: '🥫', labelKey: 'tool_semi_homemade', tourKey: 'semi_homemade' },
+            { key: 'family_vault', icon: '📖', labelKey: 'tool_family_vault', tourKey: 'family_vault' },
+            { key: 'alexa_skill', icon: '🔵', labelKey: 'tool_alexa', tourKey: 'alexa_skill' },
+            { key: 'recipe_nutrition', icon: '📊', labelKey: 'account_recipe_nutrition', tourKey: 'nutrition' },
+            { key: 'weekly_nutrition', icon: '🥗', labelKey: 'tool_weekly_nutrition', tourKey: 'weekly_nutrition' },
+            { key: 'cook_mode', icon: '🎙️', labelKey: 'account_cook_mode', tourKey: 'cook_mode' },
+            { key: 'shopping_mode', icon: '🛒', labelKey: 'account_shopping_mode', tourKey: 'shopping_mode' },
+            { key: 'ask_fern', icon: '🎤', labelKey: 'ask_fern_craving_title', tourKey: 'ask_fern' },
         ],
     },
     {
         titleKey: 'account_pro_max_tools',
         icon: '✦',
         items: [
-            { key: 'charcuterie', icon: '🧀', labelKey: 'tool_charcuterie' },
-            { key: 'wine_pairing', icon: '🍷', labelKey: 'tool_wine_pairing', tourKey: 'find' },
-            { key: 'dinner_party', icon: '🎉', labelKey: 'tool_dinner_party' },
-            { key: 'personal_shopper', icon: '🤝', labelKey: 'tool_personal_shopper', tourKey: 'scan_circular' },
+            { key: 'charcuterie', icon: '🧀', labelKey: 'tool_charcuterie', tourKey: 'charcuterie' },
+            { key: 'wine_pairing', icon: '🍷', labelKey: 'tool_wine_pairing', tourKey: 'wine_pairing' },
+            { key: 'dinner_party', icon: '🎉', labelKey: 'tool_dinner_party', tourKey: 'dinner_party' },
+            { key: 'personal_shopper', icon: '🤝', labelKey: 'tool_personal_shopper', tourKey: 'personal_shopper' },
         ],
     },
 ];
@@ -54,9 +62,11 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
     const { t } = useLanguage();
     const { data } = useSync(user);
     const { startTour } = useTour();
+    const { hasAccess } = useEntitlement();
     const [seenTours, setSeenTours] = useState({});
     const [fridgeChallengeDone, setFridgeChallengeDone] = useState(false);
     const [fernVoiceEnabled, setFernVoiceEnabled] = useState(true);
+    const [lockedTier, setLockedTier] = useState(null);
 
     useEffect(() => {
         if (!visible) return;
@@ -149,6 +159,12 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
     };
 
     const handleToolPress = (item) => {
+        const requiredTier = item.tourKey ? TIER_BY_TOUR_KEY[item.tourKey] : null;
+        if (requiredTier && !hasAccess(requiredTier)) {
+            setLockedTier(requiredTier);
+            return;
+        }
+
         if (item.key === 'shopping_mode') {
             onClose();
             onOpenShopping?.();
@@ -286,6 +302,8 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                                 <View style={styles.toolsGrid}>
                                     {section.items.map((item) => {
                                         const done = isCardDone(item);
+                                        const requiredTier = item.tourKey ? TIER_BY_TOUR_KEY[item.tourKey] : null;
+                                        const locked = requiredTier && !hasAccess(requiredTier);
                                         return (
                                             <TouchableOpacity
                                                 key={item.key}
@@ -294,8 +312,10 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                                                 onPress={() => handleToolPress(item)}
                                             >
                                                 <Text style={styles.toolTitle}>{item.icon} {t(item.labelKey)}</Text>
-                                                <Text style={[styles.toolStatus, done ? styles.toolStatusDone : null]}>
-                                                    {done ? `✓ ${t('account_done')}` : `${t('account_tour_start')} →`}
+                                                <Text style={[styles.toolStatus, done ? styles.toolStatusDone : null, locked ? styles.toolStatusLocked : null]}>
+                                                    {locked
+                                                        ? `🔒 ${requiredTier === TIERS.PRO_MAX ? t('pro_max') : t('pro')}`
+                                                        : done ? `✓ ${t('account_done')}` : `${t('account_tour_start')} →`}
                                                 </Text>
                                             </TouchableOpacity>
                                         );
@@ -317,6 +337,11 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                     </ScrollView>
                 </View>
             </View>
+            <UpgradeGateModal
+                visible={!!lockedTier}
+                tier={lockedTier}
+                onClose={() => setLockedTier(null)}
+            />
         </Modal>
     );
 }
@@ -630,6 +655,9 @@ const styles = StyleSheet.create({
     },
     toolStatusDone: {
         color: '#2D8E4C',
+    },
+    toolStatusLocked: {
+        color: colors.brown,
     },
 
     signOutBtn: {

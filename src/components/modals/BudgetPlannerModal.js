@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Image,
@@ -14,6 +14,10 @@ import {
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 const WEEKLY_PRESETS = [50, 75, 100, 150, 200];
 const PER_PERSON_PRESETS = [3, 5, 7, 10, 15];
@@ -117,8 +121,18 @@ export default function BudgetPlannerModal({
     onBackToResults,
 }) {
     const { t } = useLanguage();
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
     const [isPeopleMenuOpen, setIsPeopleMenuOpen] = useState(false);
     const [isDietaryMenuOpen, setIsDietaryMenuOpen] = useState(false);
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('budget_planner');
+    }, [visible]);
+
+    if (visible && !hasAccess(TIERS.PRO)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    }
 
     const dietaryOption = BUDGET_PLANNER_DIETARY_OPTIONS.find((option) => option.value === dietary) || BUDGET_PLANNER_DIETARY_OPTIONS[0];
     const presets = budgetType === 'per_person' ? PER_PERSON_PRESETS : WEEKLY_PRESETS;

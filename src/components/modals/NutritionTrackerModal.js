@@ -12,6 +12,10 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 const NUTRITION_GOALS_STORAGE_KEY = 'fern_nutrition_goals';
 const NUTRITION_ANALYSIS_STORAGE_KEY = 'fern_nutrition_analysis';
@@ -153,9 +157,15 @@ function OptionGrid({ options, selectedValue, onSelect, t }) {
 
 export default function NutritionTrackerModal({ visible, onClose, navigation, user }) {
     const { t, locale } = useLanguage();
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
     const [step, setStep] = useState('form');
     const [goals, setGoals] = useState(EMPTY_GOALS);
     const [result, setResult] = useState(null);
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('weekly_nutrition');
+    }, [visible]);
 
     useEffect(() => {
         if (!visible) return;
@@ -180,6 +190,10 @@ export default function NutritionTrackerModal({ visible, onClose, navigation, us
             }
         })();
     }, [visible]);
+
+    if (visible && !hasAccess(TIERS.PRO)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    }
 
     const handleSelect = (field, value) => {
         setGoals((current) => ({ ...current, [field]: value }));

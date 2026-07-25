@@ -47,6 +47,9 @@ import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
 import { useAccountModal } from '../services/AccountModalContext';
 import { useTour } from '../services/TourContext';
+import useEntitlement from '../hooks/useEntitlement';
+import { usePlansModal } from '../services/PlansModalContext';
+import { TIERS } from '../constants/tiers';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
 
@@ -88,6 +91,9 @@ export default function HomeScreen({ user }) {
   const navigation = useNavigation();
   const { open: openAccount } = useAccountModal();
   const { maybeAutoStart } = useTour();
+  const { tier } = useEntitlement();
+  const { open: openPlans } = usePlansModal();
+  const tierBadgeLabel = tier === TIERS.PRO_MAX ? t('pro_max') : tier === TIERS.PRO ? t('pro') : t('free');
 
   useEffect(() => {
     maybeAutoStart('home');
@@ -1393,9 +1399,9 @@ export default function HomeScreen({ user }) {
           </View>
 
           <View style={styles.headerActions}>
-            <View style={styles.proBadge}>
-              <Text style={styles.proBadgeText}>{t('pro_max')}</Text>
-            </View>
+            <TouchableOpacity style={styles.proBadge} activeOpacity={0.85} onPress={openPlans}>
+              <Text style={styles.proBadgeText}>{tierBadgeLabel}</Text>
+            </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconBadge}
               activeOpacity={0.85}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     Keyboard,
     KeyboardAvoidingView,
@@ -13,6 +13,10 @@ import {
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 export default function WinePairingModal({
     visible,
@@ -32,6 +36,17 @@ export default function WinePairingModal({
     onAddWineToShoppingList,
 }) {
     const { t } = useLanguage();
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('wine_pairing');
+    }, [visible]);
+
+    if (visible && !hasAccess(TIERS.PRO_MAX)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO_MAX} />;
+    }
+
     return (
         <Modal
             transparent

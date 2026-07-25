@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
     ActionSheetIOS,
     Alert,
@@ -16,6 +16,10 @@ import {
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 function promptPhotoSource(t, { onTakePhoto, onChooseFromLibrary }) {
     if (Platform.OS === 'ios') {
@@ -62,6 +66,17 @@ export default function FridgeChallengeModal({
     isRecipeSaved,
 }) {
     const { t } = useLanguage();
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('fridge_challenge');
+    }, [visible]);
+
+    if (visible && !hasAccess(TIERS.PRO)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    }
+
     const photoCount = photos.filter(Boolean).length;
 
     const handlePhotoSlotPress = (slotIndex) => {

@@ -11,6 +11,7 @@ import {
     View,
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
 
 const CATEGORY_EMOJI = [
     [/produce/i, '🥬'],
@@ -125,6 +126,11 @@ export default function ScanCircularModal({
     onRegenerateIdeas,
 }) {
     const { t } = useLanguage();
+    const { maybeAutoStart } = useTour();
+
+    useEffect(() => {
+        if (visible) maybeAutoStart('scan_circular');
+    }, [visible]);
 
     const itemCount = result?.items?.length || 0;
     const savingsLabel = result?.totalSavings != null

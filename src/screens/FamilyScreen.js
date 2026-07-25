@@ -6,6 +6,10 @@ import { useSync } from '../hooks/useSync';
 import { useFernVoice } from '../hooks/useFernVoice';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import useLanguage from '../hooks/useLanguage';
+import { useTour } from '../services/TourContext';
+import useEntitlement from '../hooks/useEntitlement';
+import { TIERS } from '../constants/tiers';
+import UpgradeGateModal from '../components/UpgradeGateModal';
 
 const STOP_WORDS = ['stop', 'goodbye', 'done', 'exit', 'bye'];
 
@@ -17,6 +21,8 @@ function hasStopWord(text) {
 export default function FamilyScreen({ user }) {
     const { t, locale } = useLanguage();
     const { pull } = useSync(user);
+    const { maybeAutoStart } = useTour();
+    const { hasAccess } = useEntitlement();
     const [lastTranscript, setLastTranscript] = useState('');
     const [loopStatus, setLoopStatus] = useState('idle');
     const restartAfterPlaybackRef = useRef(false);
@@ -162,6 +168,14 @@ export default function FamilyScreen({ user }) {
             pull();
         }, [pull])
     );
+
+    useEffect(() => {
+        maybeAutoStart('family_hub');
+    }, []);
+
+    if (!hasAccess(TIERS.PRO)) {
+        return <UpgradeGateModal visible tier={TIERS.PRO} onClose={() => {}} />;
+    }
 
     return (
         <View style={styles.container}>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -23,6 +23,10 @@ import EventPlannerQuestionFlow from '../EventPlannerQuestionFlow';
 import RecipeDetailModal from '../RecipeDetailModal';
 import { generateEventPlan } from '../../services/eventPlannerService';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
+import { useTour } from '../../services/TourContext';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 
 const styles = StyleSheet.create({
   backdrop: {
@@ -276,12 +280,22 @@ function RecipeCard({ recipe, onPress, styles, t }) {
 export default function EventPlannerIntakeModal({ visible, onClose, user, locale }) {
   const { t } = useLanguage();
   const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
+  const { maybeAutoStart } = useTour();
+  const { hasAccess } = useEntitlement();
   const [screen, setScreen] = useState('intake');
   const [planResult, setPlanResult] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [noteText, setNoteText] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) maybeAutoStart('dinner_party');
+  }, [visible]);
+
+  if (visible && !hasAccess(TIERS.PRO_MAX)) {
+    return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO_MAX} />;
+  }
 
   const handleCompleteIntake = async (intake) => {
     if (!user?.id || !user?.token) {
