@@ -175,7 +175,7 @@ function MainApp({ user }) {
 }
 
 export default function App() {
-  const { user, loading, signIn } = useAuth();
+  const { user, loading, signIn, signInWithGoogle } = useAuth();
 
   useEffect(() => { checkForUpdate(); }, []);
 
@@ -189,7 +189,7 @@ export default function App() {
         <StatusBar style="light" />
         {user
           ? <SyncProvider user={user}><MainApp user={user} /></SyncProvider>
-          : <LoginScreen onLogin={signIn} />
+          : <LoginScreen onLogin={signIn} onLoginWithGoogle={signInWithGoogle} />
         }
       </LocaleProvider>
     </ErrorBoundary>
