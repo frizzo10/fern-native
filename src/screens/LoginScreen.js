@@ -7,11 +7,12 @@ import { colors, radius, shadow } from '../constants/tokens';
 import { useTranslation } from '../i18n/LocaleContext';
 import { SUPPORTED_LOCALES } from '../i18n/translations';
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, onLoginWithGoogle }) {
   const { t, locale, setLocale } = useTranslation();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]       = useState('');
 
   const handleLogin = async () => {
@@ -23,6 +24,17 @@ export default function LoginScreen({ onLogin }) {
       setError(e.message || t('loginFailed'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true); setError('');
+    try {
+      await onLoginWithGoogle();
+    } catch (e) {
+      setError(e.message || t('loginFailed'));
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -91,6 +103,24 @@ export default function LoginScreen({ onLogin }) {
               : <Text style={styles.btnText}>{t('signInToFern')}</Text>
             }
           </TouchableOpacity>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>{t('orDivider') || 'or'}</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <TouchableOpacity
+            style={[styles.googleBtn, googleLoading && styles.btnDisabled]}
+            onPress={handleGoogleLogin}
+            activeOpacity={0.8}
+            disabled={googleLoading}
+          >
+            {googleLoading
+              ? <ActivityIndicator color={colors.ink} />
+              : <Text style={styles.googleBtnText}>{t('continueWithGoogle') || 'Continue with Google'}</Text>
+            }
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.footer}>{t('loginFooter')}</Text>
@@ -114,6 +144,11 @@ const styles = StyleSheet.create({
   btn:         { backgroundColor:colors.orange, borderRadius:radius.md, paddingVertical:14, alignItems:'center', marginTop:4 },
   btnDisabled: { opacity:0.6 },
   btnText:     { color:'#fff', fontSize:16, fontWeight:'800' },
+  dividerRow:  { flexDirection:'row', alignItems:'center', marginTop:16, marginBottom:16 },
+  dividerLine: { flex:1, height:1, backgroundColor:colors.border },
+  dividerText: { fontSize:11, color:colors.brown, textTransform:'uppercase', letterSpacing:0.8, marginHorizontal:10 },
+  googleBtn:   { backgroundColor:'#fff', borderWidth:1, borderColor:colors.border, borderRadius:radius.md, paddingVertical:13, alignItems:'center' },
+  googleBtnText: { color:colors.ink, fontSize:15, fontWeight:'700' },
   footer:      { textAlign:'center', color:colors.muted, fontSize:12, marginTop:24, lineHeight:18 },
 
   langRow:          { flexDirection:'row', justifyContent:'center', gap:8, marginBottom:20 },
