@@ -84,16 +84,20 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
             <View style={styles.screen}>
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                    <View style={[styles.banner, shadow.strong]}>
-                        <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
-                            <Text style={styles.closeText}>×</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.bannerEyebrow}>{t(bannerEyebrowKey)}</Text>
-                        <Text style={styles.bannerTitle}>{t(bannerTitleKey)}</Text>
-                        <Text style={styles.bannerSubtitle}>{t(bannerSubtitleKey)}</Text>
-                    </View>
+                <View style={[styles.banner, shadow.strong]}>
+                    <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
+                        <Text style={styles.closeText}>×</Text>
+                    </TouchableOpacity>
+                    <Text style={styles.bannerEyebrow}>{t(bannerEyebrowKey)}</Text>
+                    <Text style={styles.bannerTitle}>{t(bannerTitleKey)}</Text>
+                    <Text style={styles.bannerSubtitle}>{t(bannerSubtitleKey)}</Text>
+                </View>
 
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                    bounces={false}
+                >
                     <View style={styles.body}>
                         {renderSection(PRO_FEATURES, TIERS.PRO)}
                         {renderSection(PRO_MAX_FEATURES, TIERS.PRO_MAX)}
@@ -107,10 +111,11 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
 const styles = StyleSheet.create({
     screen: {
         flex: 1,
-        backgroundColor: colors.parch,
+        backgroundColor: colors.forest,
     },
     scrollContent: {
         paddingBottom: 40,
+        backgroundColor: colors.parch,
     },
 
     banner: {
