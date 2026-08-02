@@ -125,9 +125,55 @@ export function SyncProvider({ user, children }) {
     }
   }, [user]);
 
+  // patchItem('saved', recipeId, { rating: 4 }) -- the fix for the
+  // "starring a recipe sends everything" report: push() above always
+  // round-trips the ENTIRE raw record (all 14 fields, every saved recipe,
+  // every book, worse if any recipe still has a base64 image fallback
+  // embedded) even for a one-field change on one item. This calls the
+  // backend's new 'patch' action instead, which does a real partial
+  // update server-side -- the request body here is just the one id and
+  // the one changed field, not the whole state. Local display state still
+  // updates immediately the same way push() does, so the UI doesn't wait
+  // on the network either way.
+  const patchItem = useCallback(async (field, itemId, updates) => {
+    if (!user?.id || !user?.token) return { ok: false, error: 'Not signed in' };
+
+    const backendKey = field === 'recipes' ? 'saved' : field; // display-name passthrough, same mapping push() uses
+    const currentArr = Array.isArray(rawRef.current[backendKey]) ? rawRef.current[backendKey] : [];
+    const nextArr = currentArr.map((item) =>
+      (item && (item.id === itemId || item._id === itemId)) ? { ...item, ...updates } : item
+    );
+    rawRef.current = { ...rawRef.current, [backendKey]: nextArr };
+    setData(toDisplayData(rawRef.current));
+
+    try {
+      const res = await fetch(SYNC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'patch',
+          userId: user.id,
+          token: user.token,
+          data: { field: backendKey, itemId, updates },
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok || result.error) {
+        console.warn('Sync patch failed:', result.error || res.status);
+        return { ok: false, error: result.error || `HTTP ${res.status}` };
+      }
+      await AsyncStorage.setItem('fern_sync_raw_cache', JSON.stringify(rawRef.current));
+      setLastSync(new Date());
+      return { ok: true };
+    } catch (e) {
+      console.warn('Sync patch failed:', e.message);
+      return { ok: false, error: e.message };
+    }
+  }, [user]);
+
   useEffect(() => { pull(); }, [pull]);
 
-  const value = { data, loading, lastSync, pull, push };
+  const value = { data, loading, lastSync, pull, push, patchItem };
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }
 
