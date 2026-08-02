@@ -29,6 +29,8 @@ import { fetchQuickDinnerRecipes } from '../services/whatsForDinnerService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
 import { fetchBudgetMealPlan } from '../services/budgetPlannerService';
+import { fetchSemiHomemadeRecipe } from '../services/semiHomemadeService';
+import { fetchSuggestedRecipeGroups, fetchQuickSuggestions, buildSuggestionsPrompt } from '../services/suggestedRecipesService';
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
@@ -42,7 +44,9 @@ import ScanCircularModal from '../components/modals/ScanCircularModal';
 import BudgetPlannerModal from '../components/modals/BudgetPlannerModal';
 import NutritionTrackerModal from '../components/modals/NutritionTrackerModal';
 import TwentyMinDinnerModal from '../components/modals/TwentyMinDinnerModal';
+import SemiHomemadeModal from '../components/modals/SemiHomemadeModal';
 import RecipeDetailModal from '../components/RecipeDetailModal';
+import SuggestedRecipesScreen from '../components/SuggestedRecipesScreen';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
 import { useAccountModal } from '../services/AccountModalContext';
@@ -52,6 +56,7 @@ import { usePlansModal } from '../services/PlansModalContext';
 import { TIERS } from '../constants/tiers';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
+const DISMISSED_SUGGESTIONS_KEY = 'fern_dismissed_suggestions';
 
 function todayKey() {
   const d = new Date();
@@ -181,6 +186,23 @@ export default function HomeScreen({ user }) {
   const [charcuterieResult, setCharcuterieResult] = useState(null);
   const [isAddingCharcuterieToList, setIsAddingCharcuterieToList] = useState(false);
   const [isSavingCharcuterieBoard, setIsSavingCharcuterieBoard] = useState(false);
+  const [isSemiHomemadeOpen, setIsSemiHomemadeOpen] = useState(false);
+  const [semiHomemadeSelectedShortcuts, setSemiHomemadeSelectedShortcuts] = useState([]);
+  const [semiHomemadeCustomItems, setSemiHomemadeCustomItems] = useState([]);
+  const [semiHomemadeCustomItemInput, setSemiHomemadeCustomItemInput] = useState('');
+  const [semiHomemadeVibeInput, setSemiHomemadeVibeInput] = useState('');
+  const [semiHomemadeServings, setSemiHomemadeServings] = useState(4);
+  const [isSemiHomemadeDesigning, setIsSemiHomemadeDesigning] = useState(false);
+  const [semiHomemadeResult, setSemiHomemadeResult] = useState(null);
+  const [isSavingSemiHomemadeRecipe, setIsSavingSemiHomemadeRecipe] = useState(false);
+  const [isSemiHomemadeRecipeSaved, setIsSemiHomemadeRecipeSaved] = useState(false);
+  const [isSuggestedRecipesOpen, setIsSuggestedRecipesOpen] = useState(false);
+  const [suggestedGroups, setSuggestedGroups] = useState([]);
+  const [isLoadingSuggestedRecipes, setIsLoadingSuggestedRecipes] = useState(false);
+  const [suggestedUpdatedAt, setSuggestedUpdatedAt] = useState(null);
+  const [suggestedFilter, setSuggestedFilter] = useState('all');
+  const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState([]);
+  const [quickSuggestions, setQuickSuggestions] = useState([]);
   const { data, loading, pull, pushAllFromStorage } = useSync(user);
 
   const leftover = useAiRecipeCollection({ source: 'leftover', data, pushAllFromStorage, pull, t, token: user?.token });
@@ -188,6 +210,8 @@ export default function HomeScreen({ user }) {
   const quickDinner = useAiRecipeCollection({ source: 'quick-dinner', data, pushAllFromStorage, pull, t, token: user?.token });
   const scanCircularDeals = useAiRecipeCollection({ source: 'scan_circular', data, pushAllFromStorage, pull, t, token: user?.token });
   const budgetPlanner = useAiRecipeCollection({ source: 'budget_planner', data, pushAllFromStorage, pull, t, token: user?.token });
+  const semiHomemade = useAiRecipeCollection({ source: 'semi_homemade', data, pushAllFromStorage, pull, t, token: user?.token });
+  const suggestedRecipes = useAiRecipeCollection({ source: 'suggested', data, pushAllFromStorage, pull, t, token: user?.token });
 
   useFocusEffect(
     useMemo(() => () => {
@@ -200,6 +224,19 @@ export default function HomeScreen({ user }) {
       setHasPlayedFridgeChallengeToday(lastPlayed === todayKey());
     });
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(DISMISSED_SUGGESTIONS_KEY).then((raw) => {
+      try {
+        const parsed = JSON.parse(raw || '[]');
+        if (Array.isArray(parsed)) setDismissedSuggestionIds(parsed);
+      } catch { }
+    });
+  }, []);
+
+  useEffect(() => {
+    fetchQuickSuggestions({ locale }).then(setQuickSuggestions).catch(() => { });
+  }, [locale]);
 
   const { isListening, isProcessing, start, stop } = useContinuousMic({
     locale: locale,
@@ -631,6 +668,134 @@ export default function HomeScreen({ user }) {
 
   const handleAskFernCharcuterie = () => {
     closeCharcuterieModal();
+    if (!isListening) {
+      start();
+    }
+  };
+
+  const resetSemiHomemadeModal = () => {
+    setSemiHomemadeSelectedShortcuts([]);
+    setSemiHomemadeCustomItems([]);
+    setSemiHomemadeCustomItemInput('');
+    setSemiHomemadeVibeInput('');
+    setSemiHomemadeServings(4);
+    setIsSemiHomemadeDesigning(false);
+    setSemiHomemadeResult(null);
+    setIsSemiHomemadeRecipeSaved(false);
+  };
+
+  const openSemiHomemadeModal = () => {
+    resetSemiHomemadeModal();
+    setIsSemiHomemadeOpen(true);
+  };
+
+  const closeSemiHomemadeModal = () => {
+    setIsSemiHomemadeOpen(false);
+    resetSemiHomemadeModal();
+  };
+
+  const toggleSemiHomemadeShortcut = (value) => {
+    setSemiHomemadeSelectedShortcuts((current) => (
+      current.includes(value) ? current.filter((item) => item !== value) : [...current, value]
+    ));
+  };
+
+  const addSemiHomemadeCustomItem = () => {
+    const trimmed = semiHomemadeCustomItemInput.trim();
+    if (!trimmed) return;
+
+    setSemiHomemadeCustomItems((current) => (
+      current.includes(trimmed) ? current : [...current, trimmed]
+    ));
+    setSemiHomemadeCustomItemInput('');
+  };
+
+  const removeSemiHomemadeCustomItem = (item) => {
+    setSemiHomemadeCustomItems((current) => current.filter((entry) => entry !== item));
+  };
+
+  const handleDesignSemiHomemadeRecipe = async () => {
+    const items = [...semiHomemadeSelectedShortcuts, ...semiHomemadeCustomItems];
+    if (!items.length) {
+      Alert.alert(t('dish_required'), t('semi_homemade_pick_one_hint'));
+      return;
+    }
+
+    setIsSemiHomemadeDesigning(true);
+    setSemiHomemadeResult(null);
+    setIsSemiHomemadeRecipeSaved(false);
+
+    try {
+      const result = await fetchSemiHomemadeRecipe({
+        userId: user?.id,
+        items,
+        vibe: semiHomemadeVibeInput.trim(),
+        servings: semiHomemadeServings,
+        locale,
+        token: user?.token,
+      });
+
+      console.log('[semi-homemade] request payload', result.payload);
+      console.log('[semi-homemade] response', result.responseJson);
+
+      const image = await fetchRecipeImage(`${result.recipe.title} food`.trim(), user?.token);
+      setSemiHomemadeResult({ ...result.recipe, image });
+    } catch (e) {
+      console.log('[semi-homemade] design failed', e?.message || e);
+      Alert.alert(t('search_failed'), t('semi_homemade_load_failed'));
+    } finally {
+      setIsSemiHomemadeDesigning(false);
+    }
+  };
+
+  const handleTryAgainSemiHomemade = () => {
+    setSemiHomemadeResult(null);
+    setIsSemiHomemadeRecipeSaved(false);
+  };
+
+  const handleSaveSemiHomemadeRecipe = async () => {
+    if (!semiHomemadeResult || isSemiHomemadeRecipeSaved) return;
+
+    setIsSavingSemiHomemadeRecipe(true);
+    try {
+      await semiHomemade.saveToLibrary({
+        id: `semi-homemade-${Date.now()}`,
+        title: semiHomemadeResult.title,
+        emoji: semiHomemadeResult.emoji,
+        category: semiHomemadeVibeInput.trim() || 'Semi-Homemade',
+        meal: 'Dinner',
+        time: semiHomemadeResult.time,
+        difficulty: semiHomemadeResult.difficulty,
+        description: semiHomemadeResult.tagline,
+        ingredients: semiHomemadeResult.ingredients,
+        methodSteps: semiHomemadeResult.instructions,
+        image: semiHomemadeResult.image,
+      });
+      setIsSemiHomemadeRecipeSaved(true);
+    } catch (e) {
+      console.log('[semi-homemade] save failed', e?.message || e);
+      Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
+    } finally {
+      setIsSavingSemiHomemadeRecipe(false);
+    }
+  };
+
+  const handleAddSemiHomemadeToList = () => {
+    if (!semiHomemadeResult) return;
+
+    const ingredients = semiHomemadeResult.shoppingList.length
+      ? semiHomemadeResult.shoppingList
+      : semiHomemadeResult.ingredients;
+
+    semiHomemade.addIngredientsToShoppingList({
+      id: `semi-homemade-${Date.now()}`,
+      title: semiHomemadeResult.title,
+      ingredients,
+    });
+  };
+
+  const handleAskFernSemiHomemade = () => {
+    closeSemiHomemadeModal();
     if (!isListening) {
       start();
     }
@@ -1213,11 +1378,65 @@ export default function HomeScreen({ user }) {
     quickDinner.viewRecipe(recipe, { onOpenDetail: () => setIsQuickDinnerOpen(false) });
   };
 
+  const loadSuggestedRecipes = async () => {
+    setIsLoadingSuggestedRecipes(true);
+    try {
+      const recentTitles = (data.recipes || [])
+        .slice(-10)
+        .map((r) => String(r?.title || r?.name || '').trim())
+        .filter(Boolean);
+      const storeNames = userStores.map((s) => s?.name).filter(Boolean);
+      const prompt = buildSuggestionsPrompt({ dietary, household: 'solo', recentTitles, storeNames });
+
+      const groups = await fetchSuggestedRecipeGroups({ prompt, locale, token: user?.token, userId: user?.id });
+      setSuggestedGroups(groups);
+      setSuggestedUpdatedAt(Date.now());
+
+      groups.forEach((group) => {
+        group.recipes.forEach((entry) => {
+          const query = `${entry.recipe.title} ${entry.recipe.cuisine} food`.trim();
+          fetchRecipeImage(query, user?.token).then((url) => {
+            if (!url) return;
+            setSuggestedGroups((current) => current.map((g) => (
+              g.id !== group.id
+                ? g
+                : { ...g, recipes: g.recipes.map((r) => (r.id === entry.id ? { ...r, image: url } : r)) }
+            )));
+          });
+        });
+      });
+    } catch (e) {
+      console.log('[suggested-recipes] load failed', e?.message || e);
+      Alert.alert(t('save_failed'), t('save_error_desc'));
+    } finally {
+      setIsLoadingSuggestedRecipes(false);
+    }
+  };
+
+  const openSuggestedRecipes = () => {
+    setIsSuggestedRecipesOpen(true);
+    if (!suggestedGroups.length && !isLoadingSuggestedRecipes) {
+      loadSuggestedRecipes();
+    }
+  };
+
+  const handleViewSuggestedRecipe = (entry) => {
+    suggestedRecipes.viewRecipe({ ...entry.recipe, image: entry.image }, {});
+  };
+
+  const toggleDismissSuggestion = async (id) => {
+    const next = dismissedSuggestionIds.includes(id)
+      ? dismissedSuggestionIds.filter((x) => x !== id)
+      : [...dismissedSuggestionIds, id];
+    setDismissedSuggestionIds(next);
+    await AsyncStorage.setItem(DISMISSED_SUGGESTIONS_KEY, JSON.stringify(next));
+  };
+
   const handleAddQuickDinnerRecipeToList = (recipe) => {
     quickDinner.addIngredientsToShoppingList(recipe);
   };
 
-  const selectedAiRecipe = leftover.selectedRecipe || fridgeChallenge.selectedRecipe || quickDinner.selectedRecipe || scanCircularDeals.selectedRecipe || budgetPlanner.selectedRecipe;
+  const selectedAiRecipe = leftover.selectedRecipe || fridgeChallenge.selectedRecipe || quickDinner.selectedRecipe || scanCircularDeals.selectedRecipe || budgetPlanner.selectedRecipe || suggestedRecipes.selectedRecipe;
   const activeAiRecipeCollection = leftover.selectedRecipe
     ? leftover
     : fridgeChallenge.selectedRecipe
@@ -1228,7 +1447,9 @@ export default function HomeScreen({ user }) {
           ? scanCircularDeals
           : budgetPlanner.selectedRecipe
             ? budgetPlanner
-            : null;
+            : suggestedRecipes.selectedRecipe
+              ? suggestedRecipes
+              : null;
   const closeSelectedAiRecipeDetail = leftover.selectedRecipe
     ? closeLeftoverRecipeDetail
     : fridgeChallenge.selectedRecipe
@@ -1237,7 +1458,9 @@ export default function HomeScreen({ user }) {
         ? closeQuickDinnerRecipeDetail
         : scanCircularDeals.selectedRecipe
           ? closeScanCircularRecipeDetail
-          : closeBudgetPlannerRecipeDetail;
+          : suggestedRecipes.selectedRecipe
+            ? () => suggestedRecipes.setSelectedRecipe(null)
+            : closeBudgetPlannerRecipeDetail;
 
   const closeWineModal = () => {
     setIsWineModalOpen(false);
@@ -1363,20 +1586,6 @@ export default function HomeScreen({ user }) {
   const userName = user?.name?.split(' ')[0] || 'Frank';
   const dietary = data?.userProfile?.dietary || data?.profile?.dietary || user?.dietary || t('dietary_fallback_vegan');
 
-  const tinyProgressDots = (value, total = 7) => (
-    <View style={styles.tinyDotsRow}>
-      {Array.from({ length: total }, (_, i) => {
-        const active = i < Math.min(value, total);
-        return (
-          <View
-            key={`dot-${i}`}
-            style={[styles.tinyDot, active ? styles.tinyDotActive : null]}
-          />
-        );
-      })}
-    </View>
-  );
-
   const handleAskFernPress = () => {
     if (isListening) {
       stop();
@@ -1392,6 +1601,22 @@ export default function HomeScreen({ user }) {
         style={styles.screenScroll}
         contentContainerStyle={styles.screenContent}>
 
+        {isSuggestedRecipesOpen ? (
+          <SuggestedRecipesScreen
+            groups={suggestedGroups}
+            isLoading={isLoadingSuggestedRecipes}
+            updatedAt={suggestedUpdatedAt}
+            filter={suggestedFilter}
+            onChangeFilter={setSuggestedFilter}
+            onRefresh={loadSuggestedRecipes}
+            onBack={() => setIsSuggestedRecipesOpen(false)}
+            onViewRecipe={handleViewSuggestedRecipe}
+            isRecipeSaved={suggestedRecipes.isRecipeSaved}
+            dismissedIds={dismissedSuggestionIds}
+            onToggleDismiss={toggleDismissSuggestion}
+          />
+        ) : (
+          <>
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.greeting}>{getGreeting(t)}, {"\n"}{userName}</Text>
@@ -1500,35 +1725,24 @@ export default function HomeScreen({ user }) {
           })}
         </View>
 
-        <View style={styles.mealStatsRow}>
-          <View style={[styles.mealCard, shadow.card]}>
-            <Text style={styles.mealCardTitle}>{t('meals_planned_title')}</Text>
-            {tinyProgressDots(mealsPlannedCount)}
-            <View style={styles.mealDaysRow}>
-              {weekDays.map((d) => (
-                <Text
-                  key={`mp-${d.key}`}
-                  style={[styles.mealDayText, d.isToday ? styles.mealDayTextToday : null]}
-                >
-                  {d.day}
-                </Text>
-              ))}
-            </View>
-          </View>
+        <View style={styles.statsRow}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[styles.statCard, styles.suggestedMealsCard, shadow.card]}
+            onPress={openSuggestedRecipes}
+          >
+            <Text style={styles.suggestedMealsText}>{t('suggested_meals_title')}</Text>
+          </TouchableOpacity>
 
-          <View style={[styles.mealCard, shadow.card]}>
-            <Text style={styles.mealCardTitle}>{t('recipes_saved_title')}</Text>
-            {tinyProgressDots(recipesCount)}
-            <View style={styles.mealDaysRow}>
-              {weekDays.map((d) => (
-                <Text
-                  key={`rs-${d.key}`}
-                  style={[styles.mealDayText, d.isToday ? styles.mealDayTextToday : null]}
-                >
-                  {d.day}
-                </Text>
-              ))}
-            </View>
+          <View style={[styles.statCard, shadow.card]}>
+            <Text style={styles.loyaltyCardTitle}>{t('loyalty_card_title')}</Text>
+            <Text style={styles.loyaltyCardIcon}>🛒</Text>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => Alert.alert(t('loyalty_card_title'), t('coming_soon'))}
+            >
+              <Text style={styles.loyaltyCardLink}>{t('link_card_btn')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -1663,6 +1877,7 @@ export default function HomeScreen({ user }) {
               'Fridge Challenge': openFridgeChallengeModal,
               '20-Min Dinner': openQuickDinnerModal,
               'Budget Planner': openBudgetPlannerModal,
+              'Semi-Homemade': openSemiHomemadeModal,
             };
             const onPress = toolHandlers[label];
 
@@ -1686,6 +1901,8 @@ export default function HomeScreen({ user }) {
         </View>
 
         <View style={styles.bottomSpacer} />
+          </>
+        )}
 
       </ScrollView >
 
@@ -1807,6 +2024,32 @@ export default function HomeScreen({ user }) {
         onAddAllShoppingItems={handleAddAllCharcuterieItems}
         onSaveBoard={handleSaveCharcuterieBoard}
         onAskFern={handleAskFernCharcuterie}
+      />
+
+      <SemiHomemadeModal
+        visible={isSemiHomemadeOpen}
+        onClose={closeSemiHomemadeModal}
+        onAskFern={handleAskFernSemiHomemade}
+        selectedShortcuts={semiHomemadeSelectedShortcuts}
+        onToggleShortcut={toggleSemiHomemadeShortcut}
+        customItems={semiHomemadeCustomItems}
+        customItemInput={semiHomemadeCustomItemInput}
+        setCustomItemInput={setSemiHomemadeCustomItemInput}
+        onAddCustomItem={addSemiHomemadeCustomItem}
+        onRemoveCustomItem={removeSemiHomemadeCustomItem}
+        vibeInput={semiHomemadeVibeInput}
+        setVibeInput={setSemiHomemadeVibeInput}
+        servings={semiHomemadeServings}
+        setServings={setSemiHomemadeServings}
+        isDesigning={isSemiHomemadeDesigning}
+        result={semiHomemadeResult}
+        onDesign={handleDesignSemiHomemadeRecipe}
+        onTryAgain={handleTryAgainSemiHomemade}
+        isSaving={isSavingSemiHomemadeRecipe}
+        isSaved={isSemiHomemadeRecipeSaved}
+        onSaveRecipe={handleSaveSemiHomemadeRecipe}
+        isAddingToList={semiHomemade.isSaving}
+        onAddToList={handleAddSemiHomemadeToList}
       />
 
       <AlexaSkillModal
@@ -2179,65 +2422,6 @@ const styles = StyleSheet.create({
     borderColor: '#D4C9BA',
   },
 
-  mealStatsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    marginTop: -2,
-  },
-
-  mealCard: {
-    width: '48%',
-    backgroundColor: '#EDE7DE',
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#D4C9BA',
-  },
-
-  mealCardTitle: {
-    fontSize: 12,
-    color: '#695B4F',
-    fontFamily: 'Jost-Bold',
-    letterSpacing: 1.2,
-  },
-
-  tinyDotsRow: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 24,
-    marginBottom: 8,
-  },
-
-  tinyDot: {
-    flex: 1,
-    height: 4,
-    borderRadius: 99,
-    backgroundColor: '#CFC6B8',
-  },
-
-  tinyDotActive: {
-    backgroundColor: '#E4722A',
-  },
-
-  mealDaysRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-
-  mealDayText: {
-    color: '#7A6C60',
-    fontSize: 7,
-    fontFamily: 'Jost-Medium',
-  },
-
-  mealDayTextToday: {
-    color: '#E4722A',
-    fontFamily: 'Jost-Bold',
-  },
-
   panelCard: {
     marginHorizontal: 20,
     marginTop: 10,
@@ -2514,6 +2698,39 @@ const styles = StyleSheet.create({
     fontFamily: 'Playfair-Medium',
     color: 'rgb(56, 89, 45)',
     marginTop: 6
+  },
+
+  suggestedMealsCard: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  suggestedMealsText: {
+    fontSize: 18,
+    fontFamily: 'Playfair-Medium',
+    color: 'rgb(56, 89, 45)',
+    textAlign: 'center',
+  },
+
+  loyaltyCardTitle: {
+    fontSize: 11,
+    fontFamily: 'Jost-Bold',
+    color: '#5D4F42',
+    letterSpacing: 1,
+  },
+
+  loyaltyCardIcon: {
+    fontSize: 28,
+    textAlign: 'center',
+    marginVertical: 8,
+    opacity: 0.5,
+  },
+
+  loyaltyCardLink: {
+    fontSize: 13,
+    fontFamily: 'Jost-Bold',
+    color: 'rgb(216, 109, 51)',
+    textAlign: 'center',
   },
 
   bottomSpacer: {

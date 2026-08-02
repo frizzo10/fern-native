@@ -1,0 +1,159 @@
+# DATAMODEL.md
+
+Exhaustive reference for Fern Native's local persisted state and remote API surface. This is the companion doc to [CLAUDE.md](CLAUDE.md), which stays conceptual — this file has the exact field-by-field shapes. If you change a payload shape, an `AsyncStorage` key, or add a new Netlify function call, update this file in the same change.
+
+There is no backend in this repo. Everything under "API reference" below is a remote Netlify function at `https://app.clickpickandcook.com/.netlify/functions/<name>`, except the one explicitly-flagged Groq call. The client is otherwise a thin, local-first cache over that remote API.
+
+## Local-first sync architecture
+
+`src/hooks/useSync.js` is the source of truth for app data at runtime. On mount it:
+1. **Hydrates instantly** from the `fern_sync_cache` AsyncStorage key (`loadCache()`), so the UI has data before any network round-trip.
+2. **Refreshes in the background** by POSTing `{ action: 'pull', userId, token }` to the `sync` function and re-persisting everything.
+
+### `useSync.js` return shape
+
+```js
+data: {
+  recipes: [],      // ← rv4_saved
+  mealPlan: {},      // ← rv4_meal_plan
+  shopping: [],       // ← rv4_master_shop
+  books: [],            // ← rv4_books
+  activities: [],        // only lives inside fern_sync_cache — no dedicated rv4_* key, pull-only (see below)
+  followers: [],          // ← cpc_followed_bloggers
+  userProfile: {},         // ← remi_explicit
+  userStores: [],           // ← cpc_user_stores
+}
+```
+
+- **`pull()`** — POSTs `{ action: 'pull', userId, token }` to `sync`. Takes `result.data` (`saved`, `meal_plan`, `shopping`, `books`, `activities`, `followed_bloggers`, `remi_explicit`, `user_stores`), runs an emoji-corruption repair pass over `saved` (fixes `�`-corrupted `recipe.emoji` fields), maps it into the `data` shape above, calls `setData(next)`, then writes **both** the combined object to `fern_sync_cache` **and** each field out to its own individual key (`rv4_saved`, `rv4_books`, `rv4_meal_plan`, `rv4_master_shop`, `remi_explicit`, `cpc_followed_bloggers`, `cpc_user_stores`). If the emoji repair changed anything, it immediately pushes the fix back to the server.
+- **`push(payload)`** — thin wrapper: POSTs `{ action: 'push', userId, token, ...payload }` verbatim; caller supplies the full payload, no AsyncStorage read.
+- **`pushChangedFromStorage(changedData = {})`** — reads the 7 canonical keys fresh off disk, builds `data: { saved, books, meal_plan, shopping, remi_explicit, followed_bloggers, user_stores, ...changedData }` (so in-memory `changedData` fields override what's on disk), POSTs `{ action: 'push', userId, token, data }`. This is what screens call after any local mutation.
+- **`pushAllFromStorage()`** — `pushChangedFromStorage()` with no overrides, i.e. "push whatever's currently on disk."
+- **Gap:** there is no push path for `activities` or for partial `userProfile` fields beyond the whole `remi_explicit` blob — `activities` is pull-only.
+
+### `useSync.js` vs `useAuth.js` (known divergence)
+
+`src/hooks/useAuth.js` has its own `syncPull(userId, token)`, called right after both login and signup, which independently POSTs `{ action: 'pull', userId, token }` to the same `sync` endpoint and writes the 7 individual keys (`rv4_saved`, `rv4_books`, `rv4_meal_plan`, `rv4_master_shop`, `remi_explicit`, `cpc_followed_bloggers`, `cpc_user_stores`). It has drifted from `useSync.pull()` in three ways worth knowing before touching either:
+
+1. **It never writes `fern_sync_cache`.** Only the 7 individual keys get written, so immediately post-login/signup the combined cache is stale until `useSync`'s own `pull()` fires on the next render.
+2. **It skips the emoji-corruption repair pass** that `useSync.pull()` runs on `saved` — recipes with corrupted emoji are written verbatim at login time.
+3. **Signup can clobber its own write:** `signUpWithSupabase` writes `remi_explicit = { userName: name }` first, then calls `syncPull`, which overwrites `remi_explicit` with `d.remi_explicit || {}` from the server response — if the new user has no server-side profile yet, the just-set `userName` gets wiped back to `{}`.
+
+If you change the sync payload shape or add a new synced field, update both `useSync.pull()`/`pushChangedFromStorage()` **and** `useAuth.syncPull()`, or these will silently drift further.
+
+### Auth session storage (separate from the sync cache)
+
+Two stores, not one:
+- **SecureStore key `fern_user`** — the primary, encrypted session: `{ id, email, token, refreshToken, ...user fields }`. Written on silent refresh, on the refresh-token fallback during a failed login, on successful login, and on signup. Deleted on `signOut()`.
+- **AsyncStorage key `rv4_auth`** — a secondary, non-secure duplicate of just `{ id, email, token, refreshToken }`, written alongside every `fern_user` write. Read back only as a fallback source of `refreshToken` when the REST login call fails. **`signOut()` does not clear it** — a stale `rv4_auth` entry can survive logout.
+
+Neither of these two keys is touched by `useSync.js` — `useSync` only ever consumes the `user` object it's given as a prop/param.
+
+## Local storage key reference
+
+All keys are `AsyncStorage` unless marked SecureStore. "Synced" means the key is part of the `useSync.js` pull/push cycle described above; "device-only" means it never leaves the device.
+
+| Key | Shape | Written by | Read by | Synced? |
+|---|---|---|---|---|
+| `fern_sync_cache` | `{ recipes, mealPlan, shopping, books, activities, followers, userProfile, userStores }` — full mirror of `useSync`'s `data`. Frequently patched by individual screens as a same-tick UI-optimism store (`{ ...cache, shopping: nextShopping }`) before/alongside a push. | `useSync.pull()`; read-modify-write from `HomeScreen.js`, `ShoppingScreen.js`, `SearchScreen.js`, `RecipesScreen.js`, `useAiRecipeCollection.js`, `EventPlannerIntakeModal.js`, `shoppingListSync.js` | `useSync.js` (`loadCache`, boot hydrate) | Synced (read-side cache; see divergence note — `useAuth.syncPull` does **not** write this key) |
+| `rv4_saved` | Array of normalized recipe objects (title, ingredients[], instructions[], cuisine, mealType, time, difficulty, emoji, image, description, servings, id, note, etc. — shape from `src/utils/recipeNormalize.js`) | `useSync.pull()`; `useAuth.syncPull`; `SearchScreen.js`; `RecipesScreen.js`; `useAiRecipeCollection.js` (save/note/delete); `EventPlannerIntakeModal.js` | same set of files | Synced |
+| `rv4_books` | Array of cookbook objects (`id`/`uuid`/`book_id`, `title`/`name`/`book_title`, ...) | `useSync.pull()`; `useAuth.syncPull`; `RecipesScreen.js` | `useSync.js`; `RecipesScreen.js` | Synced |
+| `rv4_meal_plan` | Object keyed by `YYYY-MM-DD` → array of `{ slot, title, emoji, ... }` meal entries. Non-date keys may be prefixed `_` (filtered out when counting planned meals). | `useSync.pull()`; `useAuth.syncPull` | `useSync.js`; `HomeScreen.js`; `NutritionTrackerModal.js` | Synced |
+| `rv4_master_shop` | Array of shopping items: `{ id, text, recipe, checked }` — `recipe` is a comma-joined string of contributing recipe titles, or the literal `'Manual Add'`/`'Fern Starter'`. | `useSync.pull()`; `useAuth.syncPull`; `HomeScreen.js`; `ShoppingScreen.js`; `src/utils/shoppingListSync.js` (`addRecipeIngredientsToShoppingList`) | same set of files | Synced |
+| `remi_explicit` | Single object, the user profile bag — at minimum `{ userName }`, otherwise whatever the backend returns (`name`, `email`, etc). | `useSync.pull()`; `useAuth.syncPull`/`signUp` (see divergence note above) | `useSync.js` (as `data.userProfile`); `FindScreen.js` (dead code) | Synced |
+| `cpc_followed_bloggers` | Array of `{ id, url, name, color, emoji, specialty }` | `useSync.pull()`; `useAuth.syncPull`; `SearchScreen.js` | `useSync.js`; `SearchScreen.js` | Synced |
+| `cpc_user_stores` | Array of `{ lat, lng, name, address }` | `useSync.pull()`; `useAuth.syncPull`; `HomeScreen.js` | `useSync.js`; `HomeScreen.js` (this is the "real" store data App.js's geofence stub never receives — see CLAUDE.md dead-code note) | Synced |
+| `rv4_auth` | `{ id, email, token, refreshToken }` | `useAuth.js` (mirrors every `fern_user` SecureStore write) | `useAuth.js` (refresh-token fallback on failed login) | Not synced — device auth bookkeeping only, and not cleared on sign-out |
+| `fern_user` *(SecureStore, not AsyncStorage)* | `{ id, email, token, refreshToken, ...user fields }` | `useAuth.js` — primary session store | `useAuth.js` (read once on mount) | Not synced |
+| `fern_saved_charcuterie_boards` | Array of `{ id: 'charcuterie-board-<ts>', createdAt, board }`, newest first | `HomeScreen.js` (`CharcuterieModal` save action) | `HomeScreen.js` | Device-only — saved boards do not survive reinstall/relogin on another device |
+| `fern_fridge_challenge_last_played` | Plain date-key string (one Fridge Challenge per day gate) | `HomeScreen.js` | `HomeScreen.js`; `AccountScreen.js` (via `multiGet`, shown as a completed badge) | Device-only |
+| `fern_nutrition_goals` | `{ calorieTarget, proteinGoal, carbLimit, dietaryFocus }` | `NutritionTrackerModal.js` | `NutritionTrackerModal.js` | Device-only |
+| `fern_nutrition_analysis` | `{ goals, result: { days[], weekly_avg, tip, off_goal_days[], goal_recipe_suggestion }, analyzedAt }` | `NutritionTrackerModal.js` | `NutritionTrackerModal.js` (restores last result instead of the form on reopen) | Device-only |
+| `fern_voice_enabled` | `'on'`/`'off'` string (legacy `'0'/'false'/'off'/'disabled'` also treated as off) | `AccountScreen.js` | `AccountScreen.js`; `useFernVoice.js`; `useContinuousMic.js` | Device-only |
+| `fern_user_locale` | `'en'` or `'es'` | `LanguageContext.js` | `LanguageContext.js` | Device-only |
+| *(per-tour flags)* | One flag per entry in `TOUR_LIST` (`src/constants/tourContent.js`, ~20 tours — `home`, `find`, `recipes`, `shopping`, `charcuterie`, `wine_pairing`, `fridge_challenge`, `leftover_magic`, `quick_dinner`, `budget_planner`, `semi_homemade`, `alexa_skill`, `nutrition`, etc), keyed by each entry's own `storageKey` | `TourModal.js` (`finish()`) | `TourContext.js` (`maybeAutoStart`, gates whether a tour auto-opens); `AccountScreen.js` (bulk `multiGet` across all `TOUR_LIST` storage keys) | Device-only onboarding state, per device |
+
+Not real storage keys, despite matching a `fern_*`/grep pattern: `fern_chat`, `fern_label`, `fern_thinking`, `fern_knows_title`, `fern_starter_stocked*` are i18n keys in `translations.js`, unrelated to `AsyncStorage`.
+
+**No local entitlement/tier cache exists** — `useEntitlement.js` has zero `AsyncStorage` references; the tier is purely the hardcoded `CURRENT_TIER` constant today (see CLAUDE.md).
+
+**Naming inconsistency, not a bug to "fix" casually:** `rv4_*` (recipe vault v4), `cpc_*` (clickpickandcook), `remi_*` (an earlier assistant name), and `fern_*` prefixes coexist because these keys mirror the **web app's** storage scheme for sync compatibility — see the "Local-first data" note in CLAUDE.md before renaming anything.
+
+## API reference
+
+All endpoints are `POST https://app.clickpickandcook.com/.netlify/functions/<name>` with `Content-Type: application/json` unless noted otherwise. Most calls also send a `User-Agent: FernApp/1.0 (myaifern.com)` header (a few inline call sites omit it — not meaningful, just inconsistent).
+
+### `ai` — general-purpose AI proxy (heaviest-used endpoint, 10 call sites)
+
+Two distinct payload shapes are in use:
+- **Structured** (most callers): `{ system, messages: [{ role: 'user'|'assistant', content }], feature?, locale, token, userId? }`. Response: `json.content[].find(p => p.type === 'text').text` (fallback `json.message`/`json.reply`), then the caller loose-JSON-parses that text (regex-extracts the first `{...}`/`[...]` if `JSON.parse` fails outright).
+- **Legacy/simple** (`HomeScreen.js`'s Family Hub voice flow only): `{ message, context: 'family_hub', userId, token, locale }` → response `{ reply }`. This is the one caller that doesn't use the `messages` array shape — don't copy it for new features.
+
+Call sites and what each expects back:
+
+| Caller | `feature` | Expects back |
+|---|---|---|
+| `fridgeChallengeService.fetchFridgeChallengeRecipes` | `recipe_search` | `{"recipes":[{"title","description","time","difficulty","ingredients":[{"amount","unit","item"}],"instructions":[""],"cuisine","emoji"}]}` — exactly 3 (Easy/Medium/Ambitious) |
+| `leftoverMagicService.fetchLeftoverRecipes` | `recipe_search` | same shape as above |
+| `scanCircularService.fetchDealRecipeIdeas` | `fern_chat` | JSON array of 3 `{"title","time","emoji","why"}` |
+| `scanCircularService.fetchFullRecipeForDealIdea` | `recipe_search` | single `{"title","cuisine","mealType","time","difficulty","description","ingredients":[""],"instructions":[""],"emoji"}` |
+| `useContinuousMic.processFernReply` / `useFernVoice.getFernReply` | *(none)* | `{ content: [{ text }] }` (or `{ data: { content: [...] } }`) — plain conversational reply, then optionally piped to `fern-speak` |
+| `ChatSheetModal` (inline) | *(none)* | reply text parsed by `parseChatResponse` into `{ reply, add_to_shopping_list: [] }` |
+| `NutritionTrackerModal` (inline) | `nutrition` | `{"days":[{"day","calories","protein","carbs","fat","goal_met","highlight"}],"weekly_avg":{"calories","protein","carbs","fat"},"tip","off_goal_days":[],"goal_recipe_suggestion"}` |
+| `FindScreen.talkToFern` (inline, dead screen) | *(none)* | plain reply text |
+| `SearchScreen.performSearch` (inline) | `recipe_search` | JSON array of 6 recipe objects, normalized via `normalizeAiRecipe` |
+| `HomeScreen` Family Hub voice (inline) | — | legacy shape, see above |
+
+### `fern-speak` — text-to-speech
+
+Payload: `{ text, locale, token }`. Response is **not JSON** — raw mp3 bytes read via `response.arrayBuffer()`, manually base64-encoded, written to `FileSystem.cacheDirectory + 'fern-*.mp3'`, played with `expo-audio`. Called from `useContinuousMic.js`, `useFernVoice.js`, and `FindScreen.js` (dead screen).
+
+### `auth` — login
+
+- `{ action: 'refresh', refreshToken }` → `{ success, token, refreshToken }` (or a falsy/failed response, treated as `null`).
+- `{ action: 'login', email, password }` → `{ user, access_token|token, refresh_token|refreshToken, error?, message? }`. On failure, `useAuth.js` falls back to the refresh-token flow using the `rv4_auth` AsyncStorage key. Signup does **not** go through this endpoint — `signUpWithSupabase` uses the Supabase JS SDK directly.
+- Caller: `src/hooks/useAuth.js` only.
+
+### `sync` — pull/push of all user data
+
+See "Local-first sync architecture" above for the full pull/push shape. Payload is always `{ action: 'pull'|'push', userId, token, [data] }`. Called from `useSync.js` and independently from `useAuth.js`'s `syncPull`.
+
+### `get-recipe-image`
+
+Payload: `{ query, token }`. Response: `{ url }` (returns `null` silently on any error — callers treat a missing image as normal, not exceptional). Called from `src/utils/recipeImage.js`'s `fetchRecipeImage`, used by `eventPlannerService.js`, `useAiRecipeCollection.js`, `SearchScreen.js`, `HomeScreen.js`, `RecipesScreen.js`, `EventPlanResultModal.js` (dead), `TwentyMinDinnerModal.js`, `EventPlannerIntakeModal.js`.
+
+### `budget-meal-planner`
+
+Payload: `{ weeklyBudget, people, dietary, deals: [], locale, token }`. Response: `{ weeklyBudget, people, estimatedActualCost, savings, dealsUsed[], dinners: [{day,title,emoji,cuisine,time,costPerServing,totalCost,description,ingredients[],instructions[]}], shoppingList: [{category, items[]}], moneyTips[] }`. Normalized (adds local `id`s, `image: null`, `haveAlready: false`) in `src/services/budgetPlannerService.js`. Caller: `BudgetPlannerModal` via `HomeScreen.js`.
+
+### `charcuterie-board`
+
+Payload: `{ occasion, boardType, people, budget, dietary: 'None', locale, token }`. Response normalized via `normalizeCharcuterieBoard` in `src/services/charcuterieService.js`: `{ title, tagline, occasion, serves, estimatedCost, meats/cheeses/accompaniments/crackers: [{name,quantity,description,emoji,type,category}], garnishes[], drizzles[], drinks: [{name,why,emoji}], boardLayout, shoppingList: [{category,items}], hostTips[], prepTimeline, totalItems }`. Caller: `CharcuterieModal` via `HomeScreen.js`.
+
+### `event-planner`
+
+Payload: `{ action: 'generate', userId, token, locale, eventType: 'dinner_party', intake }`. Response `result.plan` normalized in `src/services/eventPlannerService.js`: `{ title, overview, timeline[], menu: { appetizers, mains, sides, desserts } (each recipe normalized like a saved recipe: id/title/emoji/category/meal/time/difficulty/image/description/servings/ingredients/methodSteps/note/bookIds), drinks[], shoppingList[], tableSettings, hostTips[], estimatedCost }`, then backfills images per recipe via `get-recipe-image`. Caller: `EventPlannerIntakeModal.js`.
+
+### `semi-homemade`
+
+Payload: `{ userId, locale, items: [], vibe, servings, token }` (`items` are emoji-prefixed shortcut strings, e.g. `"🍗 Rotisserie chicken"`, plus free-typed custom entries without emoji). Response normalized via `normalizeSemiHomemadeRecipe` in `src/services/semiHomemadeService.js` (reads `responseJson.recipe || responseJson`): `{ title, emoji, tagline, time, servings, difficulty, storeBought[], homemade[], ingredients[], instructions[], chefTip, shoppingList[], image: null }`. Caller: `SemiHomemadeModal` via `HomeScreen.js`.
+
+### `whats-for-dinner`
+
+Payload: `{ quickPicks: [], ingredients, servings, locale, token }`. Response `responseJson.recipes[]` normalized in `src/services/whatsForDinnerService.js` to `{ id, title, tagline, description, time, difficulty, cuisine, mealType, emoji, ingredients[], instructions[], chefTip, whyFast, servings }`. Caller: `TwentyMinDinnerModal` via `HomeScreen.js`.
+
+### `recipe-tools` — wine pairing
+
+Payload: `{ action: 'wine_pairing', userId, token, locale, recipe: { title, cuisine: '', description, ingredients: [] } }`. Response: `summary` from `responseJson.summary || .guidance || .message || .reply`; `pairings` from `responseJson.pairings || .recommendations || .results || .wines`, each mapped in `src/services/winePairingService.js` to `{ name, region, type, category, price, description, badge }`. Caller: `WinePairingModal` via `HomeScreen.js`.
+
+### `scan-circular`
+
+Payload: `{ mediaType: 'image/jpeg', userId, token, imageData: base64 }`. Response: `{ store, validDates, headline, sectionsFound[], items: [{id,name,brand,originalPrice,salePrice,unit,savings,category,emoji,dealScore,cookable,isBogo}] }`, with `sections` (grouped by category) and `totalSavings` computed client-side in `src/services/scanCircularService.js`. Caller: `ScanCircularModal` via both `HomeScreen.js` and `SearchScreen.js`.
+
+### `geocode` — `GET /.netlify/functions/geocode?q=<storeName>&zip=<zip>[&token=<token>]`
+
+The one **GET** endpoint, no body. Response: `{ lat, lon, address, source }`, validated and returned as `{ lat, lon, lng: lon, address, source }` (or `null` on failure). Caller: `src/services/storeLookupService.js`'s `findStoreLocationByZip`, used by `HomeScreen.js`'s store-management UI.
+
+### Groq Whisper (not a Netlify function — direct external call)
+
+`https://api.groq.com/openai/v1/audio/transcriptions`, called from `useContinuousMic.js` via `FileSystem.uploadAsync` (multipart, `{ model: 'whisper-large-v3', language: locale }`), authenticated with `EXPO_PUBLIC_GROQ_KEY` as a bearer token embedded in the client. This is the one place the app talks to a third party directly instead of proxying through `clickpickandcook.com` — worth knowing before assuming "all network calls go through the Netlify functions."

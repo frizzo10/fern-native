@@ -16,7 +16,7 @@ const TIER_RANK = {
 // When RevenueCat is added, replace the constant below with the real entitlement
 // check inside `useEntitlement()` (src/hooks/useEntitlement.js) — nothing else in
 // the app should need to change, since every gate reads through that hook.
-export const CURRENT_TIER = TIERS.PRO_MAX;
+export const CURRENT_TIER = TIERS.PRO;
 
 export function tierMeetsRequirement(tier, required) {
   if (!required) return true;
