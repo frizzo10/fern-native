@@ -46,7 +46,9 @@ import NutritionTrackerModal from '../components/modals/NutritionTrackerModal';
 import TwentyMinDinnerModal from '../components/modals/TwentyMinDinnerModal';
 import SemiHomemadeModal from '../components/modals/SemiHomemadeModal';
 import LoyaltyCardModal from '../components/modals/LoyaltyCardModal';
-import { matchLoyaltyCard } from '../services/loyaltyService';
+import { matchLoyaltyCard, fetchLinkedStoreCards, linkStoreCard, unlinkStoreCard } from '../services/loyaltyService';
+import MealPlannerModal from '../components/modals/MealPlannerModal';
+import { fetchMealPlan, generateMealPlan, saveMealPlan, regenerateMeal, fetchMealPlannerShoppingList } from '../services/mealPlannerService';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import SuggestedRecipesScreen from '../components/SuggestedRecipesScreen';
 import CouponWalletScreen from '../components/CouponWalletScreen';
@@ -207,8 +209,31 @@ export default function HomeScreen({ user }) {
   const [isLinkingLoyaltyCard, setIsLinkingLoyaltyCard] = useState(false);
   const [loyaltyCardError, setLoyaltyCardError] = useState('');
   const [linkedLoyaltyCard, setLinkedLoyaltyCard] = useState(null);
+  const [storeLoyaltyCards, setStoreLoyaltyCards] = useState([]);
+  const [isLoadingStoreLoyaltyCards, setIsLoadingStoreLoyaltyCards] = useState(false);
+  const [storeCardNameInput, setStoreCardNameInput] = useState('');
+  const [storeCardNumberInput, setStoreCardNumberInput] = useState('');
+  const [isAddingStoreCard, setIsAddingStoreCard] = useState(false);
+  const [removingStoreCardName, setRemovingStoreCardName] = useState(null);
   const [isSuggestedRecipesOpen, setIsSuggestedRecipesOpen] = useState(false);
   const [isCouponWalletOpen, setIsCouponWalletOpen] = useState(false);
+  const [isMealPlannerOpen, setIsMealPlannerOpen] = useState(false);
+  const [mealPlannerDays, setMealPlannerDays] = useState([]);
+  const [isLoadingMealPlanner, setIsLoadingMealPlanner] = useState(false);
+  const [isGeneratingMealPlan, setIsGeneratingMealPlan] = useState(false);
+  const [selectedMealPlannerMeal, setSelectedMealPlannerMeal] = useState(null);
+  const [isSwappingMeal, setIsSwappingMeal] = useState(false);
+  const [mealPlannerShoppingList, setMealPlannerShoppingList] = useState([]);
+  const [isLoadingMealPlannerShoppingList, setIsLoadingMealPlannerShoppingList] = useState(false);
+  const [isSavingMealPlannerShoppingList, setIsSavingMealPlannerShoppingList] = useState(false);
+  const [mealPlannerPreferences, setMealPlannerPreferences] = useState({
+    mealsPerDay: 1,
+    whichMeals: ['dinner'],
+    cookTimeMax: 45,
+    servings: 4,
+    dietary: [],
+    disliked: [],
+  });
   const [selectedCoupon, setSelectedCoupon] = useState(null);
   const [walletCouponsLocal, setWalletCouponsLocal] = useState([]);
   const [suggestedGroups, setSuggestedGroups] = useState([]);
@@ -827,10 +852,25 @@ export default function HomeScreen({ user }) {
     }
   };
 
+  const loadStoreLoyaltyCards = async () => {
+    setIsLoadingStoreLoyaltyCards(true);
+    try {
+      const cards = await fetchLinkedStoreCards({ token: user?.token });
+      setStoreLoyaltyCards(cards);
+    } catch (e) {
+      console.log('[loyalty] failed to load store cards', e?.message || e);
+    } finally {
+      setIsLoadingStoreLoyaltyCards(false);
+    }
+  };
+
   const openLoyaltyModal = () => {
     setLoyaltyPhoneInput('');
     setLoyaltyCardError('');
+    setStoreCardNameInput('');
+    setStoreCardNumberInput('');
     setIsLoyaltyModalOpen(true);
+    loadStoreLoyaltyCards();
   };
 
   const closeLoyaltyModal = () => {
@@ -861,6 +901,43 @@ export default function HomeScreen({ user }) {
       setLoyaltyCardError(t('loyalty_modal_link_error'));
     } finally {
       setIsLinkingLoyaltyCard(false);
+    }
+  };
+
+  const handleAddStoreCard = async () => {
+    if (!storeCardNameInput.trim() || !storeCardNumberInput.trim()) {
+      Alert.alert(t('loyalty_store_cards_title'), t('loyalty_store_card_name_required'));
+      return;
+    }
+
+    setIsAddingStoreCard(true);
+    try {
+      const cards = await linkStoreCard({
+        token: user?.token,
+        storeName: storeCardNameInput,
+        cardNumber: storeCardNumberInput,
+      });
+      setStoreLoyaltyCards(cards);
+      setStoreCardNameInput('');
+      setStoreCardNumberInput('');
+    } catch (e) {
+      console.log('[loyalty] failed to link store card', e?.message || e);
+      Alert.alert(t('save_failed'), t('save_error_desc'));
+    } finally {
+      setIsAddingStoreCard(false);
+    }
+  };
+
+  const handleRemoveStoreCard = async (storeName) => {
+    setRemovingStoreCardName(storeName);
+    try {
+      const cards = await unlinkStoreCard({ token: user?.token, storeName });
+      setStoreLoyaltyCards(cards);
+    } catch (e) {
+      console.log('[loyalty] failed to unlink store card', e?.message || e);
+      Alert.alert(t('save_failed'), t('save_error_desc'));
+    } finally {
+      setRemovingStoreCardName(null);
     }
   };
 
@@ -1534,6 +1611,173 @@ export default function HomeScreen({ user }) {
     }
   };
 
+  const loadMealPlan = async () => {
+    setIsLoadingMealPlanner(true);
+    try {
+      const result = await fetchMealPlan({ userId: user?.id, token: user?.token });
+      setMealPlannerDays(result.days);
+    } catch (e) {
+      console.log('[meal-planner] load failed', e?.message || e);
+      Alert.alert(t('save_failed'), t('save_error_desc'));
+    } finally {
+      setIsLoadingMealPlanner(false);
+    }
+  };
+
+  const openMealPlannerModal = () => {
+    setIsMealPlannerOpen(true);
+    if (!mealPlannerDays.length && !isLoadingMealPlanner) {
+      loadMealPlan();
+    }
+  };
+
+  // Returns a promise resolving true/false so MealPlannerModal knows whether
+  // to switch back from Preferences to the newly generated plan.
+  const handleGenerateMealPlan = (preferencesFromUi) => new Promise((resolve) => {
+    Alert.alert(
+      t('meal_planner_regenerate_confirm_title'),
+      t('meal_planner_regenerate_confirm_desc'),
+      [
+        { text: t('cancel_btn'), style: 'cancel', onPress: () => resolve(false) },
+        {
+          text: t('meal_planner_regenerate_confirm_btn'),
+          onPress: async () => {
+            setIsGeneratingMealPlan(true);
+            try {
+              const savedRecipeTitles = (data.recipes || [])
+                .map((recipe) => recipe?.title)
+                .filter(Boolean);
+              const result = await generateMealPlan({
+                userId: user?.id,
+                locale,
+                savedRecipes: savedRecipeTitles,
+                currentDays: mealPlannerDays,
+              });
+              setMealPlannerDays(result.days);
+              setMealPlannerShoppingList([]); // stale — refetch next time it's opened
+              resolve(true);
+
+              const preferencesToSave = preferencesFromUi || mealPlannerPreferences;
+              if (preferencesFromUi) setMealPlannerPreferences(preferencesFromUi);
+
+              saveMealPlan({
+                userId: user?.id,
+                token: user?.token,
+                days: result.days,
+                preferences: preferencesToSave,
+              }).catch((e) => console.log('[meal-planner] save failed', e?.message || e));
+            } catch (e) {
+              console.log('[meal-planner] generate failed', e?.message || e);
+              Alert.alert(t('save_failed'), t('save_error_desc'));
+              resolve(false);
+            } finally {
+              setIsGeneratingMealPlan(false);
+            }
+          },
+        },
+      ],
+    );
+  });
+
+  const handleSelectMealPlannerMeal = (meal, dayLabel, dayIndex) => {
+    setSelectedMealPlannerMeal({ ...meal, dayLabel, dayIndex });
+  };
+
+  const handleSwapMealPlannerMeal = async () => {
+    if (!selectedMealPlannerMeal) return;
+
+    const { dayIndex, slot, id, dayLabel } = selectedMealPlannerMeal;
+    setIsSwappingMeal(true);
+    try {
+      const newMeal = await regenerateMeal({
+        userId: user?.id,
+        locale,
+        currentDays: mealPlannerDays,
+        dayIndex,
+        slot,
+      });
+
+      // dayIndex + slot are the only things that identify which meal to
+      // replace (titles can repeat) — splice it back in by position, keep
+      // the existing local `id` so the detail view doesn't remount oddly.
+      const nextDays = mealPlannerDays.map((day, di) => {
+        if (di !== dayIndex) return day;
+        return {
+          ...day,
+          meals: day.meals.map((existingMeal) => (
+            existingMeal.slot === slot ? { ...newMeal, id: existingMeal.id } : existingMeal
+          )),
+        };
+      });
+
+      setMealPlannerDays(nextDays);
+      setSelectedMealPlannerMeal({ ...newMeal, id, dayLabel, dayIndex });
+      setMealPlannerShoppingList([]); // stale — refetch next time it's opened
+
+      saveMealPlan({
+        userId: user?.id,
+        token: user?.token,
+        days: nextDays,
+        preferences: mealPlannerPreferences,
+      }).catch((e) => console.log('[meal-planner] save after swap failed', e?.message || e));
+    } catch (e) {
+      console.log('[meal-planner] swap meal failed', e?.message || e);
+      Alert.alert(t('save_failed'), t('save_error_desc'));
+    } finally {
+      setIsSwappingMeal(false);
+    }
+  };
+
+  const loadMealPlannerShoppingList = async () => {
+    setIsLoadingMealPlannerShoppingList(true);
+    try {
+      const result = await fetchMealPlannerShoppingList({
+        userId: user?.id,
+        locale,
+        currentDays: mealPlannerDays,
+      });
+      setMealPlannerShoppingList(result.groups);
+    } catch (e) {
+      console.log('[meal-planner] shopping list load failed', e?.message || e);
+      Alert.alert(t('save_failed'), t('save_error_desc'));
+    } finally {
+      setIsLoadingMealPlannerShoppingList(false);
+    }
+  };
+
+  const handleOpenMealPlannerShoppingList = () => {
+    if (!mealPlannerShoppingList.length && !isLoadingMealPlannerShoppingList) {
+      loadMealPlannerShoppingList();
+    }
+  };
+
+  const handleShopMealPlannerWithFern = async () => {
+    const allItems = mealPlannerShoppingList.flatMap((group) => group.items);
+    if (!allItems.length) {
+      Alert.alert(t('no_items'), t('no_items_desc'));
+      return;
+    }
+
+    setIsSavingMealPlannerShoppingList(true);
+    try {
+      const existingItems = Array.isArray(data.shopping) ? data.shopping : [];
+      const syntheticRecipe = { id: 'meal-planner-week', title: 'Meal Plan', ingredients: allItems };
+      await addRecipeIngredientsToShoppingList(syntheticRecipe, existingItems);
+
+      await pushAllFromStorage();
+      await pull();
+
+      setIsMealPlannerOpen(false);
+      setSelectedMealPlannerMeal(null);
+      navigation.navigate('Shopping');
+    } catch (e) {
+      console.log('[meal-planner] shop with fern failed', e?.message || e);
+      Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));
+    } finally {
+      setIsSavingMealPlannerShoppingList(false);
+    }
+  };
+
   const toggleDismissSuggestion = async (id) => {
     const next = dismissedSuggestionIds.includes(id)
       ? dismissedSuggestionIds.filter((x) => x !== id)
@@ -1999,6 +2243,7 @@ export default function HomeScreen({ user }) {
                   'Fridge Challenge': openFridgeChallengeModal,
                   '20-Min Dinner': openQuickDinnerModal,
                   'Budget Planner': openBudgetPlannerModal,
+                  'AI Meal Planner': openMealPlannerModal,
                   'Semi-Homemade': openSemiHomemadeModal,
                 };
                 const onPress = toolHandlers[label];
@@ -2184,6 +2429,16 @@ export default function HomeScreen({ user }) {
         linkedCard={linkedLoyaltyCard}
         onLinkCard={handleLinkLoyaltyCard}
         onRelink={handleRelinkLoyaltyCard}
+        storeCards={storeLoyaltyCards}
+        isLoadingStoreCards={isLoadingStoreLoyaltyCards}
+        storeNameInput={storeCardNameInput}
+        setStoreNameInput={setStoreCardNameInput}
+        cardNumberInput={storeCardNumberInput}
+        setCardNumberInput={setStoreCardNumberInput}
+        isAddingStoreCard={isAddingStoreCard}
+        onAddStoreCard={handleAddStoreCard}
+        removingStoreName={removingStoreCardName}
+        onRemoveStoreCard={handleRemoveStoreCard}
       />
 
       <CouponDetailModal
@@ -2192,6 +2447,29 @@ export default function HomeScreen({ user }) {
         isInWallet={selectedCoupon ? walletCouponsLocal.some((item) => item.id === selectedCoupon.id) : false}
         onClose={closeCouponDetail}
         onToggleWallet={handleToggleCouponWallet}
+      />
+
+      <MealPlannerModal
+        visible={isMealPlannerOpen}
+        onClose={() => {
+          setIsMealPlannerOpen(false);
+          setSelectedMealPlannerMeal(null);
+        }}
+        isLoading={isLoadingMealPlanner}
+        isGenerating={isGeneratingMealPlan}
+        days={mealPlannerDays}
+        savedRecipesCount={(data.recipes || []).length}
+        onSelectMeal={handleSelectMealPlannerMeal}
+        onGenerate={handleGenerateMealPlan}
+        onOpenShoppingList={handleOpenMealPlannerShoppingList}
+        shoppingListGroups={mealPlannerShoppingList}
+        isLoadingShoppingList={isLoadingMealPlannerShoppingList}
+        onShopWithFern={handleShopMealPlannerWithFern}
+        isSavingShoppingList={isSavingMealPlannerShoppingList}
+        selectedMeal={selectedMealPlannerMeal}
+        onCloseMealDetail={() => setSelectedMealPlannerMeal(null)}
+        onSwapMeal={handleSwapMealPlannerMeal}
+        isSwapping={isSwappingMeal}
       />
 
       <AlexaSkillModal

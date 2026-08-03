@@ -4,6 +4,7 @@ import {
     KeyboardAvoidingView,
     Modal,
     Platform,
+    ScrollView,
     Text,
     TextInput,
     TouchableOpacity,
@@ -23,6 +24,16 @@ export default function LoyaltyCardModal({
     linkedCard,
     onLinkCard,
     onRelink,
+    storeCards,
+    isLoadingStoreCards,
+    storeNameInput,
+    setStoreNameInput,
+    cardNumberInput,
+    setCardNumberInput,
+    isAddingStoreCard,
+    onAddStoreCard,
+    removingStoreName,
+    onRemoveStoreCard,
 }) {
     const { t } = useLanguage();
 
@@ -49,7 +60,7 @@ export default function LoyaltyCardModal({
                         </TouchableOpacity>
                     </View>
 
-                    <View style={styles.content}>
+                    <ScrollView style={styles.content} contentContainerStyle={styles.contentInner} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                         {linkedCard ? (
                             <View>
                                 <View style={styles.successCard}>
@@ -120,7 +131,70 @@ export default function LoyaltyCardModal({
                                 </View>
                             </View>
                         )}
-                    </View>
+
+                        <View style={styles.divider} />
+
+                        <Text style={styles.storeCardsTitle}>{t('loyalty_store_cards_title')}</Text>
+
+                        {isLoadingStoreCards ? (
+                            <ActivityIndicator color={colors.forest} style={styles.storeCardsLoading} />
+                        ) : storeCards?.length ? (
+                            <View style={styles.storeCardsList}>
+                                {storeCards.map((card) => (
+                                    <View key={card.storeName} style={styles.storeCardRow}>
+                                        <Text style={styles.storeCardText}>{`${card.storeName} · ${card.cardNumber}`}</Text>
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            onPress={() => onRemoveStoreCard(card.storeName)}
+                                            disabled={removingStoreName === card.storeName}
+                                        >
+                                            {removingStoreName === card.storeName ? (
+                                                <ActivityIndicator color="#B3261E" size="small" />
+                                            ) : (
+                                                <Text style={styles.removeCardText}>{t('loyalty_store_card_remove_btn')}</Text>
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <Text style={styles.storeCardsEmpty}>{t('loyalty_store_cards_empty')}</Text>
+                        )}
+
+                        <TextInput
+                            value={storeNameInput}
+                            onChangeText={setStoreNameInput}
+                            placeholder={t('loyalty_store_name_placeholder')}
+                            placeholderTextColor="#9A8D7F"
+                            style={[styles.input, styles.storeCardInput]}
+                            editable={!isAddingStoreCard}
+                        />
+
+                        <View style={styles.addCardRow}>
+                            <TextInput
+                                value={cardNumberInput}
+                                onChangeText={setCardNumberInput}
+                                placeholder={t('loyalty_card_number_placeholder')}
+                                placeholderTextColor="#9A8D7F"
+                                keyboardType="number-pad"
+                                style={[styles.input, styles.cardNumberInput]}
+                                editable={!isAddingStoreCard}
+                            />
+
+                            <TouchableOpacity
+                                style={[styles.addCardBtn, isAddingStoreCard ? styles.linkBtnDisabled : null]}
+                                activeOpacity={0.85}
+                                onPress={onAddStoreCard}
+                                disabled={isAddingStoreCard}
+                            >
+                                {isAddingStoreCard ? (
+                                    <ActivityIndicator color="#F1F7F1" />
+                                ) : (
+                                    <Text style={styles.addCardBtnText}>{t('loyalty_store_card_add_btn')}</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </ScrollView>
                 </View>
             </KeyboardAvoidingView>
         </Modal>
@@ -187,7 +261,10 @@ const styles = StyleSheet.create({
     },
     content: {
         paddingHorizontal: 18,
+    },
+    contentInner: {
         paddingTop: 20,
+        paddingBottom: 24,
     },
     instructions: {
         color: '#6B5A47',
@@ -325,6 +402,72 @@ const styles = StyleSheet.create({
         paddingVertical: 15,
     },
     primaryBtnText: {
+        color: '#F1F7F1',
+        fontFamily: 'Jost-Bold',
+        fontSize: 13,
+    },
+    divider: {
+        marginTop: 22,
+        marginBottom: 18,
+        height: 1,
+        backgroundColor: '#E0D4C4',
+    },
+    storeCardsTitle: {
+        color: '#2A1A11',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+        marginBottom: 10,
+    },
+    storeCardsLoading: {
+        marginBottom: 10,
+    },
+    storeCardsEmpty: {
+        color: '#9B7E5F',
+        fontFamily: 'Jost-Medium',
+        fontSize: 13,
+        marginBottom: 14,
+    },
+    storeCardsList: {
+        marginBottom: 14,
+    },
+    storeCardRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderRadius: 12,
+        backgroundColor: '#F2ECE0',
+        paddingHorizontal: 14,
+        paddingVertical: 12,
+        marginBottom: 8,
+    },
+    storeCardText: {
+        color: '#2A1A11',
+        fontFamily: 'Jost-Bold',
+        fontSize: 13,
+    },
+    removeCardText: {
+        color: '#B3261E',
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+    },
+    storeCardInput: {
+        marginBottom: 10,
+    },
+    addCardRow: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    cardNumberInput: {
+        flex: 1,
+    },
+    addCardBtn: {
+        borderRadius: 12,
+        backgroundColor: colors.forest,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 18,
+    },
+    addCardBtnText: {
         color: '#F1F7F1',
         fontFamily: 'Jost-Bold',
         fontSize: 13,

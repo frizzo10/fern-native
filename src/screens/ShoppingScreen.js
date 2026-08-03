@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
+  Linking,
   Share,
   ScrollView,
   StyleSheet,
@@ -15,6 +17,8 @@ import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
+import { sendListToInstacart, sendListToKroger, sendListToAlbertsons } from '../services/storeShoppingListService';
+import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 
 const QUICK_ADD_ITEMS = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Butter', 'Pasta'];
 const FERN_STARTER_ITEMS = ['Olive oil', 'Garlic', 'Onion', 'Chicken', 'Rice'];
@@ -58,6 +62,8 @@ export default function ShoppingScreen({ user }) {
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [sendingToStore, setSendingToStore] = useState(null);
+  const [remainingItemsModal, setRemainingItemsModal] = useState(null);
 
   useEffect(() => {
     maybeAutoStart('shopping');
@@ -179,6 +185,38 @@ export default function ShoppingScreen({ user }) {
     }
   };
 
+  // Instacart takes the whole list at once. Kroger/Albertsons only support a
+  // single-item search deep link — that opens for the first item, and
+  // whatever's left comes back as `remainingItems` for the copy/paste modal.
+  const handleSendToStore = async (storeKey) => {
+    const listItems = items.map((item) => item.text).filter(Boolean);
+    if (!listItems.length) {
+      Alert.alert(t('store_list_empty'));
+      return;
+    }
+
+    setSendingToStore(storeKey);
+    try {
+      if (storeKey === 'instacart') {
+        const { url } = await sendListToInstacart({ items: listItems, title: t('share_list_header') });
+        if (url) Linking.openURL(url);
+      } else if (storeKey === 'kroger') {
+        const { url, remainingItems } = await sendListToKroger({ items: listItems, title: t('share_list_header') });
+        if (url) Linking.openURL(url);
+        if (remainingItems.length) setRemainingItemsModal({ storeName: t('kroger_btn_label'), items: remainingItems });
+      } else if (storeKey === 'safeway') {
+        const { url, remainingItems } = await sendListToAlbertsons({ items: listItems, title: t('share_list_header') });
+        if (url) Linking.openURL(url);
+        if (remainingItems.length) setRemainingItemsModal({ storeName: t('safeway_btn_label'), items: remainingItems });
+      }
+    } catch (e) {
+      console.log(`[shopping] send to ${storeKey} failed`, e?.message || e);
+      Alert.alert(t('store_list_send_failed_title'), t('store_list_send_failed_desc'));
+    } finally {
+      setSendingToStore(null);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -192,6 +230,48 @@ export default function ShoppingScreen({ user }) {
               <Text style={styles.clipBtnText}>📋</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        <Text style={styles.sendToStoreLabel}>{t('send_to_store_label')}</Text>
+        <View style={styles.storeRow}>
+          <TouchableOpacity
+            style={[styles.storeBtn, styles.instacartBtn]}
+            activeOpacity={0.88}
+            onPress={() => handleSendToStore('instacart')}
+            disabled={Boolean(sendingToStore)}
+          >
+            {sendingToStore === 'instacart' ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.storeBtnText}>{`🥕 ${t('instacart_btn_label')}`}</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.storeBtn, styles.krogerBtn]}
+            activeOpacity={0.88}
+            onPress={() => handleSendToStore('kroger')}
+            disabled={Boolean(sendingToStore)}
+          >
+            {sendingToStore === 'kroger' ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.storeBtnText}>{`🛒 ${t('kroger_btn_label')}`}</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.storeBtn, styles.safewayBtn]}
+            activeOpacity={0.88}
+            onPress={() => handleSendToStore('safeway')}
+            disabled={Boolean(sendingToStore)}
+          >
+            {sendingToStore === 'safeway' ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.storeBtnText}>{t('safeway_btn_label')}</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={[styles.voiceCard, shadow.card]} activeOpacity={0.92}>
@@ -290,6 +370,13 @@ export default function ShoppingScreen({ user }) {
           </View>
         )}
       </ScrollView>
+
+      <StoreRemainingItemsModal
+        visible={Boolean(remainingItemsModal)}
+        storeName={remainingItemsModal?.storeName}
+        items={remainingItemsModal?.items}
+        onClose={() => setRemainingItemsModal(null)}
+      />
     </View>
   );
 }
@@ -349,6 +436,42 @@ const styles = StyleSheet.create({
   },
   clipBtnText: {
     fontSize: 12,
+  },
+  sendToStoreLabel: {
+    marginTop: 18,
+    color: colors.brown,
+    fontSize: 12,
+    lineHeight: 15,
+    letterSpacing: 1.2,
+    fontFamily: 'Jost-Bold',
+  },
+  storeRow: {
+    marginTop: 10,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  storeBtn: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  instacartBtn: {
+    backgroundColor: '#1F8A3B',
+  },
+  krogerBtn: {
+    backgroundColor: '#003DA5',
+  },
+  safewayBtn: {
+    backgroundColor: '#D9291C',
+  },
+  storeBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontFamily: 'Jost-Bold',
+    textAlign: 'center',
   },
   voiceCard: {
     backgroundColor: colors.forest,
