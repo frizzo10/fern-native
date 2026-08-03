@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 function normalizeDifficulty(value) {
     const raw = String(value || '').trim().toLowerCase();
     if (raw.includes('easy')) return 'Easy';
@@ -99,6 +101,8 @@ export async function fetchLeftoverRecipes({ ingredients, photos, locale, token 
     }
 
     const responseJson = await res.json();
+    logApiResponse('leftover-magic (ai)', responseJson);
+
     const responseText =
         responseJson?.content?.find((part) => part?.type === 'text')?.text ||
         responseJson?.message ||
@@ -112,6 +116,10 @@ export async function fetchLeftoverRecipes({ ingredients, photos, locale, token 
     const recipes = Array.isArray(parsed?.recipes)
         ? parsed.recipes.map((recipe, index) => normalizeRecipe(recipe, index))
         : [];
+
+    if (!recipes.length) {
+        console.log('[api] leftover-magic (ai) → parsed to 0 recipes; responseText was:', responseText);
+    }
 
     recipes.sort((a, b) => getDifficultyRank(a.difficulty) - getDifficultyRank(b.difficulty));
 

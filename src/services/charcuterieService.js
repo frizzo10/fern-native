@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 function normalizeBoardItem(item, index, fallbackPrefix = 'Item') {
     const fallbackName = `${fallbackPrefix} ${index + 1}`;
     return {
@@ -98,6 +100,8 @@ export async function fetchCharcuterieBoard({ occasion, boardType, people, budge
     }
 
     const responseJson = await res.json();
+    logApiResponse('charcuterie-board', responseJson);
+
     const board = normalizeCharcuterieBoard(responseJson);
 
     return { payload, responseJson, board };

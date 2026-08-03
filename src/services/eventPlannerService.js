@@ -1,4 +1,5 @@
 import { fetchRecipeImage } from '../utils/recipeImage';
+import { logApiResponse } from '../utils/apiLogger';
 
 const EVENT_PLANNER_URL = 'https://app.clickpickandcook.com/.netlify/functions/event-planner';
 const API_HEADERS = {
@@ -29,10 +30,10 @@ export async function generateEventPlan(userId, locale, intake, token) {
     }
 
     const result = await response.json();
-    console.log('[eventPlanner] API response:', JSON.stringify(result, null, 2));
+    // Full plan is large (timeline/menu/shoppingList) — truncated so it doesn't flood the console.
+    logApiResponse('event-planner', result);
 
     const normalized = normalizePlanResult(result.plan);
-    console.log('[eventPlanner] Normalized result:', JSON.stringify(normalized, null, 2));
 
     // Fetch images for all recipes
     await fetchImagesForPlan(normalized, token);

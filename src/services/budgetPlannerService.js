@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 const BUDGET_PLANNER_URL = 'https://app.clickpickandcook.com/.netlify/functions/budget-meal-planner';
 
 function normalizeDinner(dinner, index) {
@@ -66,6 +68,8 @@ export async function fetchBudgetMealPlan({ weeklyBudget, people, dietary, deals
     }
 
     const json = await res.json();
+    logApiResponse('budget-meal-planner', json);
+
     const dinners = Array.isArray(json?.dinners) ? json.dinners.map(normalizeDinner) : [];
 
     return {

@@ -33,6 +33,8 @@ export function useSync(user) {
     followers: [],
     userProfile: {},
     userStores: [],
+    availableCoupons: [],
+    walletCoupons: [],
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -67,6 +69,8 @@ export function useSync(user) {
         followers: dd.followed_bloggers || [],
         userProfile: dd.remi_explicit || {},
         userStores: dd.user_stores || [],
+        availableCoupons: dd.available_coupons || [],
+        walletCoupons: dd.wallet_coupons || [],
       };
 
       setData(next);
@@ -81,6 +85,9 @@ export function useSync(user) {
       await AsyncStorage.setItem('remi_explicit', JSON.stringify(dd.remi_explicit || {}));
       await AsyncStorage.setItem('cpc_followed_bloggers', JSON.stringify(dd.followed_bloggers || []));
       await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(dd.user_stores || []));
+      // available_coupons is a server-owned catalog, refreshed from every pull — not part of push
+      await AsyncStorage.setItem('rv4_available_coupons', JSON.stringify(dd.available_coupons || []));
+      await AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(dd.wallet_coupons || []));
 
       if (hadCorruption) {
         console.log('[sync] Pushing fixed emoji back to backend');
@@ -99,6 +106,7 @@ export function useSync(user) {
               remi_explicit: dd.remi_explicit || {},
               followed_bloggers: dd.followed_bloggers || [],
               user_stores: dd.user_stores || [],
+              wallet_coupons: dd.wallet_coupons || [],
             },
           }),
         });
@@ -146,6 +154,7 @@ export function useSync(user) {
       const remiExplicit = JSON.parse(await AsyncStorage.getItem('remi_explicit') || '{}');
       const followedBloggers = JSON.parse(await AsyncStorage.getItem('cpc_followed_bloggers') || '[]');
       const userStores = JSON.parse(await AsyncStorage.getItem('cpc_user_stores') || '[]');
+      const walletCoupons = JSON.parse(await AsyncStorage.getItem('rv4_wallet_coupons') || '[]');
 
       const dataToPush = {
         saved,
@@ -155,6 +164,7 @@ export function useSync(user) {
         remi_explicit: remiExplicit,
         followed_bloggers: followedBloggers,
         user_stores: userStores,
+        wallet_coupons: walletCoupons,
         ...changedData,
       };
 

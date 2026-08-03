@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 export function normalizeWinePairing(item, index) {
   const name = item?.name || item?.title || item?.wine || item?.beverage || `Pairing ${index + 1}`;
   const region = item?.region || item?.origin || item?.location || '';
@@ -37,6 +39,8 @@ export async function fetchWinePairings({ userId, dish, locale, token }) {
   });
 
   const responseJson = await res.json();
+  logApiResponse('recipe-tools (wine_pairing)', responseJson);
+
   const summary = responseJson?.summary || responseJson?.guidance || responseJson?.message || responseJson?.reply || '';
   const rawPairings = responseJson?.pairings || responseJson?.recommendations || responseJson?.results || responseJson?.wines || [];
   const pairings = Array.isArray(rawPairings)

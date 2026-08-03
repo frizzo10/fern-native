@@ -45,8 +45,13 @@ import BudgetPlannerModal from '../components/modals/BudgetPlannerModal';
 import NutritionTrackerModal from '../components/modals/NutritionTrackerModal';
 import TwentyMinDinnerModal from '../components/modals/TwentyMinDinnerModal';
 import SemiHomemadeModal from '../components/modals/SemiHomemadeModal';
+import LoyaltyCardModal from '../components/modals/LoyaltyCardModal';
+import { matchLoyaltyCard } from '../services/loyaltyService';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import SuggestedRecipesScreen from '../components/SuggestedRecipesScreen';
+import CouponWalletScreen from '../components/CouponWalletScreen';
+import CouponDetailModal from '../components/modals/CouponDetailModal';
+import { normalizeCoupons } from '../utils/couponNormalize';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
 import { useAccountModal } from '../services/AccountModalContext';
@@ -57,6 +62,7 @@ import { TIERS } from '../constants/tiers';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
 const DISMISSED_SUGGESTIONS_KEY = 'fern_dismissed_suggestions';
+const LOYALTY_CARD_KEY = 'rv4_loyalty_card';
 
 function todayKey() {
   const d = new Date();
@@ -196,14 +202,22 @@ export default function HomeScreen({ user }) {
   const [semiHomemadeResult, setSemiHomemadeResult] = useState(null);
   const [isSavingSemiHomemadeRecipe, setIsSavingSemiHomemadeRecipe] = useState(false);
   const [isSemiHomemadeRecipeSaved, setIsSemiHomemadeRecipeSaved] = useState(false);
+  const [isLoyaltyModalOpen, setIsLoyaltyModalOpen] = useState(false);
+  const [loyaltyPhoneInput, setLoyaltyPhoneInput] = useState('');
+  const [isLinkingLoyaltyCard, setIsLinkingLoyaltyCard] = useState(false);
+  const [loyaltyCardError, setLoyaltyCardError] = useState('');
+  const [linkedLoyaltyCard, setLinkedLoyaltyCard] = useState(null);
   const [isSuggestedRecipesOpen, setIsSuggestedRecipesOpen] = useState(false);
+  const [isCouponWalletOpen, setIsCouponWalletOpen] = useState(false);
+  const [selectedCoupon, setSelectedCoupon] = useState(null);
+  const [walletCouponsLocal, setWalletCouponsLocal] = useState([]);
   const [suggestedGroups, setSuggestedGroups] = useState([]);
   const [isLoadingSuggestedRecipes, setIsLoadingSuggestedRecipes] = useState(false);
   const [suggestedUpdatedAt, setSuggestedUpdatedAt] = useState(null);
   const [suggestedFilter, setSuggestedFilter] = useState('all');
   const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState([]);
   const [quickSuggestions, setQuickSuggestions] = useState([]);
-  const { data, loading, pull, pushAllFromStorage } = useSync(user);
+  const { data, loading, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
 
   const leftover = useAiRecipeCollection({ source: 'leftover', data, pushAllFromStorage, pull, t, token: user?.token });
   const fridgeChallenge = useAiRecipeCollection({ source: 'fridge', data, pushAllFromStorage, pull, t, token: user?.token });
@@ -230,6 +244,15 @@ export default function HomeScreen({ user }) {
       try {
         const parsed = JSON.parse(raw || '[]');
         if (Array.isArray(parsed)) setDismissedSuggestionIds(parsed);
+      } catch { }
+    });
+  }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem(LOYALTY_CARD_KEY).then((raw) => {
+      try {
+        const parsed = JSON.parse(raw || 'null');
+        if (parsed) setLinkedLoyaltyCard(parsed);
       } catch { }
     });
   }, []);
@@ -311,11 +334,9 @@ export default function HomeScreen({ user }) {
   const shoppingCount = (data.shopping || []).length;
   const recipesCount = (data.recipes || []).length;
   const booksCount = (data.books || []).length;
-  const mealsPlannedCount = Object.entries(data.mealPlan || {}).filter(([key, value]) => {
-    if (key.startsWith('_')) return false;
-    if (!Array.isArray(value)) return false;
-    return value.length > 0;
-  }).length;
+  const availableCoupons = normalizeCoupons(data.availableCoupons);
+  const walletCoupons = normalizeCoupons(data.walletCoupons);
+  const couponsCount = walletCouponsLocal.length;
   const followersCount = (data.followers || []).length;
   const rawStores =
     data.userStores ||
@@ -332,6 +353,11 @@ export default function HomeScreen({ user }) {
   useEffect(() => {
     setUserStoresLocal(userStores);
   }, [userStores]);
+
+  useEffect(() => {
+    setWalletCouponsLocal(walletCoupons);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.walletCoupons]);
 
   const handleDeleteStore = async (indexToDelete) => {
     const nextStores = userStoresLocal.filter((_, index) => index !== indexToDelete);
@@ -798,6 +824,43 @@ export default function HomeScreen({ user }) {
     closeSemiHomemadeModal();
     if (!isListening) {
       start();
+    }
+  };
+
+  const openLoyaltyModal = () => {
+    setLoyaltyPhoneInput('');
+    setLoyaltyCardError('');
+    setIsLoyaltyModalOpen(true);
+  };
+
+  const closeLoyaltyModal = () => {
+    setIsLoyaltyModalOpen(false);
+    setLoyaltyCardError('');
+  };
+
+  const handleRelinkLoyaltyCard = () => {
+    setLinkedLoyaltyCard(null);
+    setLoyaltyPhoneInput('');
+    setLoyaltyCardError('');
+  };
+
+  const handleLinkLoyaltyCard = async () => {
+    if (!loyaltyPhoneInput.trim()) {
+      setLoyaltyCardError(t('loyalty_modal_phone_required'));
+      return;
+    }
+
+    setIsLinkingLoyaltyCard(true);
+    setLoyaltyCardError('');
+    try {
+      const result = await matchLoyaltyCard({ phone: loyaltyPhoneInput });
+      const record = { ...result, linkedAt: Date.now() };
+      setLinkedLoyaltyCard(record);
+      await AsyncStorage.setItem(LOYALTY_CARD_KEY, JSON.stringify(record));
+    } catch (e) {
+      setLoyaltyCardError(t('loyalty_modal_link_error'));
+    } finally {
+      setIsLinkingLoyaltyCard(false);
     }
   };
 
@@ -1424,6 +1487,53 @@ export default function HomeScreen({ user }) {
     suggestedRecipes.viewRecipe({ ...entry.recipe, image: entry.image }, {});
   };
 
+  const openCouponWallet = () => {
+    setIsCouponWalletOpen(true);
+  };
+
+  const openCouponDetail = (coupon) => {
+    setSelectedCoupon(coupon);
+  };
+
+  const closeCouponDetail = () => {
+    setSelectedCoupon(null);
+  };
+
+  // Updates local state first so the UI reacts instantly, then persists/pushes
+  // in the background — waiting on the sync round-trip before updating made
+  // "+ Add" feel slow, and a fresh pull() isn't needed since we already know
+  // the resulting list.
+  const addCouponToWallet = (coupon) => {
+    if (!coupon || walletCouponsLocal.some((item) => item.id === coupon.id)) return;
+
+    const nextWallet = [...walletCouponsLocal, coupon];
+    setWalletCouponsLocal(nextWallet);
+
+    AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(nextWallet))
+      .then(() => pushChangedFromStorage({ wallet_coupons: nextWallet }))
+      .catch((e) => console.log('[coupons] failed to save wallet coupon', e?.message || e));
+  };
+
+  const removeCouponFromWallet = (coupon) => {
+    if (!coupon) return;
+
+    const nextWallet = walletCouponsLocal.filter((item) => item.id !== coupon.id);
+    setWalletCouponsLocal(nextWallet);
+
+    AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(nextWallet))
+      .then(() => pushChangedFromStorage({ wallet_coupons: nextWallet }))
+      .catch((e) => console.log('[coupons] failed to remove wallet coupon', e?.message || e));
+  };
+
+  const handleToggleCouponWallet = (coupon) => {
+    const isInWallet = walletCouponsLocal.some((item) => item.id === coupon.id);
+    if (isInWallet) {
+      removeCouponFromWallet(coupon);
+    } else {
+      addCouponToWallet(coupon);
+    }
+  };
+
   const toggleDismissSuggestion = async (id) => {
     const next = dismissedSuggestionIds.includes(id)
       ? dismissedSuggestionIds.filter((x) => x !== id)
@@ -1601,7 +1711,15 @@ export default function HomeScreen({ user }) {
         style={styles.screenScroll}
         contentContainerStyle={styles.screenContent}>
 
-        {isSuggestedRecipesOpen ? (
+        {isCouponWalletOpen ? (
+          <CouponWalletScreen
+            onBack={() => setIsCouponWalletOpen(false)}
+            availableCoupons={availableCoupons}
+            walletCoupons={walletCouponsLocal}
+            onAddToWallet={addCouponToWallet}
+            onViewCoupon={openCouponDetail}
+          />
+        ) : isSuggestedRecipesOpen ? (
           <SuggestedRecipesScreen
             groups={suggestedGroups}
             isLoading={isLoadingSuggestedRecipes}
@@ -1617,290 +1735,294 @@ export default function HomeScreen({ user }) {
           />
         ) : (
           <>
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>{getGreeting(t)}, {"\n"}{userName}</Text>
-            <Text style={styles.subheading}>{t('food_life_glance')}</Text>
-          </View>
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.greeting}>{getGreeting(t)}, {"\n"}{userName}</Text>
+                <Text style={styles.subheading}>{t('food_life_glance')}</Text>
+              </View>
 
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.proBadge} activeOpacity={0.85} onPress={openPlans}>
-              <Text style={styles.proBadgeText}>{tierBadgeLabel}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconBadge}
-              activeOpacity={0.85}
-              onPress={openAccount}
-            >
-              <Text style={styles.iconBadgeText}>👤</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.langBadge}
-              activeOpacity={0.85}
-              onPress={() => setIsLanguageModalOpen(true)}
-            >
-              <Text style={styles.langBadgeText}>🌍 {locale.toUpperCase()}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+              <View style={styles.headerActions}>
+                <TouchableOpacity style={styles.proBadge} activeOpacity={0.85} onPress={openPlans}>
+                  <Text style={styles.proBadgeText}>{tierBadgeLabel}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iconBadge}
+                  activeOpacity={0.85}
+                  onPress={openAccount}
+                >
+                  <Text style={styles.iconBadgeText}>👤</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.langBadge}
+                  activeOpacity={0.85}
+                  onPress={() => setIsLanguageModalOpen(true)}
+                >
+                  <Text style={styles.langBadgeText}>🌍 {locale.toUpperCase()}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-        {loading ? (
-          <View style={styles.loadingRow}>
-            <ActivityIndicator color={colors.forest} />
-            <Text style={styles.loadingText}>{t('syncing_data')}</Text>
-          </View>
-        ) : null}
+            {loading ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator color={colors.forest} />
+                <Text style={styles.loadingText}>{t('syncing_data')}</Text>
+              </View>
+            ) : null}
 
-        {lastTranscript ? (
-          <View style={styles.voiceBar}>
-            <Text style={styles.voiceTranscript}>{t('you')}: {lastTranscript}</Text>
-            {fernReply ? <Text style={styles.voiceReply}>{t('fern')}: {fernReply}</Text> : null}
-          </View>
-        ) : null}
+            {lastTranscript ? (
+              <View style={styles.voiceBar}>
+                <Text style={styles.voiceTranscript}>{t('you')}: {lastTranscript}</Text>
+                {fernReply ? <Text style={styles.voiceReply}>{t('fern')}: {fernReply}</Text> : null}
+              </View>
+            ) : null}
 
-        <View style={styles.mainCardRow}>
-          {[
-            { label: 'Alexa Skill', val: '🔊', color: 'rgb(30, 57, 30)' },
-            { label: 'Charcuterie', val: '🧀', color: 'rgb(56, 89, 45)' },
-            { label: 'Dinner Party', val: `🎉`, color: 'rgb(216, 109, 51)' },
-            { label: 'Wine Pairing', val: '🍷', color: 'rgb(30, 57, 30)' },
-            { label: 'Personal Shopper', val: '🛒', color: 'rgb(56, 89, 45)' },
-            { label: 'Weekly Nutrition', val: '🥗', color: 'rgb(216, 109, 51)' },
-          ].map(({ label, val, color }) => (
-            <TouchableOpacity
-              key={label}
-              activeOpacity={0.88}
-              onPress={
-                label === 'Alexa Skill'
-                  ? () => setIsAlexaModalOpen(true)
-                  : label === 'Charcuterie'
-                    ? () => setIsCharcuterieModalOpen(true)
-                    : label === 'Dinner Party'
-                      ? () => setIsEventPlannerOpen(true)
-                      : label === 'Wine Pairing'
-                        ? () => setIsWineModalOpen(true)
-                        : label === 'Personal Shopper'
-                          ? () => navigation.navigate('Shopping')
-                          : label === 'Weekly Nutrition'
-                            ? () => setIsNutritionTrackerOpen(true)
-                            : undefined
-              }
-              style={[
-                styles.mainCard,
-                shadow.card,
-                { backgroundColor: color }
-              ]}
-            >
-              <Text style={styles.mainVal}>{val}</Text>
-              <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <View style={styles.statsRow}>
-          {[
-            { label: 'Recipes Saved', val: `${recipesCount}`, route: 'Recipes', params: { openTab: 'recipes' } },
-            { label: 'Cookbooks', val: `${booksCount}`, route: 'Recipes', params: { openTab: 'cookbooks', openSection: 'cookbooks' } },
-            { label: 'Bloggers Following', val: `${followersCount}`, color: 'rgb(216, 109, 51)', route: 'Find', params: { openBloggers: true } },
-            { label: 'Meals Planned', val: `${mealsPlannedCount}` },
-          ].map(({ label, val, color, route, params }) => {
-            const statKeysMap = {
-              'Recipes Saved': 'stat_recipes_saved',
-              'Cookbooks': 'stat_cookbooks',
-              'Bloggers Following': 'stat_bloggers',
-              'Meals Planned': 'stat_meals_planned'
-            };
-            return (
-              <TouchableOpacity
-                key={label}
-                activeOpacity={route ? 0.85 : 1}
-                disabled={!route}
-                onPress={route ? () => navigation.navigate(route, { ...params, requestKey: Date.now() }) : undefined}
-                style={[styles.statCard, shadow.card]}
-              >
-                <Text style={[styles.statVal, { color: color }]}>{val}</Text>
-                <Text style={styles.statLabel}>{t(statKeysMap[label] || label)}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <View style={styles.statsRow}>
-          <TouchableOpacity
-            activeOpacity={0.85}
-            style={[styles.statCard, styles.suggestedMealsCard, shadow.card]}
-            onPress={openSuggestedRecipes}
-          >
-            <Text style={styles.suggestedMealsText}>{t('suggested_meals_title')}</Text>
-          </TouchableOpacity>
-
-          <View style={[styles.statCard, shadow.card]}>
-            <Text style={styles.loyaltyCardTitle}>{t('loyalty_card_title')}</Text>
-            <Text style={styles.loyaltyCardIcon}>🛒</Text>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => Alert.alert(t('loyalty_card_title'), t('coming_soon'))}
-            >
-              <Text style={styles.loyaltyCardLink}>{t('link_card_btn')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={[styles.panelCard, shadow.card]}>
-          <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>{t('my_stores')}</Text>
-            <TouchableOpacity style={styles.smallActionBtn} activeOpacity={0.85} onPress={openAddStoreModal}>
-              <Text style={styles.smallActionBtnText}>{t('add_store_btn')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          {userStoresLocal.length ? (
-            <View style={styles.storeList}>
-              {userStoresLocal.map((store, index) => (
-                <View key={`${store.name || 'store'}-${index}`}>
-                  <View style={styles.storeRow}>
-                    <View style={styles.storeIconWrap}>
-                      <Text style={styles.storeIcon}>🏪</Text>
-                    </View>
-
-                    <View style={styles.storeInfo}>
-                      <Text numberOfLines={2} style={styles.storeName}>
-                        {store.name || t('store_fallback_label')}
-                      </Text>
-                      <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeAddress}>
-                        {store.address || t('address_unavailable_label')}
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity style={styles.scanCircularBtn} activeOpacity={0.85} onPress={openScanCircularModal}>
-                      <Text style={styles.scanCircularBtnText}>{t('scan_circular')}</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                      style={styles.storeDeleteBtn}
-                      activeOpacity={0.85}
-                      onPress={() => handleDeleteStore(index)}
-                    >
-                      <Text style={styles.storeDeleteBtnText}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {index < userStoresLocal.length - 1 ? <View style={styles.storeDivider} /> : null}
-                </View>
+            <View style={styles.mainCardRow}>
+              {[
+                { label: 'Alexa Skill', val: '🔊', color: 'rgb(30, 57, 30)' },
+                { label: 'Charcuterie', val: '🧀', color: 'rgb(56, 89, 45)' },
+                { label: 'Dinner Party', val: `🎉`, color: 'rgb(216, 109, 51)' },
+                { label: 'Wine Pairing', val: '🍷', color: 'rgb(30, 57, 30)' },
+                { label: 'Personal Shopper', val: '🛒', color: 'rgb(56, 89, 45)' },
+                { label: 'Weekly Nutrition', val: '🥗', color: 'rgb(216, 109, 51)' },
+              ].map(({ label, val, color }) => (
+                <TouchableOpacity
+                  key={label}
+                  activeOpacity={0.88}
+                  onPress={
+                    label === 'Alexa Skill'
+                      ? () => setIsAlexaModalOpen(true)
+                      : label === 'Charcuterie'
+                        ? () => setIsCharcuterieModalOpen(true)
+                        : label === 'Dinner Party'
+                          ? () => setIsEventPlannerOpen(true)
+                          : label === 'Wine Pairing'
+                            ? () => setIsWineModalOpen(true)
+                            : label === 'Personal Shopper'
+                              ? () => navigation.navigate('Shopping')
+                              : label === 'Weekly Nutrition'
+                                ? () => setIsNutritionTrackerOpen(true)
+                                : undefined
+                  }
+                  style={[
+                    styles.mainCard,
+                    shadow.card,
+                    { backgroundColor: color }
+                  ]}
+                >
+                  <Text style={styles.mainVal}>{val}</Text>
+                  <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
+                </TouchableOpacity>
               ))}
             </View>
-          ) : (
-            <Text style={styles.panelSubtleText}>{t('no_stores')}</Text>
-          )}
-        </View>
 
-        <View style={[styles.panelCard, shadow.card]}>
-          <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>{t('this_week')}</Text>
-            <TouchableOpacity activeOpacity={0.8}>
-              <Text style={styles.panelLink}>{t('plan_link')}</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.weekCircleRow}>
-            {weekDays.map((d) => (
-              <View key={`wk-${d.key}`} style={styles.weekCircleCol}>
-                <Text style={[styles.weekCircleLabel, d.isToday ? styles.weekCircleLabelToday : null]}>
-                  {d.day}
-                </Text>
-                <View style={[
-                  styles.weekCircle,
-                  d.isToday ? styles.weekCircleToday : null,
-                  d.meals.dinner ? styles.weekCircleFilled : null,
-                ]}>
-                  {d.meals.dinner ? (
-                    <Text style={styles.weekCircleEmoji}>{sanitizeEmoji(d.mealEmojis?.dinner)}</Text>
-                  ) : (
-                    <View style={styles.weekCircleInner} />
-                  )}
+            <View style={styles.statsRow}>
+              {[
+                { label: 'Recipes Saved', val: `${recipesCount}`, route: 'Recipes', params: { openTab: 'recipes' } },
+                { label: 'Cookbooks', val: `${booksCount}`, route: 'Recipes', params: { openTab: 'cookbooks', openSection: 'cookbooks' } },
+                { label: 'Bloggers Following', val: `${followersCount}`, color: 'rgb(216, 109, 51)', route: 'Find', params: { openBloggers: true } },
+                { label: 'Coupons', val: `${couponsCount}`, onPress: openCouponWallet },
+              ].map(({ label, val, color, route, params, onPress }) => {
+                const statKeysMap = {
+                  'Recipes Saved': 'stat_recipes_saved',
+                  'Cookbooks': 'stat_cookbooks',
+                  'Bloggers Following': 'stat_bloggers',
+                  'Coupons': 'stat_coupons'
+                };
+                const handlePress = onPress || (route ? () => navigation.navigate(route, { ...params, requestKey: Date.now() }) : undefined);
+                return (
+                  <TouchableOpacity
+                    key={label}
+                    activeOpacity={handlePress ? 0.85 : 1}
+                    disabled={!handlePress}
+                    onPress={handlePress}
+                    style={[styles.statCard, shadow.card]}
+                  >
+                    <Text style={[styles.statVal, { color: color }]}>{val}</Text>
+                    <Text style={styles.statLabel}>{t(statKeysMap[label] || label)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={styles.statsRow}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.statCard, styles.suggestedMealsCard, shadow.card]}
+                onPress={openSuggestedRecipes}
+              >
+                <Text style={styles.suggestedMealsText}>{t('suggested_meals_title')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={[styles.statCard, shadow.card]}
+                onPress={openLoyaltyModal}
+              >
+                <Text style={styles.loyaltyCardTitle}>{t('loyalty_card_title')}</Text>
+                <Text style={[styles.loyaltyCardIcon, linkedLoyaltyCard ? styles.loyaltyCardIconLinked : null]}>🛒</Text>
+                {linkedLoyaltyCard ? (
+                  <Text style={styles.loyaltyCardLinkedBadge}>{t('loyalty_card_linked_badge')}</Text>
+                ) : (
+                  <Text style={styles.loyaltyCardLink}>{t('link_card_btn')}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.panelCard, shadow.card]}>
+              <View style={styles.panelHeaderRow}>
+                <Text style={styles.panelTitle}>{t('my_stores')}</Text>
+                <TouchableOpacity style={styles.smallActionBtn} activeOpacity={0.85} onPress={openAddStoreModal}>
+                  <Text style={styles.smallActionBtnText}>{t('add_store_btn')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              {userStoresLocal.length ? (
+                <View style={styles.storeList}>
+                  {userStoresLocal.map((store, index) => (
+                    <View key={`${store.name || 'store'}-${index}`}>
+                      <View style={styles.storeRow}>
+                        <View style={styles.storeIconWrap}>
+                          <Text style={styles.storeIcon}>🏪</Text>
+                        </View>
+
+                        <View style={styles.storeInfo}>
+                          <Text numberOfLines={2} style={styles.storeName}>
+                            {store.name || t('store_fallback_label')}
+                          </Text>
+                          <Text numberOfLines={1} ellipsizeMode="tail" style={styles.storeAddress}>
+                            {store.address || t('address_unavailable_label')}
+                          </Text>
+                        </View>
+
+                        <TouchableOpacity style={styles.scanCircularBtn} activeOpacity={0.85} onPress={openScanCircularModal}>
+                          <Text style={styles.scanCircularBtnText}>{t('scan_circular')}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.storeDeleteBtn}
+                          activeOpacity={0.85}
+                          onPress={() => handleDeleteStore(index)}
+                        >
+                          <Text style={styles.storeDeleteBtnText}>✕</Text>
+                        </TouchableOpacity>
+                      </View>
+
+                      {index < userStoresLocal.length - 1 ? <View style={styles.storeDivider} /> : null}
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.panelSubtleText}>{t('no_stores')}</Text>
+              )}
+            </View>
+
+            <View style={[styles.panelCard, shadow.card]}>
+              <View style={styles.panelHeaderRow}>
+                <Text style={styles.panelTitle}>{t('this_week')}</Text>
+                <TouchableOpacity activeOpacity={0.8}>
+                  <Text style={styles.panelLink}>{t('plan_link')}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.weekCircleRow}>
+                {weekDays.map((d) => (
+                  <View key={`wk-${d.key}`} style={styles.weekCircleCol}>
+                    <Text style={[styles.weekCircleLabel, d.isToday ? styles.weekCircleLabelToday : null]}>
+                      {d.day}
+                    </Text>
+                    <View style={[
+                      styles.weekCircle,
+                      d.isToday ? styles.weekCircleToday : null,
+                      d.meals.dinner ? styles.weekCircleFilled : null,
+                    ]}>
+                      {d.meals.dinner ? (
+                        <Text style={styles.weekCircleEmoji}>{sanitizeEmoji(d.mealEmojis?.dinner)}</Text>
+                      ) : (
+                        <View style={styles.weekCircleInner} />
+                      )}
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={[styles.panelCard, shadow.card]}>
+              <View style={styles.panelHeaderRow}>
+                <Text style={styles.panelTitle}>{t('shopping_list_title')}</Text>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Shopping')}>
+                  <Text style={styles.panelLink}>{t('view_link')}</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.panelSubtleText}>
+                {shoppingCount
+                  ? (shoppingCount > 1
+                    ? t('items_waiting_plural', { count: shoppingCount })
+                    : t('items_waiting_singular', { count: shoppingCount }))
+                  : t('shopping_empty')}
+              </Text>
+            </View>
+
+            <View style={[styles.fernKnowledgeCard, shadow.card]}>
+              <View style={styles.fernKnowledgeHeader}>
+                <Text style={styles.fernKnowledgeTitle}>{t('fern_knows_title')}</Text>
+                <TouchableOpacity style={styles.fernEditBtn} activeOpacity={0.85}>
+                  <Text style={styles.fernEditText}>{t('edit_btn')}</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.fernKnowledgeRow}>
+                <View style={styles.fernKnowledgeItem}>
+                  <Text style={styles.fernKnowledgeLabel}>{t('dietary_label')}</Text>
+                  <Text style={styles.fernKnowledgeValue}>{dietary}</Text>
+                </View>
+
+                <View style={styles.fernKnowledgeItem}>
+                  <Text style={styles.fernKnowledgeLabel}>{t('name_label')}</Text>
+                  <Text style={styles.fernKnowledgeValue}>{userName}</Text>
                 </View>
               </View>
-            ))}
-          </View>
-        </View>
-
-        <View style={[styles.panelCard, shadow.card]}>
-          <View style={styles.panelHeaderRow}>
-            <Text style={styles.panelTitle}>{t('shopping_list_title')}</Text>
-            <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Shopping')}>
-              <Text style={styles.panelLink}>{t('view_link')}</Text>
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.panelSubtleText}>
-            {shoppingCount
-              ? (shoppingCount > 1
-                ? t('items_waiting_plural', { count: shoppingCount })
-                : t('items_waiting_singular', { count: shoppingCount }))
-              : t('shopping_empty')}
-          </Text>
-        </View>
-
-        <View style={[styles.fernKnowledgeCard, shadow.card]}>
-          <View style={styles.fernKnowledgeHeader}>
-            <Text style={styles.fernKnowledgeTitle}>{t('fern_knows_title')}</Text>
-            <TouchableOpacity style={styles.fernEditBtn} activeOpacity={0.85}>
-              <Text style={styles.fernEditText}>{t('edit_btn')}</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.fernKnowledgeRow}>
-            <View style={styles.fernKnowledgeItem}>
-              <Text style={styles.fernKnowledgeLabel}>{t('dietary_label')}</Text>
-              <Text style={styles.fernKnowledgeValue}>{dietary}</Text>
             </View>
 
-            <View style={styles.fernKnowledgeItem}>
-              <Text style={styles.fernKnowledgeLabel}>{t('name_label')}</Text>
-              <Text style={styles.fernKnowledgeValue}>{userName}</Text>
+            <Text style={styles.toolsHeading}>{t('tool_your_tools')}</Text>
+
+            <View style={styles.mainCardRow}>
+              {[
+                { label: 'Fridge Challenge', val: '🧊', color: 'rgb(30, 57, 30)' },
+                { label: 'Leftover Magic', val: '🧙‍♂️', color: 'rgb(56, 89, 45)' },
+                { label: '20-Min Dinner', val: '⚡', color: 'rgb(216, 109, 51)' },
+                { label: 'Budget Planner', val: '💰', color: 'rgb(30, 57, 30)' },
+                { label: 'AI Meal Planner', val: '🗓', color: 'rgb(56, 89, 45)' },
+                { label: 'Semi-Homemade', val: '🥫', color: 'rgb(30, 57, 30)' },
+                { label: 'Family Vault', val: '📖', color: 'rgb(216, 109, 51)' },
+              ].map(({ label, val, color }) => {
+                const toolHandlers = {
+                  'Leftover Magic': openLeftoverMagicModal,
+                  'Fridge Challenge': openFridgeChallengeModal,
+                  '20-Min Dinner': openQuickDinnerModal,
+                  'Budget Planner': openBudgetPlannerModal,
+                  'Semi-Homemade': openSemiHomemadeModal,
+                };
+                const onPress = toolHandlers[label];
+
+                return (
+                  <TouchableOpacity
+                    key={label}
+                    activeOpacity={onPress ? 0.88 : 1}
+                    disabled={!onPress}
+                    onPress={onPress}
+                    style={[
+                      styles.mainCard,
+                      shadow.card,
+                      { backgroundColor: color }
+                    ]}
+                  >
+                    <Text style={styles.mainVal}>{val}</Text>
+                    <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-          </View>
-        </View>
 
-        <Text style={styles.toolsHeading}>{t('tool_your_tools')}</Text>
-
-        <View style={styles.mainCardRow}>
-          {[
-            { label: 'Fridge Challenge', val: '🧊', color: 'rgb(30, 57, 30)' },
-            { label: 'Leftover Magic', val: '🧙‍♂️', color: 'rgb(56, 89, 45)' },
-            { label: '20-Min Dinner', val: '⚡', color: 'rgb(216, 109, 51)' },
-            { label: 'Budget Planner', val: '💰', color: 'rgb(30, 57, 30)' },
-            { label: 'AI Meal Planner', val: '🗓', color: 'rgb(56, 89, 45)' },
-            { label: 'Semi-Homemade', val: '🥫', color: 'rgb(30, 57, 30)' },
-            { label: 'Family Vault', val: '📖', color: 'rgb(216, 109, 51)' },
-          ].map(({ label, val, color }) => {
-            const toolHandlers = {
-              'Leftover Magic': openLeftoverMagicModal,
-              'Fridge Challenge': openFridgeChallengeModal,
-              '20-Min Dinner': openQuickDinnerModal,
-              'Budget Planner': openBudgetPlannerModal,
-              'Semi-Homemade': openSemiHomemadeModal,
-            };
-            const onPress = toolHandlers[label];
-
-            return (
-              <TouchableOpacity
-                key={label}
-                activeOpacity={onPress ? 0.88 : 1}
-                disabled={!onPress}
-                onPress={onPress}
-                style={[
-                  styles.mainCard,
-                  shadow.card,
-                  { backgroundColor: color }
-                ]}
-              >
-                <Text style={styles.mainVal}>{val}</Text>
-                <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        <View style={styles.bottomSpacer} />
+            <View style={styles.bottomSpacer} />
           </>
         )}
 
@@ -2050,6 +2172,26 @@ export default function HomeScreen({ user }) {
         onSaveRecipe={handleSaveSemiHomemadeRecipe}
         isAddingToList={semiHomemade.isSaving}
         onAddToList={handleAddSemiHomemadeToList}
+      />
+
+      <LoyaltyCardModal
+        visible={isLoyaltyModalOpen}
+        onClose={closeLoyaltyModal}
+        phoneInput={loyaltyPhoneInput}
+        setPhoneInput={setLoyaltyPhoneInput}
+        isLinking={isLinkingLoyaltyCard}
+        error={loyaltyCardError}
+        linkedCard={linkedLoyaltyCard}
+        onLinkCard={handleLinkLoyaltyCard}
+        onRelink={handleRelinkLoyaltyCard}
+      />
+
+      <CouponDetailModal
+        visible={Boolean(selectedCoupon)}
+        coupon={selectedCoupon}
+        isInWallet={selectedCoupon ? walletCouponsLocal.some((item) => item.id === selectedCoupon.id) : false}
+        onClose={closeCouponDetail}
+        onToggleWallet={handleToggleCouponWallet}
       />
 
       <AlexaSkillModal
@@ -2706,8 +2848,8 @@ const styles = StyleSheet.create({
   },
 
   suggestedMealsText: {
-    fontSize: 18,
-    fontFamily: 'Playfair-Medium',
+    fontSize: 13,
+    fontFamily: 'Jost-Bold',
     color: 'rgb(56, 89, 45)',
     textAlign: 'center',
   },
@@ -2726,10 +2868,21 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 
+  loyaltyCardIconLinked: {
+    opacity: 1,
+  },
+
   loyaltyCardLink: {
     fontSize: 13,
     fontFamily: 'Jost-Bold',
     color: 'rgb(216, 109, 51)',
+    textAlign: 'center',
+  },
+
+  loyaltyCardLinkedBadge: {
+    fontSize: 13,
+    fontFamily: 'Jost-Bold',
+    color: 'rgb(56, 89, 45)',
     textAlign: 'center',
   },
 

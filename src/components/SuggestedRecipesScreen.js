@@ -6,7 +6,7 @@ const FILTERS = [
     { key: 'all', icon: '' },
     { key: 'new', icon: '🆕' },
     { key: 'saved', icon: '💾' },
-    { key: 'dismissed', icon: '🚫' },
+    // { key: 'dismissed', icon: '🚫' },
 ];
 
 function timeAgoLabel(t, updatedAt) {

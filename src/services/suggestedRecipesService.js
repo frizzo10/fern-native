@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const SUGGESTION_URL = 'https://app.clickpickandcook.com/.netlify/functions/suggestion';
 
@@ -73,6 +75,8 @@ export async function fetchSuggestedRecipeGroups({ prompt, locale, token, userId
     }
 
     const responseJson = await res.json();
+    logApiResponse('suggestions (ai)', responseJson);
+
     const responseText =
         responseJson?.content?.find((part) => part?.type === 'text')?.text ||
         responseJson?.message ||
@@ -81,6 +85,10 @@ export async function fetchSuggestedRecipeGroups({ prompt, locale, token, userId
 
     const parsed = parseResponseTextAsJson(responseText);
     const groups = Array.isArray(parsed?.groups) ? parsed.groups : [];
+
+    if (!groups.length) {
+        console.log('[api] suggestions (ai) → parsed to 0 groups; responseText was:', responseText);
+    }
 
     return groups.map((group, groupIndex) => ({
         id: `group-${groupIndex}`,
@@ -115,5 +123,6 @@ export async function fetchQuickSuggestions({ ingredients, coupons, locale }) {
     }
 
     const json = await res.json();
+    logApiResponse('suggestion (quick)', json);
     return Array.isArray(json?.suggestions) ? json.suggestions : [];
 }

@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 const SCAN_CIRCULAR_URL = 'https://app.clickpickandcook.com/.netlify/functions/scan-circular';
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 
@@ -59,6 +61,8 @@ export async function fetchDealRecipeIdeas({ itemName, locale, token }) {
         token,
     });
 
+    logApiResponse('ai (fern_chat, deal-ideas)', json);
+
     const parsed = parseJsonLoose(extractResponseText(json));
     const list = Array.isArray(parsed) ? parsed : [];
 
@@ -86,6 +90,8 @@ export async function fetchFullRecipeForDealIdea({ idea, itemName, locale, token
         locale: locale || 'en',
         token,
     });
+
+    logApiResponse('ai (recipe_search, deal-full-recipe)', json);
 
     const parsed = parseJsonLoose(extractResponseText(json)) || {};
 
@@ -184,6 +190,10 @@ export async function scanCircular({ userId, base64, mimeType, token }) {
     }
 
     const json = await res.json();
+    // Skipped: this response can carry dozens of flyer items — logApiResponse's
+    // truncation would just cut it mid-item. Log a summary instead.
+    console.log(`[api] scan-circular → store="${json?.store}" items=${Array.isArray(json?.items) ? json.items.length : 0}`);
+
     const items = Array.isArray(json?.items) ? json.items.map(normalizeItem) : [];
 
     return {

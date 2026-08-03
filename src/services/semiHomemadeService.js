@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 function normalizeStringList(value) {
     if (!Array.isArray(value)) return [];
     return value.map((item) => String(item || '').trim()).filter(Boolean);
@@ -47,6 +49,8 @@ export async function fetchSemiHomemadeRecipe({ userId, items, vibe, servings, l
     }
 
     const responseJson = await res.json();
+    logApiResponse('semi-homemade', responseJson);
+
     const recipe = normalizeSemiHomemadeRecipe(responseJson);
 
     return { payload, responseJson, recipe };

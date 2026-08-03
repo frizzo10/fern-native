@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 export async function findStoreLocationByZip(storeName, zipCode, token) {
   const query = encodeURIComponent(String(storeName || '').trim());
   const zip = encodeURIComponent(String(zipCode || '').trim());
@@ -17,6 +19,7 @@ export async function findStoreLocationByZip(storeName, zipCode, token) {
   }
 
   const payload = await res.json();
+  logApiResponse('geocode', payload);
   if (!payload || typeof payload !== 'object') return null;
 
   const lat = Number.parseFloat(payload.lat);

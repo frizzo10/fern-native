@@ -22,14 +22,16 @@ data: {
   followers: [],          // ← cpc_followed_bloggers
   userProfile: {},         // ← remi_explicit
   userStores: [],           // ← cpc_user_stores
+  availableCoupons: [],      // ← available_coupons (server-owned catalog, pull-only — see below)
+  walletCoupons: [],          // ← wallet_coupons
 }
 ```
 
-- **`pull()`** — POSTs `{ action: 'pull', userId, token }` to `sync`. Takes `result.data` (`saved`, `meal_plan`, `shopping`, `books`, `activities`, `followed_bloggers`, `remi_explicit`, `user_stores`), runs an emoji-corruption repair pass over `saved` (fixes `�`-corrupted `recipe.emoji` fields), maps it into the `data` shape above, calls `setData(next)`, then writes **both** the combined object to `fern_sync_cache` **and** each field out to its own individual key (`rv4_saved`, `rv4_books`, `rv4_meal_plan`, `rv4_master_shop`, `remi_explicit`, `cpc_followed_bloggers`, `cpc_user_stores`). If the emoji repair changed anything, it immediately pushes the fix back to the server.
+- **`pull()`** — POSTs `{ action: 'pull', userId, token }` to `sync`. Takes `result.data` (`saved`, `meal_plan`, `shopping`, `books`, `activities`, `followed_bloggers`, `remi_explicit`, `user_stores`, `available_coupons`, `wallet_coupons`), runs an emoji-corruption repair pass over `saved` (fixes `�`-corrupted `recipe.emoji` fields), maps it into the `data` shape above, calls `setData(next)`, then writes **both** the combined object to `fern_sync_cache` **and** each field out to its own individual key (`rv4_saved`, `rv4_books`, `rv4_meal_plan`, `rv4_master_shop`, `remi_explicit`, `cpc_followed_bloggers`, `cpc_user_stores`, `rv4_available_coupons`, `rv4_wallet_coupons`). If the emoji repair changed anything, it immediately pushes the fix back to the server (including `wallet_coupons`, so that push doesn't clobber it — `available_coupons` is intentionally excluded from every push, see below).
 - **`push(payload)`** — thin wrapper: POSTs `{ action: 'push', userId, token, ...payload }` verbatim; caller supplies the full payload, no AsyncStorage read.
-- **`pushChangedFromStorage(changedData = {})`** — reads the 7 canonical keys fresh off disk, builds `data: { saved, books, meal_plan, shopping, remi_explicit, followed_bloggers, user_stores, ...changedData }` (so in-memory `changedData` fields override what's on disk), POSTs `{ action: 'push', userId, token, data }`. This is what screens call after any local mutation.
+- **`pushChangedFromStorage(changedData = {})`** — reads the 8 canonical keys fresh off disk (the original 7 plus `rv4_wallet_coupons`), builds `data: { saved, books, meal_plan, shopping, remi_explicit, followed_bloggers, user_stores, wallet_coupons, ...changedData }` (so in-memory `changedData` fields override what's on disk), POSTs `{ action: 'push', userId, token, data }`. This is what screens call after any local mutation.
 - **`pushAllFromStorage()`** — `pushChangedFromStorage()` with no overrides, i.e. "push whatever's currently on disk."
-- **Gap:** there is no push path for `activities` or for partial `userProfile` fields beyond the whole `remi_explicit` blob — `activities` is pull-only.
+- **Gap:** there is no push path for `activities` or for partial `userProfile` fields beyond the whole `remi_explicit` blob — `activities` is pull-only. `available_coupons` is likewise pull-only by design — it's the server's coupon catalog, not user data, so the client never pushes it back; only `wallet_coupons` (the user's saved coupons) is round-tripped.
 
 ### `useSync.js` vs `useAuth.js` (known divergence)
 
@@ -63,6 +65,8 @@ All keys are `AsyncStorage` unless marked SecureStore. "Synced" means the key is
 | `remi_explicit` | Single object, the user profile bag — at minimum `{ userName }`, otherwise whatever the backend returns (`name`, `email`, etc). | `useSync.pull()`; `useAuth.syncPull`/`signUp` (see divergence note above) | `useSync.js` (as `data.userProfile`); `FindScreen.js` (dead code) | Synced |
 | `cpc_followed_bloggers` | Array of `{ id, url, name, color, emoji, specialty }` | `useSync.pull()`; `useAuth.syncPull`; `SearchScreen.js` | `useSync.js`; `SearchScreen.js` | Synced |
 | `cpc_user_stores` | Array of `{ lat, lng, name, address }` | `useSync.pull()`; `useAuth.syncPull`; `HomeScreen.js` | `useSync.js`; `HomeScreen.js` (this is the "real" store data App.js's geofence stub never receives — see CLAUDE.md dead-code note) | Synced |
+| `rv4_available_coupons` | Array of raw coupon objects from the server's catalog — field names aren't nailed down against a real API sample yet, so `src/utils/couponNormalize.js`'s `normalizeCoupon` reads several likely aliases per field (`store`/`storeName`/`retailer`/`brand`, `discountLabel`/`badge`/`discount`/`savings`/`offerLabel`, `image`/`imageUrl`/`photo`, `expiresAt`/`expiry`/`validUntil`/`expirationDate`, etc.) | `useSync.pull()`; `useAuth.syncPull` | `useSync.js` (as `data.availableCoupons`); `HomeScreen.js`/`CouponWalletScreen.js` (Browse tab) | Pull-only — refreshed wholesale on every pull, never part of any push (it's the server's catalog, not user data) |
+| `rv4_wallet_coupons` | Array of normalized coupon objects the user has added from Browse (full snapshot, not just IDs) | `HomeScreen.js` (`addCouponToWallet`/`removeCouponFromWallet`); `useSync.pull()`; `useAuth.syncPull` | `useSync.js` (as `data.walletCoupons`); `HomeScreen.js`/`CouponWalletScreen.js` (My Wallet tab, and the Home "Coupons" stat count) | Synced — pushed as `wallet_coupons` via `pushChangedFromStorage` |
 | `rv4_auth` | `{ id, email, token, refreshToken }` | `useAuth.js` (mirrors every `fern_user` SecureStore write) | `useAuth.js` (refresh-token fallback on failed login) | Not synced — device auth bookkeeping only, and not cleared on sign-out |
 | `fern_user` *(SecureStore, not AsyncStorage)* | `{ id, email, token, refreshToken, ...user fields }` | `useAuth.js` — primary session store | `useAuth.js` (read once on mount) | Not synced |
 | `fern_saved_charcuterie_boards` | Array of `{ id: 'charcuterie-board-<ts>', createdAt, board }`, newest first | `HomeScreen.js` (`CharcuterieModal` save action) | `HomeScreen.js` | Device-only — saved boards do not survive reinstall/relogin on another device |
@@ -71,6 +75,7 @@ All keys are `AsyncStorage` unless marked SecureStore. "Synced" means the key is
 | `fern_nutrition_analysis` | `{ goals, result: { days[], weekly_avg, tip, off_goal_days[], goal_recipe_suggestion }, analyzedAt }` | `NutritionTrackerModal.js` | `NutritionTrackerModal.js` (restores last result instead of the form on reopen) | Device-only |
 | `fern_voice_enabled` | `'on'`/`'off'` string (legacy `'0'/'false'/'off'/'disabled'` also treated as off) | `AccountScreen.js` | `AccountScreen.js`; `useFernVoice.js`; `useContinuousMic.js` | Device-only |
 | `fern_user_locale` | `'en'` or `'es'` | `LanguageContext.js` | `LanguageContext.js` | Device-only |
+| `rv4_loyalty_card` | `{ phone_hash, points, tier, linkedCards[], message, linkedAt }` — `phone_hash` is a client-side SHA-256 of the digits-only phone number (`src/utils/sha256.js`); the raw phone number itself is never persisted or sent anywhere but the one `loyalty` match call. | `HomeScreen.js` (`LoyaltyCardModal` link action) | `HomeScreen.js` (drives the Home loyalty tile's linked/unlinked state) | Device-only — `rv4` prefix per the web app's naming scheme, but not part of the `useSync` pull/push cycle (no corresponding sync field exists server-side yet) |
 | *(per-tour flags)* | One flag per entry in `TOUR_LIST` (`src/constants/tourContent.js`, ~20 tours — `home`, `find`, `recipes`, `shopping`, `charcuterie`, `wine_pairing`, `fridge_challenge`, `leftover_magic`, `quick_dinner`, `budget_planner`, `semi_homemade`, `alexa_skill`, `nutrition`, etc), keyed by each entry's own `storageKey` | `TourModal.js` (`finish()`) | `TourContext.js` (`maybeAutoStart`, gates whether a tour auto-opens); `AccountScreen.js` (bulk `multiGet` across all `TOUR_LIST` storage keys) | Device-only onboarding state, per device |
 
 Not real storage keys, despite matching a `fern_*`/grep pattern: `fern_chat`, `fern_label`, `fern_thinking`, `fern_knows_title`, `fern_starter_stocked*` are i18n keys in `translations.js`, unrelated to `AsyncStorage`.
@@ -149,6 +154,10 @@ Payload: `{ action: 'wine_pairing', userId, token, locale, recipe: { title, cuis
 ### `scan-circular`
 
 Payload: `{ mediaType: 'image/jpeg', userId, token, imageData: base64 }`. Response: `{ store, validDates, headline, sectionsFound[], items: [{id,name,brand,originalPrice,salePrice,unit,savings,category,emoji,dealScore,cookable,isBogo}] }`, with `sections` (grouped by category) and `totalSavings` computed client-side in `src/services/scanCircularService.js`. Caller: `ScanCircularModal` via both `HomeScreen.js` and `SearchScreen.js`.
+
+### `loyalty`
+
+Payload: `{ action: 'match', phone_hash }`, where `phone_hash` is a client-side SHA-256 hex digest (`src/utils/sha256.js`) of the digits-only phone number — the raw number never leaves the device. Response: `{ success, points, tier, linkedCards[], message }`. Caller: `src/services/loyaltyService.js`'s `matchLoyaltyCard`, used by `LoyaltyCardModal` via `HomeScreen.js`; the result is cached locally under `rv4_loyalty_card` (see local storage key table above) to drive the Home loyalty tile's linked state.
 
 ### `geocode` — `GET /.netlify/functions/geocode?q=<storeName>&zip=<zip>[&token=<token>]`
 

@@ -1,3 +1,5 @@
+import { logApiResponse } from '../utils/apiLogger';
+
 function normalizeRecipe(recipe, index) {
     const ingredients = Array.isArray(recipe?.ingredients)
         ? recipe.ingredients.map((item) => String(item || '').trim()).filter(Boolean)
@@ -48,9 +50,15 @@ export async function fetchQuickDinnerRecipes({ quickPicks, ingredients, serving
     }
 
     const responseJson = await res.json();
+    logApiResponse('whats-for-dinner', responseJson);
+
     const recipes = Array.isArray(responseJson?.recipes)
         ? responseJson.recipes.map((recipe, index) => normalizeRecipe(recipe, index))
         : [];
+
+    if (!recipes.length) {
+        console.log('[api] whats-for-dinner → parsed to 0 recipes');
+    }
 
     return { payload, responseJson, recipes };
 }
