@@ -25,6 +25,13 @@ function toDisplayData(raw) {
     shopping:   raw.shopping   || [],
     books:      raw.books      || [],
     activities: raw.activities || [],
+    // useGeofence.js checks store.lat/store.lon specifically, but the web
+    // app (which is where stores actually get added today) saves lat/lng.
+    // Converting here means every consumer of data.stores gets correctly
+    // shaped objects without needing to know about the field name mismatch.
+    stores: (raw.user_stores || []).map(function(s) {
+      return { name: s.name, lat: s.lat, lon: s.lng };
+    }),
   };
 }
 
