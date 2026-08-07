@@ -5,11 +5,12 @@ const SYNC_URL = 'https://app.clickpickandcook.com/.netlify/functions/sync';
 
 // Fields the sync backend (netlify/functions/sync.js) tracks on the user's
 // row. Several of these (remi_explicit, remi_learned, followed_bloggers,
-// user_stores, unlocked, ks, circular, circular_saved_at, activities_ts)
-// aren't shown anywhere in the native UI yet, but the backend always does a
-// full-record replace on push — not a partial patch — so we must round-trip
-// every field we received on pull, even ones we never display, or a native
-// save would silently wipe that data for anyone who also uses the web app.
+// unlocked, ks, circular, circular_saved_at, activities_ts) aren't shown
+// anywhere in the native UI yet, but the backend always does a full-record
+// replace on push — not a partial patch — so we must round-trip every
+// field we received on pull, even ones we never display, or a native save
+// would silently wipe that data for anyone who also uses the web app.
+// (user_stores is the exception -- it IS surfaced, as data.stores, below.)
 const EMPTY_RAW = {
   saved: [], books: [], meal_plan: {}, shopping: [],
   remi_explicit: {}, remi_learned: {}, followed_bloggers: [],
@@ -103,6 +104,12 @@ export function SyncProvider({ user, children }) {
     if (partial.shopping   !== undefined) nextRaw.shopping   = partial.shopping;
     if (partial.books      !== undefined) nextRaw.books      = partial.books;
     if (partial.activities !== undefined) nextRaw.activities = partial.activities;
+    // Convert lon back to lng here -- the reverse of the conversion in
+    // toDisplayData() above -- so what we write back matches the field
+    // name the web app (and the backend column) actually use.
+    if (partial.stores     !== undefined) nextRaw.user_stores = partial.stores.map(function(s) {
+      return { name: s.name, address: s.address || '', lat: s.lat, lng: s.lon, id: s.id || Date.now() };
+    });
 
     rawRef.current = nextRaw;
     setData(toDisplayData(nextRaw));
