@@ -18,6 +18,7 @@ import { useGeofence } from './src/hooks/useGeofence';
 import { colors, radius, shadow } from './src/constants/tokens';
 import { LocaleProvider, useTranslation } from './src/i18n/LocaleContext';
 import { SyncProvider } from './src/hooks/SyncContext';
+import { useSync } from './src/hooks/useSync';
 
 const Tab = createBottomTabNavigator();
 
@@ -77,8 +78,10 @@ function MainApp({ user }) {
   const { t } = useTranslation();
   const [arrivedStore, setArrivedStore] = useState(null);
 
+  const { data } = useSync(user);
+
   const { start: startGeofence } = useGeofence({
-    stores: [],
+    stores: data.stores,
     onArrival: (store) => setArrivedStore(store),
   });
 
