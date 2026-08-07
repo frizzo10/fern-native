@@ -87,10 +87,15 @@ function MainApp({ user }) {
 
   useEffect(() => {
     if (user) {
-      startGeofence();
       setupGlobalErrorHandler(user.id);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      startGeofence();
+    }
+  }, [user, (data.stores || []).length]);
 
   return (
     <NavigationContainer>
