@@ -2,12 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, SafeAreaView, Animated, ActivityIndicator,
+  TextInput, Alert,
 } from 'react-native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useContinuousMic } from '../hooks/useContinuousMic';
 import { useFernVoice } from '../hooks/useFernVoice';
 import { useSync } from '../hooks/useSync';
 import { useTranslation } from '../i18n/LocaleContext';
+import { isProMax } from '../lib/tier';
+
+const GEOCODE_URL = 'https://app.clickpickandcook.com/.netlify/functions/geocode';
 
 function getGreeting(t) {
   const h = new Date().getHours();
@@ -98,8 +102,85 @@ export default function HomeScreen({ user }) {
   const [fernError, setFernError] = useState(false);
   const [askingFern, setAskingFern] = useState(false);
   const [lastTranscript, setLastTranscript] = useState('');
-  const { data, loading } = useSync(user);
+  const { data, loading, push } = useSync(user);
   const { speak, voiceEnabled, setVoiceEnabled, speaking } = useFernVoice();
+
+  const [showAddStore, setShowAddStore] = useState(false);
+  const [newStoreName, setNewStoreName] = useState('');
+  const [newStoreZip, setNewStoreZip] = useState('');
+  const [addingStore, setAddingStore] = useState(false);
+
+  function handleTapAddStore() {
+    if (!isProMax()) {
+      Alert.alert(
+        t('proMaxFeatureTitle') || 'Pro Max Feature',
+        t('geofenceStoresProMax') || 'Adding stores for location alerts is a Pro Max feature. Upgrade to enable.'
+      );
+      return;
+    }
+    setShowAddStore(true);
+  }
+
+  async function handleAddStore() {
+    if (!newStoreName.trim()) {
+      Alert.alert(t('error') || 'Error', t('pleaseEnterStoreName') || 'Please enter a store name.');
+      return;
+    }
+    setAddingStore(true);
+    try {
+      const query = newStoreZip.trim()
+        ? `${newStoreName.trim()} ${newStoreZip.trim()}`
+        : newStoreName.trim();
+      const res = await fetch(
+        `${GEOCODE_URL}?q=${encodeURIComponent(query)}&zip=${encodeURIComponent(newStoreZip.trim())}`
+      );
+      const geo = await res.json();
+      if (!geo.lat || !geo.lon) {
+        Alert.alert(t('error') || 'Error', t('couldNotFindStore') || "Couldn't find that store. Try adding a ZIP code.");
+        return;
+      }
+      const newStore = {
+        name: newStoreName.trim(),
+        address: geo.address || '',
+        lat: geo.lat,
+        lon: geo.lon,
+        id: Date.now(),
+      };
+      const existing = data.stores || [];
+      // Avoid duplicate entries if the same store name is added twice
+      if (existing.some(s => s.name.toLowerCase() === newStore.name.toLowerCase())) {
+        Alert.alert(t('error') || 'Error', t('storeAlreadySaved') || 'That store is already saved.');
+        return;
+      }
+      await push({ stores: [...existing, newStore] });
+      setNewStoreName('');
+      setNewStoreZip('');
+      setShowAddStore(false);
+    } catch (e) {
+      console.warn('[HomeScreen] Add store failed:', e.message);
+      Alert.alert(t('error') || 'Error', t('couldNotAddStore') || 'Could not add that store — try again.');
+    } finally {
+      setAddingStore(false);
+    }
+  }
+
+  function handleRemoveStore(storeToRemove) {
+    Alert.alert(
+      t('removeStoreTitle') || 'Remove this store?',
+      storeToRemove.name,
+      [
+        { text: t('cancel') || 'Cancel', style: 'cancel' },
+        {
+          text: t('remove') || 'Remove',
+          style: 'destructive',
+          onPress: () => {
+            const remaining = (data.stores || []).filter(s => s.id !== storeToRemove.id || s.name !== storeToRemove.name);
+            push({ stores: remaining });
+          },
+        },
+      ]
+    );
+  }
 
   const { isListening, isProcessing, start, stop } = useContinuousMic({
     locale,
@@ -256,6 +337,65 @@ export default function HomeScreen({ user }) {
         </View>
       )}
 
+      {/* My Stores — for geofenced location alerts. Adding a store is a Pro
+          Max feature (see handleTapAddStore / isProMax stub). */}
+      <View style={styles.storesSection}>
+        <Text style={styles.storesSectionLabel}>{(t('myStores') || 'MY STORES').toUpperCase()}</Text>
+        {(data.stores || []).map((store, i) => (
+          <View key={store.id || i} style={styles.storeRow}>
+            <Text style={styles.storeEmoji}>📍</Text>
+            <View style={styles.storeInfo}>
+              <Text style={styles.storeName} numberOfLines={1}>{store.name}</Text>
+              {store.address ? <Text style={styles.storeAddress} numberOfLines={1}>{store.address}</Text> : null}
+            </View>
+            <TouchableOpacity onPress={() => handleRemoveStore(store)} style={styles.storeRemoveBtn}>
+              <Text style={styles.storeRemoveText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+        ))}
+
+        {showAddStore ? (
+          <View style={styles.addStoreForm}>
+            <TextInput
+              style={styles.addStoreInput}
+              placeholder={t('storeNamePlaceholder') || 'Store name (e.g. Publix - Main St)'}
+              placeholderTextColor={colors.brown}
+              value={newStoreName}
+              onChangeText={setNewStoreName}
+            />
+            <TextInput
+              style={styles.addStoreInput}
+              placeholder={t('storeZipPlaceholder') || 'ZIP code (helps find the right one)'}
+              placeholderTextColor={colors.brown}
+              value={newStoreZip}
+              onChangeText={setNewStoreZip}
+              keyboardType="number-pad"
+            />
+            <View style={styles.addStoreActions}>
+              <TouchableOpacity
+                style={styles.addStoreCancelBtn}
+                onPress={() => { setShowAddStore(false); setNewStoreName(''); setNewStoreZip(''); }}
+              >
+                <Text style={styles.addStoreCancelText}>{t('cancel') || 'Cancel'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.addStoreSaveBtn, addingStore && { opacity: 0.6 }]}
+                onPress={handleAddStore}
+                disabled={addingStore}
+              >
+                {addingStore
+                  ? <ActivityIndicator color="#fff" size="small" />
+                  : <Text style={styles.addStoreSaveText}>{t('save') || 'Save'}</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.addStoreRow} onPress={handleTapAddStore}>
+            <Text style={styles.addStoreRowText}>+ {t('addStore') || 'Add Store'}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* Voice orb */}
       <VoiceOrb
         isListening={isListening}
@@ -331,6 +471,27 @@ const styles = StyleSheet.create({
 
   booksRow:        { flexDirection:'row', gap:16, paddingHorizontal:20, marginTop:8 },
   booksLabel:      { fontSize:12, color:colors.brown, fontWeight:'700' },
+
+  storesSection:      { paddingHorizontal:16, marginTop:14 },
+  storesSectionLabel: { fontSize:11, fontWeight:'800', color:colors.brown, letterSpacing:0.8, marginBottom:8 },
+  storeRow:           { flexDirection:'row', alignItems:'center', backgroundColor:'#fff', borderRadius:radius.md, borderWidth:1, borderColor:colors.border, padding:10, marginBottom:6, gap:8 },
+  storeEmoji:         { fontSize:16 },
+  storeInfo:          { flex:1, minWidth:0 },
+  storeName:          { fontSize:13, fontWeight:'700', color:colors.ink },
+  storeAddress:       { fontSize:11, color:colors.brown, marginTop:1 },
+  storeRemoveBtn:      { padding:4 },
+  storeRemoveText:     { fontSize:14, color:colors.brown },
+
+  addStoreRow:        { borderRadius:radius.md, borderWidth:1, borderColor:colors.border, borderStyle:'dashed', padding:12, alignItems:'center' },
+  addStoreRowText:     { fontSize:13, fontWeight:'700', color:colors.forest },
+
+  addStoreForm:        { backgroundColor:'#fff', borderRadius:radius.md, borderWidth:1, borderColor:colors.border, padding:12, gap:8 },
+  addStoreInput:        { borderWidth:1, borderColor:colors.border, borderRadius:8, paddingHorizontal:10, paddingVertical:8, fontSize:13, color:colors.ink },
+  addStoreActions:      { flexDirection:'row', gap:8, marginTop:4 },
+  addStoreCancelBtn:     { flex:1, alignItems:'center', paddingVertical:9, borderRadius:8, borderWidth:1, borderColor:colors.border },
+  addStoreCancelText:    { fontSize:13, fontWeight:'700', color:colors.brown },
+  addStoreSaveBtn:       { flex:1, alignItems:'center', paddingVertical:9, borderRadius:8, backgroundColor:colors.forest },
+  addStoreSaveText:      { fontSize:13, fontWeight:'700', color:'#fff' },
 
   orbWrap:         { alignItems:'center', paddingVertical:16 },
   orb:             { width:64, height:64, borderRadius:32, backgroundColor:colors.forest, alignItems:'center', justifyContent:'center', marginBottom:6 },
