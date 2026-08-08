@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors, shadow } from '../constants/tokens';
@@ -14,11 +14,11 @@ import RecipeDetailModal from '../components/RecipeDetailModal';
 import FamilyAddSavedMealModal from '../components/modals/FamilyAddSavedMealModal';
 import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
 import { fetchMealPlanRecipeDetail, fetchDinnerIdeas } from '../services/mealPlanRecipeService';
+import { fetchRecipeImage } from '../utils/recipeImage';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DAY_ABBREVIATIONS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH_ABBREVIATIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const WEEKLY_DINNER_GOAL = 5;
 
 function parseDateKey(key) {
     const [y, m, d] = String(key || '').split('-').map(Number);
@@ -64,6 +64,7 @@ export default function FamilyScreen({ user }) {
     const [isFillingWeek, setIsFillingWeek] = useState(false);
     const [addMealModal, setAddMealModal] = useState(null); // { dateKey, slot, slotLabel } | null
     const dayScrollRef = useRef(null);
+    const imageFetchInFlight = useRef(new Set());
 
     // Always today → today+6, regardless of what's actually populated in
     // mealPlanLocal — this is what makes "yesterday" naturally fall off the
@@ -102,7 +103,7 @@ export default function FamilyScreen({ user }) {
     const dinnersPlannedCount = dateKeys.filter((key) => (
         (mealPlanLocal[key] || []).some((entry) => normalizeSlot(entry) === 'dinner')
     )).length;
-    const unplannedDinners = WEEKLY_DINNER_GOAL - dinnersPlannedCount;
+    const unplannedDinners = dateKeys.length - dinnersPlannedCount;
     const shoppingCount = (data.shopping || []).length;
     const isFullWeekPlanned = dateKeys.length > 0 && dinnersPlannedCount === dateKeys.length;
 
@@ -112,6 +113,38 @@ export default function FamilyScreen({ user }) {
     const lunchEntries = selectedDayMeals.filter((entry) => normalizeSlot(entry) === 'lunch');
     const dinnerEntries = selectedDayMeals.filter((entry) => normalizeSlot(entry) === 'dinner');
     const missingMealsCount = (breakfastEntries.length ? 0 : 1) + (lunchEntries.length ? 0 : 1) + (dinnerEntries.length ? 0 : 1);
+
+    // Real photos for the selected day's meals: render emoji first (above),
+    // then fetch a photo in the background per entry and swap it in once it
+    // resolves. Cached on the entry itself (`entry.image`) and pushed through
+    // the normal sync path so it persists — never refetched once set.
+    useEffect(() => {
+        const entriesToFetch = [...breakfastEntries, ...lunchEntries, ...dinnerEntries]
+            .filter((entry) => entry?.title && !entry.image);
+
+        entriesToFetch.forEach((entry) => {
+            const key = `${selectedDateKey}|${entry.slot}|${entry.title}`;
+            if (imageFetchInFlight.current.has(key)) return;
+            imageFetchInFlight.current.add(key);
+
+            fetchRecipeImage(entry.title, user?.token).then((url) => {
+                imageFetchInFlight.current.delete(key);
+                if (!url) return;
+
+                setMealPlanLocal((current) => {
+                    const dayMeals = current[selectedDateKey] || [];
+                    if (!dayMeals.includes(entry)) return current;
+                    const nextDayMeals = dayMeals.map((m) => (m === entry ? { ...m, image: url } : m));
+                    const next = { ...current, [selectedDateKey]: nextDayMeals };
+                    AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next))
+                        .then(() => pushChangedFromStorage({ meal_plan: next }))
+                        .catch((e) => console.log('[family-hub] failed to persist meal image', e?.message || e));
+                    return next;
+                });
+            });
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedDateKey, breakfastEntries, lunchEntries, dinnerEntries, user?.token]);
 
     const persistMealPlan = (nextMealPlan) => {
         setMealPlanLocal(nextMealPlan);
@@ -138,7 +171,7 @@ export default function FamilyScreen({ user }) {
         if (!addMealModal) return;
         const { dateKey, slot } = addMealModal;
         const dayMeals = mealPlanLocal[dateKey] || [];
-        const newEntry = { slot, title: recipe.title, emoji: recipe.emoji || '🍽️' };
+        const newEntry = { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: recipe.image || null };
         persistMealPlan({ ...mealPlanLocal, [dateKey]: [...dayMeals, newEntry] });
         setAddMealModal(null);
     };
@@ -221,7 +254,7 @@ export default function FamilyScreen({ user }) {
     };
 
     if (!hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible tier={TIERS.PRO} onClose={() => {}} />;
+        return <UpgradeGateModal visible tier={TIERS.PRO} onClose={() => { }} />;
     }
 
     if (showExampleView) {
@@ -234,263 +267,285 @@ export default function FamilyScreen({ user }) {
 
     return (
         <>
-        <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
-            <TouchableOpacity
-                style={styles.hiddenToggle}
-                activeOpacity={0.6}
-                onPress={() => setShowExampleView(true)}
-            >
-                <Text style={styles.hiddenToggleText}>🧪</Text>
-            </TouchableOpacity>
-
-            <Text style={styles.title}>{`🗓️ ${t('family_hub_title')}`}</Text>
-            <Text style={styles.statusLine}>
-                {isFullWeekPlanned ? t('family_hub_full_week_planned') : t('family_hub_dinners_left', { count: Math.max(0, dateKeys.length - dinnersPlannedCount) })}
-            </Text>
-
-            {isLoadingMealRecipe ? (
-                <View style={styles.recipeLoadingRow}>
-                    <ActivityIndicator color={colors.forest} size="small" />
-                    <Text style={styles.recipeLoadingText}>{t('family_hub_loading_recipe')}</Text>
-                </View>
-            ) : null}
-
-            {isFillingWeek ? (
-                <View style={styles.recipeLoadingRow}>
-                    <ActivityIndicator color={colors.forest} size="small" />
-                    <Text style={styles.recipeLoadingText}>{t('family_hub_ai_filling')}</Text>
-                </View>
-            ) : null}
-
-            <View style={styles.actionsRow}>
+            <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
                 <TouchableOpacity
-                    style={[styles.fillWeekBtn, isFillingWeek ? styles.fillWeekBtnDisabled : null]}
-                    activeOpacity={0.85}
-                    onPress={handleAiFillWeek}
-                    disabled={isFillingWeek}
+                    style={styles.hiddenToggle}
+                    activeOpacity={0.6}
+                    onPress={() => setShowExampleView(true)}
                 >
-                    <Text style={styles.fillWeekBtnText}>{t('family_hub_ai_fill_week_btn')}</Text>
+                    <Text style={styles.hiddenToggleText}>🧪</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.planFernBtn, shadow.card]} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_plan_with_fern_btn')}>
-                    <Text style={styles.planFernBtnText}>{t('family_hub_plan_with_fern_btn')}</Text>
+                <Text style={styles.title}>{`🗓️ ${t('family_hub_title')}`}</Text>
+                <Text style={styles.statusLine}>
+                    {isFullWeekPlanned ? t('family_hub_full_week_planned') : t('family_hub_dinners_left', { count: Math.max(0, dateKeys.length - dinnersPlannedCount) })}
+                </Text>
+
+                {isLoadingMealRecipe ? (
+                    <View style={styles.recipeLoadingRow}>
+                        <ActivityIndicator color={colors.forest} size="small" />
+                        <Text style={styles.recipeLoadingText}>{t('family_hub_loading_recipe')}</Text>
+                    </View>
+                ) : null}
+
+                {isFillingWeek ? (
+                    <View style={styles.recipeLoadingRow}>
+                        <ActivityIndicator color={colors.forest} size="small" />
+                        <Text style={styles.recipeLoadingText}>{t('family_hub_ai_filling')}</Text>
+                    </View>
+                ) : null}
+
+                <View style={styles.actionsRow}>
+                    <TouchableOpacity
+                        style={[styles.fillWeekBtn, isFillingWeek ? styles.fillWeekBtnDisabled : null]}
+                        activeOpacity={0.85}
+                        onPress={handleAiFillWeek}
+                        disabled={isFillingWeek}
+                    >
+                        <Text style={styles.fillWeekBtnText}>{t('family_hub_ai_fill_week_btn')}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.planFernBtn, shadow.card]} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_plan_with_fern_btn')}>
+                        <Text style={styles.planFernBtnText}>{t('family_hub_plan_with_fern_btn')}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.listBtn} activeOpacity={0.85} onPress={handlePressList}>
+                        <Text style={styles.listBtnText}>{t('family_hub_list_btn')}</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity style={styles.shareBtn} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_share_btn')}>
+                    <Text style={styles.shareBtnText}>{t('family_hub_share_btn')}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.listBtn} activeOpacity={0.85} onPress={handlePressList}>
-                    <Text style={styles.listBtnText}>{t('family_hub_list_btn')}</Text>
-                </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity style={styles.shareBtn} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_share_btn')}>
-                <Text style={styles.shareBtnText}>{t('family_hub_share_btn')}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.statsRow}>
-                <View style={[styles.statCard, shadow.card]}>
-                    <Text style={styles.statLabel}>{t('family_hub_stat_dinners')}</Text>
-                    <Text style={styles.statValue}>{`${dinnersPlannedCount}/${WEEKLY_DINNER_GOAL}`}</Text>
+                <View style={styles.statsRow}>
+                    <View style={[styles.statCard, shadow.card]}>
+                        <Text style={styles.statLabel}>{t('family_hub_stat_dinners')}</Text>
+                        <Text style={styles.statValue}>{`${dinnersPlannedCount}/${dateKeys.length}`}</Text>
+                    </View>
+                    <View style={[styles.statCard, shadow.card]}>
+                        <Text style={styles.statLabel}>{t('family_hub_stat_activities')}</Text>
+                        <Text style={styles.statValue}>0</Text>
+                    </View>
+                    <View style={[styles.statCard, shadow.card]}>
+                        <Text style={styles.statLabel}>{t('family_hub_stat_shopping')}</Text>
+                        <Text style={styles.statValue}>{t('family_hub_stat_shopping_items', { count: shoppingCount })}</Text>
+                    </View>
+                    <View style={[styles.statCard, shadow.card]}>
+                        <Text style={styles.statLabel}>{t('family_hub_stat_unplanned')}</Text>
+                        <Text style={styles.statValue}>{t('family_hub_stat_unplanned_dinners', { count: unplannedDinners })}</Text>
+                    </View>
                 </View>
-                <View style={[styles.statCard, shadow.card]}>
-                    <Text style={styles.statLabel}>{t('family_hub_stat_activities')}</Text>
-                    <Text style={styles.statValue}>0</Text>
-                </View>
-                <View style={[styles.statCard, shadow.card]}>
-                    <Text style={styles.statLabel}>{t('family_hub_stat_shopping')}</Text>
-                    <Text style={styles.statValue}>{t('family_hub_stat_shopping_items', { count: shoppingCount })}</Text>
-                </View>
-                <View style={[styles.statCard, shadow.card]}>
-                    <Text style={styles.statLabel}>{t('family_hub_stat_unplanned')}</Text>
-                    <Text style={styles.statValue}>{t('family_hub_stat_unplanned_dinners', { count: unplannedDinners })}</Text>
-                </View>
-            </View>
 
-            {dateKeys.length === 0 ? (
-                <Text style={styles.emptyText}>{t('family_hub_empty_no_days')}</Text>
-            ) : (
-                <>
-                    <View style={styles.dayStripOuter}>
-                        <ScrollView
-                            ref={dayScrollRef}
-                            horizontal
-                            pagingEnabled
-                            showsHorizontalScrollIndicator={false}
-                            onMomentumScrollEnd={(e) => {
-                                const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-                                setSelectedDayIndex(Math.max(0, Math.min(idx, dateKeys.length - 1)));
-                            }}
-                        >
-                            {dateKeys.map((dateKey, idx) => {
-                                const date = parseDateKey(dateKey);
-                                return (
-                                    <View key={dateKey} style={[styles.dayPage, { width: SCREEN_WIDTH }]}>
-                                        <TouchableOpacity
-                                            style={styles.dayArrowBtn}
-                                            activeOpacity={0.7}
-                                            disabled={idx === 0}
-                                            onPress={() => goToDay(idx - 1)}
-                                        >
-                                            {idx > 0 ? <Text style={styles.dayArrowText}>‹</Text> : null}
-                                        </TouchableOpacity>
+                {dateKeys.length === 0 ? (
+                    <Text style={styles.emptyText}>{t('family_hub_empty_no_days')}</Text>
+                ) : (
+                    <>
+                        <View style={styles.dayStripOuter}>
+                            <ScrollView
+                                ref={dayScrollRef}
+                                horizontal
+                                pagingEnabled
+                                showsHorizontalScrollIndicator={false}
+                                onMomentumScrollEnd={(e) => {
+                                    const idx = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+                                    setSelectedDayIndex(Math.max(0, Math.min(idx, dateKeys.length - 1)));
+                                }}
+                            >
+                                {dateKeys.map((dateKey, idx) => {
+                                    const date = parseDateKey(dateKey);
+                                    return (
+                                        <View key={dateKey} style={[styles.dayPage, { width: SCREEN_WIDTH }]}>
+                                            <TouchableOpacity
+                                                style={styles.dayArrowBtn}
+                                                activeOpacity={0.7}
+                                                disabled={idx === 0}
+                                                onPress={() => goToDay(idx - 1)}
+                                            >
+                                                {idx > 0 ? <Text style={styles.dayArrowText}>‹</Text> : null}
+                                            </TouchableOpacity>
 
-                                        <View style={styles.dayCenter}>
-                                            <Text style={styles.dayAbbrev}>{DAY_ABBREVIATIONS[date.getDay()]}</Text>
-                                            <View style={styles.dayDateRow}>
-                                                <Text style={styles.dayDateNum}>{date.getDate()}</Text>
-                                                <Text style={styles.dayMonth}>{MONTH_ABBREVIATIONS[date.getMonth()]}</Text>
+                                            <View style={styles.dayCenter}>
+                                                <Text style={styles.dayAbbrev}>{DAY_ABBREVIATIONS[date.getDay()]}</Text>
+                                                <View style={styles.dayDateRow}>
+                                                    <Text style={styles.dayDateNum}>{date.getDate()}</Text>
+                                                    <Text style={styles.dayMonth}>{MONTH_ABBREVIATIONS[date.getMonth()]}</Text>
+                                                </View>
                                             </View>
+
+                                            <TouchableOpacity
+                                                style={styles.dayArrowBtn}
+                                                activeOpacity={0.7}
+                                                disabled={idx === dateKeys.length - 1}
+                                                onPress={() => goToDay(idx + 1)}
+                                            >
+                                                {idx < dateKeys.length - 1 ? <Text style={styles.dayArrowText}>›</Text> : null}
+                                            </TouchableOpacity>
                                         </View>
+                                    );
+                                })}
+                            </ScrollView>
 
-                                        <TouchableOpacity
-                                            style={styles.dayArrowBtn}
-                                            activeOpacity={0.7}
-                                            disabled={idx === dateKeys.length - 1}
-                                            onPress={() => goToDay(idx + 1)}
-                                        >
-                                            {idx < dateKeys.length - 1 ? <Text style={styles.dayArrowText}>›</Text> : null}
-                                        </TouchableOpacity>
+                            <View style={styles.dotsRow}>
+                                {dateKeys.map((dateKey, idx) => (
+                                    <View key={dateKey} style={[styles.dot, idx === selectedDayIndex ? styles.dotActive : null]} />
+                                ))}
+                            </View>
+                        </View>
+
+                        <View style={[styles.mealCard, !breakfastEntries.length ? styles.mealCardEmpty : null]}>
+                            <View style={styles.mealIconWrap}>
+                                {breakfastEntries[0]?.image ? (
+                                    <Image source={{ uri: breakfastEntries[0].image }} style={styles.mealIconImage} />
+                                ) : (
+                                    <Text style={styles.mealIconEmoji}>{breakfastEntries[0]?.emoji || '🌅'}</Text>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                style={styles.mealInfo}
+                                activeOpacity={0.7}
+                                onPress={() => (breakfastEntries.length
+                                    ? handleViewMealRecipe(breakfastEntries[0])
+                                    : openAddMealModal(selectedDateKey, 'Breakfast', t('meal_planner_slot_breakfast')))}
+                            >
+                                <Text style={styles.mealSlotLabel}>{t('family_hub_breakfast_label')}</Text>
+                                {breakfastEntries.length ? (
+                                    <Text style={styles.mealTitle}>{breakfastEntries[0].title}</Text>
+                                ) : (
+                                    <Text style={styles.mealAddText}>{t('family_hub_add_breakfast')}</Text>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.mealActionBtn}
+                                activeOpacity={0.7}
+                                onPress={() => (breakfastEntries.length
+                                    ? handleRemoveMeal(selectedDateKey, breakfastEntries[0])
+                                    : openAddMealModal(selectedDateKey, 'Breakfast', t('meal_planner_slot_breakfast')))}
+                            >
+                                <Text style={styles.mealActionText}>{breakfastEntries.length ? '×' : '+'}</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={[styles.mealCard, !lunchEntries.length ? styles.mealCardEmpty : null]}>
+                            <View style={styles.mealIconWrap}>
+                                {lunchEntries[0]?.image ? (
+                                    <Image source={{ uri: lunchEntries[0].image }} style={styles.mealIconImage} />
+                                ) : (
+                                    <Text style={styles.mealIconEmoji}>{lunchEntries[0]?.emoji || '☀️'}</Text>
+                                )}
+                            </View>
+                            <TouchableOpacity
+                                style={styles.mealInfo}
+                                activeOpacity={0.7}
+                                onPress={() => (lunchEntries.length
+                                    ? handleViewMealRecipe(lunchEntries[0])
+                                    : openAddMealModal(selectedDateKey, 'Lunch', t('meal_planner_slot_lunch')))}
+                            >
+                                <Text style={styles.mealSlotLabel}>{t('family_hub_lunch_label')}</Text>
+                                {lunchEntries.length ? (
+                                    <Text style={styles.mealTitle}>{lunchEntries[0].title}</Text>
+                                ) : (
+                                    <Text style={styles.mealAddText}>{t('family_hub_add_lunch')}</Text>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.mealActionBtn}
+                                activeOpacity={0.7}
+                                onPress={() => (lunchEntries.length
+                                    ? handleRemoveMeal(selectedDateKey, lunchEntries[0])
+                                    : openAddMealModal(selectedDateKey, 'Lunch', t('meal_planner_slot_lunch')))}
+                            >
+                                <Text style={styles.mealActionText}>{lunchEntries.length ? '×' : '+'}</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {dinnerEntries.length ? (
+                            dinnerEntries.map((entry, idx) => (
+                                <View key={`${selectedDateKey}-dinner-${idx}`} style={styles.mealCard}>
+                                    <View style={styles.mealIconWrap}>
+                                        {entry.image ? (
+                                            <Image source={{ uri: entry.image }} style={styles.mealIconImage} />
+                                        ) : (
+                                            <Text style={styles.mealIconEmoji}>{entry.emoji || '🌙'}</Text>
+                                        )}
                                     </View>
-                                );
-                            })}
-                        </ScrollView>
-
-                        <View style={styles.dotsRow}>
-                            {dateKeys.map((dateKey, idx) => (
-                                <View key={dateKey} style={[styles.dot, idx === selectedDayIndex ? styles.dotActive : null]} />
-                            ))}
-                        </View>
-                    </View>
-
-                    <View style={[styles.mealCard, !breakfastEntries.length ? styles.mealCardEmpty : null]}>
-                        <View style={styles.mealIconWrap}>
-                            <Text style={styles.mealIconEmoji}>{breakfastEntries[0]?.emoji || '🌅'}</Text>
-                        </View>
-                        <TouchableOpacity
-                            style={styles.mealInfo}
-                            activeOpacity={breakfastEntries.length ? 0.7 : 1}
-                            disabled={!breakfastEntries.length}
-                            onPress={() => handleViewMealRecipe(breakfastEntries[0])}
-                        >
-                            <Text style={styles.mealSlotLabel}>{t('family_hub_breakfast_label')}</Text>
-                            {breakfastEntries.length ? (
-                                <Text style={styles.mealTitle}>{breakfastEntries[0].title}</Text>
-                            ) : (
-                                <Text style={styles.mealAddText}>{t('family_hub_add_breakfast')}</Text>
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.mealActionBtn}
-                            activeOpacity={0.7}
-                            onPress={() => (breakfastEntries.length
-                                ? handleRemoveMeal(selectedDateKey, breakfastEntries[0])
-                                : openAddMealModal(selectedDateKey, 'Breakfast', t('meal_planner_slot_breakfast')))}
-                        >
-                            <Text style={styles.mealActionText}>{breakfastEntries.length ? '×' : '+'}</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={[styles.mealCard, !lunchEntries.length ? styles.mealCardEmpty : null]}>
-                        <View style={styles.mealIconWrap}>
-                            <Text style={styles.mealIconEmoji}>{lunchEntries[0]?.emoji || '☀️'}</Text>
-                        </View>
-                        <TouchableOpacity
-                            style={styles.mealInfo}
-                            activeOpacity={lunchEntries.length ? 0.7 : 1}
-                            disabled={!lunchEntries.length}
-                            onPress={() => handleViewMealRecipe(lunchEntries[0])}
-                        >
-                            <Text style={styles.mealSlotLabel}>{t('family_hub_lunch_label')}</Text>
-                            {lunchEntries.length ? (
-                                <Text style={styles.mealTitle}>{lunchEntries[0].title}</Text>
-                            ) : (
-                                <Text style={styles.mealAddText}>{t('family_hub_add_lunch')}</Text>
-                            )}
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.mealActionBtn}
-                            activeOpacity={0.7}
-                            onPress={() => (lunchEntries.length
-                                ? handleRemoveMeal(selectedDateKey, lunchEntries[0])
-                                : openAddMealModal(selectedDateKey, 'Lunch', t('meal_planner_slot_lunch')))}
-                        >
-                            <Text style={styles.mealActionText}>{lunchEntries.length ? '×' : '+'}</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {dinnerEntries.length ? (
-                        dinnerEntries.map((entry, idx) => (
-                            <View key={`${selectedDateKey}-dinner-${idx}`} style={styles.mealCard}>
+                                    <TouchableOpacity
+                                        style={styles.mealInfo}
+                                        activeOpacity={0.7}
+                                        onPress={() => handleViewMealRecipe(entry)}
+                                    >
+                                        <Text style={styles.mealSlotLabel}>{t('family_hub_dinner_label')}</Text>
+                                        <Text style={styles.mealTitle}>{entry.title}</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.mealActionBtn}
+                                        activeOpacity={0.7}
+                                        onPress={() => handleRemoveMeal(selectedDateKey, entry)}
+                                    >
+                                        <Text style={styles.mealActionText}>×</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))
+                        ) : (
+                            <View style={[styles.mealCard, styles.mealCardEmpty]}>
                                 <View style={styles.mealIconWrap}>
-                                    <Text style={styles.mealIconEmoji}>{entry.emoji || '🌙'}</Text>
+                                    <Text style={styles.mealIconEmoji}>🌙</Text>
                                 </View>
                                 <TouchableOpacity
                                     style={styles.mealInfo}
                                     activeOpacity={0.7}
-                                    onPress={() => handleViewMealRecipe(entry)}
+                                    onPress={() => openAddMealModal(selectedDateKey, 'Dinner', t('meal_planner_slot_dinner'))}
                                 >
                                     <Text style={styles.mealSlotLabel}>{t('family_hub_dinner_label')}</Text>
-                                    <Text style={styles.mealTitle}>{entry.title}</Text>
+                                    <Text style={styles.mealAddText}>{t('family_hub_add_dinner')}</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.mealActionBtn}
                                     activeOpacity={0.7}
-                                    onPress={() => handleRemoveMeal(selectedDateKey, entry)}
+                                    onPress={() => openAddMealModal(selectedDateKey, 'Dinner', t('meal_planner_slot_dinner'))}
                                 >
-                                    <Text style={styles.mealActionText}>×</Text>
+                                    <Text style={styles.mealActionText}>+</Text>
                                 </TouchableOpacity>
                             </View>
-                        ))
-                    ) : (
-                        <View style={[styles.mealCard, styles.mealCardEmpty]}>
-                            <View style={styles.mealIconWrap}>
-                                <Text style={styles.mealIconEmoji}>🌙</Text>
+                        )}
+
+                        <TouchableOpacity style={styles.addActivityBtn} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_add_activity')}>
+                            <Text style={styles.addActivityText}>{t('family_hub_add_activity')}</Text>
+                        </TouchableOpacity>
+
+                        {missingMealsCount > 0 ? (
+                            <View style={styles.fernBanner}>
+                                <Text style={styles.fernBannerEmoji}>🌿</Text>
+                                <View style={styles.fernBannerTextWrap}>
+                                    <Text style={styles.fernBannerLabel}>{t('family_hub_fern_says_label')}</Text>
+                                    <Text style={styles.fernBannerText}>{t('family_hub_fern_says_meals', { count: missingMealsCount })}</Text>
+                                </View>
                             </View>
-                            <View style={styles.mealInfo}>
-                                <Text style={styles.mealSlotLabel}>{t('family_hub_dinner_label')}</Text>
-                                <Text style={styles.mealAddText}>{t('family_hub_add_dinner')}</Text>
-                            </View>
-                            <TouchableOpacity style={styles.mealActionBtn} activeOpacity={0.7} onPress={() => showComingSoon('family_hub_add_dinner')}>
-                                <Text style={styles.mealActionText}>+</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
+                        ) : null}
+                    </>
+                )}
+            </ScrollView>
 
-                    <TouchableOpacity style={styles.addActivityBtn} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_add_activity')}>
-                        <Text style={styles.addActivityText}>{t('family_hub_add_activity')}</Text>
-                    </TouchableOpacity>
+            <RecipeDetailModal
+                recipe={mealPlanRecipes.selectedRecipe}
+                onClose={() => mealPlanRecipes.setSelectedRecipe(null)}
+                noteText={mealPlanRecipes.noteText}
+                onChangeNoteText={mealPlanRecipes.setNoteText}
+                isSaving={mealPlanRecipes.isSaving}
+                onSaveNote={() => mealPlanRecipes.persistSelectedNote(() => { })}
+                isAlreadySaved={isSelectedMealRecipeSaved}
+                showSavedIndicator
+                onDeleteRecipe={isSelectedMealRecipeSaved ? () => mealPlanRecipes.handleDeleteSelected(() => mealPlanRecipes.setSelectedRecipe(null)) : undefined}
+                onAddToList={mealPlanRecipes.handleAddToShoppingList}
+            />
 
-                    {missingMealsCount > 0 ? (
-                        <View style={styles.fernBanner}>
-                            <Text style={styles.fernBannerEmoji}>🌿</Text>
-                            <View style={styles.fernBannerTextWrap}>
-                                <Text style={styles.fernBannerLabel}>{t('family_hub_fern_says_label')}</Text>
-                                <Text style={styles.fernBannerText}>{t('family_hub_fern_says_meals', { count: missingMealsCount })}</Text>
-                            </View>
-                        </View>
-                    ) : null}
-                </>
-            )}
-        </ScrollView>
-
-        <RecipeDetailModal
-            recipe={mealPlanRecipes.selectedRecipe}
-            onClose={() => mealPlanRecipes.setSelectedRecipe(null)}
-            noteText={mealPlanRecipes.noteText}
-            onChangeNoteText={mealPlanRecipes.setNoteText}
-            isSaving={mealPlanRecipes.isSaving}
-            onSaveNote={() => mealPlanRecipes.persistSelectedNote(() => {})}
-            isAlreadySaved={isSelectedMealRecipeSaved}
-            showSavedIndicator
-            onDeleteRecipe={isSelectedMealRecipeSaved ? () => mealPlanRecipes.handleDeleteSelected(() => mealPlanRecipes.setSelectedRecipe(null)) : undefined}
-            onAddToList={mealPlanRecipes.handleAddToShoppingList}
-        />
-
-        <FamilyAddSavedMealModal
-            visible={Boolean(addMealModal)}
-            slotLabel={addMealModal?.slotLabel}
-            savedRecipes={data.recipes}
-            onClose={() => setAddMealModal(null)}
-            onSelect={handleSelectSavedMealForAdd}
-        />
+            <FamilyAddSavedMealModal
+                visible={Boolean(addMealModal)}
+                slotLabel={addMealModal?.slotLabel}
+                savedRecipes={data.recipes}
+                onClose={() => setAddMealModal(null)}
+                onSelect={handleSelectSavedMealForAdd}
+            />
         </>
     );
 }
@@ -715,6 +770,11 @@ const styles = StyleSheet.create({
     },
     mealIconEmoji: {
         fontSize: 20,
+    },
+    mealIconImage: {
+        width: 44,
+        height: 44,
+        borderRadius: 10,
     },
     mealInfo: {
         flex: 1,

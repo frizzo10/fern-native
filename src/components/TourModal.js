@@ -1,25 +1,39 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
+import { useFernVoice } from '../hooks/useFernVoice';
 
-export default function TourModal({ visible, tour, storageKey, onClose }) {
+export default function TourModal({ visible, tour, storageKey, onClose, token }) {
   const { t } = useLanguage();
   const [stepIndex, setStepIndex] = useState(0);
+  const { speakText, stopSpeaking } = useFernVoice({ token, enabled: visible });
+
+  const step = tour?.steps?.[stepIndex];
+  const isLast = tour ? stepIndex === tour.steps.length - 1 : false;
+  const title = tour ? t(tour.titleKey) : '';
+  const body = step ? t(step.textKey) : '';
+
+  // Speak the current step's text on open and every "Next" — speakText
+  // already stops any in-progress playback before starting the new one, so
+  // moving to the next step naturally cuts off the previous line. Gated on
+  // `fern_voice_enabled` inside useFernVoice, same as the rest of the app.
+  useEffect(() => {
+    if (visible && body) {
+      speakText(body);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, stepIndex, body]);
 
   const finish = useCallback(() => {
+    stopSpeaking();
     if (storageKey) AsyncStorage.setItem(storageKey, '1').catch(() => {});
     setStepIndex(0);
     onClose();
-  }, [storageKey, onClose]);
+  }, [storageKey, onClose, stopSpeaking]);
 
   if (!tour?.steps?.length) return null;
-
-  const step = tour.steps[stepIndex];
-  const isLast = stepIndex === tour.steps.length - 1;
-  const title = t(tour.titleKey);
-  const body = t(step.textKey);
 
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={finish}>

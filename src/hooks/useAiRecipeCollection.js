@@ -82,7 +82,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         const nextSaved = [
             ...baseSaved,
             {
-                id: `${source}-${Date.now()}`,
+                id: `${source}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                 title: detailRecipe.title,
                 emoji: detailRecipe.emoji,
                 cuisine: detailRecipe.category,

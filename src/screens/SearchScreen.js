@@ -438,7 +438,7 @@ export default function SearchScreen({ user }) {
                 updatedSaved = [
                     ...baseSaved,
                     {
-                        id: `search-${Date.now()}`,
+                        id: `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                         title: selectedRecipe.title,
                         emoji: selectedRecipe.emoji,
                         cuisine: selectedRecipe.category,

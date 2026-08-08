@@ -2163,7 +2163,7 @@ export default function HomeScreen({ user }) {
             <View style={[styles.panelCard, shadow.card]}>
               <View style={styles.panelHeaderRow}>
                 <Text style={styles.panelTitle}>{t('this_week')}</Text>
-                <TouchableOpacity activeOpacity={0.8}>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Family')}>
                   <Text style={styles.panelLink}>{t('plan_link')}</Text>
                 </TouchableOpacity>
               </View>

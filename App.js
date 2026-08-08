@@ -238,6 +238,7 @@ function AppNavigator({ user, signOut }) {
         tour={activeTour}
         storageKey={activeTourStorageKey}
         onClose={closeTour}
+        token={user?.token}
       />
 
       {!isChatOpen && (
