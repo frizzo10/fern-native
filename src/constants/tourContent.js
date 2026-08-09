@@ -246,6 +246,47 @@ export const TOURS = {
   },
 };
 
+// Tab route to switch to (and freeze, non-interactive, behind the tour card)
+// when a tour starts, so "Take a Tour" from AccountScreen/PlansScreen shows
+// the real screen the tour is narrating instead of whatever was visible
+// underneath the account overlay.
+//
+// Deliberately tab-only — this used to also auto-open the specific feature
+// modal each tour describes (fridge_challenge -> FridgeChallengeModal, etc.),
+// but several of those modals already call their own maybeAutoStart() the
+// moment they open (see e.g. FridgeChallengeModal.js), and RN's Modal has no
+// z-index: whichever Modal presents last wins the stacking race and blocks
+// touches to the other one. That made tapping Fridge Challenge normally
+// (not through a tour) appear to freeze, since TourModal ended up on top of
+// it. So every entry below just routes to a tab, never opens a modal.
+export const TOUR_PREVIEW_ROUTE = {
+  home: 'Home',
+  find: 'Find',
+  recipes: 'Recipes',
+  shopping: 'Shopping',
+  family_hub: 'Family',
+  fridge_challenge: 'Home',
+  leftover_magic: 'Home',
+  quick_dinner: 'Home',
+  budget_planner: 'Home',
+  semi_homemade: 'Home',
+  charcuterie: 'Home',
+  wine_pairing: 'Home',
+  nutrition: 'Home',
+  meal_planner: 'Home',
+  dinner_party: 'Home',
+  scan_circular: 'Home',
+  alexa_skill: 'Home',
+  ask_fern: 'Home',
+  shopping_mode: 'Shopping',
+  personal_shopper: 'Shopping',
+  instacart: 'Shopping',
+  cook_mode: 'Recipes',
+  family_vault: 'Recipes',
+  weekly_nutrition: 'Home',
+  end_to_end: 'Home',
+};
+
 // Order + AsyncStorage "seen" keys for the "Take a Tour" list in AccountScreen.
 // `tier` is the plan required to use the real feature behind the tour (see
 // src/constants/tiers.js + src/hooks/useEntitlement.js for the gating this drives).

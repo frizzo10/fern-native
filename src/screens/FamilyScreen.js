@@ -12,6 +12,7 @@ import UpgradeGateModal from '../components/UpgradeGateModal';
 import FamilyVoiceExampleScreen from '../components/FamilyVoiceExampleScreen';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import FamilyAddSavedMealModal from '../components/modals/FamilyAddSavedMealModal';
+import FamilyAddActivityModal from '../components/modals/FamilyAddActivityModal';
 import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
 import { fetchMealPlanRecipeDetail, fetchDinnerIdeas } from '../services/mealPlanRecipeService';
 import { fetchRecipeImage } from '../utils/recipeImage';
@@ -50,21 +51,40 @@ function normalizeSlot(entry) {
     return String(entry?.slot || '').trim().toLowerCase();
 }
 
+// "Sun 9" — title-case weekday abbreviation + day number, matching the shape
+// activities are stored/displayed with (`rv4_activities`'s `day` field).
+function formatDayLabel(dateKey) {
+    const date = parseDateKey(dateKey);
+    const abbrev = DAY_ABBREVIATIONS[date.getDay()];
+    const titleCased = abbrev.charAt(0) + abbrev.slice(1).toLowerCase();
+    return `${titleCased} ${date.getDate()}`;
+}
+
 export default function FamilyScreen({ user }) {
     const { t, locale } = useLanguage();
     const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
     const { hasAccess } = useEntitlement();
     const mealPlanRecipes = useAiRecipeCollection({ source: 'family_meal_plan', data, pushAllFromStorage, pull, t, token: user?.token });
 
     const [mealPlanLocal, setMealPlanLocal] = useState({});
+    const [activitiesLocal, setActivitiesLocal] = useState([]);
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [showExampleView, setShowExampleView] = useState(false);
     const [isLoadingMealRecipe, setIsLoadingMealRecipe] = useState(false);
     const [isFillingWeek, setIsFillingWeek] = useState(false);
     const [addMealModal, setAddMealModal] = useState(null); // { dateKey, slot, slotLabel } | null
+    const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
     const dayScrollRef = useRef(null);
     const imageFetchInFlight = useRef(new Set());
+    const pageScrollRef = useRef(null);
+    const sectionY = useRef({});
+
+    // "family_hub" tour step -> scroll target. Steps 1 and 6 talk about the
+    // week/mic generally (top); step 2 is about tapping an empty meal slot
+    // (mealCards); steps 3-4 are about the AI Fill Week / shopping-list
+    // actions (actionsRow); step 5 is the Add Activity button.
+    const FAMILY_HUB_TOUR_STEP_TARGETS = ['top', 'mealCards', 'actionsRow', 'actionsRow', 'addActivity', 'top'];
 
     // Always today → today+6, regardless of what's actually populated in
     // mealPlanLocal — this is what makes "yesterday" naturally fall off the
@@ -79,6 +99,10 @@ export default function FamilyScreen({ user }) {
     }, [data.mealPlan]);
 
     useEffect(() => {
+        setActivitiesLocal(Array.isArray(data.activities) ? data.activities : []);
+    }, [data.activities]);
+
+    useEffect(() => {
         setSelectedDayIndex((current) => Math.min(current, Math.max(0, dateKeys.length - 1)));
     }, [dateKeys.length]);
 
@@ -91,6 +115,14 @@ export default function FamilyScreen({ user }) {
     useEffect(() => {
         maybeAutoStart('family_hub');
     }, []);
+
+    useEffect(() => {
+        if (activeTourKey !== 'family_hub') return;
+        const target = FAMILY_HUB_TOUR_STEP_TARGETS[activeTourStepIndex] || 'top';
+        const y = target === 'top' ? 0 : (sectionY.current[target] ?? 0);
+        pageScrollRef.current?.scrollTo({ y, animated: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTourKey, activeTourStepIndex]);
 
     const navigation = useNavigation();
 
@@ -113,6 +145,10 @@ export default function FamilyScreen({ user }) {
     const lunchEntries = selectedDayMeals.filter((entry) => normalizeSlot(entry) === 'lunch');
     const dinnerEntries = selectedDayMeals.filter((entry) => normalizeSlot(entry) === 'dinner');
     const missingMealsCount = (breakfastEntries.length ? 0 : 1) + (lunchEntries.length ? 0 : 1) + (dinnerEntries.length ? 0 : 1);
+
+    const dayOptions = dateKeys.map((dateKey) => ({ dateKey, label: formatDayLabel(dateKey) }));
+    const activitiesThisWeek = activitiesLocal.filter((activity) => dateKeys.includes(activity?.dateKey));
+    const selectedDayActivities = activitiesThisWeek.filter((activity) => activity.dateKey === selectedDateKey);
 
     // Real photos for the selected day's meals: render emoji first (above),
     // then fetch a photo in the background per entry and swap it in once it
@@ -151,6 +187,22 @@ export default function FamilyScreen({ user }) {
         AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(nextMealPlan))
             .then(() => pushChangedFromStorage({ meal_plan: nextMealPlan }))
             .catch((e) => console.log('[family-hub] failed to sync meal plan', e?.message || e));
+    };
+
+    const persistActivities = (nextActivities) => {
+        setActivitiesLocal(nextActivities);
+        AsyncStorage.setItem('rv4_activities', JSON.stringify(nextActivities))
+            .then(() => pushChangedFromStorage({ activities: nextActivities }))
+            .catch((e) => console.log('[family-hub] failed to sync activities', e?.message || e));
+    };
+
+    const handleAddActivity = (activity) => {
+        persistActivities([...activitiesLocal, activity]);
+        setIsAddActivityOpen(false);
+    };
+
+    const handleRemoveActivity = (activity) => {
+        persistActivities(activitiesLocal.filter((item) => item !== activity));
     };
 
     const handleRemoveMeal = (dateKey, entry) => {
@@ -267,7 +319,7 @@ export default function FamilyScreen({ user }) {
 
     return (
         <>
-            <ScrollView style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
+            <ScrollView ref={pageScrollRef} style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
                 <TouchableOpacity
                     style={styles.hiddenToggle}
                     activeOpacity={0.6}
@@ -295,7 +347,10 @@ export default function FamilyScreen({ user }) {
                     </View>
                 ) : null}
 
-                <View style={styles.actionsRow}>
+                <View
+                    style={styles.actionsRow}
+                    onLayout={(e) => { sectionY.current.actionsRow = e.nativeEvent.layout.y; }}
+                >
                     <TouchableOpacity
                         style={[styles.fillWeekBtn, isFillingWeek ? styles.fillWeekBtnDisabled : null]}
                         activeOpacity={0.85}
@@ -325,7 +380,7 @@ export default function FamilyScreen({ user }) {
                     </View>
                     <View style={[styles.statCard, shadow.card]}>
                         <Text style={styles.statLabel}>{t('family_hub_stat_activities')}</Text>
-                        <Text style={styles.statValue}>0</Text>
+                        <Text style={styles.statValue}>{activitiesThisWeek.length}</Text>
                     </View>
                     <View style={[styles.statCard, shadow.card]}>
                         <Text style={styles.statLabel}>{t('family_hub_stat_shopping')}</Text>
@@ -393,7 +448,10 @@ export default function FamilyScreen({ user }) {
                             </View>
                         </View>
 
-                        <View style={[styles.mealCard, !breakfastEntries.length ? styles.mealCardEmpty : null]}>
+                        <View
+                            style={[styles.mealCard, !breakfastEntries.length ? styles.mealCardEmpty : null]}
+                            onLayout={(e) => { sectionY.current.mealCards = e.nativeEvent.layout.y; }}
+                        >
                             <View style={styles.mealIconWrap}>
                                 {breakfastEntries[0]?.image ? (
                                     <Image source={{ uri: breakfastEntries[0].image }} style={styles.mealIconImage} />
@@ -509,7 +567,38 @@ export default function FamilyScreen({ user }) {
                             </View>
                         )}
 
-                        <TouchableOpacity style={styles.addActivityBtn} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_add_activity')}>
+                        {selectedDayActivities.length ? (
+                            <View style={styles.activitiesSection}>
+                                <Text style={styles.activitiesLabel}>{t('family_hub_activities_label')}</Text>
+                                {selectedDayActivities.map((activity, idx) => (
+                                    <View key={`${selectedDateKey}-activity-${idx}`} style={styles.mealCard}>
+                                        <View style={styles.mealIconWrap}>
+                                            <Text style={styles.mealIconEmoji}>{activity.emoji || '🗓️'}</Text>
+                                        </View>
+                                        <View style={styles.mealInfo}>
+                                            <Text style={styles.mealTitle}>{activity.label}</Text>
+                                            {activity.time ? (
+                                                <Text style={styles.mealAddText}>{activity.time}</Text>
+                                            ) : null}
+                                        </View>
+                                        <TouchableOpacity
+                                            style={styles.mealActionBtn}
+                                            activeOpacity={0.7}
+                                            onPress={() => handleRemoveActivity(activity)}
+                                        >
+                                            <Text style={styles.mealActionText}>×</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : null}
+
+                        <TouchableOpacity
+                            style={styles.addActivityBtn}
+                            activeOpacity={0.85}
+                            onPress={() => setIsAddActivityOpen(true)}
+                            onLayout={(e) => { sectionY.current.addActivity = e.nativeEvent.layout.y; }}
+                        >
                             <Text style={styles.addActivityText}>{t('family_hub_add_activity')}</Text>
                         </TouchableOpacity>
 
@@ -545,6 +634,14 @@ export default function FamilyScreen({ user }) {
                 savedRecipes={data.recipes}
                 onClose={() => setAddMealModal(null)}
                 onSelect={handleSelectSavedMealForAdd}
+            />
+
+            <FamilyAddActivityModal
+                visible={isAddActivityOpen}
+                dayOptions={dayOptions}
+                initialDateKey={selectedDateKey}
+                onClose={() => setIsAddActivityOpen(false)}
+                onAdd={handleAddActivity}
             />
         </>
     );
@@ -807,6 +904,15 @@ const styles = StyleSheet.create({
         color: '#8C7A5F',
         fontFamily: 'Jost-Bold',
         fontSize: 18,
+    },
+    activitiesSection: {
+        marginTop: 20,
+    },
+    activitiesLabel: {
+        color: '#8C7A5F',
+        fontFamily: 'Jost-Bold',
+        fontSize: 10,
+        letterSpacing: 0.6,
     },
     addActivityBtn: {
         marginTop: 16,

@@ -1,13 +1,13 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
 import { useFernVoice } from '../hooks/useFernVoice';
 
-export default function TourModal({ visible, tour, storageKey, onClose, token }) {
+export default function TourModal({ visible, tour, storageKey, onClose, token, stepIndex, setStepIndex }) {
   const { t } = useLanguage();
-  const [stepIndex, setStepIndex] = useState(0);
   const { speakText, stopSpeaking } = useFernVoice({ token, enabled: visible });
 
   const step = tour?.steps?.[stepIndex];
@@ -38,6 +38,13 @@ export default function TourModal({ visible, tour, storageKey, onClose, token })
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={finish}>
       <View style={styles.overlay}>
+        <LinearGradient
+          pointerEvents="none"
+          colors={['rgba(10,22,10,0)', 'rgba(10,22,10,0.55)', 'rgba(10,22,10,0.86)']}
+          locations={[0, 0.55, 1]}
+          style={styles.scrim}
+        />
+
         <View style={styles.skipWrap}>
           <TouchableOpacity style={styles.skipBtn} activeOpacity={0.8} onPress={finish}>
             <Text style={styles.skipText}>{t('tour_skip')}</Text>
@@ -81,8 +88,15 @@ export default function TourModal({ visible, tour, storageKey, onClose, token })
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(10,22,10,0.72)',
+    backgroundColor: 'rgba(10,22,10,0.12)',
     justifyContent: 'space-between',
+  },
+  scrim: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '62%',
   },
   skipWrap: { alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 56 },
   skipBtn: {

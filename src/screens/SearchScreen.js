@@ -134,12 +134,14 @@ export default function SearchScreen({ user }) {
     const navigation = useNavigation();
     const route = useRoute();
     const { t, locale } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
     const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
 
     useEffect(() => {
         maybeAutoStart('find');
     }, []);
+
+    const searchSectionY = useRef({});
     const [searchText, setSearchText] = useState('');
     const [cravingText, setCravingText] = useState('');
     const [isBloggersModalOpen, setIsBloggersModalOpen] = useState(false);
@@ -165,6 +167,19 @@ export default function SearchScreen({ user }) {
     const syncTimerRef = useRef(null);
     const isSyncingRef = useRef(false);
     const scrollRef = useRef(null);
+
+    // "find" tour step -> scroll target: step 1 is the craving/search bar
+    // (top); steps 2-3 talk about results and saving one, so scroll to the
+    // results section — but only if the user's own live state actually has
+    // one (this is a frozen real screen, not staged content; if they haven't
+    // searched for anything yet there's nothing to scroll to, so it no-ops).
+    useEffect(() => {
+        if (activeTourKey !== 'find') return;
+        const target = ['top', 'results', 'results'][activeTourStepIndex] || 'top';
+        const y = target === 'top' ? 0 : searchSectionY.current[target];
+        if (y != null) scrollRef.current?.scrollTo({ y, animated: true });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeTourKey, activeTourStepIndex]);
 
     useEffect(() => {
         if (route?.params?.openBloggers) {
@@ -854,7 +869,10 @@ export default function SearchScreen({ user }) {
                             </View>
                         </>
                     ) : (
-                        <View style={styles.resultsWrap}>
+                        <View
+                            style={styles.resultsWrap}
+                            onLayout={(e) => { searchSectionY.current.results = e.nativeEvent.layout.y; }}
+                        >
                             <View style={styles.resultsHeaderRow}>
                                 <View style={styles.resultsHeaderTextWrap}>
                                     <Text style={styles.resultsHeaderTitle}>

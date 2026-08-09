@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -57,17 +57,29 @@ function toSyncPayload(list) {
 
 export default function ShoppingScreen({ user }) {
   const { t } = useLanguage();
-  const { maybeAutoStart } = useTour();
+  const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [sendingToStore, setSendingToStore] = useState(null);
   const [remainingItemsModal, setRemainingItemsModal] = useState(null);
+  const scrollRef = useRef(null);
+  const sectionY = useRef({});
 
   useEffect(() => {
     maybeAutoStart('shopping');
   }, []);
+
+  // "shopping" tour step -> scroll target: step 1 is the list itself (top),
+  // step 2 is the manual add row, step 3 (clear/check off) is back on the
+  // list where checked items live.
+  useEffect(() => {
+    if (activeTourKey !== 'shopping') return;
+    const target = ['top', 'addRow', 'top'][activeTourStepIndex] || 'top';
+    const y = target === 'top' ? 0 : (sectionY.current[target] ?? 0);
+    scrollRef.current?.scrollTo({ y, animated: true });
+  }, [activeTourKey, activeTourStepIndex]);
 
   useFocusEffect(
     useMemo(() => () => {
@@ -219,7 +231,7 @@ export default function ShoppingScreen({ user }) {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>{t('shopping_screen_title')}</Text>
           <View style={styles.headerActions}>
@@ -285,7 +297,7 @@ export default function ShoppingScreen({ user }) {
           <Text style={styles.voiceTap}>{t('voice_card_tap')}</Text>
         </TouchableOpacity>
 
-        <View style={styles.addRow}>
+        <View style={styles.addRow} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
           <TextInput
             value={draft}
             onChangeText={setDraft}

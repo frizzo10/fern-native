@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Keyboard,
@@ -103,7 +103,7 @@ export default function HomeScreen({ user }) {
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const navigation = useNavigation();
   const { open: openAccount } = useAccountModal();
-  const { maybeAutoStart } = useTour();
+  const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { tier } = useEntitlement();
   const { open: openPlans } = usePlansModal();
   const tierBadgeLabel = tier === TIERS.PRO_MAX ? t('pro_max') : tier === TIERS.PRO ? t('pro') : t('free');
@@ -111,6 +111,21 @@ export default function HomeScreen({ user }) {
   useEffect(() => {
     maybeAutoStart('home');
   }, []);
+
+  // "home" tour step -> scroll target: step 1 ("your whole week, day by
+  // day") is the one step with a real distinct section (the THIS WEEK
+  // panel); the rest (Ask Fern, tabs, profile icon) are fixed chrome that's
+  // visible regardless of scroll position, so they just reset to top.
+  const homeScrollRef = useRef(null);
+  const homeSectionY = useRef({});
+  const HOME_TOUR_STEP_TARGETS = ['weekPanel', 'top', 'top', 'top'];
+
+  useEffect(() => {
+    if (activeTourKey !== 'home') return;
+    const target = HOME_TOUR_STEP_TARGETS[activeTourStepIndex] || 'top';
+    const y = target === 'top' ? 0 : (homeSectionY.current[target] ?? 0);
+    homeScrollRef.current?.scrollTo({ y, animated: true });
+  }, [activeTourKey, activeTourStepIndex]);
 
   const toolKeysMap = {
     'Alexa Skill': 'tool_alexa',
@@ -1951,6 +1966,7 @@ export default function HomeScreen({ user }) {
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={homeScrollRef}
         showsVerticalScrollIndicator={false}
         style={styles.screenScroll}
         contentContainerStyle={styles.screenContent}>
@@ -2160,7 +2176,10 @@ export default function HomeScreen({ user }) {
               )}
             </View>
 
-            <View style={[styles.panelCard, shadow.card]}>
+            <View
+              style={[styles.panelCard, shadow.card]}
+              onLayout={(e) => { homeSectionY.current.weekPanel = e.nativeEvent.layout.y; }}
+            >
               <View style={styles.panelHeaderRow}>
                 <Text style={styles.panelTitle}>{t('this_week')}</Text>
                 <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Family')}>

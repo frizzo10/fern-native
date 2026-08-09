@@ -85,6 +85,7 @@ export function useSync(user) {
       await AsyncStorage.setItem('remi_explicit', JSON.stringify(dd.remi_explicit || {}));
       await AsyncStorage.setItem('cpc_followed_bloggers', JSON.stringify(dd.followed_bloggers || []));
       await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(dd.user_stores || []));
+      await AsyncStorage.setItem('rv4_activities', JSON.stringify(dd.activities || []));
       // available_coupons is a server-owned catalog, refreshed from every pull — not part of push
       await AsyncStorage.setItem('rv4_available_coupons', JSON.stringify(dd.available_coupons || []));
       await AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(dd.wallet_coupons || []));
@@ -107,6 +108,7 @@ export function useSync(user) {
               followed_bloggers: dd.followed_bloggers || [],
               user_stores: dd.user_stores || [],
               wallet_coupons: dd.wallet_coupons || [],
+              activities: dd.activities || [],
             },
           }),
         });
@@ -155,6 +157,7 @@ export function useSync(user) {
       const followedBloggers = JSON.parse(await AsyncStorage.getItem('cpc_followed_bloggers') || '[]');
       const userStores = JSON.parse(await AsyncStorage.getItem('cpc_user_stores') || '[]');
       const walletCoupons = JSON.parse(await AsyncStorage.getItem('rv4_wallet_coupons') || '[]');
+      const activities = JSON.parse(await AsyncStorage.getItem('rv4_activities') || '[]');
 
       const dataToPush = {
         saved,
@@ -165,6 +168,7 @@ export function useSync(user) {
         followed_bloggers: followedBloggers,
         user_stores: userStores,
         wallet_coupons: walletCoupons,
+        activities,
         ...changedData,
       };
 

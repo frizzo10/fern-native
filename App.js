@@ -30,6 +30,7 @@ import { AccountModalProvider, useAccountModal } from './src/services/AccountMod
 import { PlansModalProvider, usePlansModal } from './src/services/PlansModalContext';
 import { TourProvider, useTour } from './src/services/TourContext';
 import TourModal from './src/components/TourModal';
+import { TOUR_PREVIEW_ROUTE } from './src/constants/tourContent';
 
 const Tab = createBottomTabNavigator();
 
@@ -151,7 +152,14 @@ function AppNavigator({ user, signOut }) {
   const { t } = useLanguage();
   const { visible: isAccountOpen, open: openAccount, close: closeAccount } = useAccountModal();
   const { visible: isPlansOpen, open: openPlans, close: closePlans } = usePlansModal();
-  const { tour: activeTour, storageKey: activeTourStorageKey, closeTour } = useTour();
+  const {
+    tour: activeTour,
+    tourKey: activeTourKey,
+    stepIndex: activeTourStepIndex,
+    setStepIndex: setActiveTourStepIndex,
+    storageKey: activeTourStorageKey,
+    closeTour,
+  } = useTour();
   const [arrivedStore, setArrivedStore] = useState(null);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -172,6 +180,24 @@ function AppNavigator({ user, signOut }) {
   useEffect(() => {
     if (user) startGeofence();
   }, [user]);
+
+  // When a tour starts (e.g. "Take a Tour" from AccountScreen/PlansScreen),
+  // switch to the tab it's narrating so that real, live screen is what's
+  // frozen behind the tour card — instead of whatever overlay happened to be
+  // open. Tours with no direct screen (see TOUR_PREVIEW_ROUTE) are a no-op
+  // here and just show whatever's already behind.
+  //
+  // Deliberately tab-only, not modal-opening: RN's Modal has no z-index, and
+  // several feature modals (e.g. FridgeChallengeModal) already call their
+  // own maybeAutoStart() the moment they open. Forcing TourModal to also
+  // stack on top in that case blocks all touches to the real modal — that
+  // was a real bug (tapping Fridge Challenge appeared to "freeze"). Tabs
+  // don't have this problem since they're not native Modals, so this stays
+  // scoped to navigation only.
+  useEffect(() => {
+    const route = TOUR_PREVIEW_ROUTE[activeTourKey];
+    if (route) navigationRef.current?.navigate(route);
+  }, [activeTourKey]);
 
   return (
     <NavigationContainer ref={navigationRef}>
@@ -239,6 +265,8 @@ function AppNavigator({ user, signOut }) {
         storageKey={activeTourStorageKey}
         onClose={closeTour}
         token={user?.token}
+        stepIndex={activeTourStepIndex}
+        setStepIndex={setActiveTourStepIndex}
       />
 
       {!isChatOpen && (
