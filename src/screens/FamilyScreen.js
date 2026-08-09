@@ -320,13 +320,13 @@ export default function FamilyScreen({ user }) {
     return (
         <>
             <ScrollView ref={pageScrollRef} style={styles.screen} contentContainerStyle={styles.screenContent} showsVerticalScrollIndicator={false}>
-                <TouchableOpacity
+                {/* <TouchableOpacity
                     style={styles.hiddenToggle}
                     activeOpacity={0.6}
                     onPress={() => setShowExampleView(true)}
                 >
                     <Text style={styles.hiddenToggleText}>🧪</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
                 <Text style={styles.title}>{`🗓️ ${t('family_hub_title')}`}</Text>
                 <Text style={styles.statusLine}>
@@ -360,18 +360,18 @@ export default function FamilyScreen({ user }) {
                         <Text style={styles.fillWeekBtnText}>{t('family_hub_ai_fill_week_btn')}</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.planFernBtn, shadow.card]} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_plan_with_fern_btn')}>
+                    {/* <TouchableOpacity style={[styles.planFernBtn, shadow.card]} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_plan_with_fern_btn')}>
                         <Text style={styles.planFernBtnText}>{t('family_hub_plan_with_fern_btn')}</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
 
-                    <TouchableOpacity style={styles.listBtn} activeOpacity={0.85} onPress={handlePressList}>
+                    {/* <TouchableOpacity style={styles.listBtn} activeOpacity={0.85} onPress={handlePressList}>
                         <Text style={styles.listBtnText}>{t('family_hub_list_btn')}</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                 </View>
 
-                <TouchableOpacity style={styles.shareBtn} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_share_btn')}>
+                {/* <TouchableOpacity style={styles.shareBtn} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_share_btn')}>
                     <Text style={styles.shareBtnText}>{t('family_hub_share_btn')}</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
 
                 <View style={styles.statsRow}>
                     <View style={[styles.statCard, shadow.card]}>
