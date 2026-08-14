@@ -64,9 +64,9 @@ export default function LeftoverMagicModal({
                     <View style={styles.leftoverSheet}>
                         <View style={styles.leftoverTopBar}>
                             <Text style={styles.leftoverTitle}>{`📸 ${t('leftover_magic_title')}`}</Text>
-                            <TouchableOpacity style={styles.leftoverAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                            {/* <TouchableOpacity style={styles.leftoverAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
                                 <Text style={styles.leftoverAskFernText}>{t('leftover_ask_fern_btn')}</Text>
-                            </TouchableOpacity>
+                            </TouchableOpacity> */}
                             <TouchableOpacity style={styles.leftoverCloseBtn} activeOpacity={0.85} onPress={onClose}>
                                 <Text style={styles.leftoverCloseText}>×</Text>
                             </TouchableOpacity>

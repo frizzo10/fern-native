@@ -59,110 +59,110 @@ export default function WinePairingModal({
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <View style={styles.wineSheet}>
-                    <TouchableOpacity style={styles.wineCloseBtn} activeOpacity={0.85} onPress={onClose}>
-                        <Text style={styles.wineCloseText}>×</Text>
-                    </TouchableOpacity>
+                    <View style={styles.wineSheet}>
+                        <TouchableOpacity style={styles.wineCloseBtn} activeOpacity={0.85} onPress={onClose}>
+                            <Text style={styles.wineCloseText}>×</Text>
+                        </TouchableOpacity>
 
-                    <ScrollView
-                        showsVerticalScrollIndicator={false}
-                        contentContainerStyle={styles.wineContentScroll}
-                        keyboardShouldPersistTaps="handled"
-                    >
-                        <Text style={styles.wineHero}>🍷</Text>
-                        <Text style={styles.wineTitle}>{t('wine_pairing_title')}</Text>
-                        <Text style={styles.wineSubtitle}>{t('wine_form_subtitle')}</Text>
-
-                        <Text style={styles.wineFieldLabel}>{t('dish_or_meal_label')}</Text>
-                        <TextInput
-                            value={wineDishInput}
-                            onChangeText={setWineDishInput}
-                            placeholder={t('wine_dish_placeholder')}
-                            placeholderTextColor="#B0AEA9"
-                            style={styles.wineInput}
-                        />
-
-                        <TouchableOpacity
-                            style={[styles.wineFindBtn, isWineSearching ? styles.wineFindBtnDisabled : null]}
-                            activeOpacity={0.85}
-                            onPress={onFindWinePairings}
-                            disabled={isWineSearching}
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.wineContentScroll}
+                            keyboardShouldPersistTaps="handled"
                         >
-                            <Text style={styles.wineFindBtnText}>{isWineSearching ? t('searching_ellipsis') : t('find_my_pairings_btn')}</Text>
-                        </TouchableOpacity>
+                            <Text style={styles.wineHero}>🍷</Text>
+                            <Text style={styles.wineTitle}>{t('wine_pairing_title')}</Text>
+                            <Text style={styles.wineSubtitle}>{t('wine_form_subtitle')}</Text>
 
-                        <TouchableOpacity style={styles.wineAskFernBtn} activeOpacity={0.85}>
+                            <Text style={styles.wineFieldLabel}>{t('dish_or_meal_label')}</Text>
+                            <TextInput
+                                value={wineDishInput}
+                                onChangeText={setWineDishInput}
+                                placeholder={t('wine_dish_placeholder')}
+                                placeholderTextColor="#B0AEA9"
+                                style={styles.wineInput}
+                            />
+
+                            <TouchableOpacity
+                                style={[styles.wineFindBtn, isWineSearching ? styles.wineFindBtnDisabled : null]}
+                                activeOpacity={0.85}
+                                onPress={onFindWinePairings}
+                                disabled={isWineSearching}
+                            >
+                                <Text style={styles.wineFindBtnText}>{isWineSearching ? t('searching_ellipsis') : t('find_my_pairings_btn')}</Text>
+                            </TouchableOpacity>
+
+                            {/* <TouchableOpacity style={styles.wineAskFernBtn} activeOpacity={0.85}>
                             <Text style={styles.wineAskFernText}>{t('ask_fern_walkthrough_btn')}</Text>
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
 
-                        {(wineSummary || winePairings.length) ? (
-                            <View style={styles.wineResultsContent}>
-                                {wineSummary ? <Text style={styles.wineSummaryText}>"{wineSummary}"</Text> : null}
-                                {winePairings.map((item, index) => (
-                                    <TouchableOpacity
-                                        key={`wine-pairing-${index}`}
-                                        activeOpacity={0.86}
-                                        style={styles.wineCard}
-                                        onPress={() => setSelectedWinePairing(item)}
-                                    >
-                                        <View style={styles.wineCardTopRow}>
-                                            <Text style={styles.wineCardTitle} numberOfLines={2}>
-                                                {getPairingTitle(item, index)}
+                            {(wineSummary || winePairings.length) ? (
+                                <View style={styles.wineResultsContent}>
+                                    {wineSummary ? <Text style={styles.wineSummaryText}>"{wineSummary}"</Text> : null}
+                                    {winePairings.map((item, index) => (
+                                        <TouchableOpacity
+                                            key={`wine-pairing-${index}`}
+                                            activeOpacity={0.86}
+                                            style={styles.wineCard}
+                                            onPress={() => setSelectedWinePairing(item)}
+                                        >
+                                            <View style={styles.wineCardTopRow}>
+                                                <Text style={styles.wineCardTitle} numberOfLines={2}>
+                                                    {getPairingTitle(item, index)}
+                                                </Text>
+                                                <Text style={styles.wineCardChevron}>›</Text>
+                                            </View>
+                                            <Text style={styles.wineCardMeta}>{item.type.toUpperCase()}{item.price ? ` · ${item.price}` : ''}</Text>
+                                            {item.description ? <Text style={styles.wineCardDescription}>{item.description}</Text> : null}
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            ) : null}
+                        </ScrollView>
+
+                        {selectedWinePairing ? (
+                            <View style={styles.wineDetailOverlay}>
+                                <TouchableOpacity style={styles.wineDetailScrim} activeOpacity={1} onPress={onCloseWineDetail} />
+                                <View style={styles.wineDetailSheet}>
+                                    <View style={styles.wineDetailHeader}>
+                                        <View style={styles.wineDetailHeaderTextWrap}>
+                                            <Text style={styles.wineDetailTitle}>
+                                                {`${getPairingIcon(selectedWinePairing)} ${selectedWinePairing.name}${selectedWinePairing.region ? ` • ${selectedWinePairing.region}` : ''}`}
                                             </Text>
-                                            <Text style={styles.wineCardChevron}>›</Text>
+                                            <Text style={styles.wineDetailMeta}>
+                                                {selectedWinePairing.type?.toUpperCase() || t('pairing_fallback_label')}{selectedWinePairing.price ? ` · ${selectedWinePairing.price}` : ''}
+                                            </Text>
                                         </View>
-                                        <Text style={styles.wineCardMeta}>{item.type.toUpperCase()}{item.price ? ` · ${item.price}` : ''}</Text>
-                                        {item.description ? <Text style={styles.wineCardDescription}>{item.description}</Text> : null}
-                                    </TouchableOpacity>
-                                ))}
-                            </View>
-                        ) : null}
-                    </ScrollView>
 
-                    {selectedWinePairing ? (
-                        <View style={styles.wineDetailOverlay}>
-                            <TouchableOpacity style={styles.wineDetailScrim} activeOpacity={1} onPress={onCloseWineDetail} />
-                            <View style={styles.wineDetailSheet}>
-                                <View style={styles.wineDetailHeader}>
-                                    <View style={styles.wineDetailHeaderTextWrap}>
-                                        <Text style={styles.wineDetailTitle}>
-                                            {`${getPairingIcon(selectedWinePairing)} ${selectedWinePairing.name}${selectedWinePairing.region ? ` • ${selectedWinePairing.region}` : ''}`}
-                                        </Text>
-                                        <Text style={styles.wineDetailMeta}>
-                                            {selectedWinePairing.type?.toUpperCase() || t('pairing_fallback_label')}{selectedWinePairing.price ? ` · ${selectedWinePairing.price}` : ''}
+                                        <TouchableOpacity style={styles.wineDetailCloseBtn} activeOpacity={0.85} onPress={onCloseWineDetail}>
+                                            <Text style={styles.wineDetailCloseText}>×</Text>
+                                        </TouchableOpacity>
+                                    </View>
+
+                                    <View style={styles.wineDetailBody}>
+                                        <Text style={styles.wineDetailSectionLabel}>{t('why_it_works_label')}</Text>
+                                        <Text style={styles.wineDetailDescription}>
+                                            {selectedWinePairing.description || t('no_tasting_notes')}
                                         </Text>
                                     </View>
 
-                                    <TouchableOpacity style={styles.wineDetailCloseBtn} activeOpacity={0.85} onPress={onCloseWineDetail}>
-                                        <Text style={styles.wineDetailCloseText}>×</Text>
-                                    </TouchableOpacity>
-                                </View>
+                                    <View style={styles.wineDetailActions}>
+                                        <TouchableOpacity
+                                            style={[styles.wineDetailAddBtn, isAddingWineToList ? styles.wineDetailBtnDisabled : null]}
+                                            activeOpacity={0.85}
+                                            onPress={onAddWineToShoppingList}
+                                            disabled={isAddingWineToList}
+                                        >
+                                            <Text style={styles.wineDetailAddBtnText}>{isAddingWineToList ? t('adding_ellipsis') : t('add_to_list_btn')}</Text>
+                                        </TouchableOpacity>
 
-                                <View style={styles.wineDetailBody}>
-                                    <Text style={styles.wineDetailSectionLabel}>{t('why_it_works_label')}</Text>
-                                    <Text style={styles.wineDetailDescription}>
-                                        {selectedWinePairing.description || t('no_tasting_notes')}
-                                    </Text>
-                                </View>
-
-                                <View style={styles.wineDetailActions}>
-                                    <TouchableOpacity
-                                        style={[styles.wineDetailAddBtn, isAddingWineToList ? styles.wineDetailBtnDisabled : null]}
-                                        activeOpacity={0.85}
-                                        onPress={onAddWineToShoppingList}
-                                        disabled={isAddingWineToList}
-                                    >
-                                        <Text style={styles.wineDetailAddBtnText}>{isAddingWineToList ? t('adding_ellipsis') : t('add_to_list_btn')}</Text>
-                                    </TouchableOpacity>
-
-                                    <TouchableOpacity style={styles.wineDetailDoneBtn} activeOpacity={0.85} onPress={onCloseWineDetail}>
-                                        <Text style={styles.wineDetailDoneBtnText}>{t('done_btn')}</Text>
-                                    </TouchableOpacity>
+                                        <TouchableOpacity style={styles.wineDetailDoneBtn} activeOpacity={0.85} onPress={onCloseWineDetail}>
+                                            <Text style={styles.wineDetailDoneBtnText}>{t('done_btn')}</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </View>
-                        </View>
-                    ) : null}
-                </View>
+                        ) : null}
+                    </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
         </Modal>

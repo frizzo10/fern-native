@@ -393,9 +393,9 @@ export default function CharcuterieModal({
                                     {isCharcuterieBuilding ? <ActivityIndicator color="#FFF5EB" /> : <Text style={styles.charcuterieBuildBtnText}>{t('build_my_board_btn')}</Text>}
                                 </TouchableOpacity>
 
-                                <TouchableOpacity style={styles.charcuterieAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                                {/* <TouchableOpacity style={styles.charcuterieAskFernBtn} activeOpacity={0.85} onPress={onAskFern}>
                                     <Text style={styles.charcuterieAskFernText}>{t('ask_fern_walkthrough_btn')}</Text>
-                                </TouchableOpacity>
+                                </TouchableOpacity> */}
                             </View>
                         )}
                     </ScrollView>

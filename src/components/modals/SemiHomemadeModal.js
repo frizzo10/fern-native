@@ -99,9 +99,9 @@ export default function SemiHomemadeModal({
                 <View style={styles.sheet}>
                     <View style={styles.topBar}>
                         <Text style={styles.title}>{`🛒 ${t('semi_homemade_title')}`}</Text>
-                        <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                        {/* <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
                             <Text style={styles.askFernText}>{t('leftover_ask_fern_btn')}</Text>
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
                         <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
                             <Text style={styles.closeText}>×</Text>
                         </TouchableOpacity>
@@ -114,201 +114,201 @@ export default function SemiHomemadeModal({
                         onScrollBeginDrag={Keyboard.dismiss}
                         contentContainerStyle={styles.scrollContent}
                     >
-                            {isDesigning ? (
-                                <View style={styles.loadingState}>
-                                    <Text style={styles.loadingEmoji}>🥫</Text>
-                                    <Text style={styles.loadingTitle}>{t('semi_homemade_designing_title')}</Text>
-                                    <Text style={styles.loadingSubtitle}>{t('semi_homemade_designing_subtitle')}</Text>
-                                    <ActivityIndicator color={colors.forest} style={styles.loadingSpinner} />
+                        {isDesigning ? (
+                            <View style={styles.loadingState}>
+                                <Text style={styles.loadingEmoji}>🥫</Text>
+                                <Text style={styles.loadingTitle}>{t('semi_homemade_designing_title')}</Text>
+                                <Text style={styles.loadingSubtitle}>{t('semi_homemade_designing_subtitle')}</Text>
+                                <ActivityIndicator color={colors.forest} style={styles.loadingSpinner} />
+                            </View>
+                        ) : result ? (
+                            <View>
+                                <View style={styles.resultHeroCard}>
+                                    <Text style={styles.resultKicker}>{t('semi_homemade_kicker')}</Text>
+                                    <Text style={styles.resultTitle}>{`${result.emoji} ${result.title}`}</Text>
+                                    {result.tagline ? <Text style={styles.resultTagline}>{result.tagline}</Text> : null}
+                                    <View style={styles.resultMetaRow}>
+                                        {result.time ? <Text style={styles.resultMetaText}>{`⏱ ${result.time}`}</Text> : null}
+                                        {result.difficulty ? <Text style={styles.resultMetaText}>{`🎯 ${result.difficulty}`}</Text> : null}
+                                        <Text style={styles.resultMetaText}>{`🍽 ${t('semi_homemade_serves_label', { count: result.servings })}`}</Text>
+                                    </View>
                                 </View>
-                            ) : result ? (
-                                <View>
-                                    <View style={styles.resultHeroCard}>
-                                        <Text style={styles.resultKicker}>{t('semi_homemade_kicker')}</Text>
-                                        <Text style={styles.resultTitle}>{`${result.emoji} ${result.title}`}</Text>
-                                        {result.tagline ? <Text style={styles.resultTagline}>{result.tagline}</Text> : null}
-                                        <View style={styles.resultMetaRow}>
-                                            {result.time ? <Text style={styles.resultMetaText}>{`⏱ ${result.time}`}</Text> : null}
-                                            {result.difficulty ? <Text style={styles.resultMetaText}>{`🎯 ${result.difficulty}`}</Text> : null}
-                                            <Text style={styles.resultMetaText}>{`🍽 ${t('semi_homemade_serves_label', { count: result.servings })}`}</Text>
-                                        </View>
-                                    </View>
 
-                                    {result.image ? (
-                                        <Image source={{ uri: result.image }} style={styles.resultImage} />
-                                    ) : null}
+                                {result.image ? (
+                                    <Image source={{ uri: result.image }} style={styles.resultImage} />
+                                ) : null}
 
-                                    {result.ingredients.length ? (
-                                        <View style={styles.card}>
-                                            <Text style={styles.cardHeader}>{`🛒 ${t('ingredients_title')}`}</Text>
-                                            {result.ingredients.map((ingredient, index) => (
-                                                <View key={`ingredient-${index}`} style={styles.listRow}>
-                                                    <Text style={styles.listRowText}>{`• ${ingredient}`}</Text>
-                                                </View>
-                                            ))}
-                                        </View>
-                                    ) : null}
-
-                                    {result.storeBought.length ? (
-                                        <View style={styles.calloutCardShortcut}>
-                                            <Text style={styles.calloutHeaderShortcut}>{`🥫 ${t('semi_homemade_store_bought_title')}`}</Text>
-                                            {result.storeBought.map((item, index) => (
-                                                <View key={`store-bought-${index}`} style={styles.listRow}>
-                                                    <Text style={styles.calloutText}>{item}</Text>
-                                                </View>
-                                            ))}
-                                        </View>
-                                    ) : null}
-
-                                    {result.homemade.length ? (
-                                        <View style={styles.calloutCardFresh}>
-                                            <Text style={styles.calloutHeaderFresh}>{`🌿 ${t('semi_homemade_fresh_additions_title')}`}</Text>
-                                            {result.homemade.map((item, index) => (
-                                                <View key={`homemade-${index}`} style={styles.listRow}>
-                                                    <Text style={styles.calloutText}>{item}</Text>
-                                                </View>
-                                            ))}
-                                        </View>
-                                    ) : null}
-
-                                    {result.instructions.length ? (
-                                        <View style={styles.card}>
-                                            <Text style={styles.cardHeader}>{`📖 ${t('method_title')}`}</Text>
-                                            {result.instructions.map((step, index) => (
-                                                <View key={`step-${index}`} style={styles.stepRow}>
-                                                    <View style={styles.stepBadge}>
-                                                        <Text style={styles.stepBadgeText}>{index + 1}</Text>
-                                                    </View>
-                                                    <Text style={styles.stepText}>{step}</Text>
-                                                </View>
-                                            ))}
-                                        </View>
-                                    ) : null}
-
-                                    {result.chefTip ? (
-                                        <View style={styles.tipCard}>
-                                            <Text style={styles.tipLabel}>{t('semi_homemade_chef_tip_label')}</Text>
-                                            <Text style={styles.tipText}>{result.chefTip}</Text>
-                                        </View>
-                                    ) : null}
-
-                                    <View style={styles.resultActionsRow}>
-                                        <TouchableOpacity
-                                            style={[styles.saveBtn, (isSaving || isSaved) ? styles.actionBtnDisabled : null]}
-                                            activeOpacity={0.85}
-                                            onPress={onSaveRecipe}
-                                            disabled={isSaving || isSaved}
-                                        >
-                                            <Text style={styles.saveBtnText}>
-                                                {isSaving ? t('saving_ellipsis') : isSaved ? t('results_saved_badge') : `💾 ${t('semi_homemade_save_recipe_btn')}`}
-                                            </Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={[styles.addListBtn, isAddingToList ? styles.actionBtnDisabled : null]}
-                                            activeOpacity={0.85}
-                                            onPress={onAddToList}
-                                            disabled={isAddingToList}
-                                        >
-                                            <Text style={styles.addListBtnText}>
-                                                {isAddingToList ? t('adding_ellipsis') : `🛒 ${t('semi_homemade_add_to_list_btn')}`}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    </View>
-
-                                    <TouchableOpacity style={styles.tryAgainBtn} activeOpacity={0.85} onPress={onTryAgain}>
-                                        <Text style={styles.tryAgainText}>{`← ${t('quick_dinner_try_again_btn')}`}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ) : (
-                                <View>
-                                    <View style={styles.introCard}>
-                                        <Text style={styles.introEmoji}>🥫</Text>
-                                        <Text style={styles.introTitle}>{t('semi_homemade_intro_title')}</Text>
-                                        <Text style={styles.introSubtitle}>{t('semi_homemade_intro_subtitle')}</Text>
-                                    </View>
-
-                                    <Text style={styles.sectionHeading}>{t('semi_homemade_have_heading')}</Text>
-                                    <View style={styles.chipGrid}>
-                                        {SEMI_HOMEMADE_SHORTCUTS.map((option) => {
-                                            const isSelected = selectedShortcuts.includes(option.value);
-                                            return (
-                                                <TouchableOpacity
-                                                    key={option.value}
-                                                    style={[styles.chip, isSelected ? styles.chipSelected : null]}
-                                                    activeOpacity={0.85}
-                                                    onPress={() => onToggleShortcut(option.value)}
-                                                >
-                                                    <Text style={[styles.chipText, isSelected ? styles.chipTextSelected : null]}>{t(option.labelKey)}</Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                        {customItems.map((item) => (
-                                            <TouchableOpacity
-                                                key={item}
-                                                style={[styles.chip, styles.chipSelected]}
-                                                activeOpacity={0.85}
-                                                onPress={() => onRemoveCustomItem(item)}
-                                            >
-                                                <Text style={[styles.chipText, styles.chipTextSelected]}>{`${item}  ×`}</Text>
-                                            </TouchableOpacity>
+                                {result.ingredients.length ? (
+                                    <View style={styles.card}>
+                                        <Text style={styles.cardHeader}>{`🛒 ${t('ingredients_title')}`}</Text>
+                                        {result.ingredients.map((ingredient, index) => (
+                                            <View key={`ingredient-${index}`} style={styles.listRow}>
+                                                <Text style={styles.listRowText}>{`• ${ingredient}`}</Text>
+                                            </View>
                                         ))}
                                     </View>
+                                ) : null}
 
-                                    <View style={styles.inputRow}>
-                                        <TextInput
-                                            value={customItemInput}
-                                            onChangeText={setCustomItemInput}
-                                            placeholder={t('semi_homemade_add_anything_placeholder')}
-                                            placeholderTextColor="#9A8D7F"
-                                            style={styles.input}
-                                            onSubmitEditing={onAddCustomItem}
-                                        />
-                                        <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={onAddCustomItem}>
-                                            <Text style={styles.addBtnText}>{t('semi_homemade_add_btn')}</Text>
-                                        </TouchableOpacity>
+                                {result.storeBought.length ? (
+                                    <View style={styles.calloutCardShortcut}>
+                                        <Text style={styles.calloutHeaderShortcut}>{`🥫 ${t('semi_homemade_store_bought_title')}`}</Text>
+                                        {result.storeBought.map((item, index) => (
+                                            <View key={`store-bought-${index}`} style={styles.listRow}>
+                                                <Text style={styles.calloutText}>{item}</Text>
+                                            </View>
+                                        ))}
                                     </View>
+                                ) : null}
 
-                                    <Text style={styles.sectionHeading}>{t('semi_homemade_mood_heading')}</Text>
-                                    <TextInput
-                                        value={vibeInput}
-                                        onChangeText={setVibeInput}
-                                        placeholder={t('semi_homemade_mood_placeholder')}
-                                        placeholderTextColor="#9A8D7F"
-                                        style={styles.input}
-                                    />
-
-                                    <Text style={styles.sectionHeading}>{t('semi_homemade_servings_heading')}</Text>
-                                    <View style={styles.servingsRow}>
-                                        {SEMI_HOMEMADE_SERVINGS_OPTIONS.map((option) => {
-                                            const isSelected = servings === option;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={option}
-                                                    style={[styles.servingsOption, isSelected ? styles.servingsOptionSelected : null]}
-                                                    activeOpacity={0.85}
-                                                    onPress={() => setServings(option)}
-                                                >
-                                                    <Text style={[styles.servingsOptionText, isSelected ? styles.servingsOptionTextSelected : null]}>{option}</Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
+                                {result.homemade.length ? (
+                                    <View style={styles.calloutCardFresh}>
+                                        <Text style={styles.calloutHeaderFresh}>{`🌿 ${t('semi_homemade_fresh_additions_title')}`}</Text>
+                                        {result.homemade.map((item, index) => (
+                                            <View key={`homemade-${index}`} style={styles.listRow}>
+                                                <Text style={styles.calloutText}>{item}</Text>
+                                            </View>
+                                        ))}
                                     </View>
+                                ) : null}
 
+                                {result.instructions.length ? (
+                                    <View style={styles.card}>
+                                        <Text style={styles.cardHeader}>{`📖 ${t('method_title')}`}</Text>
+                                        {result.instructions.map((step, index) => (
+                                            <View key={`step-${index}`} style={styles.stepRow}>
+                                                <View style={styles.stepBadge}>
+                                                    <Text style={styles.stepBadgeText}>{index + 1}</Text>
+                                                </View>
+                                                <Text style={styles.stepText}>{step}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                ) : null}
+
+                                {result.chefTip ? (
+                                    <View style={styles.tipCard}>
+                                        <Text style={styles.tipLabel}>{t('semi_homemade_chef_tip_label')}</Text>
+                                        <Text style={styles.tipText}>{result.chefTip}</Text>
+                                    </View>
+                                ) : null}
+
+                                <View style={styles.resultActionsRow}>
                                     <TouchableOpacity
-                                        style={[styles.primaryAction, !hasSelection ? styles.primaryActionDisabled : null]}
+                                        style={[styles.saveBtn, (isSaving || isSaved) ? styles.actionBtnDisabled : null]}
                                         activeOpacity={0.85}
-                                        onPress={onDesign}
-                                        disabled={!hasSelection}
+                                        onPress={onSaveRecipe}
+                                        disabled={isSaving || isSaved}
                                     >
-                                        <Text style={styles.primaryActionText}>{`✨ ${t('semi_homemade_design_btn')}`}</Text>
+                                        <Text style={styles.saveBtnText}>
+                                            {isSaving ? t('saving_ellipsis') : isSaved ? t('results_saved_badge') : `💾 ${t('semi_homemade_save_recipe_btn')}`}
+                                        </Text>
                                     </TouchableOpacity>
 
-                                    {!hasSelection ? (
-                                        <Text style={styles.hintText}>{t('semi_homemade_pick_one_hint')}</Text>
-                                    ) : null}
+                                    <TouchableOpacity
+                                        style={[styles.addListBtn, isAddingToList ? styles.actionBtnDisabled : null]}
+                                        activeOpacity={0.85}
+                                        onPress={onAddToList}
+                                        disabled={isAddingToList}
+                                    >
+                                        <Text style={styles.addListBtnText}>
+                                            {isAddingToList ? t('adding_ellipsis') : `🛒 ${t('semi_homemade_add_to_list_btn')}`}
+                                        </Text>
+                                    </TouchableOpacity>
                                 </View>
-                            )}
+
+                                <TouchableOpacity style={styles.tryAgainBtn} activeOpacity={0.85} onPress={onTryAgain}>
+                                    <Text style={styles.tryAgainText}>{`← ${t('quick_dinner_try_again_btn')}`}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : (
+                            <View>
+                                <View style={styles.introCard}>
+                                    <Text style={styles.introEmoji}>🥫</Text>
+                                    <Text style={styles.introTitle}>{t('semi_homemade_intro_title')}</Text>
+                                    <Text style={styles.introSubtitle}>{t('semi_homemade_intro_subtitle')}</Text>
+                                </View>
+
+                                <Text style={styles.sectionHeading}>{t('semi_homemade_have_heading')}</Text>
+                                <View style={styles.chipGrid}>
+                                    {SEMI_HOMEMADE_SHORTCUTS.map((option) => {
+                                        const isSelected = selectedShortcuts.includes(option.value);
+                                        return (
+                                            <TouchableOpacity
+                                                key={option.value}
+                                                style={[styles.chip, isSelected ? styles.chipSelected : null]}
+                                                activeOpacity={0.85}
+                                                onPress={() => onToggleShortcut(option.value)}
+                                            >
+                                                <Text style={[styles.chipText, isSelected ? styles.chipTextSelected : null]}>{t(option.labelKey)}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                    {customItems.map((item) => (
+                                        <TouchableOpacity
+                                            key={item}
+                                            style={[styles.chip, styles.chipSelected]}
+                                            activeOpacity={0.85}
+                                            onPress={() => onRemoveCustomItem(item)}
+                                        >
+                                            <Text style={[styles.chipText, styles.chipTextSelected]}>{`${item}  ×`}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <View style={styles.inputRow}>
+                                    <TextInput
+                                        value={customItemInput}
+                                        onChangeText={setCustomItemInput}
+                                        placeholder={t('semi_homemade_add_anything_placeholder')}
+                                        placeholderTextColor="#9A8D7F"
+                                        style={styles.input}
+                                        onSubmitEditing={onAddCustomItem}
+                                    />
+                                    <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={onAddCustomItem}>
+                                        <Text style={styles.addBtnText}>{t('semi_homemade_add_btn')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+
+                                <Text style={styles.sectionHeading}>{t('semi_homemade_mood_heading')}</Text>
+                                <TextInput
+                                    value={vibeInput}
+                                    onChangeText={setVibeInput}
+                                    placeholder={t('semi_homemade_mood_placeholder')}
+                                    placeholderTextColor="#9A8D7F"
+                                    style={styles.input}
+                                />
+
+                                <Text style={styles.sectionHeading}>{t('semi_homemade_servings_heading')}</Text>
+                                <View style={styles.servingsRow}>
+                                    {SEMI_HOMEMADE_SERVINGS_OPTIONS.map((option) => {
+                                        const isSelected = servings === option;
+                                        return (
+                                            <TouchableOpacity
+                                                key={option}
+                                                style={[styles.servingsOption, isSelected ? styles.servingsOptionSelected : null]}
+                                                activeOpacity={0.85}
+                                                onPress={() => setServings(option)}
+                                            >
+                                                <Text style={[styles.servingsOptionText, isSelected ? styles.servingsOptionTextSelected : null]}>{option}</Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
+                                </View>
+
+                                <TouchableOpacity
+                                    style={[styles.primaryAction, !hasSelection ? styles.primaryActionDisabled : null]}
+                                    activeOpacity={0.85}
+                                    onPress={onDesign}
+                                    disabled={!hasSelection}
+                                >
+                                    <Text style={styles.primaryActionText}>{`✨ ${t('semi_homemade_design_btn')}`}</Text>
+                                </TouchableOpacity>
+
+                                {!hasSelection ? (
+                                    <Text style={styles.hintText}>{t('semi_homemade_pick_one_hint')}</Text>
+                                ) : null}
+                            </View>
+                        )}
                     </ScrollView>
                 </View>
             </KeyboardAvoidingView>

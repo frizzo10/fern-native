@@ -204,9 +204,9 @@ export default function ScanCircularModal({
                                 ))}
 
                                 <View style={styles.actionsRow}>
-                                    <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                                    {/* <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
                                         <Text style={styles.askFernBtnText}>{t('scan_circular_ask_fern_btn')}</Text>
-                                    </TouchableOpacity>
+                                    </TouchableOpacity> */}
                                     <TouchableOpacity style={styles.scanAnotherBtn} activeOpacity={0.85} onPress={onScanAnother}>
                                         <Text style={styles.scanAnotherBtnText}>{t('scan_circular_scan_another_btn')}</Text>
                                     </TouchableOpacity>

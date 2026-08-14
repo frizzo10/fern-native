@@ -156,9 +156,9 @@ export default function BudgetPlannerModal({
                 <View style={styles.sheet}>
                     <View style={styles.topBar}>
                         <Text style={styles.title} numberOfLines={3} >{`💰 ${t('tool_budget_planner')}`}</Text>
-                        <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
+                        {/* <TouchableOpacity style={styles.askFernBtn} activeOpacity={0.85} onPress={onAskFern}>
                             <Text style={styles.askFernText}>{t('leftover_ask_fern_btn')}</Text>
-                        </TouchableOpacity>
+                        </TouchableOpacity> */}
                         <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
                             <Text style={styles.closeText}>×</Text>
                         </TouchableOpacity>

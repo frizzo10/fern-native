@@ -13,52 +13,15 @@ import FamilyVoiceExampleScreen from '../components/FamilyVoiceExampleScreen';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import FamilyAddSavedMealModal from '../components/modals/FamilyAddSavedMealModal';
 import FamilyAddActivityModal from '../components/modals/FamilyAddActivityModal';
+import ChatSheetModal from '../components/modals/ChatSheetModal';
 import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
 import { fetchMealPlanRecipeDetail, fetchDinnerIdeas } from '../services/mealPlanRecipeService';
 import { fetchRecipeImage } from '../utils/recipeImage';
+import { DAY_ABBREVIATIONS, parseDateKey, buildRollingWeekDateKeys, normalizeSlot, formatDayLabel } from '../utils/familyDates';
+import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const DAY_ABBREVIATIONS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MONTH_ABBREVIATIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function parseDateKey(key) {
-    const [y, m, d] = String(key || '').split('-').map(Number);
-    return new Date(y || 1970, (m || 1) - 1, d || 1);
-}
-
-function dateToKey(date) {
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-}
-
-// A rolling 7-day window starting today — not "whatever dates happen to be in
-// mealPlanLocal" (that could include stale/past dates or drift past 7 days).
-// Recomputed on every render so the window itself rolls forward at midnight
-// without any extra state.
-function buildRollingWeekDateKeys() {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    return Array.from({ length: 7 }, (_, i) => {
-        const d = new Date(start);
-        d.setDate(start.getDate() + i);
-        return dateToKey(d);
-    });
-}
-
-function normalizeSlot(entry) {
-    return String(entry?.slot || '').trim().toLowerCase();
-}
-
-// "Sun 9" — title-case weekday abbreviation + day number, matching the shape
-// activities are stored/displayed with (`rv4_activities`'s `day` field).
-function formatDayLabel(dateKey) {
-    const date = parseDateKey(dateKey);
-    const abbrev = DAY_ABBREVIATIONS[date.getDay()];
-    const titleCased = abbrev.charAt(0) + abbrev.slice(1).toLowerCase();
-    return `${titleCased} ${date.getDate()}`;
-}
 
 export default function FamilyScreen({ user }) {
     const { t, locale } = useLanguage();
@@ -75,6 +38,7 @@ export default function FamilyScreen({ user }) {
     const [isFillingWeek, setIsFillingWeek] = useState(false);
     const [addMealModal, setAddMealModal] = useState(null); // { dateKey, slot, slotLabel } | null
     const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
+    const [isPlanWithFernOpen, setIsPlanWithFernOpen] = useState(false);
     const dayScrollRef = useRef(null);
     const imageFetchInFlight = useRef(new Set());
     const pageScrollRef = useRef(null);
@@ -209,6 +173,55 @@ export default function FamilyScreen({ user }) {
         const dayMeals = mealPlanLocal[dateKey] || [];
         const nextDayMeals = dayMeals.filter((item) => item !== entry);
         persistMealPlan({ ...mealPlanLocal, [dateKey]: nextDayMeals });
+    };
+
+    // Applies whatever Plan-with-Fern's conversation decided to add. Mirrors
+    // the day_offset (0-6) the AI was asked to use back onto dateKeys, since
+    // asking a model to compute real calendar dates is asking for mistakes.
+    const handlePlanWithFernAction = (parsed) => {
+        const mealsToAdd = Array.isArray(parsed?.add_meals) ? parsed.add_meals : [];
+        const activitiesToAdd = Array.isArray(parsed?.add_activities) ? parsed.add_activities : [];
+        if (!mealsToAdd.length && !activitiesToAdd.length) return undefined;
+
+        const dayOffsetToDateKey = (offset) => dateKeys[Math.max(0, Math.min(dateKeys.length - 1, Number(offset) || 0))];
+
+        if (mealsToAdd.length) {
+            let nextMealPlan = mealPlanLocal;
+            mealsToAdd.forEach((m) => {
+                const dateKey = dayOffsetToDateKey(m?.day_offset);
+                const title = String(m?.title || '').trim();
+                if (!dateKey || !title) return;
+                const dayMeals = nextMealPlan[dateKey] || [];
+                nextMealPlan = { ...nextMealPlan, [dateKey]: [...dayMeals, { slot: m?.slot || 'Dinner', title, emoji: m?.emoji || '🍽️' }] };
+            });
+            persistMealPlan(nextMealPlan);
+        }
+
+        if (activitiesToAdd.length) {
+            const newActivities = activitiesToAdd
+                .map((a) => {
+                    const dateKey = dayOffsetToDateKey(a?.day_offset);
+                    const label = String(a?.label || '').trim();
+                    if (!dateKey || !label) return null;
+                    return {
+                        day: formatDayLabel(dateKey),
+                        time: a?.time || '',
+                        emoji: a?.emoji || '🗓️',
+                        label,
+                        dateKey,
+                        endTime: '',
+                        startTime: '',
+                        _origLabel: label,
+                    };
+                })
+                .filter(Boolean);
+            if (newActivities.length) persistActivities([...activitiesLocal, ...newActivities]);
+        }
+
+        const parts = [];
+        if (mealsToAdd.length) parts.push(t('family_plan_fern_added_meals', { count: mealsToAdd.length }));
+        if (activitiesToAdd.length) parts.push(t('family_plan_fern_added_activities', { count: activitiesToAdd.length }));
+        return parts.join(' ');
     };
 
     const showComingSoon = (titleKey) => {
@@ -360,9 +373,9 @@ export default function FamilyScreen({ user }) {
                         <Text style={styles.fillWeekBtnText}>{t('family_hub_ai_fill_week_btn')}</Text>
                     </TouchableOpacity>
 
-                    {/* <TouchableOpacity style={[styles.planFernBtn, shadow.card]} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_plan_with_fern_btn')}>
+                    <TouchableOpacity style={[styles.planFernBtn, shadow.card]} activeOpacity={0.85} onPress={() => setIsPlanWithFernOpen(true)}>
                         <Text style={styles.planFernBtnText}>{t('family_hub_plan_with_fern_btn')}</Text>
-                    </TouchableOpacity> */}
+                    </TouchableOpacity>
 
                     {/* <TouchableOpacity style={styles.listBtn} activeOpacity={0.85} onPress={handlePressList}>
                         <Text style={styles.listBtnText}>{t('family_hub_list_btn')}</Text>
@@ -626,6 +639,7 @@ export default function FamilyScreen({ user }) {
                 showSavedIndicator
                 onDeleteRecipe={isSelectedMealRecipeSaved ? () => mealPlanRecipes.handleDeleteSelected(() => mealPlanRecipes.setSelectedRecipe(null)) : undefined}
                 onAddToList={mealPlanRecipes.handleAddToShoppingList}
+                user={user}
             />
 
             <FamilyAddSavedMealModal
@@ -642,6 +656,17 @@ export default function FamilyScreen({ user }) {
                 initialDateKey={selectedDateKey}
                 onClose={() => setIsAddActivityOpen(false)}
                 onAdd={handleAddActivity}
+            />
+
+            <ChatSheetModal
+                visible={isPlanWithFernOpen}
+                onClose={() => setIsPlanWithFernOpen(false)}
+                user={user}
+                systemPrompt={FAMILY_PLAN_SYSTEM_PROMPT}
+                autoOpenerPrompt={FAMILY_PLAN_AUTO_OPENER}
+                title={t('family_plan_fern_title')}
+                emptyHintKey="family_plan_fern_empty_hint"
+                onAction={handlePlanWithFernAction}
             />
         </>
     );

@@ -31,13 +31,13 @@ const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 // code. Asking for structured JSON (same technique NutritionTrackerModal
 // already uses) lets the app decide what "add to shopping list" means and
 // actually do it, instead of trusting the model's claim.
-const SYSTEM_PROMPT = `You are Fern, a warm and decisive AI family assistant helping with meal planning, recipes, and the weekly schedule. Keep replies short — 2-4 sentences unless the person clearly wants more detail. When the person clearly asks to add ingredients or groceries to their shopping list, list the exact items in add_to_shopping_list — but do not name those items in your reply text, since the app confirms that separately; just acknowledge you're on it. Otherwise leave add_to_shopping_list empty. Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1","item2"]}`;
+const DEFAULT_SYSTEM_PROMPT = `You are Fern, a warm and decisive AI family assistant helping with meal planning, recipes, and the weekly schedule. Keep replies short — 2-4 sentences unless the person clearly wants more detail. When the person clearly asks to add ingredients or groceries to their shopping list, list the exact items in add_to_shopping_list — but do not name those items in your reply text, since the app confirms that separately; just acknowledge you're on it. Otherwise leave add_to_shopping_list empty. Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1","item2"]}`;
 
 // Sent once, silently, the first time the sheet opens with no history yet —
 // never shown as a bubble itself, only Fern's reply to it is. Makes Fern
 // look like it opens the conversation instead of the person facing an empty
 // sheet with nothing on it.
-const AUTO_OPENER_PROMPT = 'Greet me warmly in one short sentence, then briefly ask what I need help with today — dinner, a recipe, or my shopping list.';
+const DEFAULT_AUTO_OPENER_PROMPT = 'Greet me warmly in one short sentence, then briefly ask what I need help with today — dinner, a recipe, or my shopping list.';
 
 function parseChatResponse(text) {
   const raw = String(text || '').trim();
@@ -72,7 +72,23 @@ function Bubble({ role, text }) {
   );
 }
 
-export default function ChatSheetModal({ visible, onClose, user }) {
+// systemPrompt/autoOpenerPrompt/title/emptyHintKey let a caller repurpose this
+// same voice+chat surface for a scoped conversation (e.g. Family Hub's "Plan
+// with Fern") instead of the general Ask Fern assistant, without duplicating
+// all of the mic/voice/JSON-parsing plumbing. onAction receives the full
+// parsed JSON reply after the built-in add_to_shopping_list handling runs —
+// a caller can add extra keys to its own systemPrompt's JSON contract (e.g.
+// add_meals/add_activities) and handle them here; returning a string from
+// onAction appends it as an extra Fern bubble (text-only, not re-spoken —
+// same convention the shopping-list confirmation below already uses).
+export default function ChatSheetModal({
+  visible, onClose, user,
+  systemPrompt = DEFAULT_SYSTEM_PROMPT,
+  autoOpenerPrompt = DEFAULT_AUTO_OPENER_PROMPT,
+  title,
+  emptyHintKey = 'chat_sheet_empty_hint',
+  onAction,
+}) {
   const { t, locale } = useLanguage();
   const [messages, setMessages] = useState([]); // [{role: 'user'|'fern', text}]
   const [inputText, setInputText] = useState('');
@@ -113,7 +129,7 @@ export default function ChatSheetModal({ visible, onClose, user }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system: SYSTEM_PROMPT,
+          system: systemPrompt,
           messages: requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
           locale,
           userId: user?.id,
@@ -148,13 +164,18 @@ export default function ChatSheetModal({ visible, onClose, user }) {
           setMessages(prev => [...prev, { role: 'fern', text: confirmText }]);
         }
       }
+
+      if (onAction) {
+        const confirmText = onAction(parsed);
+        if (confirmText) setMessages(prev => [...prev, { role: 'fern', text: confirmText }]);
+      }
     } catch (e) {
       console.warn('[ChatSheetModal] Ask Fern failed:', e.message);
       setError(true);
     } finally {
       setThinking(false);
     }
-  }, [locale, user, speakText, pull, pushAllFromStorage, t]);
+  }, [locale, user, speakText, pull, pushAllFromStorage, t, systemPrompt, onAction]);
 
   const { isListening, start, stop } = useContinuousMic({
     locale,
@@ -196,9 +217,9 @@ export default function ChatSheetModal({ visible, onClose, user }) {
   // off ourselves instead of leaving the person looking at an empty sheet.
   useEffect(() => {
     if (visible && messagesRef.current.length === 0) {
-      askFern(AUTO_OPENER_PROMPT, { silent: true });
+      askFern(autoOpenerPrompt, { silent: true });
     }
-  }, [visible]);
+  }, [visible, autoOpenerPrompt]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollToEnd({ animated: true });
@@ -214,7 +235,7 @@ export default function ChatSheetModal({ visible, onClose, user }) {
     <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>🌿 {t('ask_fern_btn')}</Text>
+          <Text style={styles.headerTitle}>{title || `🌿 ${t('ask_fern_btn')}`}</Text>
           <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Text style={styles.closeX}>✕</Text>
           </TouchableOpacity>
@@ -224,7 +245,7 @@ export default function ChatSheetModal({ visible, onClose, user }) {
           {messages.length === 0 && !thinking && !error && (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>🌿</Text>
-              <Text style={styles.emptyText}>{t('chat_sheet_empty_hint')}</Text>
+              <Text style={styles.emptyText}>{t(emptyHintKey)}</Text>
             </View>
           )}
           {messages.map((m, i) => <Bubble key={i} role={m.role} text={m.text} />)}

@@ -4,6 +4,7 @@ import {
   View,
   Text,
   StyleSheet,
+  Image,
   ImageBackground,
   ScrollView,
   TextInput,
@@ -25,8 +26,31 @@ import {
 } from '../utils/recipeNormalize';
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
+import { uploadPhoto } from '../services/uploadPhotoService';
+import NewCookbookModal from '../components/modals/NewCookbookModal';
+import AddRecipesToCookbookModal from '../components/modals/AddRecipesToCookbookModal';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
+
+function resolveCoverUri(cover) {
+  if (!cover || typeof cover !== 'string') return null;
+  const trimmed = cover.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('data:')) {
+    // Strip any embedded whitespace/newlines from the base64 payload —
+    // a data URI with stray whitespace fails to decode in RN's Image,
+    // often silently, even though the string "looks" well-formed.
+    const commaIndex = trimmed.indexOf(',');
+    if (commaIndex === -1) return trimmed;
+    const header = trimmed.slice(0, commaIndex + 1);
+    const payload = trimmed.slice(commaIndex + 1).replace(/\s/g, '');
+    return `${header}${payload}`;
+  }
+  // Some older cb_covers entries were stored as bare base64 with no data: prefix.
+  return `data:image/jpeg;base64,${trimmed.replace(/\s/g, '')}`;
+}
 
 function normalizeBook(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.book_title, item?.label, `Cookbook ${index + 1}`);
@@ -87,6 +111,10 @@ export default function RecipesScreen({ user }) {
   const [isSaving, setIsSaving] = useState(false);
   const [recipesLocal, setRecipesLocal] = useState([]);
   const [booksLocal, setBooksLocal] = useState([]);
+  const [isNewCookbookVisible, setIsNewCookbookVisible] = useState(false);
+  const [isCreatingCookbook, setIsCreatingCookbook] = useState(false);
+  const [isAddRecipesVisible, setIsAddRecipesVisible] = useState(false);
+  const [isSavingAddRecipes, setIsSavingAddRecipes] = useState(false);
   const attemptedImageFetchIds = useRef(new Set());
 
   useFocusEffect(
@@ -304,6 +332,97 @@ export default function RecipesScreen({ user }) {
     );
   };
 
+  const handleCreateCookbook = async ({ name, photo, color }) => {
+    setIsCreatingCookbook(true);
+    try {
+      let coverUrl = null;
+      const bookId = `cb_${Date.now()}`;
+
+      if (photo?.base64) {
+        const dataUri = `data:${photo.mimeType || 'image/jpeg'};base64,${photo.base64}`;
+        coverUrl = await uploadPhoto(dataUri, `cover_${bookId}_${Date.now()}.jpg`);
+      }
+
+      const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
+      const baseBooks = Array.isArray(storedBooks)
+        ? storedBooks
+        : (Array.isArray(booksLocal) ? booksLocal : []);
+
+      const newBook = {
+        id: bookId,
+        title: name,
+        name,
+        subtitle: 'My cookbook',
+        color,
+        cover: coverUrl,
+        recipeIds: [],
+      };
+      const nextBooks = [...baseBooks, newBook];
+
+      await AsyncStorage.setItem('rv4_books', JSON.stringify(nextBooks));
+      setBooksLocal(nextBooks);
+
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, books: nextBooks }));
+
+      await pushChangedFromStorage({ books: nextBooks });
+
+      setIsNewCookbookVisible(false);
+      await pull();
+    } catch (e) {
+      console.warn('Create cookbook failed:', e);
+      Alert.alert(t('cookbook_create_failed_title'), t('cookbook_create_failed_desc'));
+    } finally {
+      setIsCreatingCookbook(false);
+    }
+  };
+
+  const handleSaveRecipesToBook = async (selectedIds) => {
+    if (!selectedBook) return;
+    setIsSavingAddRecipes(true);
+    try {
+      const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+      const baseSaved = Array.isArray(storedSaved)
+        ? storedSaved
+        : (Array.isArray(recipesLocal) ? recipesLocal : []);
+
+      const selectedSet = new Set(selectedIds.map(String));
+      const bookId = selectedBook.id;
+
+      const nextSaved = baseSaved.map((item, index) => {
+        const itemId = getRawRecipeId(item, index);
+        const existingBookIds = Array.from(new Set([
+          ...normalizeIdArray(item?._bookId),
+          ...normalizeIdArray(item?._bookIds),
+        ]));
+        const shouldHave = selectedSet.has(itemId);
+        const alreadyHas = existingBookIds.includes(bookId);
+        if (shouldHave === alreadyHas) return item;
+
+        const nextBookIds = shouldHave
+          ? Array.from(new Set([...existingBookIds, bookId]))
+          : existingBookIds.filter((id) => id !== bookId);
+
+        const { _bookId, ...rest } = item;
+        return { ...rest, _bookIds: nextBookIds };
+      });
+
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+      await syncRecipeCache(nextSaved);
+      setRecipesLocal(nextSaved);
+
+      await pushChangedFromStorage({ saved: nextSaved });
+
+      setIsAddRecipesVisible(false);
+      await pull();
+    } catch (e) {
+      console.warn('Add recipes to cookbook failed:', e);
+      Alert.alert(t('add_recipes_failed_title'), t('add_recipes_failed_desc'));
+    } finally {
+      setIsSavingAddRecipes(false);
+    }
+  };
+
   const recipes = useMemo(() => {
     const list = Array.isArray(recipesLocal) ? recipesLocal : [];
     const normalized = list.map(normalizeRecipe);
@@ -348,15 +467,25 @@ export default function RecipesScreen({ user }) {
 
   const books = useMemo(() => {
     const list = Array.isArray(booksLocal) ? booksLocal : [];
-    const normalized = list.map(normalizeBook);
+    const normalized = list.map((item, index) => normalizeBook(item, index));
 
-    // Deduplicate by ID — backend may send same book multiple times
-    const seen = new Set();
-    return normalized.filter((book) => {
-      if (seen.has(book.id)) return false;
-      seen.add(book.id);
-      return true;
+    // Deduplicate by ID — backend may send the same book multiple times.
+    // Merge duplicates instead of just keeping the first: an older
+    // duplicate entry with no cover must not shadow a later one that has it.
+    const byId = new Map();
+    normalized.forEach((book) => {
+      const existing = byId.get(book.id);
+      if (!existing) {
+        byId.set(book.id, book);
+        return;
+      }
+      byId.set(book.id, {
+        ...existing,
+        ...book,
+        cover: pickFirst(existing.cover, book.cover),
+      });
     });
+    return Array.from(byId.values());
   }, [booksLocal]);
 
   const booksWithMatchedCounts = useMemo(() => {
@@ -394,6 +523,16 @@ export default function RecipesScreen({ user }) {
       raw: book,
     }));
 
+    // Count raw occurrences per book id — if a cover exists in the data but
+    // isn't showing, this reveals whether it's because the backend sent the
+    // same book id more than once (dedup shadowing an older/coverless copy).
+    const bookIdCounts = {};
+    (Array.isArray(data.books) ? data.books : []).forEach((book) => {
+      const id = String(pickFirst(book?.id, book?.uuid, book?.book_id, 'unknown'));
+      bookIdCounts[id] = (bookIdCounts[id] || 0) + 1;
+    });
+    console.log('[RecipesScreen] book id occurrence counts:', JSON.stringify(bookIdCounts, null, 2));
+
     const debugRecipes = (Array.isArray(data.recipes) ? data.recipes : []).map((recipe, index) => ({
       id: pickFirst(recipe?.id, recipe?.uuid, recipe?.recipe_id, `${index}`),
       title: pickFirst(recipe?.title, recipe?.name, recipe?.recipe_name, null),
@@ -413,6 +552,10 @@ export default function RecipesScreen({ user }) {
 
     console.log('[RecipesScreen] latest API books raw:', JSON.stringify(debugBooks, null, 2));
     console.log('[RecipesScreen] latest API saved raw:', JSON.stringify(debugRecipes, null, 2));
+    console.log('[RecipesScreen] resolved book covers:', JSON.stringify(
+      booksWithMatchedCounts.map((book) => ({ id: book.id, title: book.title, cover: book.cover })),
+      null, 2
+    ));
     console.log('[RecipesScreen] normalized cookbook matches:', JSON.stringify(normalizedMatches, null, 2));
   }, [data.books, data.recipes, booksWithMatchedCounts, recipes]);
 
@@ -554,7 +697,11 @@ export default function RecipesScreen({ user }) {
               </View>
 
               <View style={styles.bookDetailActionsRow}>
-                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnMuted, styles.bookActionBtnWide]}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setIsAddRecipesVisible(true)}
+                  style={[styles.bookActionBtn, styles.bookActionBtnMuted, styles.bookActionBtnWide]}
+                >
                   <Text style={styles.bookActionTextLight}>{t('add_recipes_btn')}</Text>
                 </TouchableOpacity>
                 {/* <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnGreen]}>
@@ -563,9 +710,9 @@ export default function RecipesScreen({ user }) {
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnShare]}>
                   <Text style={styles.bookActionTextLight}>{t('share_btn')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnDarkGreen]}>
+                {/* <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnDarkGreen]}>
                   <Text style={styles.bookActionTextLight}>{t('ask_fern_recipes')}</Text>
-                </TouchableOpacity>
+                </TouchableOpacity> */}
               </View>
 
               <TouchableOpacity activeOpacity={0.85} style={styles.bookTrashBtn} onPress={handleDeleteBook}>
@@ -575,19 +722,22 @@ export default function RecipesScreen({ user }) {
               <View style={styles.bookDetailCard}>
                 <View style={[styles.bookDetailHeader, selectedBook.cover ? styles.bookDetailHeaderWithImage : null]}>
                   {selectedBook.cover ? (
-                    <ImageBackground
-                      source={{ uri: selectedBook.cover }}
-                      style={styles.bookDetailHeaderImage}
-                      imageStyle={styles.bookDetailHeaderImageInner}
-                    >
+                    <>
+                      <Image
+                        source={{ uri: resolveCoverUri(selectedBook.cover) }}
+                        style={styles.bookDetailHeaderImage}
+                        resizeMode="cover"
+                      />
                       <View style={styles.bookDetailHeaderOverlay} />
-                    </ImageBackground>
+                    </>
                   ) : null}
-                  <Text style={styles.bookDetailTitle}>{selectedBook.title}</Text>
-                  <Text style={styles.bookDetailCount}>
-                    {t(selectedBookRecipes.length === 1 ? 'recipe_count_singular' : 'recipe_count_plural', { count: selectedBookRecipes.length })}
-                  </Text>
-                  <Text style={styles.bookDetailSparkle}>✦</Text>
+                  <View style={styles.bookDetailHeaderContent}>
+                    <Text style={styles.bookDetailTitle}>{selectedBook.title}</Text>
+                    <Text style={styles.bookDetailCount}>
+                      {t(selectedBookRecipes.length === 1 ? 'recipe_count_singular' : 'recipe_count_plural', { count: selectedBookRecipes.length })}
+                    </Text>
+                    <Text style={styles.bookDetailSparkle}>✦</Text>
+                  </View>
                 </View>
 
                 <View style={styles.bookDetailPage}>
@@ -637,7 +787,11 @@ export default function RecipesScreen({ user }) {
                 <Text style={styles.cookbooksHeroTitle}>{t('my_cookbooks_title')}</Text>
                 <Text style={styles.cookbooksHeroSub}>{t('tap_cookbook_browse')}</Text>
 
-                <TouchableOpacity style={styles.newBookBtn} activeOpacity={0.85}>
+                <TouchableOpacity
+                  style={styles.newBookBtn}
+                  activeOpacity={0.85}
+                  onPress={() => setIsNewCookbookVisible(true)}
+                >
                   <Text style={styles.newBookBtnText}>{t('new_cookbook_btn')}</Text>
                 </TouchableOpacity>
 
@@ -658,13 +812,16 @@ export default function RecipesScreen({ user }) {
                         style={styles.bookSpine}
                       >
                         {book.cover ? (
-                          <ImageBackground
-                            source={{ uri: book.cover }}
-                            style={styles.bookSpineCover}
-                            imageStyle={styles.bookSpineCoverImage}
-                          >
+                          <View style={styles.bookSpineCover}>
+                            <Image
+                              source={{ uri: resolveCoverUri(book.cover) }}
+                              style={styles.bookSpineCoverImage}
+                              resizeMode="cover"
+                              onError={(e) => console.log('[RecipesScreen] SPINE2 cover image failed', book.id, e.nativeEvent)}
+                              onLoad={(e) => console.log('[RecipesScreen] SPINE2 cover image loaded OK', book.id, e.nativeEvent?.source)}
+                            />
                             <View style={styles.bookOverlay} />
-                          </ImageBackground>
+                          </View>
                         ) : null}
 
                         <View style={styles.bookSpineLeftEdge} />
@@ -704,6 +861,23 @@ export default function RecipesScreen({ user }) {
         onSaveNote={persistRecipeNote}
         onDeleteRecipe={handleDeleteRecipe}
         onAddToList={handleAddSelectedRecipeToShoppingList}
+        user={user}
+      />
+
+      <NewCookbookModal
+        visible={isNewCookbookVisible}
+        onClose={() => setIsNewCookbookVisible(false)}
+        onCreate={handleCreateCookbook}
+        isCreating={isCreatingCookbook}
+      />
+
+      <AddRecipesToCookbookModal
+        visible={isAddRecipesVisible}
+        book={selectedBook}
+        recipes={recipes}
+        onClose={() => setIsAddRecipesVisible(false)}
+        onSave={handleSaveRecipesToBook}
+        isSaving={isSavingAddRecipes}
       />
     </View>
   );
@@ -959,24 +1133,37 @@ const styles = StyleSheet.create({
   bookDetailHeader: {
     minHeight: 164,
     backgroundColor: '#A7C2E1',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookDetailHeaderWithImage: {
+    position: 'relative',
+    height: 164,
+    overflow: 'hidden',
+  },
+  bookDetailHeaderContent: {
+    width: '100%',
+    height: '100%',
     paddingHorizontal: 20,
     paddingTop: 36,
     paddingBottom: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  bookDetailHeaderWithImage: {
-    position: 'relative',
-  },
   bookDetailHeaderImage: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  bookDetailHeaderImageInner: {
-    resizeMode: 'cover',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
   },
   bookDetailHeaderOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(130, 170, 215, 0.74)',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.60)',
   },
   bookDetailTitle: {
     color: '#F7F2E8',
@@ -1147,7 +1334,7 @@ const styles = StyleSheet.create({
   },
   bookSpine: {
     width: 50,
-    minHeight: 250,
+    height: 250,
     borderRadius: 6,
     backgroundColor: '#A97B4A',
     borderWidth: 1,
@@ -1156,9 +1343,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bookSpineCover: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: 50,
+    height: 250,
   },
   bookSpineCoverImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
     borderRadius: 6,
   },
   bookOverlay: {

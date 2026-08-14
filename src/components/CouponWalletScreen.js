@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
     groupCount: {
         color: '#9A8D7F',
         fontFamily: 'Jost-Medium',
-        fontSize: 11,
+        fontSize: 10,
     },
     couponCard: {
         marginTop: 14,

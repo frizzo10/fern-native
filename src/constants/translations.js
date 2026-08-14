@@ -577,6 +577,26 @@ export const translations = {
     family_hub_activities_label: "ACTIVITIES",
     family_hub_no_activities: "No activities yet",
 
+    // Weekly Review modal
+    family_weekly_review_title: "{day} Weekly Review",
+    family_weekly_review_subtitle: "Based on your history — add what you want for the week ahead",
+    family_weekly_review_suggested_meals_label: "🍽️ SUGGESTED MEALS",
+    family_weekly_review_recurring_activities_label: "📌 RECURRING ACTIVITIES",
+    family_weekly_review_cooked_count: "Cooked {count} time(s){cuisine}",
+    family_weekly_review_recurring_meta: "{day} · {count} time(s)",
+    family_weekly_review_add_btn: "+ Add",
+    family_weekly_review_added_btn: "Added ✓",
+    family_weekly_review_done_btn: "Done — Start My Week!",
+    family_weekly_review_skip_btn: "Skip this week",
+    family_weekly_review_empty_meals: "Save a few recipes and Fern will suggest them here each week.",
+    family_weekly_review_empty_activities: "Add an activity a couple of weeks in a row and Fern will start suggesting it here.",
+
+    // Plan with Fern (Family Hub's scoped ChatSheetModal)
+    family_plan_fern_title: "🌿 Plan with Fern",
+    family_plan_fern_empty_hint: "Tell me what meals or activities you want this week — I'll add them for you.",
+    family_plan_fern_added_meals: "✅ Added {count} meal(s) to your week.",
+    family_plan_fern_added_activities: "✅ Added {count} activity(ies) to your week.",
+
     // Add Activity modal
     family_add_activity_title: "Add Activity",
     family_activity_quick_pick_label: "QUICK PICK",
@@ -700,6 +720,24 @@ export const translations = {
     no_cookbooks_title: "No cookbooks yet",
     no_cookbooks_sub: "Cookbooks from your API sync will appear here.",
 
+    // New Cookbook modal
+    new_cookbook_modal_title: "New Cookbook",
+    cookbook_name_placeholder: "Cookbook name...",
+    cover_image_optional_label: "COVER IMAGE (OPTIONAL)",
+    take_photo_btn: "Take Photo",
+    upload_image_btn: "Upload Image",
+    clear_btn: "Clear",
+    pick_a_color_label: "PICK A COLOR",
+    create_btn: "Create ✦",
+    cookbook_create_failed_title: "Couldn't create cookbook",
+    cookbook_create_failed_desc: "Please try again.",
+
+    // Add Recipes to Cookbook modal
+    add_recipes_modal_title: "Add Recipes",
+    save_selected_recipes_btn: "Save ({count})",
+    add_recipes_failed_title: "Couldn't update cookbook",
+    add_recipes_failed_desc: "Please try again.",
+
     // Shopping Screen
     voice_card_title: "Add items with your voice",
     voice_card_sub: "\"olive oil, garlic, and chicken\"",
@@ -758,6 +796,25 @@ export const translations = {
     instacart_btn: "🥕 Instacart",
     close_btn: "Close",
     delete_short_btn: "🗑 Delete",
+
+    // Scale Recipe modal
+    scale_recipe_title: "↕ Scale Recipe",
+    scale_recipe_subtitle: "AI adjusts quantities + cook times intelligently",
+    current_recipe_label: "CURRENT RECIPE",
+    currently_serves_label: "Currently serves {count}",
+    scale_to_serve_label: "SCALE TO SERVE HOW MANY?",
+    current_serving_tag: "CURRENT",
+    or_custom_label: "Or custom:",
+    custom_serving_placeholder: "Custom serving count (1-50)",
+    scale_recipe_btn: "✨ SCALE RECIPE",
+    scaling_ellipsis_btn: "✨ SCALING...",
+    adjusting_quantities_label: "Adjusting quantities...",
+    scaled_recipe_label: "✦ SCALED RECIPE",
+    servings_arrow_label: "{from} → {to} servings",
+    scaled_ingredients_label: "SCALED INGREDIENTS",
+    was_prefix_label: "was:",
+    now_prefix_label: "now:",
+    scale_recipe_error: "Couldn't scale this recipe right now. Please try again.",
 
     // Recipes / Search Screens — delete & error alerts
     delete_recipe_failed_title: "Delete failed",
@@ -1842,6 +1899,26 @@ export const translations = {
     family_hub_activities_label: "ACTIVIDADES",
     family_hub_no_activities: "Aún no hay actividades",
 
+    // Weekly Review modal
+    family_weekly_review_title: "Revisión Semanal del {day}",
+    family_weekly_review_subtitle: "Basado en tu historial — agrega lo que quieras para la semana que viene",
+    family_weekly_review_suggested_meals_label: "🍽️ COMIDAS SUGERIDAS",
+    family_weekly_review_recurring_activities_label: "📌 ACTIVIDADES RECURRENTES",
+    family_weekly_review_cooked_count: "Cocinado {count} vez(es){cuisine}",
+    family_weekly_review_recurring_meta: "{day} · {count} vez(es)",
+    family_weekly_review_add_btn: "+ Agregar",
+    family_weekly_review_added_btn: "Agregado ✓",
+    family_weekly_review_done_btn: "Listo — ¡Empezar Mi Semana!",
+    family_weekly_review_skip_btn: "Saltar esta semana",
+    family_weekly_review_empty_meals: "Guarda algunas recetas y Fern te las sugerirá aquí cada semana.",
+    family_weekly_review_empty_activities: "Agrega una actividad un par de semanas seguidas y Fern empezará a sugerirla aquí.",
+
+    // Plan with Fern (ChatSheetModal con alcance del Family Hub)
+    family_plan_fern_title: "🌿 Planificar con Fern",
+    family_plan_fern_empty_hint: "Dime qué comidas o actividades quieres esta semana — yo las agrego por ti.",
+    family_plan_fern_added_meals: "✅ Se agregaron {count} comida(s) a tu semana.",
+    family_plan_fern_added_activities: "✅ Se agregaron {count} actividad(es) a tu semana.",
+
     // Add Activity modal
     family_add_activity_title: "Agregar Actividad",
     family_activity_quick_pick_label: "SELECCIÓN RÁPIDA",
@@ -1965,6 +2042,24 @@ export const translations = {
     no_cookbooks_title: "Aún no hay libros",
     no_cookbooks_sub: "Los libros de la sincronización de la API aparecerán aquí.",
 
+    // Modal de Nuevo Libro de Cocina
+    new_cookbook_modal_title: "Nuevo Libro de Cocina",
+    cookbook_name_placeholder: "Nombre del libro...",
+    cover_image_optional_label: "IMAGEN DE PORTADA (OPCIONAL)",
+    take_photo_btn: "Tomar Foto",
+    upload_image_btn: "Subir Imagen",
+    clear_btn: "Borrar",
+    pick_a_color_label: "ELIGE UN COLOR",
+    create_btn: "Crear ✦",
+    cookbook_create_failed_title: "No se pudo crear el libro",
+    cookbook_create_failed_desc: "Por favor, inténtalo de nuevo.",
+
+    // Modal de Agregar Recetas al Libro
+    add_recipes_modal_title: "Agregar Recetas",
+    save_selected_recipes_btn: "Guardar ({count})",
+    add_recipes_failed_title: "No se pudo actualizar el libro",
+    add_recipes_failed_desc: "Por favor, inténtalo de nuevo.",
+
     // Shopping Screen
     voice_card_title: "Añade artículos con tu voz",
     voice_card_sub: "\"aceite de oliva, ajo y pollo\"",
@@ -2023,6 +2118,25 @@ export const translations = {
     instacart_btn: "🥕 Instacart",
     close_btn: "Cerrar",
     delete_short_btn: "🗑 Eliminar",
+
+    // Modal de Escalar Receta
+    scale_recipe_title: "↕ Escalar Receta",
+    scale_recipe_subtitle: "La IA ajusta cantidades + tiempos de cocción inteligentemente",
+    current_recipe_label: "RECETA ACTUAL",
+    currently_serves_label: "Actualmente sirve {count}",
+    scale_to_serve_label: "¿PARA CUÁNTAS PORCIONES?",
+    current_serving_tag: "ACTUAL",
+    or_custom_label: "O personalizado:",
+    custom_serving_placeholder: "Cantidad de porciones (1-50)",
+    scale_recipe_btn: "✨ ESCALAR RECETA",
+    scaling_ellipsis_btn: "✨ ESCALANDO...",
+    adjusting_quantities_label: "Ajustando cantidades...",
+    scaled_recipe_label: "✦ RECETA ESCALADA",
+    servings_arrow_label: "{from} → {to} porciones",
+    scaled_ingredients_label: "INGREDIENTES ESCALADOS",
+    was_prefix_label: "antes:",
+    now_prefix_label: "ahora:",
+    scale_recipe_error: "No se pudo escalar esta receta en este momento. Inténtalo de nuevo.",
 
     // Pantallas de Recetas / Búsqueda — alertas de eliminación y error
     delete_recipe_failed_title: "Error al eliminar",

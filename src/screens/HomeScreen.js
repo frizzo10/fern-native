@@ -54,6 +54,13 @@ import SuggestedRecipesScreen from '../components/SuggestedRecipesScreen';
 import CouponWalletScreen from '../components/CouponWalletScreen';
 import CouponDetailModal from '../components/modals/CouponDetailModal';
 import { normalizeCoupons } from '../utils/couponNormalize';
+import FamilyWeeklyReviewModal from '../components/modals/FamilyWeeklyReviewModal';
+import ChatSheetModal from '../components/modals/ChatSheetModal';
+import { buildWeeklyReviewData } from '../utils/buildWeeklyReviewData';
+import { buildRollingWeekDateKeys, daysBetween, dateToKey, formatDayLabel, normalizeSlot } from '../utils/familyDates';
+import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
+
+const WEEKLY_REVIEW_LAST_SHOWN_KEY = 'fern_weekly_review_last_shown';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
 import { useAccountModal } from '../services/AccountModalContext';
@@ -258,6 +265,167 @@ export default function HomeScreen({ user }) {
   const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState([]);
   const [quickSuggestions, setQuickSuggestions] = useState([]);
   const { data, loading, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
+
+  // Weekly Review: once every ~7 days, the first time Home mounts after
+  // that gap, surface fresh meal/activity suggestions (moved here from
+  // FamilyScreen.js — lives on Home now, not Family Hub).
+  const [isWeeklyReviewOpen, setIsWeeklyReviewOpen] = useState(false);
+  const [weeklyReviewData, setWeeklyReviewData] = useState({ suggestedMeals: [], recurringActivities: [] });
+  const [addedReviewMealIds, setAddedReviewMealIds] = useState(new Set());
+  const [addedReviewActivityKeys, setAddedReviewActivityKeys] = useState(new Set());
+  const [isWeeklyReviewPlanWithFernOpen, setIsWeeklyReviewPlanWithFernOpen] = useState(false);
+  const weeklyReviewCheckedRef = useRef(false);
+  const weeklyReviewDateKeys = buildRollingWeekDateKeys();
+
+  // Gated on `loading` so this evaluates against real (cached-or-network)
+  // data rather than useSync's empty initial state, which would otherwise
+  // build an empty, wrong-looking review on a cold app start.
+  useEffect(() => {
+    if (weeklyReviewCheckedRef.current || loading) return;
+    weeklyReviewCheckedRef.current = true;
+
+    (async () => {
+      try {
+        const lastShown = await AsyncStorage.getItem(WEEKLY_REVIEW_LAST_SHOWN_KEY);
+        console.log('[home] fern_weekly_review_last_shown =', lastShown);
+        const todayKey = dateToKey(new Date());
+        if (!lastShown || daysBetween(lastShown, todayKey) >= 7) {
+          setWeeklyReviewData(buildWeeklyReviewData(
+            data.recipes,
+            data.mealPlan || {},
+            Array.isArray(data.activities) ? data.activities : [],
+            weeklyReviewDateKeys
+          ));
+          setAddedReviewMealIds(new Set());
+          setAddedReviewActivityKeys(new Set());
+          setIsWeeklyReviewOpen(true);
+        }
+      } catch (e) {
+        console.log('[home] weekly review check failed', e?.message || e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
+
+  const persistFamilyMealPlan = (nextMealPlan) => {
+    AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(nextMealPlan))
+      .then(() => pushChangedFromStorage({ meal_plan: nextMealPlan }))
+      .then(() => pull())
+      .catch((e) => console.log('[home] failed to sync meal plan', e?.message || e));
+  };
+
+  const persistFamilyActivities = (nextActivities) => {
+    AsyncStorage.setItem('rv4_activities', JSON.stringify(nextActivities))
+      .then(() => pushChangedFromStorage({ activities: nextActivities }))
+      .then(() => pull())
+      .catch((e) => console.log('[home] failed to sync activities', e?.message || e));
+  };
+
+  // TEMPORARY test wiring: "Done" only closes the sheet, it does NOT
+  // persist fern_weekly_review_last_shown — so the review keeps reappearing
+  // on every Home mount for repeat testing. Only "Skip" persists it (real
+  // dismissal). Revert handleWeeklyReviewDone to also persist once testing
+  // is done, so Done behaves like Skip again.
+  const handleWeeklyReviewDone = () => {
+    setIsWeeklyReviewOpen(false);
+  };
+
+  const handleWeeklyReviewSkip = () => {
+    setIsWeeklyReviewOpen(false);
+    AsyncStorage.setItem(WEEKLY_REVIEW_LAST_SHOWN_KEY, dateToKey(new Date())).catch(() => { });
+  };
+
+  const handleAddSuggestedMeal = (meal) => {
+    // No slot picker in the review card (matches the mockup) — drop it into
+    // the first upcoming day that doesn't have a Dinner yet, or today if
+    // the whole week's already got dinners planned.
+    const mealPlan = data.mealPlan || {};
+    const targetDateKey = weeklyReviewDateKeys.find((key) => (
+      !(mealPlan[key] || []).some((entry) => normalizeSlot(entry) === 'dinner')
+    )) || weeklyReviewDateKeys[0];
+    if (!targetDateKey) return;
+
+    const dayMeals = mealPlan[targetDateKey] || [];
+    const newEntry = { slot: 'Dinner', title: meal.title, emoji: meal.emoji, image: meal.image || null };
+    persistFamilyMealPlan({ ...mealPlan, [targetDateKey]: [...dayMeals, newEntry] });
+    setAddedReviewMealIds((prev) => new Set(prev).add(meal.id));
+  };
+
+  const handleAddRecurringActivity = (activity) => {
+    const newActivity = {
+      day: activity.dayLabel,
+      time: '',
+      emoji: activity.emoji,
+      label: activity.label,
+      dateKey: activity.targetDateKey,
+      endTime: '',
+      startTime: '',
+      _origLabel: activity.label,
+    };
+    const nextActivities = [...(Array.isArray(data.activities) ? data.activities : []), newActivity];
+    persistFamilyActivities(nextActivities);
+    setAddedReviewActivityKeys((prev) => new Set(prev).add(activity.key));
+  };
+
+  const openWeeklyReviewPlanWithFern = () => {
+    // Never flip both modals' `visible` in the same tick -- dismissing one
+    // native Modal and presenting another simultaneously races their
+    // transition animations (the same bug that froze Fridge Challenge, and
+    // later Family Hub's own Plan-with-Fern-from-review, before this fix).
+    // Let the review sheet's dismiss animation finish first.
+    setIsWeeklyReviewOpen(false);
+    setTimeout(() => setIsWeeklyReviewPlanWithFernOpen(true), 350);
+  };
+
+  // Applies whatever the Weekly Review's Plan-with-Fern conversation decided
+  // to add. Mirrors the day_offset (0-6) the AI was asked to use back onto
+  // weeklyReviewDateKeys, since asking a model to compute real calendar
+  // dates is asking for mistakes.
+  const handleWeeklyReviewPlanWithFernAction = (parsed) => {
+    const mealsToAdd = Array.isArray(parsed?.add_meals) ? parsed.add_meals : [];
+    const activitiesToAdd = Array.isArray(parsed?.add_activities) ? parsed.add_activities : [];
+    if (!mealsToAdd.length && !activitiesToAdd.length) return undefined;
+
+    const dayOffsetToDateKey = (offset) => weeklyReviewDateKeys[Math.max(0, Math.min(weeklyReviewDateKeys.length - 1, Number(offset) || 0))];
+
+    if (mealsToAdd.length) {
+      let nextMealPlan = data.mealPlan || {};
+      mealsToAdd.forEach((m) => {
+        const dateKey = dayOffsetToDateKey(m?.day_offset);
+        const title = String(m?.title || '').trim();
+        if (!dateKey || !title) return;
+        const dayMeals = nextMealPlan[dateKey] || [];
+        nextMealPlan = { ...nextMealPlan, [dateKey]: [...dayMeals, { slot: m?.slot || 'Dinner', title, emoji: m?.emoji || '🍽️' }] };
+      });
+      persistFamilyMealPlan(nextMealPlan);
+    }
+
+    if (activitiesToAdd.length) {
+      const newActivities = activitiesToAdd
+        .map((a) => {
+          const dateKey = dayOffsetToDateKey(a?.day_offset);
+          const label = String(a?.label || '').trim();
+          if (!dateKey || !label) return null;
+          return {
+            day: formatDayLabel(dateKey),
+            time: a?.time || '',
+            emoji: a?.emoji || '🗓️',
+            label,
+            dateKey,
+            endTime: '',
+            startTime: '',
+            _origLabel: label,
+          };
+        })
+        .filter(Boolean);
+      if (newActivities.length) persistFamilyActivities([...(Array.isArray(data.activities) ? data.activities : []), ...newActivities]);
+    }
+
+    const parts = [];
+    if (mealsToAdd.length) parts.push(t('family_plan_fern_added_meals', { count: mealsToAdd.length }));
+    if (activitiesToAdd.length) parts.push(t('family_plan_fern_added_activities', { count: activitiesToAdd.length }));
+    return parts.join(' ');
+  };
 
   const leftover = useAiRecipeCollection({ source: 'leftover', data, pushAllFromStorage, pull, t, token: user?.token });
   const fridgeChallenge = useAiRecipeCollection({ source: 'fridge', data, pushAllFromStorage, pull, t, token: user?.token });
@@ -2656,6 +2824,7 @@ export default function HomeScreen({ user }) {
         showSavedIndicator
         onDeleteRecipe={selectedAiRecipe && activeAiRecipeCollection?.isRecipeSaved(selectedAiRecipe) ? () => activeAiRecipeCollection.handleDeleteSelected(closeSelectedAiRecipeDetail) : undefined}
         onAddToList={() => activeAiRecipeCollection?.handleAddToShoppingList()}
+        user={user}
       />
 
       <EventPlannerIntakeModal
@@ -2663,6 +2832,31 @@ export default function HomeScreen({ user }) {
         onClose={() => setIsEventPlannerOpen(false)}
         user={user}
         locale={locale}
+      />
+
+      <FamilyWeeklyReviewModal
+        visible={isWeeklyReviewOpen}
+        dayLabel={new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(new Date())}
+        suggestedMeals={weeklyReviewData.suggestedMeals}
+        recurringActivities={weeklyReviewData.recurringActivities}
+        addedMealIds={addedReviewMealIds}
+        addedActivityKeys={addedReviewActivityKeys}
+        onAddMeal={handleAddSuggestedMeal}
+        onAddActivity={handleAddRecurringActivity}
+        onPlanWithFern={openWeeklyReviewPlanWithFern}
+        onDone={handleWeeklyReviewDone}
+        onSkip={handleWeeklyReviewSkip}
+      />
+
+      <ChatSheetModal
+        visible={isWeeklyReviewPlanWithFernOpen}
+        onClose={() => setIsWeeklyReviewPlanWithFernOpen(false)}
+        user={user}
+        systemPrompt={FAMILY_PLAN_SYSTEM_PROMPT}
+        autoOpenerPrompt={FAMILY_PLAN_AUTO_OPENER}
+        title={t('family_plan_fern_title')}
+        emptyHintKey="family_plan_fern_empty_hint"
+        onAction={handleWeeklyReviewPlanWithFernAction}
       />
     </View >
   );

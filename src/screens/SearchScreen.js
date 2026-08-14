@@ -841,7 +841,7 @@ export default function SearchScreen({ user }) {
 
                             <View style={styles.sectionHeader}>
                                 <Text style={styles.sectionTitle}>{t('food_bloggers_title')}</Text>
-                                <View style={styles.sectionHeaderActions}>
+                                {/* <View style={styles.sectionHeaderActions}>
                                     <ActionButton
                                         label={t('ask_fern_btn')}
                                         icon="🌿"
@@ -852,7 +852,7 @@ export default function SearchScreen({ user }) {
                                     <TouchableOpacity activeOpacity={0.85} onPress={() => setIsBloggersModalOpen(true)}>
                                         <Text style={styles.manageLink}>{t('manage_link')}</Text>
                                     </TouchableOpacity>
-                                </View>
+                                </View> */}
                             </View>
 
                             <View style={styles.bloggersRow}>
@@ -944,62 +944,24 @@ export default function SearchScreen({ user }) {
                         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                     >
                         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                        <SafeAreaView style={styles.modalSafeArea}>
-                            <View style={styles.modalCard}>
-                                <View style={styles.modalHeader}>
-                                    <Text style={styles.modalTitle}>{t('bloggers_title')}</Text>
-                                    <TouchableOpacity
-                                        activeOpacity={0.85}
-                                        onPress={() => setIsBloggersModalOpen(false)}
-                                        style={styles.modalCloseBtn}
-                                    >
-                                        <Text style={styles.modalCloseText}>×</Text>
-                                    </TouchableOpacity>
-                                </View>
-
-                                <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-                                    <Text style={styles.followingTitle}>{t('following_label', { count: followingBloggers.length })}</Text>
-
-                                    {followingBloggers.map((blogger) => (
-                                        <View key={`following-${blogger.id}`} style={styles.manageRowCard}>
-                                            <View style={[styles.manageAvatar, { backgroundColor: blogger.color }]}>
-                                                <Text style={styles.manageAvatarEmoji}>{blogger.emoji}</Text>
-                                            </View>
-
-                                            <View style={styles.manageMeta}>
-                                                <Text style={styles.manageName}>{blogger.name}</Text>
-                                                <Text style={styles.manageSpecialty}>{blogger.specialty}</Text>
-                                            </View>
-
-                                            <View style={styles.followingActions}>
-                                                <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn}>
-                                                    <Text style={styles.followingActionText}>{t('blogger_new')}</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn} onPress={() => openBloggerRecipes(blogger)}>
-                                                    <Text style={styles.followingRecipesText}>{t('blogger_recipes')}</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity activeOpacity={0.85} style={styles.followingRemoveBtn} onPress={() => toggleFollow(blogger)}>
-                                                    <Text style={styles.followingRemoveText}>×</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        </View>
-                                    ))}
-
-                                    <View style={styles.modalSearchWrap}>
-                                        <TextInput
-                                            value={bloggerQuery}
-                                            onChangeText={setBloggerQuery}
-                                            placeholder={t('blogger_search_placeholder')}
-                                            placeholderTextColor="#AAA39A"
-                                            style={styles.modalSearchInput}
-                                        />
+                            <SafeAreaView style={styles.modalSafeArea}>
+                                <View style={styles.modalCard}>
+                                    <View style={styles.modalHeader}>
+                                        <Text style={styles.modalTitle}>{t('bloggers_title')}</Text>
+                                        <TouchableOpacity
+                                            activeOpacity={0.85}
+                                            onPress={() => setIsBloggersModalOpen(false)}
+                                            style={styles.modalCloseBtn}
+                                        >
+                                            <Text style={styles.modalCloseText}>×</Text>
+                                        </TouchableOpacity>
                                     </View>
 
-                                    {visibleBloggers.map((blogger) => {
-                                        const isFollowing = followingIds.has(blogger.id);
+                                    <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
+                                        <Text style={styles.followingTitle}>{t('following_label', { count: followingBloggers.length })}</Text>
 
-                                        return (
-                                            <View key={`discover-${blogger.id}`} style={styles.manageRowCard}>
+                                        {followingBloggers.map((blogger) => (
+                                            <View key={`following-${blogger.id}`} style={styles.manageRowCard}>
                                                 <View style={[styles.manageAvatar, { backgroundColor: blogger.color }]}>
                                                     <Text style={styles.manageAvatarEmoji}>{blogger.emoji}</Text>
                                                 </View>
@@ -1009,21 +971,59 @@ export default function SearchScreen({ user }) {
                                                     <Text style={styles.manageSpecialty}>{blogger.specialty}</Text>
                                                 </View>
 
-                                                <TouchableOpacity
-                                                    activeOpacity={0.85}
-                                                    onPress={() => toggleFollow(blogger)}
-                                                    style={isFollowing ? styles.followingPill : styles.followPill}
-                                                >
-                                                    <Text style={isFollowing ? styles.followingPillText : styles.followPillText}>
-                                                        {isFollowing ? t('blogger_following_pill') : t('blogger_follow_pill')}
-                                                    </Text>
-                                                </TouchableOpacity>
+                                                <View style={styles.followingActions}>
+                                                    <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn}>
+                                                        <Text style={styles.followingActionText}>{t('blogger_new')}</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn} onPress={() => openBloggerRecipes(blogger)}>
+                                                        <Text style={styles.followingRecipesText}>{t('blogger_recipes')}</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity activeOpacity={0.85} style={styles.followingRemoveBtn} onPress={() => toggleFollow(blogger)}>
+                                                        <Text style={styles.followingRemoveText}>×</Text>
+                                                    </TouchableOpacity>
+                                                </View>
                                             </View>
-                                        );
-                                    })}
-                                </ScrollView>
-                            </View>
-                        </SafeAreaView>
+                                        ))}
+
+                                        <View style={styles.modalSearchWrap}>
+                                            <TextInput
+                                                value={bloggerQuery}
+                                                onChangeText={setBloggerQuery}
+                                                placeholder={t('blogger_search_placeholder')}
+                                                placeholderTextColor="#AAA39A"
+                                                style={styles.modalSearchInput}
+                                            />
+                                        </View>
+
+                                        {visibleBloggers.map((blogger) => {
+                                            const isFollowing = followingIds.has(blogger.id);
+
+                                            return (
+                                                <View key={`discover-${blogger.id}`} style={styles.manageRowCard}>
+                                                    <View style={[styles.manageAvatar, { backgroundColor: blogger.color }]}>
+                                                        <Text style={styles.manageAvatarEmoji}>{blogger.emoji}</Text>
+                                                    </View>
+
+                                                    <View style={styles.manageMeta}>
+                                                        <Text style={styles.manageName}>{blogger.name}</Text>
+                                                        <Text style={styles.manageSpecialty}>{blogger.specialty}</Text>
+                                                    </View>
+
+                                                    <TouchableOpacity
+                                                        activeOpacity={0.85}
+                                                        onPress={() => toggleFollow(blogger)}
+                                                        style={isFollowing ? styles.followingPill : styles.followPill}
+                                                    >
+                                                        <Text style={isFollowing ? styles.followingPillText : styles.followPillText}>
+                                                            {isFollowing ? t('blogger_following_pill') : t('blogger_follow_pill')}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            );
+                                        })}
+                                    </ScrollView>
+                                </View>
+                            </SafeAreaView>
                         </TouchableWithoutFeedback>
                     </KeyboardAvoidingView>
                 </Modal>
@@ -1039,6 +1039,7 @@ export default function SearchScreen({ user }) {
                     showSavedIndicator
                     onDeleteRecipe={selectedIsSaved ? handleDeleteSelectedRecipe : undefined}
                     onAddToList={handleAddSelectedRecipeToShoppingList}
+                    user={user}
                 />
 
                 <ScanCircularModal

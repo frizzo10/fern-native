@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ImageBackground,
   KeyboardAvoidingView,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { getDifficultyLevel } from '../utils/recipeNormalize';
 import useLanguage from '../hooks/useLanguage';
+import ScaleRecipeModal from './modals/ScaleRecipeModal';
 
 export default function RecipeDetailModal({
   recipe,
@@ -25,20 +26,26 @@ export default function RecipeDetailModal({
   showSavedIndicator = false,
   onDeleteRecipe,
   onAddToList,
+  user,
 }) {
   const { t } = useLanguage();
+  const [isScaleModalVisible, setIsScaleModalVisible] = useState(false);
+  const handleClose = () => {
+    setIsScaleModalVisible(false);
+    onClose();
+  };
   return (
     <Modal
       visible={!!recipe}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.overlayBackdrop}>
         <TouchableOpacity
           style={styles.overlayBackdropTap}
           activeOpacity={1}
-          onPress={onClose}
+          onPress={handleClose}
         />
 
         {recipe ? (
@@ -63,7 +70,7 @@ export default function RecipeDetailModal({
 
                   <TouchableOpacity
                     style={styles.overlayCloseBtn}
-                    onPress={onClose}
+                    onPress={handleClose}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.overlayCloseBtnText}>✕</Text>
@@ -119,12 +126,17 @@ export default function RecipeDetailModal({
 
                   <Text style={styles.overlaySectionTitle}>{t('ingredients_title')} <Text style={styles.overlayServings}>• {recipe.servings} {t('servings_label')}</Text></Text>
 
-                  {/* <View style={styles.overlayTopActionsRow}>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_scale')}</Text></TouchableOpacity>
+                  <View style={styles.overlayTopActionsRow}>
+                    <TouchableOpacity
+                      style={styles.overlayActionPill}
+                      onPress={() => setIsScaleModalVisible(true)}
+                    >
+                      <Text style={styles.overlayActionText}>{t('action_scale')}</Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_pair')}</Text></TouchableOpacity>
                     <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_plate')}</Text></TouchableOpacity>
                     <TouchableOpacity style={[styles.overlayActionPill, styles.overlayActionPillCook]}><Text style={styles.overlayActionText}>{t('action_cook')}</Text></TouchableOpacity>
-                  </View> */}
+                  </View>
 
                   <View style={styles.overlayDivider} />
 
@@ -191,7 +203,7 @@ export default function RecipeDetailModal({
                     {/* <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>{t('edit_btn_recipes')}</Text></TouchableOpacity> */}
                     <TouchableOpacity
                       style={[styles.overlayBottomBtn, styles.overlayBottomBtnClose]}
-                      onPress={onClose}
+                      onPress={handleClose}
                     >
                       <Text style={styles.overlayBottomBtnTextDark}>{t('close_btn')}</Text>
                     </TouchableOpacity>
@@ -211,6 +223,13 @@ export default function RecipeDetailModal({
             </View>
           </KeyboardAvoidingView>
         ) : null}
+
+        <ScaleRecipeModal
+          visible={isScaleModalVisible && !!recipe}
+          recipe={recipe}
+          token={user?.token}
+          onClose={() => setIsScaleModalVisible(false)}
+        />
       </View>
     </Modal>
   );
