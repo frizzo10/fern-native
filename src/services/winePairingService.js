@@ -12,21 +12,13 @@ export function normalizeWinePairing(item, index) {
   return { name, region, type, category, price, description, badge };
 }
 
-export async function fetchWinePairings({ userId, dish, locale, token }) {
-  const normalizedDish = String(dish || '').trim();
-  const titledDish = normalizedDish.charAt(0).toUpperCase() + normalizedDish.slice(1);
-
+async function requestWinePairings({ userId, recipe, locale, token }) {
   const payload = {
     action: 'wine_pairing',
     userId,
     token,
     locale: locale || 'en',
-    recipe: {
-      title: titledDish,
-      cuisine: '',
-      description: `A dish the user described: ${titledDish}`,
-      ingredients: [],
-    },
+    recipe,
   };
 
   const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/recipe-tools', {
@@ -48,4 +40,35 @@ export async function fetchWinePairings({ userId, dish, locale, token }) {
     : [];
 
   return { payload, responseJson, summary, pairings };
+}
+
+export async function fetchWinePairings({ userId, dish, locale, token }) {
+  const normalizedDish = String(dish || '').trim();
+  const titledDish = normalizedDish.charAt(0).toUpperCase() + normalizedDish.slice(1);
+
+  return requestWinePairings({
+    userId,
+    locale,
+    token,
+    recipe: {
+      title: titledDish,
+      cuisine: '',
+      description: `A dish the user described: ${titledDish}`,
+      ingredients: [],
+    },
+  });
+}
+
+export async function fetchWinePairingsForRecipe({ userId, recipe, locale, token }) {
+  return requestWinePairings({
+    userId,
+    locale,
+    token,
+    recipe: {
+      title: recipe?.title || '',
+      cuisine: recipe?.category || recipe?.cuisine || '',
+      description: recipe?.description || '',
+      ingredients: Array.isArray(recipe?.ingredients) ? recipe.ingredients : [],
+    },
+  });
 }

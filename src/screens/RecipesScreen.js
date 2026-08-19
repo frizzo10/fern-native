@@ -1131,14 +1131,14 @@ const styles = StyleSheet.create({
     borderColor: '#D3CCBE',
   },
   bookDetailHeader: {
-    minHeight: 164,
+    height: 164,
+    overflow: 'hidden',
     backgroundColor: '#A7C2E1',
     alignItems: 'center',
     justifyContent: 'center',
   },
   bookDetailHeaderWithImage: {
     position: 'relative',
-    height: 164,
     overflow: 'hidden',
   },
   bookDetailHeaderContent: {

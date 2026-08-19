@@ -14,6 +14,9 @@ import {
 import { getDifficultyLevel } from '../utils/recipeNormalize';
 import useLanguage from '../hooks/useLanguage';
 import ScaleRecipeModal from './modals/ScaleRecipeModal';
+import RecipeWinePairingModal from './modals/RecipeWinePairingModal';
+import RecipePlatingCoachModal from './modals/RecipePlatingCoachModal';
+import CookModeModal from './modals/CookModeModal';
 
 export default function RecipeDetailModal({
   recipe,
@@ -30,8 +33,14 @@ export default function RecipeDetailModal({
 }) {
   const { t } = useLanguage();
   const [isScaleModalVisible, setIsScaleModalVisible] = useState(false);
+  const [isWinePairingVisible, setIsWinePairingVisible] = useState(false);
+  const [isPlatingCoachVisible, setIsPlatingCoachVisible] = useState(false);
+  const [isCookModeVisible, setIsCookModeVisible] = useState(false);
   const handleClose = () => {
     setIsScaleModalVisible(false);
+    setIsWinePairingVisible(false);
+    setIsPlatingCoachVisible(false);
+    setIsCookModeVisible(false);
     onClose();
   };
   return (
@@ -133,9 +142,24 @@ export default function RecipeDetailModal({
                     >
                       <Text style={styles.overlayActionText}>{t('action_scale')}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_pair')}</Text></TouchableOpacity>
-                    <TouchableOpacity style={styles.overlayActionPill}><Text style={styles.overlayActionText}>{t('action_plate')}</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayActionPill, styles.overlayActionPillCook]}><Text style={styles.overlayActionText}>{t('action_cook')}</Text></TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.overlayActionPill}
+                      onPress={() => setIsWinePairingVisible(true)}
+                    >
+                      <Text style={styles.overlayActionText}>{t('action_pair')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.overlayActionPill}
+                      onPress={() => setIsPlatingCoachVisible(true)}
+                    >
+                      <Text style={styles.overlayActionText}>{t('action_plate')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.overlayActionPill, styles.overlayActionPillCook]}
+                      onPress={() => setIsCookModeVisible(true)}
+                    >
+                      <Text style={styles.overlayActionText}>{t('action_cook')}</Text>
+                    </TouchableOpacity>
                   </View>
 
                   <View style={styles.overlayDivider} />
@@ -199,8 +223,8 @@ export default function RecipeDetailModal({
                     <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]} onPress={onAddToList}>
                       <Text style={styles.overlayBottomBtnTextLight}>{t('list_btn')}</Text>
                     </TouchableOpacity>
-                    {/* <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>{t('instacart_btn')}</Text></TouchableOpacity> */}
-                    {/* <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>{t('edit_btn_recipes')}</Text></TouchableOpacity> */}
+                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>{t('instacart_btn')}</Text></TouchableOpacity>
+                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>{t('edit_btn_recipes')}</Text></TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.overlayBottomBtn, styles.overlayBottomBtnClose]}
                       onPress={handleClose}
@@ -229,6 +253,27 @@ export default function RecipeDetailModal({
           recipe={recipe}
           token={user?.token}
           onClose={() => setIsScaleModalVisible(false)}
+        />
+
+        <RecipeWinePairingModal
+          visible={isWinePairingVisible && !!recipe}
+          recipe={recipe}
+          user={user}
+          onClose={() => setIsWinePairingVisible(false)}
+        />
+
+        <RecipePlatingCoachModal
+          visible={isPlatingCoachVisible && !!recipe}
+          recipe={recipe}
+          user={user}
+          onClose={() => setIsPlatingCoachVisible(false)}
+        />
+
+        <CookModeModal
+          visible={isCookModeVisible && !!recipe}
+          recipe={recipe}
+          user={user}
+          onClose={() => setIsCookModeVisible(false)}
         />
       </View>
     </Modal>

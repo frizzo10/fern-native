@@ -874,6 +874,47 @@ export const translations = {
     done_btn: "Done",
     pairing_fallback_label: "PAIRING",
 
+    // Recipe Detail — Wine & Beverage Pairing sheet
+    recipe_wine_pairing_title: "🍷 Wine & Beverage Pairing",
+    recipe_wine_pairing_subtitle: "Sommelier-level pairings for your recipe",
+    wine_pairing_loading_title: "Pairing your recipe...",
+    wine_pairing_loading_subtitle: "Our AI sommelier is considering the dish.",
+    wine_pairing_fetch_error: "Could not get pairings right now. Please try again.",
+    copy_btn: "📋 Copy",
+    copied_btn: "✓ Copied",
+
+    // Recipe Detail — Plating Coach sheet
+    recipe_plating_coach_title: "🎨 Plating Coach",
+    recipe_plating_coach_subtitle: "Plate it like a chef",
+    plating_loading_title: "Designing your plate...",
+    plating_loading_subtitle: "Considering color, composition, and garnish.",
+    plating_fetch_error: "Could not design a plate right now. Please try again.",
+    plating_plate_label: "🍽 THE PLATE",
+    plating_composition_label: "COMPOSITION",
+    plating_garnishes_label: "GARNISHES",
+    plating_sauce_label: "SAUCE",
+
+    // Recipe Detail — Cook Mode screen
+    cook_mode_step_of: "STEP {current} OF {total}",
+    cook_mode_back_btn: "← Back",
+    cook_mode_help_video_btn: "▶ Help video",
+    cook_mode_next_btn: "Next →",
+    cook_mode_finish_btn: "Finish 🎉",
+
+    // Recipe Detail — Technique Help sheet
+    technique_help_title: "Technique Help",
+    technique_help_subtitle: "Finding the best video for this step...",
+    technique_help_loading_label: "Identifying technique...",
+    technique_help_fetch_error: "Could not load technique help right now. Please try again.",
+    technique_help_current_step_label: "CURRENT STEP",
+    technique_help_pro_tip_label: "PRO TIP",
+    technique_help_find_video_label: "FIND A VIDEO ON YOUTUBE",
+    technique_help_search_all_link: "Search all YouTube results",
+    technique_help_full_recipe_row_title: "Full recipe: {title}",
+    technique_help_full_recipe_row_subtitle: "{title} recipe tutorial",
+    technique_help_beginner_row_title: "Beginner: {technique}",
+    technique_help_beginner_row_subtitle: "beginner {query}",
+
     // Leftover Magic Modal
     leftover_magic_title: "Leftover Magic",
     leftover_ask_fern_btn: "🌿 Ask Fern",
@@ -2195,6 +2236,47 @@ export const translations = {
     add_to_list_btn: "🛒 Agregar a la lista",
     done_btn: "Listo",
     pairing_fallback_label: "MARIDAJE",
+
+    // Recipe Detail — Wine & Beverage Pairing sheet
+    recipe_wine_pairing_title: "🍷 Maridaje de Vinos y Bebidas",
+    recipe_wine_pairing_subtitle: "Maridajes de nivel sommelier para tu receta",
+    wine_pairing_loading_title: "Maridando tu receta...",
+    wine_pairing_loading_subtitle: "Nuestro sommelier IA está considerando el platillo.",
+    wine_pairing_fetch_error: "No se pudieron obtener maridajes en este momento. Inténtalo de nuevo.",
+    copy_btn: "📋 Copiar",
+    copied_btn: "✓ Copiado",
+
+    // Recipe Detail — Plating Coach sheet
+    recipe_plating_coach_title: "🎨 Coach de Emplatado",
+    recipe_plating_coach_subtitle: "Emplata como un chef",
+    plating_loading_title: "Diseñando tu plato...",
+    plating_loading_subtitle: "Considerando color, composición y guarnición.",
+    plating_fetch_error: "No se pudo diseñar un plato en este momento. Inténtalo de nuevo.",
+    plating_plate_label: "🍽 EL PLATO",
+    plating_composition_label: "COMPOSICIÓN",
+    plating_garnishes_label: "GUARNICIONES",
+    plating_sauce_label: "SALSA",
+
+    // Recipe Detail — Cook Mode screen
+    cook_mode_step_of: "PASO {current} DE {total}",
+    cook_mode_back_btn: "← Atrás",
+    cook_mode_help_video_btn: "▶ Video de ayuda",
+    cook_mode_next_btn: "Siguiente →",
+    cook_mode_finish_btn: "Terminar 🎉",
+
+    // Recipe Detail — Technique Help sheet
+    technique_help_title: "Ayuda de Técnica",
+    technique_help_subtitle: "Buscando el mejor video para este paso...",
+    technique_help_loading_label: "Identificando técnica...",
+    technique_help_fetch_error: "No se pudo cargar la ayuda de técnica en este momento. Inténtalo de nuevo.",
+    technique_help_current_step_label: "PASO ACTUAL",
+    technique_help_pro_tip_label: "CONSEJO PRO",
+    technique_help_find_video_label: "BUSCAR UN VIDEO EN YOUTUBE",
+    technique_help_search_all_link: "Buscar todos los resultados de YouTube",
+    technique_help_full_recipe_row_title: "Receta completa: {title}",
+    technique_help_full_recipe_row_subtitle: "tutorial de receta {title}",
+    technique_help_beginner_row_title: "Principiante: {technique}",
+    technique_help_beginner_row_subtitle: "principiante {query}",
 
     // Leftover Magic Modal
     leftover_magic_title: "Magia de Sobras",
