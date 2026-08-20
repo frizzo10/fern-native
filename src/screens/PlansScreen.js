@@ -1,11 +1,13 @@
-import React from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, radius, shadow } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import { TOUR_LIST } from '../constants/tourContent';
 import { useTour } from '../services/TourContext';
+import { useRevenueCat } from '../services/RevenueCatContext';
+import { PAYWALL_RESULT } from '../services/purchasesService';
 
 const ICON_PALETTE = ['#1C3A1A', '#2D5A27', '#E8651A'];
 const ICON_OVERRIDES = { alexa_skill: '#16324F' };
@@ -21,6 +23,9 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
     const { t } = useLanguage();
     const { tier, hasAccess } = useEntitlement();
     const { startTour } = useTour();
+    const { presentPaywall, presentCustomerCenter, restore } = useRevenueCat();
+    const [purchasing, setPurchasing] = useState(false);
+    const [restoring, setRestoring] = useState(false);
 
     const bannerEyebrowKey = tier === TIERS.PRO_MAX
         ? 'plans_banner_pro_max_eyebrow'
@@ -38,14 +43,38 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
             ? 'plans_banner_pro_subtitle'
             : 'plans_banner_free_subtitle';
 
-    const handleStart = (item) => {
+    const handleStart = async (item) => {
         if (!hasAccess(item.tier)) {
-            Alert.alert(t('plans_locked_alert_title'), t('plans_locked_alert_desc'));
-            return;
+            setPurchasing(true);
+            try {
+                const result = await presentPaywall();
+                if (result !== PAYWALL_RESULT.PURCHASED && result !== PAYWALL_RESULT.RESTORED) return;
+            } catch (err) {
+                Alert.alert(t('purchase_error_title'), t('purchase_error_desc'));
+                return;
+            } finally {
+                setPurchasing(false);
+            }
         }
         onClose();
         startTour(item.key);
         onAfterStartTour?.();
+    };
+
+    const handleRestore = async () => {
+        setRestoring(true);
+        try {
+            const info = await restore();
+            const hasEntitlement = Object.keys(info?.entitlements?.active || {}).length > 0;
+            Alert.alert(
+                hasEntitlement ? t('restore_success_title') : t('restore_none_found_title'),
+                hasEntitlement ? t('restore_success_desc') : t('restore_none_found_desc')
+            );
+        } catch (err) {
+            Alert.alert(t('restore_error_title'), t('restore_error_desc'));
+        } finally {
+            setRestoring(false);
+        }
     };
 
     const renderSection = (features, sectionTier) => (
@@ -101,8 +130,30 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
                     <View style={styles.body}>
                         {renderSection(PRO_FEATURES, TIERS.PRO)}
                         {renderSection(PRO_MAX_FEATURES, TIERS.PRO_MAX)}
+
+                        {tier !== TIERS.FREE && (
+                            <TouchableOpacity
+                                style={styles.manageBtn}
+                                activeOpacity={0.85}
+                                onPress={presentCustomerCenter}
+                            >
+                                <Text style={styles.manageBtnText}>{t('account_manage_subscription')}</Text>
+                            </TouchableOpacity>
+                        )}
+
+                        <TouchableOpacity style={styles.restoreBtn} activeOpacity={0.8} onPress={handleRestore} disabled={restoring}>
+                            {restoring
+                                ? <ActivityIndicator color={colors.brown} />
+                                : <Text style={styles.restoreBtnText}>{t('account_restore_purchases')}</Text>}
+                        </TouchableOpacity>
                     </View>
                 </ScrollView>
+
+                {purchasing && (
+                    <View style={styles.purchasingOverlay}>
+                        <ActivityIndicator color="#fff" size="large" />
+                    </View>
+                )}
             </View>
         </Modal>
     );
@@ -247,4 +298,35 @@ const styles = StyleSheet.create({
     },
     cardStartGreen: { color: '#2F2015' },
     cardStartOrange: { color: colors.orange },
+
+    manageBtn: {
+        borderWidth: 2,
+        borderColor: colors.border,
+        borderRadius: 16,
+        paddingVertical: 14,
+        alignItems: 'center',
+        backgroundColor: '#fff',
+        marginTop: 12,
+    },
+    manageBtnText: {
+        color: colors.brown,
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+    },
+    restoreBtn: {
+        alignItems: 'center',
+        paddingVertical: 14,
+    },
+    restoreBtnText: {
+        color: colors.brown,
+        fontFamily: 'Jost-SemiBold',
+        fontSize: 13,
+        textDecorationLine: 'underline',
+    },
+    purchasingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.35)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });

@@ -31,6 +31,7 @@ import { PlansModalProvider, usePlansModal } from './src/services/PlansModalCont
 import { TourProvider, useTour } from './src/services/TourContext';
 import TourModal from './src/components/TourModal';
 import { TOUR_PREVIEW_ROUTE } from './src/constants/tourContent';
+import { RevenueCatProvider, useRevenueCat } from './src/services/RevenueCatContext';
 
 const Tab = createBottomTabNavigator();
 
@@ -395,11 +396,26 @@ function AppNavigator({ user, signOut }) {
 
 function MainAppContent() {
   const { user, loading, signInWithSupabase, signUpWithSupabase, signOut } = useAuth();
+  const { loginPurchaser, logoutPurchaser } = useRevenueCat();
   console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
 
   useEffect(() => {
     checkForUpdate();
   }, []);
+
+  // Attach the RevenueCat purchaser to the real backend user id once auth
+  // resolves, so purchases (and entitlements already on that account from
+  // another device) are tied to the right person rather than an anonymous id.
+  useEffect(() => {
+    if (user?.id) {
+      loginPurchaser(user.id);
+    }
+  }, [user?.id]);
+
+  const handleSignOut = async () => {
+    await logoutPurchaser();
+    await signOut();
+  };
 
   if (loading) return null;
 
@@ -420,7 +436,7 @@ function MainAppContent() {
     );
   }
 
-  return <AppNavigator user={user} signOut={signOut} />;
+  return <AppNavigator user={user} signOut={handleSignOut} />;
 }
 
 export default function App() {
@@ -440,15 +456,17 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <LanguageProvider>
-        <AccountModalProvider>
-          <PlansModalProvider>
-            <TourProvider>
-              <MainAppContent />
-            </TourProvider>
-          </PlansModalProvider>
-        </AccountModalProvider>
-      </LanguageProvider>
+      <RevenueCatProvider>
+        <LanguageProvider>
+          <AccountModalProvider>
+            <PlansModalProvider>
+              <TourProvider>
+                <MainAppContent />
+              </TourProvider>
+            </PlansModalProvider>
+          </AccountModalProvider>
+        </LanguageProvider>
+      </RevenueCatProvider>
     </SafeAreaProvider>
   );
 }

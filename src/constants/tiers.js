@@ -11,13 +11,6 @@ const TIER_RANK = {
   [TIERS.PRO_MAX]: 2,
 };
 
-// Single source of truth for "what plan is this device on" until RevenueCat is wired in.
-// Change this one line to test Free / Pro / Pro Max gating anywhere in the app.
-// When RevenueCat is added, replace the constant below with the real entitlement
-// check inside `useEntitlement()` (src/hooks/useEntitlement.js) — nothing else in
-// the app should need to change, since every gate reads through that hook.
-export const CURRENT_TIER = TIERS.PRO_MAX;
-
 export function tierMeetsRequirement(tier, required) {
   if (!required) return true;
   return (TIER_RANK[tier] ?? 0) >= (TIER_RANK[required] ?? 0);

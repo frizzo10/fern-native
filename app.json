@@ -21,7 +21,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.fernai.app",
+      "bundleIdentifier": "com.clickpickandcook.app",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking — say recipes, add items, and plan your week without touching your phone.",
         "NSSpeechRecognitionUsageDescription": "Fern listens for your voice commands to plan meals and navigate the app hands-free.",
@@ -37,7 +37,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#1C3A1A"
       },
-      "package": "com.fernai.app",
+      "package": "com.clickpickandcook.app",
       "permissions": [
         "RECORD_AUDIO",
         "ACCESS_FINE_LOCATION",

@@ -9,6 +9,8 @@ import { TOUR_LIST } from '../constants/tourContent';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import UpgradeGateModal from '../components/UpgradeGateModal';
+import { useRevenueCat } from '../services/RevenueCatContext';
+import { usePlansModal } from '../services/PlansModalContext';
 
 const TIER_BY_TOUR_KEY = TOUR_LIST.reduce((acc, entry) => {
     acc[entry.key] = entry.tier;
@@ -62,8 +64,11 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
     const { t } = useLanguage();
     const { data } = useSync(user);
     const { startTour } = useTour();
-    const { hasAccess } = useEntitlement();
+    const { tier, hasAccess } = useEntitlement();
+    const { presentCustomerCenter, restore } = useRevenueCat();
+    const { open: openPlans } = usePlansModal();
     const [seenTours, setSeenTours] = useState({});
+    const [restoring, setRestoring] = useState(false);
     const [fridgeChallengeDone, setFridgeChallengeDone] = useState(false);
     const [fernVoiceEnabled, setFernVoiceEnabled] = useState(true);
     const [lockedTier, setLockedTier] = useState(null);
@@ -149,6 +154,31 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
             // Keep UI and persisted value aligned.
             setFernVoiceEnabled(!next);
             Alert.alert(t('sync_error'), t('sync_error_desc'));
+        }
+    };
+
+    const handleManageSubscription = () => {
+        if (tier === TIERS.FREE) {
+            onClose();
+            openPlans();
+            return;
+        }
+        presentCustomerCenter();
+    };
+
+    const handleRestore = async () => {
+        setRestoring(true);
+        try {
+            const info = await restore();
+            const hasEntitlement = Object.keys(info?.entitlements?.active || {}).length > 0;
+            Alert.alert(
+                hasEntitlement ? t('restore_success_title') : t('restore_none_found_title'),
+                hasEntitlement ? t('restore_success_desc') : t('restore_none_found_desc')
+            );
+        } catch (err) {
+            Alert.alert(t('restore_error_title'), t('restore_error_desc'));
+        } finally {
+            setRestoring(false);
         }
     };
 
@@ -287,6 +317,26 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                                 <Text style={styles.statePillText}>✓ {isBloggerModeOn ? t('account_on') : t('account_off')}</Text>
                             </View>
                         </View>
+
+                        <View style={styles.settingCard}>
+                            <View style={styles.settingTextWrap}>
+                                <Text style={styles.settingTitle}>💎 {t('account_manage_subscription')}</Text>
+                                <Text style={styles.settingDesc}>
+                                    {tier === TIERS.PRO_MAX ? t('pro_max') : tier === TIERS.PRO ? t('pro') : t('account_free_badge')}
+                                </Text>
+                            </View>
+                            <TouchableOpacity activeOpacity={0.85} onPress={handleManageSubscription} style={styles.statePill}>
+                                <Text style={styles.statePillText}>
+                                    {tier === TIERS.FREE ? t('upgrade_required_cta') : t('account_manage_subscription')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <TouchableOpacity style={styles.restoreLinkBtn} activeOpacity={0.8} onPress={handleRestore} disabled={restoring}>
+                            <Text style={styles.restoreLinkBtnText}>
+                                {restoring ? t('account_restore_purchases') + '…' : t('account_restore_purchases')}
+                            </Text>
+                        </TouchableOpacity>
 
                         <TouchableOpacity
                             style={styles.preferencesBtn}
@@ -596,6 +646,18 @@ const styles = StyleSheet.create({
         color: '#7F5E39',
         fontFamily: 'Jost-SemiBold',
         fontSize: 12,
+    },
+
+    restoreLinkBtn: {
+        alignItems: 'center',
+        paddingVertical: 10,
+        marginBottom: 4,
+    },
+    restoreLinkBtnText: {
+        color: colors.brown,
+        fontFamily: 'Jost-SemiBold',
+        fontSize: 12,
+        textDecorationLine: 'underline',
     },
 
     preferencesBtn: {

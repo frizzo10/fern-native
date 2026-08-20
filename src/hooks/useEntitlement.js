@@ -1,14 +1,15 @@
-import { CURRENT_TIER, tierMeetsRequirement } from '../constants/tiers';
+import { tierMeetsRequirement } from '../constants/tiers';
+import { useRevenueCat } from '../services/RevenueCatContext';
 
-// TODO(RevenueCat): once subscriptions are live, replace `CURRENT_TIER` here with
-// the customer's real entitlement (e.g. from `Purchases.getCustomerInfo()`), ideally
-// lifted into context so it updates live after a purchase. Every tier gate in the
-// app calls this hook rather than reading src/constants/tiers.js directly, so this
-// is the only file that needs to change.
+// Single choke point every gated feature in the app calls to check the
+// customer's plan — backed by RevenueCat (src/services/RevenueCatContext.js).
+// Swapping billing providers, changing tier logic, etc. should only ever
+// require editing this file plus RevenueCatContext, never the ~15 call sites
+// across screens/modals.
 export default function useEntitlement() {
-  const tier = CURRENT_TIER;
+  const { tier, loading } = useRevenueCat();
 
   const hasAccess = (requiredTier) => tierMeetsRequirement(tier, requiredTier);
 
-  return { tier, hasAccess };
+  return { tier, hasAccess, loading };
 }
