@@ -30,6 +30,7 @@ import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
+import { fetchBloggerFeeds } from '../services/bloggerFeedService';
 import ScanCircularModal from '../components/modals/ScanCircularModal';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
@@ -130,6 +131,45 @@ function BloggerCard({ item, onPress }) {
     );
 }
 
+function formatTimeAgo(pubDate, t) {
+    const date = new Date(pubDate);
+    if (Number.isNaN(date.getTime())) return '';
+
+    const diffMs = Date.now() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    if (diffHours < 1) return t('time_ago_just_now');
+    if (diffHours < 24) return t('time_ago_hours', { count: diffHours });
+
+    const diffDays = Math.floor(diffHours / 24);
+    return t('time_ago_days', { count: diffDays });
+}
+
+function BloggerFeedItemRow({ item, t, onPress }) {
+    return (
+        <TouchableOpacity activeOpacity={0.85} style={styles.feedItemRow} onPress={onPress}>
+            <View style={styles.feedItemThumbWrap}>
+                {item.thumbnail ? (
+                    <Image source={{ uri: item.thumbnail }} style={styles.feedItemThumb} resizeMode="cover" />
+                ) : (
+                    <View style={styles.feedItemThumbFallback}>
+                        <Text style={styles.feedItemThumbFallbackIcon}>📰</Text>
+                    </View>
+                )}
+            </View>
+
+            <View style={styles.feedItemBody}>
+                <View style={styles.feedItemBadge}>
+                    <Text style={styles.feedItemBadgeText}>{t('blogger_new')}</Text>
+                </View>
+                <Text numberOfLines={2} style={styles.feedItemTitle}>{item.title}</Text>
+                <Text style={styles.feedItemTime}>{formatTimeAgo(item.pubDate, t)}</Text>
+            </View>
+
+            <Text style={styles.feedItemChevron}>›</Text>
+        </TouchableOpacity>
+    );
+}
+
 export default function SearchScreen({ user }) {
     const navigation = useNavigation();
     const route = useRoute();
@@ -147,6 +187,9 @@ export default function SearchScreen({ user }) {
     const [isBloggersModalOpen, setIsBloggersModalOpen] = useState(false);
     const [bloggerQuery, setBloggerQuery] = useState('');
     const [followingBloggersLocal, setFollowingBloggersLocal] = useState([]);
+    const [expandedBloggerId, setExpandedBloggerId] = useState(null);
+    const [bloggerFeedItemsById, setBloggerFeedItemsById] = useState({});
+    const [loadingBloggerFeedId, setLoadingBloggerFeedId] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [activeQuery, setActiveQuery] = useState('');
@@ -200,6 +243,8 @@ export default function SearchScreen({ user }) {
     useEffect(() => {
         if (isBloggersModalOpen) {
             pull();
+        } else {
+            setExpandedBloggerId(null);
         }
     }, [isBloggersModalOpen, pull]);
 
@@ -595,6 +640,37 @@ export default function SearchScreen({ user }) {
         }
     };
 
+    const openBloggerFeedItem = async (item) => {
+        try {
+            await Linking.openURL(item.url);
+        } catch {
+            Alert.alert(t('recipes_tab'), t('open_recipes_failed_desc', { url: item.url }));
+        }
+    };
+
+    const handleToggleBloggerFeed = async (blogger) => {
+        if (expandedBloggerId === blogger.id) {
+            setExpandedBloggerId(null);
+            return;
+        }
+
+        setExpandedBloggerId(blogger.id);
+        if (bloggerFeedItemsById[blogger.id] || loadingBloggerFeedId === blogger.id) return;
+
+        setLoadingBloggerFeedId(blogger.id);
+        try {
+            const feeds = await fetchBloggerFeeds([blogger]);
+            const items = feeds.find((feed) => feed.bloggerId === blogger.id)?.items || [];
+            setBloggerFeedItemsById((prev) => ({ ...prev, [blogger.id]: items }));
+        } catch (e) {
+            console.warn('[blogger-feed] fetch failed', e);
+            Alert.alert(t('sync_error'), t('blogger_feed_error_desc'));
+            setExpandedBloggerId(null);
+        } finally {
+            setLoadingBloggerFeedId(null);
+        }
+    };
+
     const resetScanCircularModal = () => {
         setScanCircularStep('select');
         setScanCircularPhoto(null);
@@ -960,30 +1036,73 @@ export default function SearchScreen({ user }) {
                                     <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
                                         <Text style={styles.followingTitle}>{t('following_label', { count: followingBloggers.length })}</Text>
 
-                                        {followingBloggers.map((blogger) => (
-                                            <View key={`following-${blogger.id}`} style={styles.manageRowCard}>
-                                                <View style={[styles.manageAvatar, { backgroundColor: blogger.color }]}>
-                                                    <Text style={styles.manageAvatarEmoji}>{blogger.emoji}</Text>
-                                                </View>
+                                        {followingBloggers.map((blogger) => {
+                                            const feedItems = bloggerFeedItemsById[blogger.id];
+                                            const isLoadingFeed = loadingBloggerFeedId === blogger.id;
+                                            const isExpanded = expandedBloggerId === blogger.id;
+                                            const newCount = feedItems ? feedItems.length : null;
+                                            const hasNew = newCount > 0;
 
-                                                <View style={styles.manageMeta}>
-                                                    <Text style={styles.manageName}>{blogger.name}</Text>
-                                                    <Text style={styles.manageSpecialty}>{blogger.specialty}</Text>
-                                                </View>
+                                            return (
+                                                <View key={`following-${blogger.id}`}>
+                                                    <View style={styles.manageRowCard}>
+                                                        <View style={[styles.manageAvatar, { backgroundColor: blogger.color }]}>
+                                                            <Text style={styles.manageAvatarEmoji}>{blogger.emoji}</Text>
+                                                        </View>
 
-                                                <View style={styles.followingActions}>
-                                                    <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn}>
-                                                        <Text style={styles.followingActionText}>{t('blogger_new')}</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn} onPress={() => openBloggerRecipes(blogger)}>
-                                                        <Text style={styles.followingRecipesText}>{t('blogger_recipes')}</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity activeOpacity={0.85} style={styles.followingRemoveBtn} onPress={() => toggleFollow(blogger)}>
-                                                        <Text style={styles.followingRemoveText}>×</Text>
-                                                    </TouchableOpacity>
+                                                        <View style={styles.manageMeta}>
+                                                            <Text style={styles.manageName}>{blogger.name}</Text>
+                                                            <Text style={styles.manageSpecialty}>{blogger.specialty}</Text>
+                                                        </View>
+
+                                                        <View style={styles.followingActions}>
+                                                            <TouchableOpacity
+                                                                activeOpacity={0.85}
+                                                                style={[styles.followingActionBtn, hasNew ? styles.followingActionBtnHot : null]}
+                                                                onPress={() => handleToggleBloggerFeed(blogger)}
+                                                            >
+                                                                {isLoadingFeed ? (
+                                                                    <ActivityIndicator size="small" color={hasNew ? '#FFF5EC' : '#8A6C4B'} />
+                                                                ) : (
+                                                                    <Text style={[styles.followingActionText, hasNew ? styles.followingActionTextHot : null]}>
+                                                                        {newCount === null
+                                                                            ? t('blogger_new')
+                                                                            : newCount > 0
+                                                                                ? t('blogger_new_count', { count: newCount })
+                                                                                : t('blogger_up_to_date')}
+                                                                    </Text>
+                                                                )}
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity activeOpacity={0.85} style={styles.followingActionBtn} onPress={() => openBloggerRecipes(blogger)}>
+                                                                <Text style={styles.followingRecipesText}>{t('blogger_recipes')}</Text>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity activeOpacity={0.85} style={styles.followingRemoveBtn} onPress={() => toggleFollow(blogger)}>
+                                                                <Text style={styles.followingRemoveText}>×</Text>
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    </View>
+
+                                                    {isExpanded && feedItems ? (
+                                                        feedItems.length ? (
+                                                            <View style={styles.feedItemsWrap}>
+                                                                {feedItems.map((item, idx) => (
+                                                                    <BloggerFeedItemRow
+                                                                        key={`${blogger.id}-feed-${idx}`}
+                                                                        item={item}
+                                                                        t={t}
+                                                                        onPress={() => openBloggerFeedItem(item)}
+                                                                    />
+                                                                ))}
+                                                            </View>
+                                                        ) : (
+                                                            <View style={styles.feedItemsWrap}>
+                                                                <Text style={styles.feedEmptyText}>{t('blogger_up_to_date')}</Text>
+                                                            </View>
+                                                        )
+                                                    ) : null}
                                                 </View>
-                                            </View>
-                                        ))}
+                                            );
+                                        })}
 
                                         <View style={styles.modalSearchWrap}>
                                             <TextInput
@@ -1452,6 +1571,94 @@ const styles = StyleSheet.create({
         color: '#8A6C4B',
         fontFamily: 'Jost-SemiBold',
         fontSize: 8,
+    },
+    followingActionBtnHot: {
+        borderColor: colors.orange,
+        backgroundColor: colors.orange,
+    },
+    followingActionTextHot: {
+        color: '#FFF5EC',
+    },
+    feedItemsWrap: {
+        marginTop: -6,
+        marginBottom: 10,
+        marginLeft: 12,
+        marginRight: 4,
+        borderLeftWidth: 2,
+        borderLeftColor: '#E6D9C0',
+        paddingLeft: 12,
+        gap: 8,
+    },
+    feedEmptyText: {
+        paddingVertical: 8,
+        color: '#9A8062',
+        fontFamily: 'Jost-Regular',
+        fontSize: 11,
+        fontStyle: 'italic',
+    },
+    feedItemRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FCFAF5',
+        borderWidth: 1,
+        borderColor: '#E9DFCB',
+        borderRadius: 12,
+        padding: 8,
+        gap: 10,
+    },
+    feedItemThumbWrap: {
+        width: 44,
+        height: 44,
+        borderRadius: 8,
+        overflow: 'hidden',
+    },
+    feedItemThumb: {
+        width: '100%',
+        height: '100%',
+    },
+    feedItemThumbFallback: {
+        width: '100%',
+        height: '100%',
+        backgroundColor: '#EFE6D4',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    feedItemThumbFallbackIcon: {
+        fontSize: 16,
+    },
+    feedItemBody: {
+        flex: 1,
+    },
+    feedItemBadge: {
+        alignSelf: 'flex-start',
+        backgroundColor: colors.orange,
+        borderRadius: 6,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        marginBottom: 4,
+    },
+    feedItemBadgeText: {
+        color: '#FFF5EC',
+        fontFamily: 'Jost-Bold',
+        fontSize: 7,
+        letterSpacing: 0.4,
+    },
+    feedItemTitle: {
+        color: '#2E1A0F',
+        fontFamily: 'Jost-Bold',
+        fontSize: 12,
+        lineHeight: 16,
+    },
+    feedItemTime: {
+        marginTop: 3,
+        color: '#9A8062',
+        fontFamily: 'Jost-Regular',
+        fontSize: 10,
+    },
+    feedItemChevron: {
+        color: '#B7A483',
+        fontSize: 18,
+        marginLeft: 4,
     },
     followingRecipesText: {
         color: '#2E92F4',

@@ -22,34 +22,52 @@ const COVER_COLORS = [
   '#5B3A22', '#2E5F8A', '#7A6B3E', '#8A2F1F', '#3E5C4A',
 ];
 
-export default function NewCookbookModal({ visible, onClose, onCreate, isCreating }) {
+export default function NewCookbookModal({ visible, onClose, onCreate, isCreating, book, onSave, isSaving }) {
   const { t } = useLanguage();
+  const isEditMode = !!book;
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState(null);
   const [color, setColor] = useState(COVER_COLORS[0]);
+  // A cookbook already has a remote cover URL rather than a locally-picked
+  // photo when editing — keep it separate from `photo` (which always means
+  // "a new photo was just picked") so we know whether to re-upload.
+  const [existingCoverUri, setExistingCoverUri] = useState(null);
 
   useEffect(() => {
     if (visible) {
-      setName('');
+      setName(book?.title || '');
       setPhoto(null);
-      setColor(COVER_COLORS[0]);
+      setColor(book?.color || COVER_COLORS[0]);
+      setExistingCoverUri(book?.cover || null);
     }
-  }, [visible]);
+  }, [visible, book]);
 
   const handleTakePhoto = async () => {
     const result = await pickPhotoFromCamera();
-    if (result.photo) setPhoto(result.photo);
+    if (result.photo) {
+      setPhoto(result.photo);
+      setExistingCoverUri(null);
+    }
   };
 
   const handlePickFromLibrary = async () => {
     const result = await pickPhotoFromLibrary();
-    if (result.photo) setPhoto(result.photo);
+    if (result.photo) {
+      setPhoto(result.photo);
+      setExistingCoverUri(null);
+    }
   };
 
-  const handleCreate = () => {
+  const isBusy = isEditMode ? isSaving : isCreating;
+
+  const handleSubmit = () => {
     const trimmed = name.trim();
-    if (!trimmed || isCreating) return;
-    onCreate({ name: trimmed, photo, color });
+    if (!trimmed || isBusy) return;
+    if (isEditMode) {
+      onSave({ name: trimmed, photo, color });
+    } else {
+      onCreate({ name: trimmed, photo, color });
+    }
   };
 
   return (
@@ -61,7 +79,7 @@ export default function NewCookbookModal({ visible, onClose, onCreate, isCreatin
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.sheet}>
             <View style={styles.headerRow}>
-              <Text style={styles.title}>{t('new_cookbook_modal_title')}</Text>
+              <Text style={styles.title}>{isEditMode ? t('edit_cookbook_modal_title') : t('new_cookbook_modal_title')}</Text>
               <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={onClose}>
                 <Text style={styles.closeText}>×</Text>
               </TouchableOpacity>
@@ -85,6 +103,8 @@ export default function NewCookbookModal({ visible, onClose, onCreate, isCreatin
                 <View style={styles.coverPreview}>
                   {photo ? (
                     <Image source={{ uri: photo.uri }} style={styles.coverPreviewImage} />
+                  ) : existingCoverUri ? (
+                    <Image source={{ uri: existingCoverUri }} style={styles.coverPreviewImage} />
                   ) : (
                     <Text style={styles.coverPreviewIcon}>📷</Text>
                   )}
@@ -122,15 +142,15 @@ export default function NewCookbookModal({ visible, onClose, onCreate, isCreatin
 
               <View style={styles.actionsRow}>
                 <TouchableOpacity
-                  style={[styles.createBtn, (!name.trim() || isCreating) ? styles.createBtnDisabled : null]}
+                  style={[styles.createBtn, (!name.trim() || isBusy) ? styles.createBtnDisabled : null]}
                   activeOpacity={0.85}
-                  onPress={handleCreate}
-                  disabled={!name.trim() || isCreating}
+                  onPress={handleSubmit}
+                  disabled={!name.trim() || isBusy}
                 >
-                  {isCreating ? (
+                  {isBusy ? (
                     <ActivityIndicator size="small" color="#F3EEE4" />
                   ) : (
-                    <Text style={styles.createBtnText}>{t('create_btn')}</Text>
+                    <Text style={styles.createBtnText}>{isEditMode ? t('save_changes_btn') : t('create_btn')}</Text>
                   )}
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={onClose}>
