@@ -52,6 +52,30 @@ function resolveCoverUri(cover) {
   return `data:image/jpeg;base64,${trimmed.replace(/\s/g, '')}`;
 }
 
+// Each editable recipe field may live under one of several legacy alias keys
+// (see recipeNormalize.js's pickFirst chains). Editing should overwrite
+// whichever alias key is already driving the displayed value rather than
+// always writing the canonical key — otherwise a stale alias could keep
+// winning pickFirst and the edit would silently not show up.
+const RECIPE_FIELD_ALIASES = {
+  title: { aliases: ['title', 'name', 'recipe_name', 'recipeTitle'], canonical: 'title' },
+  category: { aliases: ['cuisine', 'category', 'type', 'mealType'], canonical: 'cuisine' },
+  meal: { aliases: ['slot', 'meal', 'course'], canonical: 'meal' },
+  time: { aliases: ['time'], canonical: 'time' },
+  difficulty: { aliases: ['difficulty', 'skillLevel', 'level'], canonical: 'difficulty' },
+  description: { aliases: ['description', 'summary', 'blurb', 'about'], canonical: 'description' },
+  servings: { aliases: ['servings', 'serves', 'yield'], canonical: 'servings' },
+  methodSteps: { aliases: ['method', 'steps', 'instructions', 'directions'], canonical: 'instructions' },
+};
+
+function applyRecipeFieldEdit(item, fieldKey, value) {
+  const config = RECIPE_FIELD_ALIASES[fieldKey];
+  if (!config) return { ...item, [fieldKey]: value };
+  const existingKey = config.aliases.find((key) => item?.[key] !== undefined && item?.[key] !== null && item?.[key] !== '');
+  const targetKey = existingKey || config.canonical;
+  return { ...item, [targetKey]: value };
+}
+
 function normalizeBook(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.book_title, item?.label, `Cookbook ${index + 1}`);
   const subtitle = pickFirst(item?.subtitle, item?.description, item?.author, item?.owner, 'My cookbook');
@@ -82,12 +106,14 @@ function normalizeBook(item, index) {
     ...normalizeIdArray(item?.saved),
     ...normalizeIdArray(item?.items),
   ]));
+  const color = pickFirst(item?.color, null);
 
   return {
     id: String(pickFirst(item?.id, item?.uuid, item?.book_id, `${index}`)),
     title,
     subtitle,
     cover,
+    color,
     recipeCount,
     recipeIds,
   };
@@ -113,6 +139,8 @@ export default function RecipesScreen({ user }) {
   const [booksLocal, setBooksLocal] = useState([]);
   const [isNewCookbookVisible, setIsNewCookbookVisible] = useState(false);
   const [isCreatingCookbook, setIsCreatingCookbook] = useState(false);
+  const [isEditCookbookVisible, setIsEditCookbookVisible] = useState(false);
+  const [isSavingCookbookEdit, setIsSavingCookbookEdit] = useState(false);
   const [isAddRecipesVisible, setIsAddRecipesVisible] = useState(false);
   const [isSavingAddRecipes, setIsSavingAddRecipes] = useState(false);
   const attemptedImageFetchIds = useRef(new Set());
@@ -374,6 +402,136 @@ export default function RecipesScreen({ user }) {
       Alert.alert(t('cookbook_create_failed_title'), t('cookbook_create_failed_desc'));
     } finally {
       setIsCreatingCookbook(false);
+    }
+  };
+
+  const handleEditCookbook = async ({ name, photo, color }) => {
+    if (!selectedBook) return;
+    setIsSavingCookbookEdit(true);
+    try {
+      let coverUrl = selectedBook.cover || null;
+      if (photo?.base64) {
+        const dataUri = `data:${photo.mimeType || 'image/jpeg'};base64,${photo.base64}`;
+        coverUrl = await uploadPhoto(dataUri, `cover_${selectedBook.id}_${Date.now()}.jpg`);
+      }
+
+      const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
+      const baseBooks = Array.isArray(storedBooks)
+        ? storedBooks
+        : (Array.isArray(booksLocal) ? booksLocal : []);
+
+      const selectedId = String(selectedBook.id || '').trim();
+      const selectedTitle = String(selectedBook.title || '').trim().toLowerCase();
+
+      const nextBooks = baseBooks.map((book, index) => {
+        const rawId = String(pickFirst(book?.id, book?.uuid, book?.book_id, `${index}`)).trim();
+        const rawTitle = String(pickFirst(book?.title, book?.name, book?.book_title, '')).trim().toLowerCase();
+        const isMatch = (selectedId && rawId === selectedId) || (selectedTitle && rawTitle === selectedTitle);
+        if (!isMatch) return book;
+        return {
+          ...book,
+          title: name,
+          name,
+          color,
+          cover: coverUrl,
+        };
+      });
+
+      await AsyncStorage.setItem('rv4_books', JSON.stringify(nextBooks));
+      setBooksLocal(nextBooks);
+
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, books: nextBooks }));
+
+      await pushChangedFromStorage({ books: nextBooks });
+
+      setSelectedBook((prev) => (prev ? { ...prev, title: name, color, cover: coverUrl } : prev));
+      setIsEditCookbookVisible(false);
+      await pull();
+    } catch (e) {
+      console.warn('Edit cookbook failed:', e);
+      Alert.alert(t('cookbook_edit_failed_title'), t('cookbook_edit_failed_desc'));
+    } finally {
+      setIsSavingCookbookEdit(false);
+    }
+  };
+
+  const handleSaveRecipeEdits = async (patch) => {
+    if (!selectedRecipe) return;
+    setIsSaving(true);
+    try {
+      const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+      const baseSaved = Array.isArray(storedSaved)
+        ? storedSaved
+        : (Array.isArray(recipesLocal) ? recipesLocal : []);
+
+      const selectedId = String(selectedRecipe.id);
+      const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+
+      const nextSaved = baseSaved.map((item, index) => {
+        const itemId = getRawRecipeId(item, index);
+        const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+        const isMatch = itemId === selectedId || (selectedTitle && itemTitle === selectedTitle);
+        if (!isMatch) return item;
+
+        let next = item;
+        if (patch.title !== undefined) next = applyRecipeFieldEdit(next, 'title', patch.title);
+        if (patch.category !== undefined) next = applyRecipeFieldEdit(next, 'category', patch.category);
+        if (patch.meal !== undefined) next = applyRecipeFieldEdit(next, 'meal', patch.meal);
+        if (patch.time !== undefined) next = applyRecipeFieldEdit(next, 'time', patch.time);
+        if (patch.difficulty !== undefined) next = applyRecipeFieldEdit(next, 'difficulty', patch.difficulty);
+        if (patch.description !== undefined) next = applyRecipeFieldEdit(next, 'description', patch.description);
+        if (patch.servings !== undefined) next = applyRecipeFieldEdit(next, 'servings', patch.servings);
+        if (patch.methodSteps !== undefined) next = applyRecipeFieldEdit(next, 'methodSteps', patch.methodSteps);
+        if (patch.ingredients !== undefined) next = { ...next, ingredients: patch.ingredients };
+        return next;
+      });
+
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+      await syncRecipeCache(nextSaved);
+      setRecipesLocal(nextSaved);
+      setSelectedRecipe((prev) => (prev ? { ...prev, ...patch } : prev));
+
+      await pushChangedFromStorage({ saved: nextSaved });
+      await pull();
+    } catch (e) {
+      console.warn('Save recipe edits failed:', e);
+      Alert.alert(t('recipe_edit_save_failed_title'), t('recipe_edit_save_failed_desc'));
+      throw e;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdateRecipeImage = async (url) => {
+    if (!selectedRecipe || !url) return;
+    try {
+      const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+      const baseSaved = Array.isArray(storedSaved)
+        ? storedSaved
+        : (Array.isArray(recipesLocal) ? recipesLocal : []);
+
+      const selectedId = String(selectedRecipe.id);
+      const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+
+      const nextSaved = baseSaved.map((item, index) => {
+        const itemId = getRawRecipeId(item, index);
+        const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+        const isMatch = itemId === selectedId || (selectedTitle && itemTitle === selectedTitle);
+        if (!isMatch) return item;
+        return { ...item, _cloudPhotos: [url] };
+      });
+
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+      await syncRecipeCache(nextSaved);
+      setRecipesLocal(nextSaved);
+      setSelectedRecipe((prev) => (prev ? { ...prev, image: url, _cloudPhotos: [url] } : prev));
+
+      await pushChangedFromStorage({ saved: nextSaved });
+    } catch (e) {
+      console.warn('Update recipe image failed:', e);
+      Alert.alert(t('recipe_image_update_failed_title'), t('recipe_image_update_failed_desc'));
+      throw e;
     }
   };
 
@@ -704,9 +862,13 @@ export default function RecipesScreen({ user }) {
                 >
                   <Text style={styles.bookActionTextLight}>{t('add_recipes_btn')}</Text>
                 </TouchableOpacity>
-                {/* <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnGreen]}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  onPress={() => setIsEditCookbookVisible(true)}
+                  style={[styles.bookActionBtn, styles.bookActionBtnGreen]}
+                >
                   <Text style={styles.bookActionTextLight}>{t('edit_btn_recipes')}</Text>
-                </TouchableOpacity> */}
+                </TouchableOpacity>
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnShare]}>
                   <Text style={styles.bookActionTextLight}>{t('share_btn')}</Text>
                 </TouchableOpacity>
@@ -861,6 +1023,8 @@ export default function RecipesScreen({ user }) {
         onSaveNote={persistRecipeNote}
         onDeleteRecipe={handleDeleteRecipe}
         onAddToList={handleAddSelectedRecipeToShoppingList}
+        onSaveEdits={handleSaveRecipeEdits}
+        onUpdateImage={handleUpdateRecipeImage}
         user={user}
       />
 
@@ -869,6 +1033,14 @@ export default function RecipesScreen({ user }) {
         onClose={() => setIsNewCookbookVisible(false)}
         onCreate={handleCreateCookbook}
         isCreating={isCreatingCookbook}
+      />
+
+      <NewCookbookModal
+        visible={isEditCookbookVisible}
+        book={selectedBook}
+        onClose={() => setIsEditCookbookVisible(false)}
+        onSave={handleEditCookbook}
+        isSaving={isSavingCookbookEdit}
       />
 
       <AddRecipesToCookbookModal

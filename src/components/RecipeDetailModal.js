@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   ImageBackground,
   KeyboardAvoidingView,
   Modal,
@@ -13,6 +15,8 @@ import {
 } from 'react-native';
 import { getDifficultyLevel } from '../utils/recipeNormalize';
 import useLanguage from '../hooks/useLanguage';
+import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
+import { uploadPhoto } from '../services/uploadPhotoService';
 import ScaleRecipeModal from './modals/ScaleRecipeModal';
 import RecipeWinePairingModal from './modals/RecipeWinePairingModal';
 import RecipePlatingCoachModal from './modals/RecipePlatingCoachModal';
@@ -29,6 +33,8 @@ export default function RecipeDetailModal({
   showSavedIndicator = false,
   onDeleteRecipe,
   onAddToList,
+  onSaveEdits,
+  onUpdateImage,
   user,
 }) {
   const { t } = useLanguage();
@@ -36,12 +42,97 @@ export default function RecipeDetailModal({
   const [isWinePairingVisible, setIsWinePairingVisible] = useState(false);
   const [isPlatingCoachVisible, setIsPlatingCoachVisible] = useState(false);
   const [isCookModeVisible, setIsCookModeVisible] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editForm, setEditForm] = useState(null);
+  const [isSavingEdits, setIsSavingEdits] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
   const handleClose = () => {
     setIsScaleModalVisible(false);
     setIsWinePairingVisible(false);
     setIsPlatingCoachVisible(false);
     setIsCookModeVisible(false);
+    setIsEditMode(false);
+    setEditForm(null);
     onClose();
+  };
+
+  const handleToggleEdit = () => {
+    if (!onSaveEdits) return;
+    if (!isEditMode) {
+      setEditForm({
+        title: recipe.title || '',
+        category: recipe.category || '',
+        meal: recipe.meal || '',
+        time: recipe.time || '',
+        difficulty: recipe.difficulty || '',
+        description: recipe.description || '',
+        servings: String(recipe.servings ?? ''),
+        ingredientsText: (recipe.ingredients || []).join('\n'),
+        methodStepsText: (recipe.methodSteps || []).join('\n'),
+      });
+      setIsEditMode(true);
+    } else {
+      setIsEditMode(false);
+      setEditForm(null);
+    }
+  };
+
+  const updateEditField = (field, value) => {
+    setEditForm((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  const handleSaveEdits = async () => {
+    if (!onSaveEdits || !editForm) return;
+    setIsSavingEdits(true);
+    try {
+      await onSaveEdits({
+        title: editForm.title.trim(),
+        category: editForm.category.trim(),
+        meal: editForm.meal.trim(),
+        time: editForm.time.trim(),
+        difficulty: editForm.difficulty.trim(),
+        description: editForm.description.trim(),
+        servings: editForm.servings.trim(),
+        ingredients: editForm.ingredientsText.split('\n').map((line) => line.trim()).filter(Boolean),
+        methodSteps: editForm.methodStepsText.split('\n').map((line) => line.trim()).filter(Boolean),
+      });
+      setIsEditMode(false);
+      setEditForm(null);
+    } catch (e) {
+      console.warn('Save recipe edits failed:', e);
+      Alert.alert(t('recipe_edit_save_failed_title'), t('recipe_edit_save_failed_desc'));
+    } finally {
+      setIsSavingEdits(false);
+    }
+  };
+
+  const uploadAndSetRecipeImage = async (pickerResult) => {
+    if (!pickerResult?.photo?.base64) return;
+    setIsUploadingImage(true);
+    try {
+      const dataUri = `data:${pickerResult.photo.mimeType || 'image/jpeg'};base64,${pickerResult.photo.base64}`;
+      const url = await uploadPhoto(dataUri, `recipe_${recipe.id}_${Date.now()}.jpg`);
+      if (url) await onUpdateImage(url);
+    } catch (e) {
+      console.warn('Recipe image upload failed:', e);
+      Alert.alert(t('recipe_image_update_failed_title'), t('recipe_image_update_failed_desc'));
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handlePickRecipeImage = () => {
+    if (!onUpdateImage || isUploadingImage) return;
+    Alert.alert(
+      t('recipe_image_picker_title'),
+      '',
+      [
+        { text: t('take_photo_btn'), onPress: () => pickPhotoFromCamera().then(uploadAndSetRecipeImage) },
+        { text: t('upload_image_btn'), onPress: () => pickPhotoFromLibrary().then(uploadAndSetRecipeImage) },
+        { text: t('cancel_btn'), style: 'cancel' },
+      ]
+    );
   };
   return (
     <Modal
@@ -88,29 +179,92 @@ export default function RecipeDetailModal({
 
                 <View style={styles.overlayBody}>
                   <Text style={styles.overlayFoodEmoji}>{recipe.emoji}</Text>
-                  <Text style={styles.overlayTitle}>{recipe.title}</Text>
-                  <View style={styles.overlayMetaRow}>
-                    <Text style={styles.overlayMetaText}>🌍 {recipe.category}</Text>
-                    <Text style={styles.overlayMetaText}>🍽 {recipe.meal}</Text>
-                    {recipe.time ? <Text style={styles.overlayMetaText}>⏱ {recipe.time}</Text> : null}
 
-                    <View style={styles.overlayDifficultyPill}>
-                      {Array.from({ length: 3 }, (_, i) => {
-                        const dotIdx = i + 1;
-                        const isFilled = dotIdx <= getDifficultyLevel(recipe.difficulty);
-                        return (
-                          <View
-                            key={`detail-dot-${dotIdx}`}
-                            style={[
-                              styles.difficultyDot,
-                              isFilled ? styles.difficultyDotFilled : styles.difficultyDotEmpty,
-                            ]}
-                          />
-                        );
-                      })}
-                      <Text style={styles.overlayDifficultyText}>{recipe.difficulty}</Text>
+                  {isEditMode ? (
+                    <TextInput
+                      value={editForm?.title}
+                      onChangeText={(v) => updateEditField('title', v)}
+                      style={styles.overlayTitleInput}
+                      placeholder={t('edit_recipe_title_label')}
+                      placeholderTextColor="#A9A9A9"
+                    />
+                  ) : (
+                    <Text style={styles.overlayTitle}>{recipe.title}</Text>
+                  )}
+
+                  {isEditMode ? (
+                    <View style={styles.editFieldsGrid}>
+                      <View style={styles.editFieldCol}>
+                        <Text style={styles.editFieldLabel}>{t('edit_recipe_cuisine_label')}</Text>
+                        <TextInput
+                          value={editForm?.category}
+                          onChangeText={(v) => updateEditField('category', v)}
+                          style={styles.editFieldInput}
+                          placeholderTextColor="#A9A9A9"
+                        />
+                      </View>
+                      <View style={styles.editFieldCol}>
+                        <Text style={styles.editFieldLabel}>{t('edit_recipe_meal_label')}</Text>
+                        <TextInput
+                          value={editForm?.meal}
+                          onChangeText={(v) => updateEditField('meal', v)}
+                          style={styles.editFieldInput}
+                          placeholderTextColor="#A9A9A9"
+                        />
+                      </View>
+                      <View style={styles.editFieldCol}>
+                        <Text style={styles.editFieldLabel}>{t('edit_recipe_time_label')}</Text>
+                        <TextInput
+                          value={editForm?.time}
+                          onChangeText={(v) => updateEditField('time', v)}
+                          style={styles.editFieldInput}
+                          placeholderTextColor="#A9A9A9"
+                        />
+                      </View>
+                      <View style={styles.editFieldCol}>
+                        <Text style={styles.editFieldLabel}>{t('edit_recipe_difficulty_label')}</Text>
+                        <TextInput
+                          value={editForm?.difficulty}
+                          onChangeText={(v) => updateEditField('difficulty', v)}
+                          style={styles.editFieldInput}
+                          placeholderTextColor="#A9A9A9"
+                        />
+                      </View>
+                      <View style={styles.editFieldCol}>
+                        <Text style={styles.editFieldLabel}>{t('edit_recipe_servings_label')}</Text>
+                        <TextInput
+                          value={editForm?.servings}
+                          onChangeText={(v) => updateEditField('servings', v)}
+                          style={styles.editFieldInput}
+                          keyboardType="numeric"
+                          placeholderTextColor="#A9A9A9"
+                        />
+                      </View>
                     </View>
-                  </View>
+                  ) : (
+                    <View style={styles.overlayMetaRow}>
+                      <Text style={styles.overlayMetaText}>🌍 {recipe.category}</Text>
+                      <Text style={styles.overlayMetaText}>🍽 {recipe.meal}</Text>
+                      {recipe.time ? <Text style={styles.overlayMetaText}>⏱ {recipe.time}</Text> : null}
+
+                      <View style={styles.overlayDifficultyPill}>
+                        {Array.from({ length: 3 }, (_, i) => {
+                          const dotIdx = i + 1;
+                          const isFilled = dotIdx <= getDifficultyLevel(recipe.difficulty);
+                          return (
+                            <View
+                              key={`detail-dot-${dotIdx}`}
+                              style={[
+                                styles.difficultyDot,
+                                isFilled ? styles.difficultyDotFilled : styles.difficultyDotEmpty,
+                              ]}
+                            />
+                          );
+                        })}
+                        <Text style={styles.overlayDifficultyText}>{recipe.difficulty}</Text>
+                      </View>
+                    </View>
+                  )}
 
                   {showSavedIndicator && isAlreadySaved ? (
                     <Text style={styles.alreadySavedText}>{t('already_saved_indicator')}</Text>
@@ -118,9 +272,22 @@ export default function RecipeDetailModal({
 
                   <View style={styles.overlayDivider} />
 
-                  <View style={styles.overlayDescriptionCard}>
-                    <Text style={styles.overlayDescriptionText}>{recipe.description}</Text>
-                  </View>
+                  {isEditMode ? (
+                    <View style={styles.editFieldFull}>
+                      <Text style={styles.editFieldLabel}>{t('edit_recipe_description_label')}</Text>
+                      <TextInput
+                        multiline
+                        value={editForm?.description}
+                        onChangeText={(v) => updateEditField('description', v)}
+                        style={[styles.editFieldInput, styles.editFieldInputMultiline]}
+                        placeholderTextColor="#A9A9A9"
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.overlayDescriptionCard}>
+                      <Text style={styles.overlayDescriptionText}>{recipe.description}</Text>
+                    </View>
+                  )}
 
                   <View style={styles.overlayThumbsRow}>
                     <ImageBackground
@@ -128,9 +295,18 @@ export default function RecipeDetailModal({
                       style={styles.overlayThumbImage}
                       imageStyle={styles.overlayThumbImageInner}
                     />
-                    <View style={styles.overlayCameraPlaceholder}>
-                      <Text style={styles.overlayCameraIcon}>📷</Text>
-                    </View>
+                    <TouchableOpacity
+                      style={styles.overlayCameraPlaceholder}
+                      activeOpacity={onUpdateImage ? 0.7 : 1}
+                      onPress={handlePickRecipeImage}
+                      disabled={!onUpdateImage}
+                    >
+                      {isUploadingImage ? (
+                        <ActivityIndicator color="#7B5D3C" />
+                      ) : (
+                        <Text style={styles.overlayCameraIcon}>📷</Text>
+                      )}
+                    </TouchableOpacity>
                   </View>
 
                   <Text style={styles.overlaySectionTitle}>{t('ingredients_title')} <Text style={styles.overlayServings}>• {recipe.servings} {t('servings_label')}</Text></Text>
@@ -164,25 +340,76 @@ export default function RecipeDetailModal({
 
                   <View style={styles.overlayDivider} />
 
-                  <View style={styles.overlayIngredientsList}>
-                    {recipe.ingredients.map((ingredient, idx) => (
-                      <View key={`${recipe.id}-ing-${idx}`} style={styles.overlayIngredientItem}>
-                        <Text style={styles.overlayIngredientText}>- {ingredient}</Text>
-                      </View>
-                    ))}
-                  </View>
+                  {isEditMode ? (
+                    <View style={styles.editFieldFull}>
+                      <Text style={styles.editFieldHint}>{t('edit_recipe_ingredients_hint')}</Text>
+                      <TextInput
+                        multiline
+                        value={editForm?.ingredientsText}
+                        onChangeText={(v) => updateEditField('ingredientsText', v)}
+                        style={[styles.editFieldInput, styles.editFieldInputMultiline]}
+                        placeholderTextColor="#A9A9A9"
+                      />
+                    </View>
+                  ) : (
+                    <View style={styles.overlayIngredientsList}>
+                      {recipe.ingredients.map((ingredient, idx) => (
+                        <View key={`${recipe.id}-ing-${idx}`} style={styles.overlayIngredientItem}>
+                          <Text style={styles.overlayIngredientText}>- {ingredient}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
 
                   <Text style={styles.overlayTipText}>{t('ingredient_tip')}</Text>
 
                   <Text style={styles.overlaySectionTitle}>{t('method_title')}</Text>
                   <View style={styles.overlayDivider} />
 
-                  {recipe.methodSteps.map((step, idx) => (
-                    <View key={`${recipe.id}-step-${idx}`} style={styles.overlayStepRow}>
-                      <View style={styles.overlayStepNum}><Text style={styles.overlayStepNumText}>{idx + 1}</Text></View>
-                      <Text style={styles.overlayStepText}>{step}</Text>
+                  {isEditMode ? (
+                    <View style={styles.editFieldFull}>
+                      <Text style={styles.editFieldHint}>{t('edit_recipe_steps_hint')}</Text>
+                      <TextInput
+                        multiline
+                        value={editForm?.methodStepsText}
+                        onChangeText={(v) => updateEditField('methodStepsText', v)}
+                        style={[styles.editFieldInput, styles.editFieldInputMultiline]}
+                        placeholderTextColor="#A9A9A9"
+                      />
                     </View>
-                  ))}
+                  ) : (
+                    recipe.methodSteps.map((step, idx) => (
+                      <View key={`${recipe.id}-step-${idx}`} style={styles.overlayStepRow}>
+                        <View style={styles.overlayStepNum}><Text style={styles.overlayStepNumText}>{idx + 1}</Text></View>
+                        <Text style={styles.overlayStepText}>{step}</Text>
+                      </View>
+                    ))
+                  )}
+
+                  {isEditMode ? (
+                    <View style={styles.editActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.editSaveBtn, isSavingEdits ? styles.disabledBtn : null]}
+                        activeOpacity={0.85}
+                        onPress={handleSaveEdits}
+                        disabled={isSavingEdits}
+                      >
+                        {isSavingEdits ? (
+                          <ActivityIndicator color="#F1F1E8" />
+                        ) : (
+                          <Text style={styles.overlayBottomBtnTextLight}>{t('save_changes_btn')}</Text>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.editCancelBtn}
+                        activeOpacity={0.85}
+                        onPress={handleToggleEdit}
+                        disabled={isSavingEdits}
+                      >
+                        <Text style={styles.overlayBottomBtnTextDark}>{t('cancel_btn')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
 
                   <Text style={styles.overlaySectionTitle}>{t('my_note_title')}</Text>
                   <View style={styles.overlayDivider} />
@@ -224,7 +451,16 @@ export default function RecipeDetailModal({
                       <Text style={styles.overlayBottomBtnTextLight}>{t('list_btn')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>{t('instacart_btn')}</Text></TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}><Text style={styles.overlayBottomBtnTextLight}>{t('edit_btn_recipes')}</Text></TouchableOpacity>
+                    {onSaveEdits ? (
+                      <TouchableOpacity
+                        style={[styles.overlayBottomBtn, styles.overlayBottomBtnEdit]}
+                        onPress={handleToggleEdit}
+                      >
+                        <Text style={styles.overlayBottomBtnTextLight}>
+                          {isEditMode ? t('cancel_btn') : t('edit_btn_recipes')}
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
                     <TouchableOpacity
                       style={[styles.overlayBottomBtn, styles.overlayBottomBtnClose]}
                       onPress={handleClose}
@@ -345,6 +581,83 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 30,
     fontFamily: 'PlayfairDisplay-Bold',
+  },
+  overlayTitleInput: {
+    marginTop: 8,
+    color: '#2D1A0F',
+    fontSize: 20,
+    lineHeight: 26,
+    fontFamily: 'PlayfairDisplay-Bold',
+    borderWidth: 1,
+    borderColor: '#D3BE96',
+    borderRadius: 10,
+    backgroundColor: '#FBF8F2',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  editFieldsGrid: {
+    marginTop: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  editFieldCol: {
+    width: '31%',
+  },
+  editFieldFull: {
+    marginTop: 14,
+  },
+  editFieldLabel: {
+    marginBottom: 6,
+    color: '#7B5D3C',
+    fontSize: 10,
+    letterSpacing: 0.6,
+    fontFamily: 'Jost-Bold',
+  },
+  editFieldHint: {
+    marginBottom: 6,
+    color: '#9A8062',
+    fontSize: 11,
+    fontFamily: 'Jost-Regular',
+    fontStyle: 'italic',
+  },
+  editFieldInput: {
+    borderWidth: 1,
+    borderColor: '#D3BE96',
+    borderRadius: 10,
+    backgroundColor: '#FBF8F2',
+    color: '#2D1A0F',
+    fontSize: 13,
+    fontFamily: 'Jost-Regular',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  editFieldInputMultiline: {
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  editActionsRow: {
+    marginTop: 16,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  editSaveBtn: {
+    flex: 1,
+    borderRadius: 14,
+    backgroundColor: '#184626',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+  },
+  editCancelBtn: {
+    flex: 1,
+    borderRadius: 14,
+    backgroundColor: '#E5E4DD',
+    borderWidth: 1,
+    borderColor: '#D1C4AC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
   },
   overlayMetaRow: {
     marginTop: 10,
