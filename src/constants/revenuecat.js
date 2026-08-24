@@ -15,7 +15,7 @@ export const REVENUECAT_API_KEY = Platform.select({
 // (Project → Entitlements). One entitlement gates every paid feature in the
 // app today — see PRODUCT_TIER for how PRO vs PRO_MAX is derived from *which*
 // product unlocked it, rather than from a second entitlement.
-export const ENTITLEMENT_ID = 'Fern Pro';
+export const ENTITLEMENT_ID = 'Fern';
 
 // Two plans, both monthly-recurring — Pro Max isn't a longer commitment, it's
 // more features at a higher monthly price (matches plans_pro_price /

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { TIERS } from '../constants/tiers';
@@ -6,6 +6,7 @@ import useLanguage from '../hooks/useLanguage';
 import { usePlansModal } from '../services/PlansModalContext';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { PAYWALL_RESULT } from '../services/purchasesService';
+import { stopFernAudio } from '../utils/fernAudioBus';
 
 // Shown in place of a feature's real modal when the current plan doesn't meet the
 // tier that feature requires. Drop this in wherever a modal needs gating:
@@ -22,6 +23,12 @@ export default function UpgradeGateModal({ visible, onClose, tier }) {
   const [restoring, setRestoring] = useState(false);
   const badgeLabel = tier === TIERS.PRO_MAX ? t('pro_max') : t('pro');
   const descKey = tier === TIERS.PRO_MAX ? 'upgrade_required_desc_pro_max' : 'upgrade_required_desc_pro';
+
+  // A Fern voice reply can still be mid-playback (or queued) when this gate
+  // pops up over it — cut it off so the upgrade prompt isn't talked over.
+  useEffect(() => {
+    if (visible) stopFernAudio();
+  }, [visible]);
 
   const handleUpgrade = async () => {
     setPurchasing(true);

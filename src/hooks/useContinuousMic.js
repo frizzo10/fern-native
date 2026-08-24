@@ -3,6 +3,7 @@ import { useAudioPlayer, AudioModule, useAudioRecorder, RecordingPresets } from 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { registerFernAudioStop } from '../utils/fernAudioBus';
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
@@ -42,6 +43,11 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
   const recorder = useAudioRecorder(
     RecordingPresets.HIGH_QUALITY
   );
+  const recorderRef = useRef(recorder);
+  useEffect(() => {
+    recorderRef.current = recorder;
+  }, [recorder]);
+
   useEffect(() => {
 
     console.log("=========================This is language name ======================", { locale });
@@ -172,6 +178,11 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
     }
 
   }, [player]);
+
+  useEffect(() => {
+    registerFernAudioStop(stopPlayback);
+    return () => registerFernAudioStop(null);
+  }, [stopPlayback]);
 
   const sendChunk = useCallback(async (uri) => {
     console.log(
@@ -447,6 +458,29 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
 
   useEffect(() => {
     return () => {
+      if (vadIntervalRef.current) {
+        clearInterval(vadIntervalRef.current);
+        vadIntervalRef.current = null;
+      }
+      if (silenceTimeoutRef.current) {
+        clearTimeout(silenceTimeoutRef.current);
+        silenceTimeoutRef.current = null;
+      }
+      if (maxRecordingTimeoutRef.current) {
+        clearTimeout(maxRecordingTimeoutRef.current);
+        maxRecordingTimeoutRef.current = null;
+      }
+
+      // Release the native recording session on unmount (dev reload included)
+      // so a JS-context reset doesn't leave the mic session held open, which
+      // blocks the next context's audio-module init and freezes the reload.
+      if (activeRef.current) {
+        recorderRef.current?.stop?.().catch(() => { });
+        if (AudioModule.setAudioModeAsync) {
+          AudioModule.setAudioModeAsync({ allowsRecording: false }).catch(() => { });
+        }
+      }
+
       activeRef.current = false;
     };
   }, []);
@@ -456,5 +490,6 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
     isProcessing,
     start,
     stop,
+    stopPlayback,
   };
 }

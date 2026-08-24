@@ -321,13 +321,9 @@ export default function HomeScreen({ user }) {
       .catch((e) => console.log('[home] failed to sync activities', e?.message || e));
   };
 
-  // TEMPORARY test wiring: "Done" only closes the sheet, it does NOT
-  // persist fern_weekly_review_last_shown — so the review keeps reappearing
-  // on every Home mount for repeat testing. Only "Skip" persists it (real
-  // dismissal). Revert handleWeeklyReviewDone to also persist once testing
-  // is done, so Done behaves like Skip again.
   const handleWeeklyReviewDone = () => {
     setIsWeeklyReviewOpen(false);
+    AsyncStorage.setItem(WEEKLY_REVIEW_LAST_SHOWN_KEY, dateToKey(new Date())).catch(() => { });
   };
 
   const handleWeeklyReviewSkip = () => {
