@@ -25,7 +25,7 @@ import { generateEventPlan } from '../../services/eventPlannerService';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 const styles = StyleSheet.create({
@@ -293,8 +293,8 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
     if (visible) maybeAutoStart('dinner_party');
   }, [visible]);
 
-  if (visible && !hasAccess(TIERS.PRO_MAX)) {
-    return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO_MAX} />;
+  if (visible && !hasAccess(FEATURE_TIERS.dinner_party)) {
+    return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.dinner_party} />;
   }
 
   const handleCompleteIntake = async (intake) => {

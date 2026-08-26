@@ -14,7 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 const NUTRITION_GOALS_STORAGE_KEY = 'fern_nutrition_goals';
@@ -191,8 +191,8 @@ export default function NutritionTrackerModal({ visible, onClose, navigation, us
         })();
     }, [visible]);
 
-    if (visible && !hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    if (visible && !hasAccess(FEATURE_TIERS.nutrition)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.nutrition} />;
     }
 
     const handleSelect = (field, value) => {

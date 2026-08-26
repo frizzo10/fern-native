@@ -8,7 +8,7 @@
 // dedicated screen of its own — it's only reachable from the "Take a Tour"
 // list in AccountScreen.js.
 
-import { TIERS } from './tiers';
+import { FEATURE_TIERS } from './featureAccess';
 
 export const TOURS = {
   home: {
@@ -288,34 +288,35 @@ export const TOUR_PREVIEW_ROUTE = {
 };
 
 // Order + AsyncStorage "seen" keys for the "Take a Tour" list in AccountScreen.
-// `tier` is the plan required to use the real feature behind the tour (see
-// src/constants/tiers.js + src/hooks/useEntitlement.js for the gating this drives).
+// `tier` is read from src/constants/featureAccess.js's FEATURE_TIERS — the
+// single place that also drives each feature's actual gating (see
+// src/hooks/useEntitlement.js). Change a feature's plan there, not here.
 // `planDescKey` is the one-line marketing copy shown for paid tiers on the
 // "See Plans" screen (src/screens/PlansScreen.js) — only set for pro/pro_max entries.
 export const TOUR_LIST = [
-  { key: 'home', labelKey: 'account_tour_home', icon: '🏠', storageKey: 'fern_tour_seen_home', tier: TIERS.FREE },
-  { key: 'find', labelKey: 'account_tour_find', icon: '🔍', storageKey: 'fern_tour_seen_find', tier: TIERS.FREE },
-  { key: 'recipes', labelKey: 'account_tour_recipes', icon: '📖', storageKey: 'fern_tour_seen_recipes', tier: TIERS.FREE },
-  { key: 'shopping', labelKey: 'account_tour_shopping', icon: '🛒', storageKey: 'fern_tour_seen_shopping', tier: TIERS.FREE },
-  { key: 'scan_circular', labelKey: 'account_tour_scan_circular', icon: '📷', storageKey: 'fern_tour_seen_scan_circular', tier: TIERS.FREE },
-  { key: 'shopping_mode', labelKey: 'account_tour_shopping_mode', icon: '🛒', storageKey: 'fern_tour_seen_shopping_mode', tier: TIERS.PRO, planDescKey: 'plan_desc_shopping_mode' },
-  { key: 'cook_mode', labelKey: 'account_tour_cook_mode', icon: '🎙️', storageKey: 'fern_tour_seen_cook_mode', tier: TIERS.PRO, planDescKey: 'plan_desc_cook_mode' },
-  { key: 'family_hub', labelKey: 'account_tour_family_hub', icon: '📅', storageKey: 'fern_tour_seen_family_hub', tier: TIERS.PRO, planDescKey: 'plan_desc_family_hub' },
-  { key: 'charcuterie', labelKey: 'account_tour_charcuterie', icon: '🧀', storageKey: 'fern_tour_seen_charcuterie', tier: TIERS.PRO_MAX, planDescKey: 'plan_desc_charcuterie' },
-  { key: 'dinner_party', labelKey: 'account_tour_dinner_party', icon: '🎉', storageKey: 'fern_tour_seen_dinner_party', tier: TIERS.PRO_MAX, planDescKey: 'plan_desc_dinner_party' },
-  { key: 'wine_pairing', labelKey: 'account_tour_wine_pairing', icon: '🍷', storageKey: 'fern_tour_seen_wine_pairing', tier: TIERS.PRO_MAX, planDescKey: 'plan_desc_wine_pairing' },
-  { key: 'personal_shopper', labelKey: 'account_tour_personal_shopper', icon: '🤝', storageKey: 'fern_tour_seen_personal_shopper', tier: TIERS.PRO_MAX, planDescKey: 'plan_desc_personal_shopper' },
-  { key: 'ask_fern', labelKey: 'account_tour_ask_fern', icon: '🎤', storageKey: 'fern_tour_seen_ask_fern', tier: TIERS.FREE },
-  { key: 'fridge_challenge', labelKey: 'account_tour_fridge_challenge', icon: '🧊', storageKey: 'fern_tour_seen_fridge_challenge', tier: TIERS.PRO, planDescKey: 'plan_desc_fridge_challenge' },
-  { key: 'leftover_magic', labelKey: 'account_tour_leftover_magic', icon: '📸', storageKey: 'fern_tour_seen_leftover_magic', tier: TIERS.PRO, planDescKey: 'plan_desc_leftover_magic' },
-  { key: 'quick_dinner', labelKey: 'account_tour_quick_dinner', icon: '⚡', storageKey: 'fern_tour_seen_quick_dinner', tier: TIERS.PRO, planDescKey: 'plan_desc_quick_dinner' },
-  { key: 'budget_planner', labelKey: 'account_tour_budget_planner', icon: '💰', storageKey: 'fern_tour_seen_budget_planner', tier: TIERS.PRO, planDescKey: 'plan_desc_budget_planner' },
-  { key: 'meal_planner', labelKey: 'account_tour_meal_planner', icon: '📅', storageKey: 'fern_tour_seen_meal_planner', tier: TIERS.PRO, planDescKey: 'plan_desc_meal_planner' },
-  { key: 'semi_homemade', labelKey: 'account_tour_semi_homemade', icon: '🥫', storageKey: 'fern_tour_seen_semi_homemade', tier: TIERS.PRO, planDescKey: 'plan_desc_semi_homemade' },
-  { key: 'family_vault', labelKey: 'account_tour_family_vault', icon: '📖', storageKey: 'fern_tour_seen_family_vault', tier: TIERS.PRO, planDescKey: 'plan_desc_family_vault' },
-  { key: 'alexa_skill', labelKey: 'account_tour_alexa_skill', icon: '🔵', storageKey: 'fern_tour_seen_alexa_skill', tier: TIERS.PRO_MAX, planDescKey: 'plan_desc_alexa_skill' },
-  { key: 'nutrition', labelKey: 'account_tour_nutrition', icon: '📊', storageKey: 'fern_tour_seen_nutrition', tier: TIERS.PRO, planDescKey: 'plan_desc_nutrition' },
-  { key: 'instacart', labelKey: 'account_tour_instacart', icon: '🛍️', storageKey: 'fern_tour_seen_instacart', tier: TIERS.FREE },
-  { key: 'weekly_nutrition', labelKey: 'account_tour_weekly_nutrition', icon: '🥗', storageKey: 'fern_tour_seen_weekly_nutrition', tier: TIERS.PRO, planDescKey: 'plan_desc_weekly_nutrition' },
-  { key: 'end_to_end', labelKey: 'account_tour_end_to_end', icon: '✨', storageKey: 'fern_tour_seen_end_to_end', tier: TIERS.FREE },
+  { key: 'home', labelKey: 'account_tour_home', icon: '🏠', storageKey: 'fern_tour_seen_home', tier: FEATURE_TIERS.home },
+  { key: 'find', labelKey: 'account_tour_find', icon: '🔍', storageKey: 'fern_tour_seen_find', tier: FEATURE_TIERS.find },
+  { key: 'recipes', labelKey: 'account_tour_recipes', icon: '📖', storageKey: 'fern_tour_seen_recipes', tier: FEATURE_TIERS.recipes },
+  { key: 'shopping', labelKey: 'account_tour_shopping', icon: '🛒', storageKey: 'fern_tour_seen_shopping', tier: FEATURE_TIERS.shopping },
+  { key: 'scan_circular', labelKey: 'account_tour_scan_circular', icon: '📷', storageKey: 'fern_tour_seen_scan_circular', tier: FEATURE_TIERS.scan_circular },
+  { key: 'shopping_mode', labelKey: 'account_tour_shopping_mode', icon: '🛒', storageKey: 'fern_tour_seen_shopping_mode', tier: FEATURE_TIERS.shopping_mode, planDescKey: 'plan_desc_shopping_mode' },
+  { key: 'cook_mode', labelKey: 'account_tour_cook_mode', icon: '🎙️', storageKey: 'fern_tour_seen_cook_mode', tier: FEATURE_TIERS.cook_mode, planDescKey: 'plan_desc_cook_mode' },
+  { key: 'family_hub', labelKey: 'account_tour_family_hub', icon: '📅', storageKey: 'fern_tour_seen_family_hub', tier: FEATURE_TIERS.family_hub, planDescKey: 'plan_desc_family_hub' },
+  { key: 'charcuterie', labelKey: 'account_tour_charcuterie', icon: '🧀', storageKey: 'fern_tour_seen_charcuterie', tier: FEATURE_TIERS.charcuterie, planDescKey: 'plan_desc_charcuterie' },
+  { key: 'dinner_party', labelKey: 'account_tour_dinner_party', icon: '🎉', storageKey: 'fern_tour_seen_dinner_party', tier: FEATURE_TIERS.dinner_party, planDescKey: 'plan_desc_dinner_party' },
+  { key: 'wine_pairing', labelKey: 'account_tour_wine_pairing', icon: '🍷', storageKey: 'fern_tour_seen_wine_pairing', tier: FEATURE_TIERS.wine_pairing, planDescKey: 'plan_desc_wine_pairing' },
+  { key: 'personal_shopper', labelKey: 'account_tour_personal_shopper', icon: '🤝', storageKey: 'fern_tour_seen_personal_shopper', tier: FEATURE_TIERS.personal_shopper, planDescKey: 'plan_desc_personal_shopper' },
+  { key: 'ask_fern', labelKey: 'account_tour_ask_fern', icon: '🎤', storageKey: 'fern_tour_seen_ask_fern', tier: FEATURE_TIERS.ask_fern },
+  { key: 'fridge_challenge', labelKey: 'account_tour_fridge_challenge', icon: '🧊', storageKey: 'fern_tour_seen_fridge_challenge', tier: FEATURE_TIERS.fridge_challenge, planDescKey: 'plan_desc_fridge_challenge' },
+  { key: 'leftover_magic', labelKey: 'account_tour_leftover_magic', icon: '📸', storageKey: 'fern_tour_seen_leftover_magic', tier: FEATURE_TIERS.leftover_magic, planDescKey: 'plan_desc_leftover_magic' },
+  { key: 'quick_dinner', labelKey: 'account_tour_quick_dinner', icon: '⚡', storageKey: 'fern_tour_seen_quick_dinner', tier: FEATURE_TIERS.quick_dinner, planDescKey: 'plan_desc_quick_dinner' },
+  { key: 'budget_planner', labelKey: 'account_tour_budget_planner', icon: '💰', storageKey: 'fern_tour_seen_budget_planner', tier: FEATURE_TIERS.budget_planner, planDescKey: 'plan_desc_budget_planner' },
+  { key: 'meal_planner', labelKey: 'account_tour_meal_planner', icon: '📅', storageKey: 'fern_tour_seen_meal_planner', tier: FEATURE_TIERS.meal_planner, planDescKey: 'plan_desc_meal_planner' },
+  { key: 'semi_homemade', labelKey: 'account_tour_semi_homemade', icon: '🥫', storageKey: 'fern_tour_seen_semi_homemade', tier: FEATURE_TIERS.semi_homemade, planDescKey: 'plan_desc_semi_homemade' },
+  { key: 'family_vault', labelKey: 'account_tour_family_vault', icon: '📖', storageKey: 'fern_tour_seen_family_vault', tier: FEATURE_TIERS.family_vault, planDescKey: 'plan_desc_family_vault' },
+  { key: 'alexa_skill', labelKey: 'account_tour_alexa_skill', icon: '🔵', storageKey: 'fern_tour_seen_alexa_skill', tier: FEATURE_TIERS.alexa_skill, planDescKey: 'plan_desc_alexa_skill' },
+  { key: 'nutrition', labelKey: 'account_tour_nutrition', icon: '📊', storageKey: 'fern_tour_seen_nutrition', tier: FEATURE_TIERS.nutrition, planDescKey: 'plan_desc_nutrition' },
+  { key: 'instacart', labelKey: 'account_tour_instacart', icon: '🛍️', storageKey: 'fern_tour_seen_instacart', tier: FEATURE_TIERS.instacart },
+  { key: 'weekly_nutrition', labelKey: 'account_tour_weekly_nutrition', icon: '🥗', storageKey: 'fern_tour_seen_weekly_nutrition', tier: FEATURE_TIERS.weekly_nutrition, planDescKey: 'plan_desc_weekly_nutrition' },
+  { key: 'end_to_end', labelKey: 'account_tour_end_to_end', icon: '✨', storageKey: 'fern_tour_seen_end_to_end', tier: FEATURE_TIERS.end_to_end },
 ];

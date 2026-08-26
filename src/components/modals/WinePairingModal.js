@@ -15,7 +15,7 @@ import {
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 export default function WinePairingModal({
@@ -43,8 +43,8 @@ export default function WinePairingModal({
         if (visible) maybeAutoStart('wine_pairing');
     }, [visible]);
 
-    if (visible && !hasAccess(TIERS.PRO_MAX)) {
-        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO_MAX} />;
+    if (visible && !hasAccess(FEATURE_TIERS.wine_pairing)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.wine_pairing} />;
     }
 
     return (

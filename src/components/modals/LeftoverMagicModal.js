@@ -16,7 +16,7 @@ import {
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 export default function LeftoverMagicModal({
@@ -45,8 +45,8 @@ export default function LeftoverMagicModal({
         if (visible) maybeAutoStart('leftover_magic');
     }, [visible]);
 
-    if (visible && !hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    if (visible && !hasAccess(FEATURE_TIERS.leftover_magic)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.leftover_magic} />;
     }
 
     return (

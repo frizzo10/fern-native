@@ -7,7 +7,7 @@ import { useSync } from '../hooks/useSync';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
-import { TIERS } from '../constants/tiers';
+import { FEATURE_TIERS } from '../constants/featureAccess';
 import UpgradeGateModal from '../components/UpgradeGateModal';
 import FamilyVoiceExampleScreen from '../components/FamilyVoiceExampleScreen';
 import RecipeDetailModal from '../components/RecipeDetailModal';
@@ -318,8 +318,8 @@ export default function FamilyScreen({ user }) {
         navigation.navigate('Shopping');
     };
 
-    if (!hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible tier={TIERS.PRO} onClose={() => { }} />;
+    if (!hasAccess(FEATURE_TIERS.family_hub)) {
+        return <UpgradeGateModal visible tier={FEATURE_TIERS.family_hub} onClose={() => { }} />;
     }
 
     if (showExampleView) {

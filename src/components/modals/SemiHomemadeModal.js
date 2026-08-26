@@ -17,7 +17,7 @@ import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 // `value` is the literal string sent to the semi-homemade API's `items`
@@ -79,8 +79,8 @@ export default function SemiHomemadeModal({
         if (visible) maybeAutoStart('semi_homemade');
     }, [visible]);
 
-    if (visible && !hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    if (visible && !hasAccess(FEATURE_TIERS.semi_homemade)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.semi_homemade} />;
     }
 
     const hasSelection = selectedShortcuts.length > 0 || customItems.length > 0;

@@ -16,7 +16,7 @@ import {
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 // `value` is the literal string sent to the whats-for-dinner API's `quickPicks`
@@ -66,8 +66,8 @@ export default function TwentyMinDinnerModal({
         if (visible) maybeAutoStart('quick_dinner');
     }, [visible]);
 
-    if (visible && !hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    if (visible && !hasAccess(FEATURE_TIERS.quick_dinner)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.quick_dinner} />;
     }
 
     const hasSelection = selectedQuickPicks.length > 0 || ingredientsInput.trim().length > 0;

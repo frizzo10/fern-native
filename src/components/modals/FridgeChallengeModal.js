@@ -18,7 +18,7 @@ import {
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 function promptPhotoSource(t, { onTakePhoto, onChooseFromLibrary }) {
@@ -73,8 +73,8 @@ export default function FridgeChallengeModal({
         if (visible) maybeAutoStart('fridge_challenge');
     }, [visible]);
 
-    if (visible && !hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    if (visible && !hasAccess(FEATURE_TIERS.fridge_challenge)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.fridge_challenge} />;
     }
 
     const photoCount = photos.filter(Boolean).length;

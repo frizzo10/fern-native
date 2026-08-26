@@ -16,7 +16,7 @@ import {
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 const WEEKLY_PRESETS = [50, 75, 100, 150, 200];
@@ -130,8 +130,8 @@ export default function BudgetPlannerModal({
         if (visible) maybeAutoStart('budget_planner');
     }, [visible]);
 
-    if (visible && !hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    if (visible && !hasAccess(FEATURE_TIERS.budget_planner)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.budget_planner} />;
     }
 
     const dietaryOption = BUDGET_PLANNER_DIETARY_OPTIONS.find((option) => option.value === dietary) || BUDGET_PLANNER_DIETARY_OPTIONS[0];

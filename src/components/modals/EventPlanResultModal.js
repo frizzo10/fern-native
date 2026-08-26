@@ -15,7 +15,7 @@ import { colors, radius } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 const styles = StyleSheet.create({
@@ -223,8 +223,8 @@ export default function EventPlanResultModal({
     }
   };
 
-  if (visible && !hasAccess(TIERS.PRO_MAX)) {
-    return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO_MAX} />;
+  if (visible && !hasAccess(FEATURE_TIERS.dinner_party)) {
+    return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.dinner_party} />;
   }
 
   if (!planResult) return null;

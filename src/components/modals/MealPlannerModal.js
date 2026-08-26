@@ -13,7 +13,7 @@ import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
-import { TIERS } from '../../constants/tiers';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 import MealPlannerPreferencesScreen from '../MealPlannerPreferencesScreen';
 import MealPlannerRecipeDetailView from '../MealPlannerRecipeDetailView';
@@ -93,8 +93,8 @@ export default function MealPlannerModal({
         }
     }, [visible]);
 
-    if (visible && !hasAccess(TIERS.PRO)) {
-        return <UpgradeGateModal visible={visible} onClose={onClose} tier={TIERS.PRO} />;
+    if (visible && !hasAccess(FEATURE_TIERS.meal_planner)) {
+        return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.meal_planner} />;
     }
 
     const goToDay = (index) => {
