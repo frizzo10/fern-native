@@ -56,6 +56,7 @@ import CouponDetailModal from '../components/modals/CouponDetailModal';
 import { normalizeCoupons } from '../utils/couponNormalize';
 import FamilyWeeklyReviewModal from '../components/modals/FamilyWeeklyReviewModal';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
+import FamilyRecipeVaultModal from '../components/modals/FamilyRecipeVaultModal';
 import { buildWeeklyReviewData } from '../utils/buildWeeklyReviewData';
 import { buildRollingWeekDateKeys, daysBetween, dateToKey, formatDayLabel, normalizeSlot } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
@@ -164,6 +165,7 @@ export default function HomeScreen({ user }) {
   const [isWineModalOpen, setIsWineModalOpen] = useState(false);
   const [isCharcuterieModalOpen, setIsCharcuterieModalOpen] = useState(false);
   const [isEventPlannerOpen, setIsEventPlannerOpen] = useState(false);
+  const [isFamilyVaultOpen, setIsFamilyVaultOpen] = useState(false);
   const [isLeftoverMagicOpen, setIsLeftoverMagicOpen] = useState(false);
   const [leftoverIngredientsInput, setLeftoverIngredientsInput] = useState('');
   const [isLeftoverSearching, setIsLeftoverSearching] = useState(false);
@@ -2428,6 +2430,7 @@ export default function HomeScreen({ user }) {
                   'Budget Planner': openBudgetPlannerModal,
                   'AI Meal Planner': openMealPlannerModal,
                   'Semi-Homemade': openSemiHomemadeModal,
+                  'Family Vault': () => setIsFamilyVaultOpen(true),
                 };
                 const onPress = toolHandlers[label];
 
@@ -2676,6 +2679,15 @@ export default function HomeScreen({ user }) {
         getPairingTitle={getPairingTitle}
         isAddingWineToList={isAddingWineToList}
         onAddWineToShoppingList={handleAddWineToShoppingList}
+      />
+
+      <FamilyRecipeVaultModal
+        visible={isFamilyVaultOpen}
+        onClose={() => setIsFamilyVaultOpen(false)}
+        user={user}
+        data={data}
+        pushAllFromStorage={pushAllFromStorage}
+        pull={pull}
       />
 
       <LeftoverMagicModal
