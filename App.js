@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import HomeScreen from './src/screens/HomeScreen';
 import SearchScreen from './src/screens/SearchScreen';
@@ -32,6 +33,7 @@ import { TourProvider, useTour } from './src/services/TourContext';
 import TourModal from './src/components/TourModal';
 import { TOUR_PREVIEW_ROUTE } from './src/constants/tourContent';
 import { RevenueCatProvider, useRevenueCat } from './src/services/RevenueCatContext';
+import { useSync } from './src/hooks/useSync';
 
 const Tab = createBottomTabNavigator();
 
@@ -396,7 +398,8 @@ function AppNavigator({ user, signOut }) {
 
 function MainAppContent() {
   const { user, loading, signInWithSupabase, signUpWithSupabase, signOut } = useAuth();
-  const { loginPurchaser, logoutPurchaser } = useRevenueCat();
+  const { loginPurchaser, logoutPurchaser, tier: rcTier, loading: rcLoading } = useRevenueCat();
+  const { pushChangedFromStorage } = useSync(user);
   console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
 
   useEffect(() => {
@@ -411,6 +414,36 @@ function MainAppContent() {
       loginPurchaser(user.id);
     }
   }, [user?.id]);
+
+  // Push the current RevenueCat tier (free/pro/pro_max) to the sync backend
+  // on every app launch, so the web app can read the same status. This same
+  // effect also re-fires whenever `rcTier` changes mid-session — which
+  // happens automatically after a purchase or restore, since
+  // RevenueCatContext's customerInfo listener (see RevenueCatContext.js)
+  // updates `rcTier` the moment the SDK reports a new entitlement, however
+  // the purchase happened (PlansScreen, UpgradeGateModal, or the "Restore
+  // Purchases" action) — so no per-screen wiring is needed for that case.
+  // Wait for RevenueCat to finish resolving first — it reports FREE while
+  // loading, and pushing that prematurely would clobber a real Pro/Pro Max
+  // tier already on record.
+  const didInitialTierSyncRef = useRef(false);
+  useEffect(() => {
+    if (!user?.id || rcLoading) return;
+    const isLaunchSync = !didInitialTierSyncRef.current;
+    didInitialTierSyncRef.current = true;
+
+    AsyncStorage.setItem('fern_user_tier', JSON.stringify(rcTier))
+      .then(() => pushChangedFromStorage({ tier: rcTier }))
+      .then(() => {
+        console.log('\n🔔🔔🔔 ============================================');
+        console.log(`🔔🔔🔔  TIER SYNCED TO BACKEND ${isLaunchSync ? '(APP LAUNCH)' : '(PLAN CHANGED)'}`);
+        console.log(`🔔🔔🔔  user: ${user.email || user.id}`);
+        console.log(`🔔🔔🔔  plan: ${rcTier}`);
+        console.log(`🔔🔔🔔  token: ${user.token}`);
+        console.log('🔔🔔🔔 ============================================\n');
+      })
+      .catch((e) => console.warn('⚠️ Failed to push tier to sync:', e.message));
+  }, [user?.id, rcTier, rcLoading]);
 
   const handleSignOut = async () => {
     await logoutPurchaser();

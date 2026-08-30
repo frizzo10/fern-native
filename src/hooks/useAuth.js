@@ -96,6 +96,7 @@ export function useAuth() {
       await AsyncStorage.setItem('rv4_available_coupons',JSON.stringify(d.available_coupons|| []));
       await AsyncStorage.setItem('rv4_wallet_coupons',   JSON.stringify(d.coupons || d.wallet_coupons || []));
       await AsyncStorage.setItem('rv4_activities',       JSON.stringify(d.activities        || []));
+      await AsyncStorage.setItem('fern_user_tier',       JSON.stringify(d.tier              || 'free'));
     } catch (e) {
       console.warn('Sync pull failed:', e.message);
     }

@@ -7,6 +7,23 @@ const API_HEADERS = {
   'User-Agent': 'FernApp/1.0 (myaifern.com)',
 };
 
+// Node/RN's console.log truncates nested objects/arrays past a shallow depth
+// ("[Object]", "[Array]"), which is useless for a payload this nested (saved
+// recipes, shopping items, meal plan, etc). JSON.stringify prints the full
+// structure instead — but base64 blobs (recipe-card scans, uploaded photos)
+// can be hundreds of KB, so any string over 200 chars is collapsed to a
+// placeholder rather than dumped to the terminal. `token`/`refreshToken`/
+// `userId` are exempted so the auth values stay fully visible even though a
+// JWT can itself run past 200 chars.
+const LOG_KEYS_NEVER_REDACTED = new Set(['token', 'refreshToken', 'userId']);
+function logPayload(label, obj) {
+  console.log(label, JSON.stringify(obj, (key, value) => (
+    typeof value === 'string' && value.length > 200 && !LOG_KEYS_NEVER_REDACTED.has(key)
+      ? `[string omitted, ${value.length} chars]`
+      : value
+  ), 2));
+}
+
 function fixCorruptedEmojis(recipes) {
   if (!Array.isArray(recipes)) return { fixed: recipes, hadCorruption: false };
 
@@ -36,6 +53,7 @@ export function useSync(user) {
     availableCoupons: [],
     walletCoupons: [],
     cbCovers: {},
+    tier: 'free',
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -77,6 +95,7 @@ export function useSync(user) {
         // an older/alternate shape, but `coupons` is what's really there.
         walletCoupons: dd.coupons || dd.wallet_coupons || [],
         cbCovers: dd.cb_covers || {},
+        tier: dd.tier || 'free',
       };
 
       setData(next);
@@ -96,6 +115,7 @@ export function useSync(user) {
       await AsyncStorage.setItem('rv4_available_coupons', JSON.stringify(dd.available_coupons || []));
       await AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(dd.coupons || dd.wallet_coupons || []));
       await AsyncStorage.setItem('rv4_cb_covers', JSON.stringify(dd.cb_covers || {}));
+      await AsyncStorage.setItem('fern_user_tier', JSON.stringify(dd.tier || 'free'));
 
       if (hadCorruption) {
         console.log('[sync] Pushing fixed emoji back to backend');
@@ -117,6 +137,7 @@ export function useSync(user) {
               wallet_coupons: dd.coupons || dd.wallet_coupons || [],
               activities: dd.activities || [],
               cb_covers: dd.cb_covers || {},
+              tier: dd.tier || 'free',
             },
           }),
         });
@@ -167,6 +188,7 @@ export function useSync(user) {
       const walletCoupons = JSON.parse(await AsyncStorage.getItem('rv4_wallet_coupons') || '[]');
       const activities = JSON.parse(await AsyncStorage.getItem('rv4_activities') || '[]');
       const cbCovers = JSON.parse(await AsyncStorage.getItem('rv4_cb_covers') || '{}');
+      const tier = JSON.parse(await AsyncStorage.getItem('fern_user_tier') || '"free"');
 
       const dataToPush = {
         saved,
@@ -179,6 +201,7 @@ export function useSync(user) {
         wallet_coupons: walletCoupons,
         activities,
         cb_covers: cbCovers,
+        tier,
         ...changedData,
       };
 
@@ -189,7 +212,7 @@ export function useSync(user) {
         data: dataToPush,
       };
 
-      console.log('[sync] push request body', requestBody);
+      logPayload('[sync] push request body', requestBody);
 
       const res = await fetch(SYNC_URL, {
         method: 'POST',
@@ -199,7 +222,7 @@ export function useSync(user) {
 
       const responseJson = await res.json().catch(() => null);
       console.log('[sync] push response status', res.status);
-      console.log('[sync] push response json', responseJson);
+      logPayload('[sync] push response json', responseJson);
 
       setLastSync(new Date());
       return responseJson;
