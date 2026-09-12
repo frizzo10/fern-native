@@ -54,6 +54,7 @@ import SuggestedRecipesScreen from '../components/SuggestedRecipesScreen';
 import CouponWalletScreen from '../components/CouponWalletScreen';
 import CouponDetailModal from '../components/modals/CouponDetailModal';
 import { normalizeCoupons } from '../utils/couponNormalize';
+import { fetchAllCoupons } from '../services/couponsService';
 import FamilyWeeklyReviewModal from '../components/modals/FamilyWeeklyReviewModal';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import FamilyRecipeVaultModal from '../components/modals/FamilyRecipeVaultModal';
@@ -260,6 +261,8 @@ export default function HomeScreen({ user }) {
   });
   const [selectedCoupon, setSelectedCoupon] = useState(null);
   const [walletCouponsLocal, setWalletCouponsLocal] = useState([]);
+  const [browseCoupons, setBrowseCoupons] = useState([]);
+  const [isLoadingBrowseCoupons, setIsLoadingBrowseCoupons] = useState(false);
   const [suggestedGroups, setSuggestedGroups] = useState([]);
   const [isLoadingSuggestedRecipes, setIsLoadingSuggestedRecipes] = useState(false);
   const [suggestedUpdatedAt, setSuggestedUpdatedAt] = useState(null);
@@ -540,7 +543,6 @@ export default function HomeScreen({ user }) {
   const shoppingCount = (data.shopping || []).length;
   const recipesCount = (data.recipes || []).length;
   const booksCount = (data.books || []).length;
-  const availableCoupons = normalizeCoupons(data.availableCoupons);
   const walletCoupons = normalizeCoupons(data.walletCoupons);
   const couponsCount = walletCouponsLocal.length;
   const followersCount = (data.followers || []).length;
@@ -1747,6 +1749,11 @@ export default function HomeScreen({ user }) {
 
   const openCouponWallet = () => {
     setIsCouponWalletOpen(true);
+    setIsLoadingBrowseCoupons(true);
+    fetchAllCoupons()
+      .then((list) => setBrowseCoupons(normalizeCoupons(list)))
+      .catch((e) => console.log('[coupons] failed to fetch coupons', e?.message || e))
+      .finally(() => setIsLoadingBrowseCoupons(false));
   };
 
   const openCouponDetail = (coupon) => {
@@ -1760,15 +1767,35 @@ export default function HomeScreen({ user }) {
   // Updates local state first so the UI reacts instantly, then persists/pushes
   // in the background — waiting on the sync round-trip before updating made
   // "+ Add" feel slow, and a fresh pull() isn't needed since we already know
-  // the resulting list.
+  // the resulting list. Also patches `fern_sync_cache` (not just the
+  // individual `rv4_wallet_coupons` key) the same way every other synced
+  // mutation in this screen does, so an app relaunch before the next
+  // background pull() completes still hydrates the correct wallet/count
+  // instead of flashing the stale cached one.
+  const persistWalletCoupons = async (nextWallet) => {
+    await AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(nextWallet));
+
+    const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+    await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
+      ...cache,
+      walletCoupons: nextWallet,
+    }));
+
+    // Sent under both keys since the pull response's real field for this is
+    // `coupons` (see the `rv4_wallet_coupons` naming-trap note in
+    // DATAMODEL.md) but the push side has never been confirmed against a
+    // real response — covering both avoids silently dropping the write if
+    // the backend only persists one of them.
+    await pushChangedFromStorage({ wallet_coupons: nextWallet, coupons: nextWallet });
+  };
+
   const addCouponToWallet = (coupon) => {
     if (!coupon || walletCouponsLocal.some((item) => item.id === coupon.id)) return;
 
     const nextWallet = [...walletCouponsLocal, coupon];
     setWalletCouponsLocal(nextWallet);
 
-    AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(nextWallet))
-      .then(() => pushChangedFromStorage({ wallet_coupons: nextWallet }))
+    persistWalletCoupons(nextWallet)
       .catch((e) => console.log('[coupons] failed to save wallet coupon', e?.message || e));
   };
 
@@ -1778,8 +1805,7 @@ export default function HomeScreen({ user }) {
     const nextWallet = walletCouponsLocal.filter((item) => item.id !== coupon.id);
     setWalletCouponsLocal(nextWallet);
 
-    AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(nextWallet))
-      .then(() => pushChangedFromStorage({ wallet_coupons: nextWallet }))
+    persistWalletCoupons(nextWallet)
       .catch((e) => console.log('[coupons] failed to remove wallet coupon', e?.message || e));
   };
 
@@ -2140,7 +2166,8 @@ export default function HomeScreen({ user }) {
         {isCouponWalletOpen ? (
           <CouponWalletScreen
             onBack={() => setIsCouponWalletOpen(false)}
-            availableCoupons={availableCoupons}
+            availableCoupons={browseCoupons}
+            isLoadingAvailableCoupons={isLoadingBrowseCoupons}
             walletCoupons={walletCouponsLocal}
             onAddToWallet={addCouponToWallet}
             onViewCoupon={openCouponDetail}

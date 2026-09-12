@@ -1,7 +1,8 @@
-// Coupon field names aren't nailed down against a real API sample yet, so this
-// accepts several likely aliases per field (mirrors the defensive style used
-// by normalizeWinePairing / normalizeBoardItem) rather than assuming one exact
-// shape — a renamed key degrades to an empty string instead of crashing.
+// Confirmed shape from a live `fetch-coupons` sample is `{ id, code, image,
+// store, title, expiry, source, category, discount, redemption, description }`,
+// but this still accepts several likely aliases per field (mirrors the
+// defensive style used by normalizeWinePairing / normalizeBoardItem) so a
+// renamed key degrades to an empty string instead of crashing.
 export function normalizeCoupon(raw, index = 0) {
     const id = String(raw?.id ?? raw?.couponId ?? raw?.uuid ?? raw?.code ?? `coupon-${index}`);
 

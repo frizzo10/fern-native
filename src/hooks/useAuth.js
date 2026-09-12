@@ -93,7 +93,6 @@ export function useAuth() {
       await AsyncStorage.setItem('remi_explicit',        JSON.stringify(d.remi_explicit    || {}));
       await AsyncStorage.setItem('cpc_followed_bloggers',JSON.stringify(d.followed_bloggers|| []));
       await AsyncStorage.setItem('cpc_user_stores',      JSON.stringify(d.user_stores      || []));
-      await AsyncStorage.setItem('rv4_available_coupons',JSON.stringify(d.available_coupons|| []));
       await AsyncStorage.setItem('rv4_wallet_coupons',   JSON.stringify(d.coupons || d.wallet_coupons || []));
       await AsyncStorage.setItem('rv4_activities',       JSON.stringify(d.activities        || []));
       await AsyncStorage.setItem('fern_user_tier',       JSON.stringify(d.tier              || 'free'));

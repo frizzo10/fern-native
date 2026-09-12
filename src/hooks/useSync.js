@@ -50,7 +50,6 @@ export function useSync(user) {
     followers: [],
     userProfile: {},
     userStores: [],
-    availableCoupons: [],
     walletCoupons: [],
     cbCovers: {},
     tier: 'free',
@@ -88,7 +87,6 @@ export function useSync(user) {
         followers: dd.followed_bloggers || [],
         userProfile: dd.remi_explicit || {},
         userStores: dd.user_stores || [],
-        availableCoupons: dd.available_coupons || [],
         // Backend's pull response actually returns the user's wallet under
         // `coupons`, not `wallet_coupons` (confirmed from a live pull
         // sample) -- `wallet_coupons` is kept as a fallback in case that's
@@ -111,8 +109,10 @@ export function useSync(user) {
       await AsyncStorage.setItem('cpc_followed_bloggers', JSON.stringify(dd.followed_bloggers || []));
       await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(dd.user_stores || []));
       await AsyncStorage.setItem('rv4_activities', JSON.stringify(dd.activities || []));
-      // available_coupons is a server-owned catalog, refreshed from every pull — not part of push
-      await AsyncStorage.setItem('rv4_available_coupons', JSON.stringify(dd.available_coupons || []));
+      // The server's coupon catalog (`available_coupons`) is intentionally not
+      // collected here — the full catalog is fetched live from the `fetch-coupons`
+      // function instead (see couponsService.js), so any `available_coupons` in
+      // the pull response is ignored client-side.
       await AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(dd.coupons || dd.wallet_coupons || []));
       await AsyncStorage.setItem('rv4_cb_covers', JSON.stringify(dd.cb_covers || {}));
       await AsyncStorage.setItem('fern_user_tier', JSON.stringify(dd.tier || 'free'));
@@ -135,6 +135,7 @@ export function useSync(user) {
               followed_bloggers: dd.followed_bloggers || [],
               user_stores: dd.user_stores || [],
               wallet_coupons: dd.coupons || dd.wallet_coupons || [],
+              coupons: dd.coupons || dd.wallet_coupons || [],
               activities: dd.activities || [],
               cb_covers: dd.cb_covers || {},
               tier: dd.tier || 'free',
@@ -198,7 +199,12 @@ export function useSync(user) {
         remi_explicit: remiExplicit,
         followed_bloggers: followedBloggers,
         user_stores: userStores,
+        // Sent under both keys — the pull response's real field for this is
+        // `coupons`, not `wallet_coupons` (see the naming-trap note in
+        // DATAMODEL.md); the push side has never been confirmed against a
+        // real response, so covering both avoids silently dropping the write.
         wallet_coupons: walletCoupons,
+        coupons: walletCoupons,
         activities,
         cb_covers: cbCovers,
         tier,

@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import useLanguage from '../hooks/useLanguage';
 import { groupCouponsByCategory, groupCouponsByStore } from '../utils/couponNormalize';
 
-// Client-side pagination for now — available_coupons has no page/cursor param
-// yet. Once a real coupons endpoint exists, swap this for a "fetch next page"
-// call keyed off the same PAGE_SIZE instead of slicing the already-fetched array.
+// Client-side pagination for now — fetch-coupons returns the whole catalog in
+// one shot, no page/cursor param. Swap this for a "fetch next page" call keyed
+// off the same PAGE_SIZE if the endpoint ever adds real pagination.
 const PAGE_SIZE = 10;
 
 const PAGE_WINDOW_SIZE = 7;
@@ -111,7 +111,7 @@ function CouponCard({ coupon, isInWallet, onPress, onAdd }) {
     );
 }
 
-export default function CouponWalletScreen({ onBack, availableCoupons, walletCoupons, onAddToWallet, onViewCoupon }) {
+export default function CouponWalletScreen({ onBack, availableCoupons, isLoadingAvailableCoupons, walletCoupons, onAddToWallet, onViewCoupon }) {
     const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState('browse'); // 'browse' | 'wallet'
     const [browseSubTab, setBrowseSubTab] = useState('store'); // 'store' | 'category'
@@ -203,7 +203,12 @@ export default function CouponWalletScreen({ onBack, availableCoupons, walletCou
                         </TouchableOpacity>
                     </View>
 
-                    {groupedBrowse.length ? (
+                    {isLoadingAvailableCoupons && !groupedBrowse.length ? (
+                        <View style={styles.emptyState}>
+                            <ActivityIndicator color="#173E20" />
+                            <Text style={[styles.emptyText, { marginTop: 12 }]}>{t('coupon_wallet_loading')}</Text>
+                        </View>
+                    ) : groupedBrowse.length ? (
                         groupedBrowse.map((group) => (
                             <View key={group.key} style={styles.groupBlock}>
                                 <View style={styles.groupHeaderRow}>
