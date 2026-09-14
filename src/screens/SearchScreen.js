@@ -30,7 +30,7 @@ import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
-import { fetchBloggerFeeds } from '../services/bloggerFeedService';
+import { fetchBloggerFeeds, fetchRecipeFromUrl } from '../services/bloggerFeedService';
 import ScanCircularModal from '../components/modals/ScanCircularModal';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
@@ -144,9 +144,9 @@ function formatTimeAgo(pubDate, t) {
     return t('time_ago_days', { count: diffDays });
 }
 
-function BloggerFeedItemRow({ item, t, onPress }) {
+function BloggerFeedItemRow({ item, t, onPress, isImporting }) {
     return (
-        <TouchableOpacity activeOpacity={0.85} style={styles.feedItemRow} onPress={onPress}>
+        <TouchableOpacity activeOpacity={0.85} style={styles.feedItemRow} onPress={onPress} disabled={isImporting}>
             <View style={styles.feedItemThumbWrap}>
                 {item.thumbnail ? (
                     <Image source={{ uri: item.thumbnail }} style={styles.feedItemThumb} resizeMode="cover" />
@@ -165,7 +165,11 @@ function BloggerFeedItemRow({ item, t, onPress }) {
                 <Text style={styles.feedItemTime}>{formatTimeAgo(item.pubDate, t)}</Text>
             </View>
 
-            <Text style={styles.feedItemChevron}>›</Text>
+            {isImporting ? (
+                <ActivityIndicator size="small" color="#8A6C4B" />
+            ) : (
+                <Text style={styles.feedItemChevron}>›</Text>
+            )}
         </TouchableOpacity>
     );
 }
@@ -198,6 +202,7 @@ export default function SearchScreen({ user }) {
     const [selectedRecipe, setSelectedRecipe] = useState(null);
     const [noteText, setNoteText] = useState('');
     const [isSavingRecipe, setIsSavingRecipe] = useState(false);
+    const [importingFeedItemUrl, setImportingFeedItemUrl] = useState(null);
     const [isScanCircularOpen, setIsScanCircularOpen] = useState(false);
     const [scanCircularStep, setScanCircularStep] = useState('select');
     const [scanCircularPhoto, setScanCircularPhoto] = useState(null);
@@ -641,10 +646,30 @@ export default function SearchScreen({ user }) {
     };
 
     const openBloggerFeedItem = async (item) => {
+        if (importingFeedItemUrl) return;
+        setImportingFeedItemUrl(item.url);
         try {
-            await Linking.openURL(item.url);
-        } catch {
-            Alert.alert(t('recipes_tab'), t('open_recipes_failed_desc', { url: item.url }));
+            const fullRecipe = await fetchRecipeFromUrl({ url: item.url, locale });
+            const normalized = normalizeAiRecipe(fullRecipe, 0);
+            if (item.thumbnail) {
+                normalized.image = item.thumbnail;
+                normalized._cloudPhotos = [item.thumbnail];
+            }
+            normalized.sourceUrl = fullRecipe.sourceUrl || item.url;
+            setSelectedRecipe(normalized);
+            setNoteText('');
+        } catch (e) {
+            console.warn('[blogger-feed] recipe import failed', e);
+            Alert.alert(
+                t('blogger_import_failed_title'),
+                t('blogger_import_failed_desc'),
+                [
+                    { text: t('cancel'), style: 'cancel' },
+                    { text: t('blogger_view_on_site'), onPress: () => Linking.openURL(item.url) },
+                ]
+            );
+        } finally {
+            setImportingFeedItemUrl(null);
         }
     };
 
@@ -1090,6 +1115,7 @@ export default function SearchScreen({ user }) {
                                                                         key={`${blogger.id}-feed-${idx}`}
                                                                         item={item}
                                                                         t={t}
+                                                                        isImporting={importingFeedItemUrl === item.url}
                                                                         onPress={() => openBloggerFeedItem(item)}
                                                                     />
                                                                 ))}
