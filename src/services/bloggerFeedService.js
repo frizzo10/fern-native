@@ -25,6 +25,29 @@ function normalizeFeed(feed) {
   };
 }
 
+// Parses a single blogger post URL into a full structured recipe (title,
+// ingredients, instructions, etc.) via the shared fetch-recipe backend --
+// the same extraction pipeline other parts of the product use for
+// "import a recipe from a URL". Feed items only carry RSS-level metadata
+// (title/description/thumbnail), so this is what turns a feed item into
+// something actually saveable to a cookbook.
+export async function fetchRecipeFromUrl({ url, locale }) {
+  const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/fetch-recipe', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'FernApp/1.0 (myaifern.com)',
+    },
+    body: JSON.stringify({ url, locale: locale || 'en' }),
+  });
+
+  const json = await res.json();
+  if (!res.ok || json?.error) {
+    throw new Error(json?.error || 'Could not import this recipe');
+  }
+  return json;
+}
+
 // `bloggers` is an array of the same { id, url, name, color, emoji, specialty }
 // shape used throughout SearchScreen.js's followed-blogger state.
 export async function fetchBloggerFeeds(bloggers) {
