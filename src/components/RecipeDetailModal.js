@@ -21,6 +21,7 @@ import ScaleRecipeModal from './modals/ScaleRecipeModal';
 import RecipeWinePairingModal from './modals/RecipeWinePairingModal';
 import RecipePlatingCoachModal from './modals/RecipePlatingCoachModal';
 import CookModeModal from './modals/CookModeModal';
+import SaveToCookbookModal from './modals/SaveToCookbookModal';
 
 export default function RecipeDetailModal({
   recipe,
@@ -35,6 +36,8 @@ export default function RecipeDetailModal({
   onAddToList,
   onSaveEdits,
   onUpdateImage,
+  books,
+  onSaveToCookbook,
   user,
 }) {
   const { t } = useLanguage();
@@ -46,6 +49,8 @@ export default function RecipeDetailModal({
   const [editForm, setEditForm] = useState(null);
   const [isSavingEdits, setIsSavingEdits] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isSaveToCookbookVisible, setIsSaveToCookbookVisible] = useState(false);
+  const [isSavingToCookbook, setIsSavingToCookbook] = useState(false);
 
   const handleClose = () => {
     setIsScaleModalVisible(false);
@@ -54,7 +59,25 @@ export default function RecipeDetailModal({
     setIsCookModeVisible(false);
     setIsEditMode(false);
     setEditForm(null);
+    setIsSaveToCookbookVisible(false);
     onClose();
+  };
+
+  const handleOpenSaveToCookbook = () => {
+    if (!onSaveToCookbook) return;
+    setIsSaveToCookbookVisible(true);
+  };
+
+  const handleConfirmSaveToCookbook = async (selection) => {
+    setIsSavingToCookbook(true);
+    try {
+      await onSaveToCookbook(selection);
+      setIsSaveToCookbookVisible(false);
+    } catch (e) {
+      console.warn('Save to cookbook failed:', e);
+    } finally {
+      setIsSavingToCookbook(false);
+    }
   };
 
   const handleToggleEdit = () => {
@@ -438,13 +461,32 @@ export default function RecipeDetailModal({
 
                   <View style={styles.overlayBottomActionsWrap}>
                     <TouchableOpacity
-                      style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark, isSaving ? styles.disabledBtn : null]}
+                      style={[
+                        styles.overlayBottomBtn,
+                        styles.overlayBottomBtnDark,
+                        onSaveToCookbook ? styles.overlayBottomBtnSplit : null,
+                        isSaving ? styles.disabledBtn : null,
+                      ]}
                       onPress={onSaveNote}
+                      onLongPress={onSaveToCookbook ? handleOpenSaveToCookbook : undefined}
                       disabled={isSaving}
                     >
                       <Text style={styles.overlayBottomBtnTextLight}>
                         {isAlreadySaved ? t('save_short_btn') : t('save_to_recipes_btn')}
                       </Text>
+                      {onSaveToCookbook ? (
+                        <>
+                          <View style={styles.overlaySaveDropdownDivider} />
+                          <TouchableOpacity
+                            style={styles.overlaySaveDropdownChevronBtn}
+                            hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
+                            onPress={handleOpenSaveToCookbook}
+                            disabled={isSaving}
+                          >
+                            <Text style={styles.overlaySaveDropdownChevron}>▾</Text>
+                          </TouchableOpacity>
+                        </>
+                      ) : null}
                     </TouchableOpacity>
                     {/* <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}><Text style={styles.overlayBottomBtnTextLight}>{t('share_sparkle_btn')}</Text></TouchableOpacity> */}
                     <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]} onPress={onAddToList}>
@@ -510,6 +552,17 @@ export default function RecipeDetailModal({
           recipe={recipe}
           user={user}
           onClose={() => setIsCookModeVisible(false)}
+        />
+
+        <SaveToCookbookModal
+          visible={isSaveToCookbookVisible && !!recipe}
+          books={books}
+          initialBookId={recipe?.bookIds?.[0] || ''}
+          initialCuisine={recipe?.category || ''}
+          initialMealType={recipe?.meal || ''}
+          isSaving={isSavingToCookbook}
+          onCancel={() => setIsSaveToCookbookVisible(false)}
+          onSave={handleConfirmSaveToCookbook}
         />
       </View>
     </Modal>
@@ -887,6 +940,23 @@ const styles = StyleSheet.create({
   },
   overlayBottomBtnDark: {
     backgroundColor: '#184626',
+  },
+  overlayBottomBtnSplit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  overlaySaveDropdownDivider: {
+    width: 1,
+    height: 14,
+    marginHorizontal: 10,
+    backgroundColor: 'rgba(241,241,232,0.4)',
+  },
+  overlaySaveDropdownChevronBtn: {
+    paddingVertical: 2,
+  },
+  overlaySaveDropdownChevron: {
+    color: '#F1F1E8',
+    fontSize: 12,
   },
   overlayBottomBtnGreen: {
     backgroundColor: '#2F6B2F',

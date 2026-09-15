@@ -72,11 +72,16 @@ export default function SemiHomemadeModal({
     onAddToList,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
 
     useEffect(() => {
-        if (visible) maybeAutoStart('semi_homemade');
+        if (visible && hasAccess(FEATURE_TIERS.semi_homemade)) {
+            maybeAutoStart('semi_homemade');
+        } else if (!visible && tourKey === 'semi_homemade') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     if (visible && !hasAccess(FEATURE_TIERS.semi_homemade)) {

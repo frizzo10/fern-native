@@ -9,11 +9,16 @@ import UpgradeGateModal from '../UpgradeGateModal';
 
 export default function AlexaSkillModal({ visible, onClose }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
 
     useEffect(() => {
-        if (visible) maybeAutoStart('alexa_skill');
+        if (visible && hasAccess(FEATURE_TIERS.alexa_skill)) {
+            maybeAutoStart('alexa_skill');
+        } else if (!visible && tourKey === 'alexa_skill') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     if (visible && !hasAccess(FEATURE_TIERS.alexa_skill)) {

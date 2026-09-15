@@ -157,14 +157,19 @@ function OptionGrid({ options, selectedValue, onSelect, t }) {
 
 export default function NutritionTrackerModal({ visible, onClose, navigation, user }) {
     const { t, locale } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
     const [step, setStep] = useState('form');
     const [goals, setGoals] = useState(EMPTY_GOALS);
     const [result, setResult] = useState(null);
 
     useEffect(() => {
-        if (visible) maybeAutoStart('weekly_nutrition');
+        if (visible && hasAccess(FEATURE_TIERS.nutrition)) {
+            maybeAutoStart('weekly_nutrition');
+        } else if (!visible && tourKey === 'weekly_nutrition') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     useEffect(() => {

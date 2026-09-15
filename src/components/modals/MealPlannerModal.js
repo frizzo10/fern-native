@@ -71,7 +71,7 @@ export default function MealPlannerModal({
     isSwapping,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
     const [showPreferences, setShowPreferences] = useState(false);
@@ -79,7 +79,12 @@ export default function MealPlannerModal({
     const dayScrollRef = useRef(null);
 
     useEffect(() => {
-        if (visible) maybeAutoStart('meal_planner');
+        if (visible && hasAccess(FEATURE_TIERS.meal_planner)) {
+            maybeAutoStart('meal_planner');
+        } else if (!visible && tourKey === 'meal_planner') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     useEffect(() => {

@@ -529,6 +529,80 @@ export default function SearchScreen({ user }) {
         }
     };
 
+    // Deliberately does NOT close selectedRecipe on success (unlike
+    // persistSelectedRecipeNote above) — this runs from inside
+    // SaveToCookbookModal, a second Modal nested within RecipeDetailModal's
+    // own Modal. Closing the outer detail view while that inner modal is
+    // still tearing down leaves RN's native modal stack broken/unresponsive
+    // on iOS, so it patches selectedRecipe in place instead.
+    const persistSelectedRecipeToCookbook = async ({ bookId, cuisine, mealType }) => {
+        if (!selectedRecipe) return;
+
+        setIsSavingRecipe(true);
+        try {
+            const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+            const baseSaved = Array.isArray(storedSaved)
+                ? storedSaved
+                : (Array.isArray(data.recipes) ? data.recipes : []);
+
+            const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+            const existingIndex = baseSaved.findIndex((item) => {
+                const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+                return itemTitle && itemTitle === selectedTitle;
+            });
+
+            let updatedSaved;
+            if (existingIndex >= 0) {
+                updatedSaved = baseSaved.map((item, idx) => {
+                    if (idx !== existingIndex) return item;
+                    return {
+                        ...item,
+                        cuisine: cuisine || item.cuisine,
+                        mealType: mealType || item.mealType,
+                        _bookIds: bookId ? [bookId] : [],
+                    };
+                });
+            } else {
+                updatedSaved = [
+                    ...baseSaved,
+                    {
+                        id: `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        title: selectedRecipe.title,
+                        emoji: selectedRecipe.emoji,
+                        cuisine: cuisine || selectedRecipe.category,
+                        mealType: mealType || selectedRecipe.meal,
+                        time: selectedRecipe.time,
+                        difficulty: selectedRecipe.difficulty,
+                        description: selectedRecipe.description,
+                        ingredients: selectedRecipe.ingredients,
+                        instructions: selectedRecipe.methodSteps,
+                        note: noteText.trim(),
+                        photoSearch: selectedRecipe.photoSearch || '',
+                        _cloudPhotos: selectedRecipe.image ? [selectedRecipe.image] : [],
+                        _bookIds: bookId ? [bookId] : [],
+                    },
+                ];
+            }
+
+            await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
+            await syncRecipeCache(updatedSaved);
+
+            await pushAllFromStorage();
+            await pull();
+
+            setSelectedRecipe((current) => (
+                current && current.title === selectedRecipe.title
+                    ? { ...current, category: cuisine || current.category, meal: mealType || current.meal }
+                    : current
+            ));
+        } catch (e) {
+            console.warn('[ai-search] save recipe to cookbook failed', e);
+            Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
+        } finally {
+            setIsSavingRecipe(false);
+        }
+    };
+
     const handleAddSelectedRecipeToShoppingList = async () => {
         if (!selectedRecipe) return;
 
@@ -1158,6 +1232,8 @@ export default function SearchScreen({ user }) {
                     showSavedIndicator
                     onDeleteRecipe={selectedIsSaved ? handleDeleteSelectedRecipe : undefined}
                     onAddToList={handleAddSelectedRecipeToShoppingList}
+                    books={data.books}
+                    onSaveToCookbook={persistSelectedRecipeToCookbook}
                     user={user}
                 />
 

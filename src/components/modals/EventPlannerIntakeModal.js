@@ -280,7 +280,7 @@ function RecipeCard({ recipe, onPress, styles, t }) {
 export default function EventPlannerIntakeModal({ visible, onClose, user, locale }) {
   const { t } = useLanguage();
   const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
-  const { maybeAutoStart } = useTour();
+  const { maybeAutoStart, tourKey, closeTour } = useTour();
   const { hasAccess } = useEntitlement();
   const [screen, setScreen] = useState('intake');
   const [planResult, setPlanResult] = useState(null);
@@ -290,7 +290,12 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (visible) maybeAutoStart('dinner_party');
+    if (visible && hasAccess(FEATURE_TIERS.dinner_party)) {
+      maybeAutoStart('dinner_party');
+    } else if (!visible && tourKey === 'dinner_party') {
+      closeTour();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
   if (visible && !hasAccess(FEATURE_TIERS.dinner_party)) {
@@ -401,6 +406,61 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
       const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
       await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: nextSaved }));
       await pushChangedFromStorage({ saved: nextSaved });
+      Alert.alert(t('saved_title'), selectedRecipe.title);
+    } catch (e) {
+      console.warn('[EventPlanner] Save recipe failed:', e);
+      Alert.alert(t('error'), t('save_error_desc'));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveRecipeToCookbook = async ({ bookId, cuisine, mealType }) => {
+    if (!selectedRecipe) return;
+    if (!user?.id || !user?.token) {
+      Alert.alert(t('error'), t('user_not_authenticated'));
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const stored = JSON.parse(await AsyncStorage.getItem('rv4_saved') || '[]');
+      const existingIndex = stored.findIndex(
+        (r) => String(r.id) === String(selectedRecipe.id) ||
+          String(r.title || '').trim().toLowerCase() === String(selectedRecipe.title || '').trim().toLowerCase()
+      );
+
+      let nextSaved;
+      if (existingIndex >= 0) {
+        nextSaved = stored.map((r, idx) => (idx === existingIndex ? {
+          ...r,
+          category: cuisine || r.category,
+          cuisine: cuisine || r.cuisine || r.category,
+          meal: mealType || r.meal,
+          mealType: mealType || r.mealType || r.meal,
+          _bookIds: bookId ? [bookId] : [],
+        } : r));
+      } else {
+        const recipeToSave = {
+          ...selectedRecipe,
+          note: noteText.trim(),
+          category: cuisine || selectedRecipe.category,
+          cuisine: cuisine || selectedRecipe.cuisine || selectedRecipe.category,
+          meal: mealType || selectedRecipe.meal,
+          mealType: mealType || selectedRecipe.mealType || selectedRecipe.meal,
+          _bookIds: bookId ? [bookId] : [],
+        };
+        nextSaved = [recipeToSave, ...stored];
+      }
+
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: nextSaved }));
+      await pushChangedFromStorage({ saved: nextSaved });
+      setSelectedRecipe((current) => (
+        current && current.title === selectedRecipe.title
+          ? { ...current, category: cuisine || current.category, meal: mealType || current.meal }
+          : current
+      ));
       Alert.alert(t('saved_title'), selectedRecipe.title);
     } catch (e) {
       console.warn('[EventPlanner] Save recipe failed:', e);
@@ -638,6 +698,8 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
         onAddToList={handleAddToList}
         isAlreadySaved={false}
         showSavedIndicator={false}
+        books={data.books}
+        onSaveToCookbook={handleSaveRecipeToCookbook}
       />
     </>
   );

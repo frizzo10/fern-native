@@ -38,11 +38,16 @@ export default function LeftoverMagicModal({
     onAskFern,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
 
     useEffect(() => {
-        if (visible) maybeAutoStart('leftover_magic');
+        if (visible && hasAccess(FEATURE_TIERS.leftover_magic)) {
+            maybeAutoStart('leftover_magic');
+        } else if (!visible && tourKey === 'leftover_magic') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     if (visible && !hasAccess(FEATURE_TIERS.leftover_magic)) {

@@ -52,6 +52,33 @@ function resolveCoverUri(cover) {
   return `data:image/jpeg;base64,${trimmed.replace(/\s/g, '')}`;
 }
 
+// Deterministic per-book pseudo-random size so the shelf reads as a real
+// mixed bookshelf (varied widths/heights) instead of uniform tiles, while
+// staying stable across re-renders — re-rolling on every render would make
+// spines visibly resize any time unrelated screen state changes.
+function hashSeed(value) {
+  const str = String(value || '');
+  let hash = 0;
+  for (let i = 0; i < str.length; i += 1) {
+    hash = (hash * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+const BOOK_SPINE_WIDTH_RANGE = [30, 46];
+const BOOK_SPINE_HEIGHT_RANGE = [150, 190];
+
+function getBookSpineSize(id) {
+  const seed = hashSeed(id);
+  const widthSpan = BOOK_SPINE_WIDTH_RANGE[1] - BOOK_SPINE_WIDTH_RANGE[0];
+  const heightSpan = BOOK_SPINE_HEIGHT_RANGE[1] - BOOK_SPINE_HEIGHT_RANGE[0];
+  const width = BOOK_SPINE_WIDTH_RANGE[0] + (seed % (widthSpan + 1));
+  const height = BOOK_SPINE_HEIGHT_RANGE[0] + (Math.floor(seed / 7) % (heightSpan + 1));
+  // Rotated title text runs the length of the spine — same ~46px margin
+  // (padding + rules + sparkle) the spine's own paddingVertical/rule/sparkle sizes use.
+  return { width, height, titleWidth: Math.max(90, height - 46) };
+}
+
 // Each editable recipe field may live under one of several legacy alias keys
 // (see recipeNormalize.js's pickFirst chains). Editing should overwrite
 // whichever alias key is already driving the displayed value rather than
@@ -210,6 +237,57 @@ export default function RecipesScreen({ user }) {
       setSelectedRecipe(null);
     } catch (e) {
       console.warn('Save recipe note failed:', e);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Deliberately does NOT close selectedRecipe on success (unlike
+  // persistRecipeNote above) — this runs from inside SaveToCookbookModal, a
+  // second Modal nested within RecipeDetailModal's own Modal. Closing the
+  // outer detail view while that inner modal is still tearing down leaves
+  // RN's native modal stack broken/unresponsive on iOS, so it patches
+  // selectedRecipe in place instead.
+  const persistSelectedRecipeToCookbook = async ({ bookId, cuisine, mealType }) => {
+    if (!selectedRecipe) return;
+
+    setIsSaving(true);
+    try {
+      const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+      const baseSaved = Array.isArray(storedSaved)
+        ? storedSaved
+        : (Array.isArray(data.recipes) ? data.recipes : []);
+
+      const selectedId = String(selectedRecipe.id);
+      const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+
+      const updatedSaved = baseSaved.map((item, index) => {
+        const itemId = getRawRecipeId(item, index);
+        const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+        const isMatch = itemId === selectedId || (selectedTitle && itemTitle === selectedTitle);
+        if (!isMatch) return item;
+
+        return {
+          ...item,
+          cuisine: cuisine || item.cuisine,
+          mealType: mealType || item.mealType,
+          _bookIds: bookId ? [bookId] : [],
+        };
+      });
+
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
+      await syncRecipeCache(updatedSaved);
+
+      await pushAllFromStorage();
+      await pull();
+
+      setSelectedRecipe((current) => (
+        current && String(current.id) === selectedId
+          ? { ...current, category: cuisine || current.category, meal: mealType || current.meal }
+          : current
+      ));
+    } catch (e) {
+      console.warn('Save recipe to cookbook failed:', e);
     } finally {
       setIsSaving(false);
     }
@@ -963,44 +1041,47 @@ export default function RecipesScreen({ user }) {
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.bookshelfRow}
                   >
-                    {booksWithMatchedCounts.map((book) => (
-                      <TouchableOpacity
-                        key={book.id}
-                        activeOpacity={0.9}
-                        onPress={() => {
-                          setSelectedBook(book);
-                          setQuery('');
-                        }}
-                        style={styles.bookSpine}
-                      >
-                        {book.cover ? (
-                          <View style={styles.bookSpineCover}>
-                            <Image
-                              source={{ uri: resolveCoverUri(book.cover) }}
-                              style={styles.bookSpineCoverImage}
-                              resizeMode="cover"
-                              onError={(e) => console.log('[RecipesScreen] SPINE2 cover image failed', book.id, e.nativeEvent)}
-                              onLoad={(e) => console.log('[RecipesScreen] SPINE2 cover image loaded OK', book.id, e.nativeEvent?.source)}
-                            />
-                            <View style={styles.bookOverlay} />
+                    {booksWithMatchedCounts.map((book) => {
+                      const { width: spineWidth, height: spineHeight, titleWidth } = getBookSpineSize(book.id);
+                      return (
+                        <TouchableOpacity
+                          key={book.id}
+                          activeOpacity={0.9}
+                          onPress={() => {
+                            setSelectedBook(book);
+                            setQuery('');
+                          }}
+                          style={[styles.bookSpine, { width: spineWidth, height: spineHeight }]}
+                        >
+                          {book.cover ? (
+                            <View style={[styles.bookSpineCover, { width: spineWidth, height: spineHeight }]}>
+                              <Image
+                                source={{ uri: resolveCoverUri(book.cover) }}
+                                style={styles.bookSpineCoverImage}
+                                resizeMode="cover"
+                                onError={(e) => console.log('[RecipesScreen] SPINE2 cover image failed', book.id, e.nativeEvent)}
+                                onLoad={(e) => console.log('[RecipesScreen] SPINE2 cover image loaded OK', book.id, e.nativeEvent?.source)}
+                              />
+                              <View style={styles.bookOverlay} />
+                            </View>
+                          ) : null}
+
+                          <View style={styles.bookSpineLeftEdge} />
+                          <View style={styles.bookSpineRightEdge} />
+
+                          <View style={styles.bookSpineInner}>
+                            <View style={styles.bookRuleTop} />
+
+                            <View style={styles.bookLabelWrap}>
+                              <Text numberOfLines={1} style={[styles.bookSpineTitle, { width: titleWidth }]}>{book.title}</Text>
+                            </View>
+
+                            <View style={styles.bookRuleBottom} />
+                            <Text style={styles.bookSpineSparkle}>✦</Text>
                           </View>
-                        ) : null}
-
-                        <View style={styles.bookSpineLeftEdge} />
-                        <View style={styles.bookSpineRightEdge} />
-
-                        <View style={styles.bookSpineInner}>
-                          <View style={styles.bookRuleTop} />
-
-                          <View style={styles.bookLabelWrap}>
-                            <Text numberOfLines={1} style={styles.bookSpineTitle}>{book.title}</Text>
-                          </View>
-
-                          <View style={styles.bookRuleBottom} />
-                          <Text style={styles.bookSpineSparkle}>✦</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
+                        </TouchableOpacity>
+                      );
+                    })}
                   </ScrollView>
                 </View>
               </View>
@@ -1025,6 +1106,8 @@ export default function RecipesScreen({ user }) {
         onAddToList={handleAddSelectedRecipeToShoppingList}
         onSaveEdits={handleSaveRecipeEdits}
         onUpdateImage={handleUpdateRecipeImage}
+        books={data.books}
+        onSaveToCookbook={persistSelectedRecipeToCookbook}
         user={user}
       />
 
@@ -1494,20 +1577,20 @@ const styles = StyleSheet.create({
   },
   bookshelfDeck: {
     marginTop: 18,
-    borderRadius: 20,
+    borderRadius: 16,
     backgroundColor: '#B68757',
     borderWidth: 1,
     borderColor: '#CAA47F',
-    paddingVertical: 16,
+    paddingVertical: 10,
   },
   bookshelfRow: {
-    paddingHorizontal: 12,
-    alignItems: 'stretch',
+    paddingHorizontal: 10,
+    alignItems: 'flex-end',
   },
   bookSpine: {
-    width: 50,
-    height: 250,
-    borderRadius: 6,
+    width: 36,
+    height: 170,
+    borderRadius: 5,
     backgroundColor: '#A97B4A',
     borderWidth: 1,
     borderColor: '#8E653E',
@@ -1518,8 +1601,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: 50,
-    height: 250,
+    width: 36,
+    height: 170,
   },
   bookSpineCoverImage: {
     position: 'absolute',
@@ -1527,19 +1610,19 @@ const styles = StyleSheet.create({
     left: 0,
     width: '100%',
     height: '100%',
-    borderRadius: 6,
+    borderRadius: 5,
   },
   bookOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(54, 30, 14, 0.55)',
-    borderRadius: 6,
+    borderRadius: 5,
   },
   bookSpineLeftEdge: {
     position: 'absolute',
     left: 0,
     top: 0,
     bottom: 0,
-    width: 4,
+    width: 3,
     backgroundColor: 'rgba(229, 206, 165, 0.18)',
   },
   bookSpineRightEdge: {
@@ -1547,15 +1630,15 @@ const styles = StyleSheet.create({
     right: 0,
     top: 0,
     bottom: 0,
-    width: 7,
+    width: 5,
     backgroundColor: 'rgba(27, 13, 5, 0.65)',
   },
   bookSpineInner: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 5,
   },
   bookLabelWrap: {
     flex: 1,
@@ -1564,21 +1647,21 @@ const styles = StyleSheet.create({
   },
   bookSpineTitle: {
     color: '#F5ECE0',
-    fontSize: 14,
-    lineHeight: 18,
-    letterSpacing: 0.2,
+    fontSize: 10,
+    lineHeight: 13,
+    letterSpacing: 0.1,
     fontFamily: 'PlayfairDisplay-Bold',
     transform: [{ rotate: '-90deg' }],
-    width: 178,
+    width: 120,
     textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   bookRuleTop: {
-    marginTop: 12,
+    marginTop: 6,
     width: '74%',
-    height: 3,
+    height: 2,
     borderRadius: 2,
     backgroundColor: '#D3AE52',
     borderWidth: 1,
@@ -1586,16 +1669,16 @@ const styles = StyleSheet.create({
   },
   bookRuleBottom: {
     width: '74%',
-    height: 3,
+    height: 2,
     borderRadius: 2,
     backgroundColor: '#D3AE52',
     borderWidth: 1,
     borderColor: '#B88E2E',
   },
   bookSpineSparkle: {
-    marginTop: 8,
+    marginTop: 5,
     color: '#E8E3DA',
-    fontSize: 12,
+    fontSize: 9,
     fontFamily: 'Jost-Bold',
   },
 

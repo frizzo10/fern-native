@@ -70,7 +70,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: nextSaved }));
     };
 
-    const saveToLibrary = async (detailRecipe, note = '') => {
+    const saveToLibrary = async (detailRecipe, note = '', overrides = {}) => {
         const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
         const baseSaved = Array.isArray(storedSaved) ? storedSaved : (Array.isArray(data.recipes) ? data.recipes : []);
 
@@ -85,8 +85,8 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
                 id: `${source}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                 title: detailRecipe.title,
                 emoji: detailRecipe.emoji,
-                cuisine: detailRecipe.category,
-                mealType: detailRecipe.meal,
+                cuisine: overrides.cuisine || detailRecipe.category,
+                mealType: overrides.mealType || detailRecipe.meal,
                 time: detailRecipe.time,
                 difficulty: detailRecipe.difficulty,
                 description: detailRecipe.description,
@@ -95,6 +95,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
                 note,
                 photoSearch: detailRecipe.title,
                 _cloudPhotos: imageUrl ? [imageUrl] : [],
+                _bookIds: overrides.bookId ? [overrides.bookId] : [],
             },
         ];
 
@@ -152,6 +153,56 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
             onDone?.();
         } catch (e) {
             console.log(`[${source}] save recipe note failed`, e?.message || e);
+            Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    // Deliberately does NOT close/clear selectedRecipe on success (unlike
+    // persistSelectedNote) — this runs from inside SaveToCookbookModal, a
+    // second Modal nested within RecipeDetailModal's own Modal. Closing the
+    // outer detail view while that inner modal is still tearing down leaves
+    // RN's native modal stack in a broken, unresponsive state on iOS. Instead
+    // it patches selectedRecipe in place so the detail view reflects the move.
+    const saveSelectedToCookbook = async ({ bookId, cuisine, mealType }) => {
+        if (!selectedRecipe) return;
+
+        setIsSaving(true);
+        try {
+            const existing = findSavedByTitle(selectedRecipe.title);
+
+            if (existing) {
+                const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+                const baseSaved = Array.isArray(storedSaved) ? storedSaved : (Array.isArray(data.recipes) ? data.recipes : []);
+                const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+
+                const updatedSaved = baseSaved.map((item) => {
+                    const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+                    if (itemTitle !== selectedTitle) return item;
+                    return {
+                        ...item,
+                        cuisine: cuisine || item.cuisine,
+                        mealType: mealType || item.mealType,
+                        _bookIds: bookId ? [bookId] : [],
+                    };
+                });
+
+                await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
+                await syncCache(updatedSaved);
+                await pushAllFromStorage();
+                await pull();
+            } else {
+                await saveToLibrary(selectedRecipe, noteText.trim(), { bookId, cuisine, mealType });
+            }
+
+            setSelectedRecipe((current) => (
+                current && current.title === selectedRecipe.title
+                    ? { ...current, category: cuisine || current.category, meal: mealType || current.meal }
+                    : current
+            ));
+        } catch (e) {
+            console.log(`[${source}] save recipe to cookbook failed`, e?.message || e);
             Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
         } finally {
             setIsSaving(false);
@@ -266,6 +317,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         saveToLibrary,
         handleSaveFromCard,
         persistSelectedNote,
+        saveSelectedToCookbook,
         handleDeleteSelected,
         handleAddToShoppingList,
         addIngredientsToShoppingList,

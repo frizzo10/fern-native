@@ -284,6 +284,14 @@ function AppNavigator({ user, signOut }) {
       )}
 
       <Tab.Navigator
+        screenListeners={{
+          // A genuine user tap on a tab bar button — not the tour system's own
+          // programmatic navigate() above, which doesn't fire tabPress. Whatever
+          // tour bubble (and its narration audio) was open no longer matches
+          // what's on screen once the tab changes, so close it immediately
+          // rather than leaving it floating over the new screen.
+          tabPress: () => closeTour(),
+        }}
         screenOptions={{
           headerShown: true,
           headerTitle: () => <AppTabHeader />,

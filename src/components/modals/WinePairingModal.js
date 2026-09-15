@@ -36,11 +36,16 @@ export default function WinePairingModal({
     onAddWineToShoppingList,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
 
     useEffect(() => {
-        if (visible) maybeAutoStart('wine_pairing');
+        if (visible && hasAccess(FEATURE_TIERS.wine_pairing)) {
+            maybeAutoStart('wine_pairing');
+        } else if (!visible && tourKey === 'wine_pairing') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     if (visible && !hasAccess(FEATURE_TIERS.wine_pairing)) {

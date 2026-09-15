@@ -70,6 +70,7 @@ import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
 import { usePlansModal } from '../services/PlansModalContext';
 import { TIERS } from '../constants/tiers';
+import { FEATURE_TIERS } from '../constants/featureAccess';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
 const DISMISSED_SUGGESTIONS_KEY = 'fern_dismissed_suggestions';
@@ -113,7 +114,7 @@ export default function HomeScreen({ user }) {
   const navigation = useNavigation();
   const { open: openAccount } = useAccountModal();
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
-  const { tier } = useEntitlement();
+  const { tier, hasAccess } = useEntitlement();
   const { open: openPlans } = usePlansModal();
   const tierBadgeLabel = tier === TIERS.PRO_MAX ? t('pro_max') : tier === TIERS.PRO ? t('pro') : t('free');
 
@@ -2231,41 +2232,52 @@ export default function HomeScreen({ user }) {
 
             <View style={styles.mainCardRow}>
               {[
-                { label: 'Alexa Skill', val: '🔊', color: 'rgb(30, 57, 30)' },
-                { label: 'Charcuterie', val: '🧀', color: 'rgb(56, 89, 45)' },
-                { label: 'Dinner Party', val: `🎉`, color: 'rgb(216, 109, 51)' },
-                { label: 'Wine Pairing', val: '🍷', color: 'rgb(30, 57, 30)' },
-                { label: 'Personal Shopper', val: '🛒', color: 'rgb(56, 89, 45)' },
-                { label: 'Weekly Nutrition', val: '🥗', color: 'rgb(216, 109, 51)' },
-              ].map(({ label, val, color }) => (
-                <TouchableOpacity
-                  key={label}
-                  activeOpacity={0.88}
-                  onPress={
-                    label === 'Alexa Skill'
-                      ? () => setIsAlexaModalOpen(true)
-                      : label === 'Charcuterie'
-                        ? () => setIsCharcuterieModalOpen(true)
-                        : label === 'Dinner Party'
-                          ? () => setIsEventPlannerOpen(true)
-                          : label === 'Wine Pairing'
-                            ? () => setIsWineModalOpen(true)
-                            : label === 'Personal Shopper'
-                              ? () => navigation.navigate('Shopping')
-                              : label === 'Weekly Nutrition'
-                                ? () => setIsNutritionTrackerOpen(true)
-                                : undefined
-                  }
-                  style={[
-                    styles.mainCard,
-                    shadow.card,
-                    { backgroundColor: color }
-                  ]}
-                >
-                  <Text style={styles.mainVal}>{val}</Text>
-                  <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
-                </TouchableOpacity>
-              ))}
+                { label: 'Alexa Skill', val: '🔊', color: 'rgb(30, 57, 30)', featureKey: 'alexa_skill' },
+                { label: 'Charcuterie', val: '🧀', color: 'rgb(56, 89, 45)', featureKey: 'charcuterie' },
+                { label: 'Dinner Party', val: `🎉`, color: 'rgb(216, 109, 51)', featureKey: 'dinner_party' },
+                { label: 'Wine Pairing', val: '🍷', color: 'rgb(30, 57, 30)', featureKey: 'wine_pairing' },
+                { label: 'Personal Shopper', val: '🛒', color: 'rgb(56, 89, 45)', featureKey: 'personal_shopper' },
+                { label: 'Weekly Nutrition', val: '🥗', color: 'rgb(216, 109, 51)', featureKey: 'nutrition' },
+              ].map(({ label, val, color, featureKey }) => {
+                const requiredTier = FEATURE_TIERS[featureKey];
+                const isLocked = requiredTier && requiredTier !== TIERS.FREE && !hasAccess(requiredTier);
+                return (
+                  <TouchableOpacity
+                    key={label}
+                    activeOpacity={0.88}
+                    onPress={
+                      label === 'Alexa Skill'
+                        ? () => setIsAlexaModalOpen(true)
+                        : label === 'Charcuterie'
+                          ? () => setIsCharcuterieModalOpen(true)
+                          : label === 'Dinner Party'
+                            ? () => setIsEventPlannerOpen(true)
+                            : label === 'Wine Pairing'
+                              ? () => setIsWineModalOpen(true)
+                              : label === 'Personal Shopper'
+                                ? () => navigation.navigate('Shopping')
+                                : label === 'Weekly Nutrition'
+                                  ? () => setIsNutritionTrackerOpen(true)
+                                  : undefined
+                    }
+                    style={[
+                      styles.mainCard,
+                      shadow.card,
+                      { backgroundColor: color }
+                    ]}
+                  >
+                    {isLocked ? (
+                      <View style={[styles.tierLockBadge, requiredTier === TIERS.PRO_MAX ? styles.tierLockBadgeMax : styles.tierLockBadgePro]}>
+                        <Text style={[styles.tierLockBadgeText, requiredTier === TIERS.PRO_MAX ? styles.tierLockBadgeTextMax : null]}>
+                          {requiredTier === TIERS.PRO_MAX ? t('tier_badge_max') : t('tier_badge_pro')}
+                        </Text>
+                      </View>
+                    ) : null}
+                    <Text style={styles.mainVal}>{val}</Text>
+                    <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             <View style={styles.statsRow}>
@@ -2442,14 +2454,14 @@ export default function HomeScreen({ user }) {
 
             <View style={styles.mainCardRow}>
               {[
-                { label: 'Fridge Challenge', val: '🧊', color: 'rgb(30, 57, 30)' },
-                { label: 'Leftover Magic', val: '🧙‍♂️', color: 'rgb(56, 89, 45)' },
-                { label: '20-Min Dinner', val: '⚡', color: 'rgb(216, 109, 51)' },
-                { label: 'Budget Planner', val: '💰', color: 'rgb(30, 57, 30)' },
-                { label: 'AI Meal Planner', val: '🗓', color: 'rgb(56, 89, 45)' },
-                { label: 'Semi-Homemade', val: '🥫', color: 'rgb(30, 57, 30)' },
-                { label: 'Family Vault', val: '📖', color: 'rgb(216, 109, 51)' },
-              ].map(({ label, val, color }) => {
+                { label: 'Fridge Challenge', val: '🧊', color: 'rgb(30, 57, 30)', featureKey: 'fridge_challenge' },
+                { label: 'Leftover Magic', val: '🧙‍♂️', color: 'rgb(56, 89, 45)', featureKey: 'leftover_magic' },
+                { label: '20-Min Dinner', val: '⚡', color: 'rgb(216, 109, 51)', featureKey: 'quick_dinner' },
+                { label: 'Budget Planner', val: '💰', color: 'rgb(30, 57, 30)', featureKey: 'budget_planner' },
+                { label: 'AI Meal Planner', val: '🗓', color: 'rgb(56, 89, 45)', featureKey: 'meal_planner' },
+                { label: 'Semi-Homemade', val: '🥫', color: 'rgb(30, 57, 30)', featureKey: 'semi_homemade' },
+                { label: 'Family Vault', val: '📖', color: 'rgb(216, 109, 51)', featureKey: 'family_vault' },
+              ].map(({ label, val, color, featureKey }) => {
                 const toolHandlers = {
                   'Leftover Magic': openLeftoverMagicModal,
                   'Fridge Challenge': openFridgeChallengeModal,
@@ -2460,6 +2472,8 @@ export default function HomeScreen({ user }) {
                   'Family Vault': () => setIsFamilyVaultOpen(true),
                 };
                 const onPress = toolHandlers[label];
+                const requiredTier = FEATURE_TIERS[featureKey];
+                const isLocked = requiredTier && requiredTier !== TIERS.FREE && !hasAccess(requiredTier);
 
                 return (
                   <TouchableOpacity
@@ -2473,6 +2487,13 @@ export default function HomeScreen({ user }) {
                       { backgroundColor: color }
                     ]}
                   >
+                    {isLocked ? (
+                      <View style={[styles.tierLockBadge, requiredTier === TIERS.PRO_MAX ? styles.tierLockBadgeMax : styles.tierLockBadgePro]}>
+                        <Text style={[styles.tierLockBadgeText, requiredTier === TIERS.PRO_MAX ? styles.tierLockBadgeTextMax : null]}>
+                          {requiredTier === TIERS.PRO_MAX ? t('tier_badge_max') : t('tier_badge_pro')}
+                        </Text>
+                      </View>
+                    ) : null}
                     <Text style={styles.mainVal}>{val}</Text>
                     <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
                   </TouchableOpacity>
@@ -2859,6 +2880,8 @@ export default function HomeScreen({ user }) {
         showSavedIndicator
         onDeleteRecipe={selectedAiRecipe && activeAiRecipeCollection?.isRecipeSaved(selectedAiRecipe) ? () => activeAiRecipeCollection.handleDeleteSelected(closeSelectedAiRecipeDetail) : undefined}
         onAddToList={() => activeAiRecipeCollection?.handleAddToShoppingList()}
+        books={data.books}
+        onSaveToCookbook={(selection) => activeAiRecipeCollection?.saveSelectedToCookbook(selection)}
         user={user}
       />
 
@@ -2869,7 +2892,7 @@ export default function HomeScreen({ user }) {
         locale={locale}
       />
 
-      <FamilyWeeklyReviewModal
+      {/* <FamilyWeeklyReviewModal
         visible={isWeeklyReviewOpen}
         dayLabel={new Intl.DateTimeFormat(locale, { weekday: 'long' }).format(new Date())}
         suggestedMeals={weeklyReviewData.suggestedMeals}
@@ -2881,7 +2904,7 @@ export default function HomeScreen({ user }) {
         onPlanWithFern={openWeeklyReviewPlanWithFern}
         onDone={handleWeeklyReviewDone}
         onSkip={handleWeeklyReviewSkip}
-      />
+      /> */}
 
       <ChatSheetModal
         visible={isWeeklyReviewPlanWithFernOpen}
@@ -3069,6 +3092,34 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+
+  tierLockBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 5,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    zIndex: 2,
+  },
+  tierLockBadgeMax: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    borderWidth: 1,
+    borderColor: colors.orange,
+  },
+  tierLockBadgePro: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  tierLockBadgeText: {
+    color: '#F5EFE6',
+    fontSize: 6,
+    fontFamily: 'Jost-Bold',
+    letterSpacing: 0.5,
+  },
+  tierLockBadgeTextMax: {
+    color: colors.orange,
   },
 
   statsRow: {

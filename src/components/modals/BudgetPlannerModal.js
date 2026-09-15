@@ -121,13 +121,18 @@ export default function BudgetPlannerModal({
     onBackToResults,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
     const [isPeopleMenuOpen, setIsPeopleMenuOpen] = useState(false);
     const [isDietaryMenuOpen, setIsDietaryMenuOpen] = useState(false);
 
     useEffect(() => {
-        if (visible) maybeAutoStart('budget_planner');
+        if (visible && hasAccess(FEATURE_TIERS.budget_planner)) {
+            maybeAutoStart('budget_planner');
+        } else if (!visible && tourKey === 'budget_planner') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     if (visible && !hasAccess(FEATURE_TIERS.budget_planner)) {

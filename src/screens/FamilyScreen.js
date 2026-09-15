@@ -639,6 +639,8 @@ export default function FamilyScreen({ user }) {
                 showSavedIndicator
                 onDeleteRecipe={isSelectedMealRecipeSaved ? () => mealPlanRecipes.handleDeleteSelected(() => mealPlanRecipes.setSelectedRecipe(null)) : undefined}
                 onAddToList={mealPlanRecipes.handleAddToShoppingList}
+                books={data.books}
+                onSaveToCookbook={(selection) => mealPlanRecipes.saveSelectedToCookbook(selection)}
                 user={user}
             />
 

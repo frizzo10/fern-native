@@ -66,11 +66,19 @@ export default function FridgeChallengeModal({
     isRecipeSaved,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
 
     useEffect(() => {
-        if (visible) maybeAutoStart('fridge_challenge');
+        if (visible && hasAccess(FEATURE_TIERS.fridge_challenge)) {
+            maybeAutoStart('fridge_challenge');
+        } else if (!visible && tourKey === 'fridge_challenge') {
+            // Modal was closed (e.g. tapped "Close") while its own first-open
+            // tour bubble was still narrating — close it too instead of
+            // leaving the bubble/audio orphaned over whatever's behind now.
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     if (visible && !hasAccess(FEATURE_TIERS.fridge_challenge)) {

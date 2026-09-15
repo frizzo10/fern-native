@@ -126,10 +126,17 @@ export default function ScanCircularModal({
     onRegenerateIdeas,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
 
     useEffect(() => {
-        if (visible) maybeAutoStart('scan_circular');
+        if (visible) {
+            maybeAutoStart('scan_circular');
+        } else if (tourKey === 'scan_circular') {
+            // Modal was closed while its own first-open tour bubble was still
+            // narrating — close it too instead of leaving it orphaned.
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     const itemCount = result?.items?.length || 0;

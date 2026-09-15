@@ -80,12 +80,17 @@ export default function CharcuterieModal({
     onAskFern,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
     const scrollRef = useRef(null);
 
     useEffect(() => {
-        if (visible) maybeAutoStart('charcuterie');
+        if (visible && hasAccess(FEATURE_TIERS.charcuterie)) {
+            maybeAutoStart('charcuterie');
+        } else if (!visible && tourKey === 'charcuterie') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     useEffect(() => {

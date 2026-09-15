@@ -44,7 +44,7 @@ function textToList(text) {
 
 export default function FamilyRecipeVaultModal({ visible, onClose, user, data, pushAllFromStorage, pull }) {
     const { t, locale } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
     const collection = useAiRecipeCollection({ source: 'family_vault', data, pushAllFromStorage, pull, t, token: user?.token });
 
@@ -73,7 +73,11 @@ export default function FamilyRecipeVaultModal({ visible, onClose, user, data, p
     });
 
     useEffect(() => {
-        if (visible) maybeAutoStart('family_vault');
+        if (visible && hasAccess(FEATURE_TIERS.family_vault)) {
+            maybeAutoStart('family_vault');
+        } else if (!visible && tourKey === 'family_vault') {
+            closeTour();
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 

@@ -59,11 +59,16 @@ export default function TwentyMinDinnerModal({
     onAddToList,
 }) {
     const { t } = useLanguage();
-    const { maybeAutoStart } = useTour();
+    const { maybeAutoStart, tourKey, closeTour } = useTour();
     const { hasAccess } = useEntitlement();
 
     useEffect(() => {
-        if (visible) maybeAutoStart('quick_dinner');
+        if (visible && hasAccess(FEATURE_TIERS.quick_dinner)) {
+            maybeAutoStart('quick_dinner');
+        } else if (!visible && tourKey === 'quick_dinner') {
+            closeTour();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
     if (visible && !hasAccess(FEATURE_TIERS.quick_dinner)) {
