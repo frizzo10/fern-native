@@ -2336,9 +2336,14 @@ export default function HomeScreen({ user }) {
             <View style={[styles.panelCard, shadow.card]}>
               <View style={styles.panelHeaderRow}>
                 <Text style={styles.panelTitle}>{t('my_stores')}</Text>
-                <TouchableOpacity style={styles.smallActionBtn} activeOpacity={0.85} onPress={openAddStoreModal}>
-                  <Text style={styles.smallActionBtnText}>{t('add_store_btn')}</Text>
-                </TouchableOpacity>
+                <View style={styles.headerActionsRow}>
+                  <TouchableOpacity style={styles.scanCircularHeaderBtn} activeOpacity={0.85} onPress={openScanCircularModal}>
+                    <Text style={styles.smallActionBtnText}>{t('scan_circular')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.smallActionBtn} activeOpacity={0.85} onPress={openAddStoreModal}>
+                    <Text style={styles.smallActionBtnText}>{t('add_store_btn')}</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {userStoresLocal.length ? (
@@ -3175,6 +3180,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontStyle: 'italic',
     fontFamily: 'Jost-Medium',
+  },
+
+  headerActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+
+  scanCircularHeaderBtn: {
+    backgroundColor: '#184029',
+    borderRadius: radius.full,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
   },
 
   smallActionBtn: {
