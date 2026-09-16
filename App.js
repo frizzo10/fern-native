@@ -151,7 +151,7 @@ async function checkForUpdate() {
   }
 }
 
-function AppNavigator({ user, signOut }) {
+function AppNavigator({ user, signOut, userStores: rawUserStores }) {
   const { t } = useLanguage();
   const { visible: isAccountOpen, open: openAccount, close: closeAccount } = useAccountModal();
   const { visible: isPlansOpen, open: openPlans, close: closePlans } = usePlansModal();
@@ -169,8 +169,13 @@ function AppNavigator({ user, signOut }) {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const navigationRef = React.useRef(null);
 
-  // Mock stores — replace with sync from useSync
-  const userStores = user ? [] : []; // populated from sync data
+  // Real saved stores from sync data, mapped to the {name, lat, lon}
+  // shape useGeofence expects (stored stores use `lng`, not `lon`).
+  // Stores missing coordinates are filtered out rather than crashing
+  // the distance calc on undefined lat/lon.
+  const userStores = (rawUserStores || [])
+    .filter((s) => s && typeof s.lat === 'number' && typeof s.lng === 'number')
+    .map((s) => ({ name: s.name, lat: s.lat, lon: s.lng }));
 
   const { start: startGeofence } = useGeofence({
     stores: userStores,
@@ -407,7 +412,7 @@ function AppNavigator({ user, signOut }) {
 function MainAppContent() {
   const { user, loading, signInWithSupabase, signUpWithSupabase, signOut } = useAuth();
   const { loginPurchaser, logoutPurchaser, tier: rcTier, loading: rcLoading } = useRevenueCat();
-  const { pushChangedFromStorage } = useSync(user);
+  const { pushChangedFromStorage, data: syncData } = useSync(user);
   console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
 
   useEffect(() => {
@@ -477,7 +482,7 @@ function MainAppContent() {
     );
   }
 
-  return <AppNavigator user={user} signOut={handleSignOut} />;
+  return <AppNavigator user={user} signOut={handleSignOut} userStores={syncData.userStores} />;
 }
 
 export default function App() {
