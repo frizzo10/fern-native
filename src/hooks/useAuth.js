@@ -45,6 +45,14 @@ export function useAuth() {
   };
 
   // Load persisted user on mount; attempt token refresh if we have a stored refreshToken
+  //
+  // IMPORTANT: this restore path re-authenticates the person from the
+  // Keychain-backed AUTH_KEY, which survives an app deletion+reinstall.
+  // AsyncStorage (where saved recipes, cookbooks, stores, etc. actually
+  // live on-device) does NOT survive a reinstall -- it starts empty. If
+  // this path doesn't re-pull from the server, a reinstalled app looks
+  // completely empty even though the account's data is untouched on
+  // Supabase. So every branch below re-syncs before finishing.
   useEffect(() => {
     SecureStore.getItemAsync(AUTH_KEY).then(async (val) => {
       if (val) {
@@ -61,14 +69,20 @@ export function useAuth() {
               token: updatedUser.token,
               refreshToken: updatedUser.refreshToken,
             }));
+            await syncPull(updatedUser.id, updatedUser.token);
             setUser(updatedUser);
             console.log('🔁✅ Session restored via refresh token for user:', updatedUser.id);
           } else {
-            // Refresh failed — still load the saved user; let individual API calls handle expiry
+            // Refresh failed — still load the saved user; let individual API calls handle expiry.
+            // Still attempt a sync pull with the (possibly stale) token: if it's
+            // actually still valid this repopulates local data; if not, syncPull
+            // just warns and leaves the empty defaults, same as it already does today.
+            await syncPull(savedUser.id, savedUser.token);
             setUser(savedUser);
             console.warn('🔁⚠️  Refresh failed on startup — using cached session, may be expired');
           }
         } else {
+          await syncPull(savedUser.id, savedUser.token);
           setUser(savedUser);
         }
       }
