@@ -217,6 +217,55 @@ export function useAuth() {
     }
   };
 
+  // ── Forgot password ─────────────────────────────────────────────────────────
+  // Triggers the backend's Supabase-recovery-email flow. Never receives a
+  // code back here -- the code only ever reaches the person via email.
+  const forgotPassword = async (email) => {
+    const res = await fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'forgot', email }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(data.error || 'Could not send reset code');
+    }
+    return true;
+  };
+
+  // ── Reset password (with the code from the forgot-password email) ─────────
+  // On success the backend returns the same {user, token, refreshToken}
+  // shape as login, so this mirrors signInWithSupabase's tail end to land
+  // the person back in the app already signed in with their new password.
+  const resetPassword = async ({ email, code, newPassword }) => {
+    const res = await fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'reset', email, code, newPassword }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      throw new Error(data.error || 'Password reset failed');
+    }
+
+    const token = data.token;
+    const refreshToken = data.refreshToken;
+    const authUser = { ...data.user, token, refreshToken };
+
+    await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+      id: authUser.id,
+      email: authUser.email,
+      token: authUser.token,
+      refreshToken: authUser.refreshToken,
+    }));
+
+    await syncPull(authUser.id, authUser.token);
+    await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(authUser));
+    setUser(authUser);
+
+    return authUser;
+  };
+
   // ── Sign out ─────────────────────────────────────────────────────────────────
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -229,6 +278,8 @@ export function useAuth() {
     loading, 
     signInWithSupabase, 
     signUpWithSupabase, 
+    forgotPassword,
+    resetPassword,
     signOut, 
     syncPull,
     tryRefreshToken,
