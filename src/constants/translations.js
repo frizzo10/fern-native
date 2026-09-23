@@ -34,6 +34,8 @@ export const translations = {
     // Arrival Banner
     arrived: "you've arrived",
     ready_to_shop: "Ready to shop with Fern?",
+    sync_failed_title: "Couldn't sync your data",
+    retry: "Retry",
     shop: "Shop",
 
     // Auth / Login
@@ -1468,6 +1470,8 @@ export const translations = {
     // Arrival Banner
     arrived: "has llegado",
     ready_to_shop: "¿Listo para comprar con Fern?",
+    sync_failed_title: "No se pudo sincronizar tus datos",
+    retry: "Reintentar",
     shop: "Comprar",
 
     // Auth / Login
