@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { Image, Text, View, StyleSheet, TouchableOpacity, Animated, Modal, Pressable, Alert } from 'react-native';
+import { Image, Text, View, StyleSheet, TouchableOpacity, Animated, Modal, Pressable, Alert, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
@@ -94,6 +94,40 @@ function ArrivalBanner({ store, onShop, onDismiss }) {
   );
 }
 
+function SyncFailedBanner({ onRetry, onDismiss }) {
+  const { t } = useLanguage();
+  const [retrying, setRetrying] = useState(false);
+  const slideAnim = React.useRef(new Animated.Value(-100)).current;
+
+  useEffect(() => {
+    Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 80 }).start();
+  }, []);
+
+  const handleRetry = async () => {
+    setRetrying(true);
+    await onRetry();
+    setRetrying(false);
+  };
+
+  return (
+    <Animated.View style={[styles.banner, styles.syncBanner, { transform: [{ translateY: slideAnim }] }]}>
+      <Text style={styles.bannerEmoji}>⚠️</Text>
+      <View style={styles.bannerText}>
+        <Text style={styles.bannerTitle}>{t('sync_failed_title') || "Couldn't sync your data"}</Text>
+      </View>
+      <TouchableOpacity style={styles.bannerBtn} onPress={handleRetry} disabled={retrying}>
+        {retrying
+          ? <ActivityIndicator size="small" color="#fff" />
+          : <Text style={styles.bannerBtnText}>{t('retry') || 'Retry'}</Text>
+        }
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onDismiss} style={styles.bannerClose}>
+        <Text style={styles.bannerCloseText}>✕</Text>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 function MoreSheet({ visible, onClose, onProfile, onCookbooks, onHelp, onLogout }) {
   const { t } = useLanguage();
 
@@ -151,7 +185,7 @@ async function checkForUpdate() {
   }
 }
 
-function AppNavigator({ user, signOut, userStores: rawUserStores }) {
+function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, retrySync }) {
   const { t } = useLanguage();
   const { visible: isAccountOpen, open: openAccount, close: closeAccount } = useAccountModal();
   const { visible: isPlansOpen, open: openPlans, close: closePlans } = usePlansModal();
@@ -164,6 +198,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores }) {
     closeTour,
   } = useTour();
   const [arrivedStore, setArrivedStore] = useState(null);
+  const [syncBannerDismissed, setSyncBannerDismissed] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -189,6 +224,12 @@ function AppNavigator({ user, signOut, userStores: rawUserStores }) {
     if (user) startGeofence();
   }, [user]);
 
+  // A dismissed banner should come back if sync fails again later, rather
+  // than staying hidden for the rest of the session after the first dismiss.
+  useEffect(() => {
+    if (syncError) setSyncBannerDismissed(false);
+  }, [syncError]);
+
   // When a tour starts (e.g. "Take a Tour" from AccountScreen/PlansScreen),
   // switch to the tab it's narrating so that real, live screen is what's
   // frozen behind the tour card — instead of whatever overlay happened to be
@@ -210,6 +251,14 @@ function AppNavigator({ user, signOut, userStores: rawUserStores }) {
   return (
     <NavigationContainer ref={navigationRef}>
       <StatusBar style="light" />
+      {/* Sync failure banner -- shown above the arrival banner since a
+          failed sync is a more fundamental problem than a store arrival */}
+      {syncError && !syncBannerDismissed && (
+        <SyncFailedBanner
+          onRetry={retrySync}
+          onDismiss={() => setSyncBannerDismissed(true)}
+        />
+      )}
       {/* Store arrival banner */}
       {arrivedStore && (
         <ArrivalBanner
@@ -410,7 +459,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores }) {
 }
 
 function MainAppContent() {
-  const { user, loading, signInWithSupabase, signUpWithSupabase, forgotPassword, resetPassword, signOut } = useAuth();
+  const { user, loading, signInWithSupabase, signUpWithSupabase, forgotPassword, resetPassword, signOut, syncError, retrySync } = useAuth();
   const { loginPurchaser, logoutPurchaser, tier: rcTier, loading: rcLoading } = useRevenueCat();
   const { pushChangedFromStorage, data: syncData } = useSync(user);
   console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
@@ -484,7 +533,7 @@ function MainAppContent() {
     );
   }
 
-  return <AppNavigator user={user} signOut={handleSignOut} userStores={syncData.userStores} />;
+  return <AppNavigator user={user} signOut={handleSignOut} userStores={syncData.userStores} syncError={syncError} retrySync={retrySync} />;
 }
 
 export default function App() {
@@ -567,6 +616,7 @@ const styles = StyleSheet.create({
   bannerBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   bannerClose: { padding: 6 },
   bannerCloseText: { color: 'rgba(255,255,255,0.4)', fontSize: 18 },
+  syncBanner: { backgroundColor: '#B45309', borderBottomColor: 'rgba(255,255,255,0.25)' },
 
   chatFab: {
     position: 'absolute',
