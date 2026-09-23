@@ -16,6 +16,10 @@ const supabase = createClient(
 export function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Tracks whether the last cloud sync pull failed, so the UI can show a
+  // visible "couldn't sync -- retry" banner instead of the failure being a
+  // silent console.warn nobody sees (see syncPull below).
+  const [syncError, setSyncError] = useState(false);
 
   // ── Refresh token ────────────────────────────────────────────────────────────
   const tryRefreshToken = async (refreshToken) => {
@@ -98,6 +102,11 @@ export function useAuth() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'pull', userId, token })
       });
+      // A non-2xx response used to fall straight through to `result.data`
+      // being undefined, silently treated the same as "no data in the
+      // cloud" instead of "the pull itself failed" -- route every failure
+      // mode through the same catch() below.
+      if (!res.ok) throw new Error(`Sync pull failed: HTTP ${res.status}`);
       const result = await res.json();
       const d = result.data || {};
       await AsyncStorage.setItem('rv4_saved',            JSON.stringify(d.saved            || []));
@@ -110,9 +119,23 @@ export function useAuth() {
       await AsyncStorage.setItem('rv4_wallet_coupons',   JSON.stringify(d.coupons || d.wallet_coupons || []));
       await AsyncStorage.setItem('rv4_activities',       JSON.stringify(d.activities        || []));
       await AsyncStorage.setItem('fern_user_tier',       JSON.stringify(d.tier              || 'free'));
+      setSyncError(false);
     } catch (e) {
+      // Previously this warning was the ONLY trace of a failed sync --
+      // invisible to the person using the app, who'd just see whatever was
+      // already in AsyncStorage (often nothing, right after a reinstall)
+      // with no indication anything went wrong or that retrying might fix
+      // it. Track it in state instead so the UI can show a real banner.
       console.warn('Sync pull failed:', e.message);
+      setSyncError(true);
     }
+  };
+
+  // Lets the UI retry a failed sync without needing to know the user's id/
+  // token itself -- just calls syncPull again with whatever's currently
+  // signed in.
+  const retrySync = () => {
+    if (user) return syncPull(user.id, user.token);
   };
 
   // ── Sign in with REST API ───────────────────────────────────────────────────
@@ -297,5 +320,7 @@ export function useAuth() {
     signOut, 
     syncPull,
     tryRefreshToken,
+    syncError,
+    retrySync,
   };
 }
