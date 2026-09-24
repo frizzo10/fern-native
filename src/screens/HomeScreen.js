@@ -264,6 +264,7 @@ export default function HomeScreen({ user }) {
   const [walletCouponsLocal, setWalletCouponsLocal] = useState([]);
   const [browseCoupons, setBrowseCoupons] = useState([]);
   const [isLoadingBrowseCoupons, setIsLoadingBrowseCoupons] = useState(false);
+  const [browseCouponsLoadError, setBrowseCouponsLoadError] = useState(false);
   const [suggestedGroups, setSuggestedGroups] = useState([]);
   const [isLoadingSuggestedRecipes, setIsLoadingSuggestedRecipes] = useState(false);
   const [suggestedUpdatedAt, setSuggestedUpdatedAt] = useState(null);
@@ -1748,13 +1749,30 @@ export default function HomeScreen({ user }) {
     suggestedRecipes.viewRecipe({ ...entry.recipe, image: entry.image }, {});
   };
 
-  const openCouponWallet = () => {
-    setIsCouponWalletOpen(true);
+  // Pulled out of openCouponWallet so a failed load can be retried later
+  // (e.g. from the error state's Retry button) without re-running the
+  // "open the screen" side effect too.
+  const loadBrowseCoupons = () => {
     setIsLoadingBrowseCoupons(true);
     fetchAllCoupons()
-      .then((list) => setBrowseCoupons(normalizeCoupons(list)))
-      .catch((e) => console.log('[coupons] failed to fetch coupons', e?.message || e))
+      .then((list) => {
+        setBrowseCoupons(normalizeCoupons(list));
+        setBrowseCouponsLoadError(false);
+      })
+      .catch((e) => {
+        // Previously this was the ONLY trace of a failed load -- a
+        // console.log nobody sees, landing on the exact same empty list
+        // as "genuinely no coupons today". A real provider outage (e.g. a
+        // hit quota) looked identical to an ordinary quiet day.
+        console.log('[coupons] failed to fetch coupons', e?.message || e);
+        setBrowseCouponsLoadError(true);
+      })
       .finally(() => setIsLoadingBrowseCoupons(false));
+  };
+
+  const openCouponWallet = () => {
+    setIsCouponWalletOpen(true);
+    loadBrowseCoupons();
   };
 
   const openCouponDetail = (coupon) => {
@@ -2169,6 +2187,8 @@ export default function HomeScreen({ user }) {
             onBack={() => setIsCouponWalletOpen(false)}
             availableCoupons={browseCoupons}
             isLoadingAvailableCoupons={isLoadingBrowseCoupons}
+            browseLoadError={browseCouponsLoadError}
+            onRetryBrowseLoad={loadBrowseCoupons}
             walletCoupons={walletCouponsLocal}
             onAddToWallet={addCouponToWallet}
             onViewCoupon={openCouponDetail}
