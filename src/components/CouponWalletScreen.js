@@ -111,7 +111,7 @@ function CouponCard({ coupon, isInWallet, onPress, onAdd }) {
     );
 }
 
-export default function CouponWalletScreen({ onBack, availableCoupons, isLoadingAvailableCoupons, walletCoupons, onAddToWallet, onViewCoupon }) {
+export default function CouponWalletScreen({ onBack, availableCoupons, isLoadingAvailableCoupons, browseLoadError, onRetryBrowseLoad, walletCoupons, onAddToWallet, onViewCoupon }) {
     const { t } = useLanguage();
     const [activeTab, setActiveTab] = useState('browse'); // 'browse' | 'wallet'
     const [browseSubTab, setBrowseSubTab] = useState('store'); // 'store' | 'category'
@@ -207,6 +207,26 @@ export default function CouponWalletScreen({ onBack, availableCoupons, isLoading
                         <View style={styles.emptyState}>
                             <ActivityIndicator color="#173E20" />
                             <Text style={[styles.emptyText, { marginTop: 12 }]}>{t('coupon_wallet_loading')}</Text>
+                        </View>
+                    ) : browseLoadError && !groupedBrowse.length ? (
+                        // Distinct from the plain "no coupons" empty state below --
+                        // this specifically means the fetch itself failed (e.g. a
+                        // provider outage/quota limit), not that there's genuinely
+                        // nothing to show. Previously this failure was invisible:
+                        // a console.log nobody sees, landing on the exact same
+                        // empty state as "nothing available", so a real outage was
+                        // indistinguishable from an ordinary quiet day.
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyEmoji}>⚠️</Text>
+                            <Text style={styles.emptyTitle}>{t('coupon_wallet_load_error_title')}</Text>
+                            <Text style={styles.emptyText}>{t('coupon_wallet_load_error_desc')}</Text>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                style={styles.retryBtn}
+                                onPress={onRetryBrowseLoad}
+                            >
+                                <Text style={styles.retryBtnText}>{t('retry')}</Text>
+                            </TouchableOpacity>
                         </View>
                     ) : groupedBrowse.length ? (
                         groupedBrowse.map((group) => (
@@ -456,6 +476,18 @@ const styles = StyleSheet.create({
         fontSize: 12,
         lineHeight: 17,
         textAlign: 'center',
+    },
+    retryBtn: {
+        marginTop: 16,
+        backgroundColor: '#173E20',
+        borderRadius: 999,
+        paddingHorizontal: 22,
+        paddingVertical: 10,
+    },
+    retryBtnText: {
+        color: '#fff',
+        fontFamily: 'Jost-Bold',
+        fontSize: 13,
     },
     pageNumberRow: {
         marginTop: 20,
