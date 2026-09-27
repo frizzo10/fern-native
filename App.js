@@ -128,12 +128,13 @@ function SyncFailedBanner({ onRetry, onDismiss }) {
   );
 }
 
-function MoreSheet({ visible, onClose, onProfile, onCookbooks, onHelp, onLogout }) {
+function MoreSheet({ visible, onClose, onProfile, onCookbooks, onImport, onHelp, onLogout }) {
   const { t } = useLanguage();
 
   const items = [
     { key: 'profile', label: t('more_profile'), icon: 'person-outline', onPress: onProfile },
     { key: 'cookbooks', label: t('more_cookbooks'), icon: 'book-outline', onPress: onCookbooks },
+    { key: 'import', label: t('importNavText'), icon: 'download-outline', onPress: onImport },
     { key: 'help', label: t('more_help'), icon: 'help-circle-outline', onPress: onHelp },
     { key: 'logout', label: t('more_logout'), icon: 'log-out-outline', onPress: onLogout },
   ];
@@ -282,6 +283,10 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           setIsMoreOpen(false);
           navigationRef.current?.navigate('Recipes', { openTab: 'cookbooks', requestKey: String(Date.now()) });
         }}
+        onImport={() => {
+          setIsMoreOpen(false);
+          navigationRef.current?.navigate('Home', { openImport: true, requestKey: String(Date.now()) });
+        }}
         onHelp={() => {
           setIsMoreOpen(false);
           setIsHelpOpen(true);
@@ -390,7 +395,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
             tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} />
           }}
         >
-          {() => <HomeScreen user={user} />}
+          {({ route }) => <HomeScreen user={user} route={route} />}
         </Tab.Screen>
         <Tab.Screen
           name="Find"
