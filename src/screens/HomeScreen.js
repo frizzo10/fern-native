@@ -52,6 +52,7 @@ import { fetchMealPlan, generateMealPlan, saveMealPlan, regenerateMeal, fetchMea
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import SuggestedRecipesScreen from '../components/SuggestedRecipesScreen';
 import CouponWalletScreen from '../components/CouponWalletScreen';
+import ImportScreen from './ImportScreen';
 import CouponDetailModal from '../components/modals/CouponDetailModal';
 import { normalizeCoupons } from '../utils/couponNormalize';
 import { fetchAllCoupons } from '../services/couponsService';
@@ -108,10 +109,17 @@ function toPlainStoreName(label) {
     .trim();
 }
 
-export default function HomeScreen({ user }) {
+export default function HomeScreen({ user, route }) {
   const { t, locale, changeLanguage } = useLanguage();
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const navigation = useNavigation();
+
+  useEffect(() => {
+    if (route?.params?.openImport) {
+      setIsImportOpen(true);
+      navigation.setParams({ openImport: false });
+    }
+  }, [route?.params?.openImport]);
   const { open: openAccount } = useAccountModal();
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { tier, hasAccess } = useEntitlement();
@@ -265,6 +273,7 @@ export default function HomeScreen({ user }) {
   const [browseCoupons, setBrowseCoupons] = useState([]);
   const [isLoadingBrowseCoupons, setIsLoadingBrowseCoupons] = useState(false);
   const [browseCouponsLoadError, setBrowseCouponsLoadError] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [suggestedGroups, setSuggestedGroups] = useState([]);
   const [isLoadingSuggestedRecipes, setIsLoadingSuggestedRecipes] = useState(false);
   const [suggestedUpdatedAt, setSuggestedUpdatedAt] = useState(null);
@@ -2182,7 +2191,13 @@ export default function HomeScreen({ user }) {
         style={styles.screenScroll}
         contentContainerStyle={styles.screenContent}>
 
-        {isCouponWalletOpen ? (
+        {isImportOpen ? (
+          <ImportScreen
+            user={user}
+            onBack={() => setIsImportOpen(false)}
+            onImported={() => setIsImportOpen(false)}
+          />
+        ) : isCouponWalletOpen ? (
           <CouponWalletScreen
             onBack={() => setIsCouponWalletOpen(false)}
             availableCoupons={browseCoupons}
