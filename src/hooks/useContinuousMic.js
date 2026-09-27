@@ -185,66 +185,53 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
   }, [stopPlayback]);
 
   const sendChunk = useCallback(async (uri) => {
-    console.log(
-      'MULTIPART:',
-      FileSystem.FileSystemUploadType.MULTIPART
-    );
     if (!uri) return;
 
     try {
+      // Was calling api.groq.com directly with an EXPO_PUBLIC_ env var as
+      // the auth header. Two real problems with that: (1) EXPO_PUBLIC_*
+      // vars get bundled straight into the client binary, so the Groq key
+      // would be extractable by anyone who inspected the app -- API keys
+      // should never live client-side; and (2) if that var was never
+      // actually set for EAS builds (a real possibility given #1 is a
+      // reason NOT to set it), every request here sends "Bearer undefined"
+      // and Groq rejects it every time -- explaining "voice doesn't work
+      // on native" while the web app's voice, which already goes through
+      // this same transcribe function server-side, works fine.
+      //
+      // Fixed to route through the app's own transcribe function, matching
+      // the pattern already used correctly elsewhere in this file (GROQ_AI,
+      // GROQ_SPEAK both proxy through app.clickpickandcook.com rather than
+      // calling providers directly from the client).
+      const base64Audio = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
 
-      const result = await FileSystem.uploadAsync(
+      const response = await fetch('https://app.clickpickandcook.com/.netlify/functions/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio: base64Audio, mimeType: 'audio/mp4' }),
+      });
+      const data = await response.json();
+      if (data?.error) {
+        console.warn('[mic] transcribe error:', data.error);
+        onError?.(data.error);
+        return;
+      }
 
-        'https://api.groq.com/openai/v1/audio/transcriptions',
-
-        uri,
-
-        {
-
-          httpMethod: 'POST',
-
-          uploadType: FileSystem.FileSystemUploadType.MULTIPART,
-
-          fieldName: 'file',
-
-          mimeType: 'audio/mp4',
-
-          parameters: {
-
-            model: 'whisper-large-v3',
-
-            language: locale,
-
-          },
-
-          headers: {
-
-            Authorization: `Bearer ${process.env.EXPO_PUBLIC_GROQ_KEY}`,
-
-          },
-
-        }
-
-      );
-
-      console.log('[mic] upload result:', result.body);
-
-      const data = JSON.parse(result.body);
-
-      if (data?.text?.trim()) {
-        const transcript = data.text.trim();
-
+      const transcript = (data?.transcript || '').trim();
+      if (transcript) {
         onTranscript?.(transcript);
 
         if (autoSpeakReply) {
           await processFernReply(transcript);
         }
-
       }
 
     } catch (error) {
 
       console.warn('[mic] upload error:', error);
+      onError?.(error?.message || String(error));
 
     }
 
