@@ -423,17 +423,32 @@ export default function SearchScreen({ user }) {
             setSearchResults(recipes);
 
             // Emoji is just a placeholder until each recipe's real photo loads in.
-            recipes.forEach((recipe) => {
-                fetchRecipeImage(recipe.photoSearch || recipe.title, user?.token).then((url) => {
+            // Similar recipes often get the same top image back from get-recipe-image, so
+            // track URLs already used in this search and retry a repeat with a more
+            // specific query (title + cuisine) instead of showing the same photo twice.
+            const usedImageUrls = new Set();
+            const loadImageFor = async (recipe) => {
+                const category = recipe.category || '';
+                const queries = [
+                    recipe.photoSearch || recipe.title,
+                    `${recipe.title} ${category}`.trim(),
+                    `${recipe.title} ${category} food photo`.trim(),
+                ];
+                for (const query of queries) {
+                    const url = await fetchRecipeImage(query, user?.token);
                     if (!url) return;
+                    if (usedImageUrls.has(url)) continue;
+                    usedImageUrls.add(url);
                     setSearchResults((prev) => prev.map((item) => (
                         item.id === recipe.id ? { ...item, image: url, _cloudPhotos: [url] } : item
                     )));
                     setSelectedRecipe((prev) => (
                         prev && prev.id === recipe.id ? { ...prev, image: url, _cloudPhotos: [url] } : prev
                     ));
-                });
-            });
+                    return;
+                }
+            };
+            recipes.forEach((recipe) => { loadImageFor(recipe); });
         } catch (e) {
             console.warn('[ai-search] request failed', e);
             Alert.alert(t('search_failed'), t('ai_search_failed_desc'));
