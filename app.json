@@ -20,7 +20,7 @@
       "policy": "sdkVersion"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.clickpickandcook.app",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking — say recipes, add items, and plan your week without touching your phone.",
