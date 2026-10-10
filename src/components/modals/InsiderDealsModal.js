@@ -4,6 +4,7 @@ import {
     Image,
     Linking,
     Modal,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -180,9 +181,8 @@ const styles = StyleSheet.create({
     },
     title: {
         flex: 1,
-        fontFamily: 'serif',
+        fontFamily: 'Playfair-Bold',
         fontSize: 22,
-        fontWeight: '700',
         color: colors.forest,
     },
     closeBtn: {
@@ -211,13 +211,13 @@ const styles = StyleSheet.create({
         fontSize: 46,
     },
     emptyTitle: {
-        fontFamily: 'serif',
+        fontFamily: 'Playfair-Bold',
         fontSize: 20,
-        fontWeight: '700',
         color: colors.ink,
         textAlign: 'center',
     },
     mutedText: {
+        fontFamily: 'Jost-Regular',
         fontSize: 14,
         lineHeight: 21,
         color: colors.brown,
@@ -269,13 +269,13 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     dealTitle: {
-        fontFamily: 'serif',
+        fontFamily: 'Playfair-Bold',
         fontSize: 18,
-        fontWeight: '700',
         color: colors.ink,
         marginBottom: 6,
     },
     dealDescription: {
+        fontFamily: 'Jost-Regular',
         fontSize: 14,
         lineHeight: 20,
         color: colors.ink,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
         color: colors.brown,
     },
     codeText: {
-        fontFamily: 'Courier',
+        fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }),
         fontSize: 16,
         fontWeight: '900',
         letterSpacing: 1.5,
@@ -322,6 +322,7 @@ const styles = StyleSheet.create({
         marginTop: 6,
     },
     primaryBtnText: {
+        fontFamily: 'Jost-Bold',
         color: colors.sage,
         fontSize: 13,
         fontWeight: '800',

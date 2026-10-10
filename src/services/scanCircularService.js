@@ -1,4 +1,5 @@
 import { logApiResponse } from '../utils/apiLogger';
+import { archiveCircularScan } from '../utils/circularHistory';
 
 const SCAN_CIRCULAR_URL = 'https://app.clickpickandcook.com/.netlify/functions/scan-circular';
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
@@ -195,9 +196,14 @@ export async function scanCircular({ userId, base64, mimeType, token }) {
     console.log(`[api] scan-circular → store="${json?.store}" items=${Array.isArray(json?.items) ? json.items.length : 0}`);
 
     const items = Array.isArray(json?.items) ? json.items.map(normalizeItem) : [];
+    const storeName = json?.store ? String(json.store).trim() : '';
+
+    // Fire-and-forget: archive into per-store scan history (shown in the Scan
+    // Circular sheet). Never blocks or fails the scan itself.
+    archiveCircularScan({ storeName, items });
 
     return {
-        store: json?.store ? String(json.store).trim() : '',
+        store: storeName,
         validDates: json?.validDates ? String(json.validDates).trim() : '',
         headline: json?.headline ? String(json.headline).trim() : '',
         sectionsFound: Array.isArray(json?.sectionsFound) ? json.sectionsFound : [],

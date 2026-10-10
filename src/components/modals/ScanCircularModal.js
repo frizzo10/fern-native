@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Animated,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
+import CircularHistoryView from '../CircularHistoryView';
 
 const CATEGORY_EMOJI = [
     [/produce/i, '🥬'],
@@ -127,8 +128,10 @@ export default function ScanCircularModal({
 }) {
     const { t } = useLanguage();
     const { maybeAutoStart, tourKey, closeTour } = useTour();
+    const [showHistory, setShowHistory] = useState(false);
 
     useEffect(() => {
+        if (!visible) setShowHistory(false);
         if (visible) {
             maybeAutoStart('scan_circular');
         } else if (tourKey === 'scan_circular') {
@@ -167,7 +170,9 @@ export default function ScanCircularModal({
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={styles.scrollContent}
                     >
-                        {step === 'loading' ? (
+                        {showHistory ? (
+                            <CircularHistoryView onBack={() => setShowHistory(false)} />
+                        ) : step === 'loading' ? (
                             <View style={styles.loadingWrap}>
                                 <ActivityIndicator size="large" color="#173E20" />
                                 <Text style={styles.loadingTitle}>{t('scan_circular_loading_title')}</Text>
@@ -340,6 +345,10 @@ export default function ScanCircularModal({
                                 </View>
 
                                 <Text style={styles.privacyNote}>{t('scan_circular_privacy_note')}</Text>
+
+                                <TouchableOpacity style={styles.historyLinkBtn} activeOpacity={0.85} onPress={() => setShowHistory(true)}>
+                                    <Text style={styles.historyLinkText}>{`📜 ${t('scan_history_link')}`}</Text>
+                                </TouchableOpacity>
                             </View>
                         )}
                     </ScrollView>
@@ -350,6 +359,21 @@ export default function ScanCircularModal({
 }
 
 const styles = StyleSheet.create({
+    historyLinkBtn: {
+        alignSelf: 'center',
+        marginTop: 16,
+        paddingVertical: 10,
+        paddingHorizontal: 18,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: '#D6C8B4',
+        backgroundColor: '#F2ECE3',
+    },
+    historyLinkText: {
+        fontFamily: 'Jost-SemiBold',
+        fontSize: 13,
+        color: '#8C6B46',
+    },
     backdrop: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.28)',

@@ -1485,6 +1485,16 @@ export const translations = {
     insider_deals_code_label: "CODE",
     insider_deals_valid_through: "Valid through",
     insider_deals_get_deal_btn: "Get the Deal →",
+
+    // Scan History
+    scan_history_link: "Scan history",
+    scan_history_title: "Scan History",
+    scan_history_empty: "No scans yet",
+    scan_history_back: "Back",
+    scan_history_back_to_scan: "Back to scan",
+    scan_history_count_singular: "{count} scan",
+    scan_history_count_plural: "{count} scans",
+    scan_history_items: "{count} items",
   },
   es: {
     // Navigation / Header
@@ -2964,5 +2974,15 @@ export const translations = {
     insider_deals_code_label: "CÓDIGO",
     insider_deals_valid_through: "Válida hasta",
     insider_deals_get_deal_btn: "Obtener la oferta →",
+
+    // Scan History
+    scan_history_link: "Historial de escaneos",
+    scan_history_title: "Historial de Escaneos",
+    scan_history_empty: "Aún no hay escaneos",
+    scan_history_back: "Atrás",
+    scan_history_back_to_scan: "Volver a escanear",
+    scan_history_count_singular: "{count} escaneo",
+    scan_history_count_plural: "{count} escaneos",
+    scan_history_items: "{count} artículos",
   }
 };
