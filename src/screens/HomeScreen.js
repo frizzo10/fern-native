@@ -60,6 +60,7 @@ import FamilyWeeklyReviewModal from '../components/modals/FamilyWeeklyReviewModa
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import FamilyRecipeVaultModal from '../components/modals/FamilyRecipeVaultModal';
 import InsiderDealsModal from '../components/modals/InsiderDealsModal';
+import PersonalShopperModal from '../components/modals/PersonalShopperModal';
 import { buildWeeklyReviewData } from '../utils/buildWeeklyReviewData';
 import { buildRollingWeekDateKeys, daysBetween, dateToKey, formatDayLabel, normalizeSlot } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
@@ -179,6 +180,7 @@ export default function HomeScreen({ user, route }) {
   const [isEventPlannerOpen, setIsEventPlannerOpen] = useState(false);
   const [isFamilyVaultOpen, setIsFamilyVaultOpen] = useState(false);
   const [isInsiderDealsOpen, setIsInsiderDealsOpen] = useState(false);
+  const [isPersonalShopperOpen, setIsPersonalShopperOpen] = useState(false);
   const [isLeftoverMagicOpen, setIsLeftoverMagicOpen] = useState(false);
   const [leftoverIngredientsInput, setLeftoverIngredientsInput] = useState('');
   const [isLeftoverSearching, setIsLeftoverSearching] = useState(false);
@@ -2293,7 +2295,7 @@ export default function HomeScreen({ user, route }) {
                             : label === 'Wine Pairing'
                               ? () => setIsWineModalOpen(true)
                               : label === 'Personal Shopper'
-                                ? () => navigation.navigate('Shopping')
+                                ? () => setIsPersonalShopperOpen(true)
                                 : label === 'Weekly Nutrition'
                                   ? () => setIsNutritionTrackerOpen(true)
                                   : undefined
@@ -2781,6 +2783,16 @@ export default function HomeScreen({ user, route }) {
         data={data}
         pushAllFromStorage={pushAllFromStorage}
         pull={pull}
+      />
+
+      <PersonalShopperModal
+        visible={isPersonalShopperOpen}
+        onClose={() => setIsPersonalShopperOpen(false)}
+        user={user}
+        data={data}
+        pushChangedFromStorage={pushChangedFromStorage}
+        pull={pull}
+        navigation={navigation}
       />
 
       <InsiderDealsModal
