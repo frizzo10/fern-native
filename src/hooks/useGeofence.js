@@ -21,6 +21,12 @@ export function useGeofence({ stores = [], onArrival }) {
   const [isMonitoring, setIsMonitoring] = useState(false);
   const lastNotifiedRef = useRef({});
   const intervalRef = useRef(null);
+  // Always-current copies, so the 2-minute timer never uses a stale (e.g. empty)
+  // store list captured when monitoring first started.
+  const storesRef = useRef(stores);
+  const onArrivalRef = useRef(onArrival);
+  storesRef.current = stores;
+  onArrivalRef.current = onArrival;
 
   // Request permissions
   const requestPermissions = useCallback(async () => {
@@ -43,6 +49,7 @@ export function useGeofence({ stores = [], onArrival }) {
 
   // Check if user is near any store
   const checkGeofence = useCallback(async () => {
+    const stores = storesRef.current || [];
     if (!stores.length) return;
     try {
       const pos = await Location.getCurrentPositionAsync({
@@ -59,7 +66,7 @@ export function useGeofence({ stores = [], onArrival }) {
 
         if (dist <= GEOFENCE_RADIUS_M && Date.now() - lastNotified > COOLDOWN_MS) {
           lastNotifiedRef.current[storeKey] = Date.now();
-          onArrival?.(store, Math.round(dist));
+          onArrivalRef.current?.(store, Math.round(dist));
 
           // Send push notification
           Notifications.scheduleNotificationAsync({
@@ -75,7 +82,7 @@ export function useGeofence({ stores = [], onArrival }) {
     } catch (e) {
       console.warn('[geofence] GPS error:', e.message);
     }
-  }, [stores, onArrival]);
+  }, []);
 
   // Start monitoring
   const start = useCallback(async () => {
@@ -83,6 +90,7 @@ export function useGeofence({ stores = [], onArrival }) {
     if (!granted) return;
 
     checkGeofence(); // immediate check
+    clearInterval(intervalRef.current);
     intervalRef.current = setInterval(checkGeofence, 2 * 60 * 1000); // every 2 min
     setIsMonitoring(true);
   }, [requestPermissions, checkGeofence]);
@@ -96,6 +104,13 @@ export function useGeofence({ stores = [], onArrival }) {
   useEffect(() => {
     return () => clearInterval(intervalRef.current);
   }, []);
+
+  // Stores usually finish syncing after monitoring has started — check again
+  // as soon as the list changes instead of waiting for the next 2-minute tick.
+  const storesKey = (stores || []).map((s) => `${s.name}:${s.lat}:${s.lon}`).join('|');
+  useEffect(() => {
+    if (isMonitoring && storesKey) checkGeofence();
+  }, [storesKey, isMonitoring, checkGeofence]);
 
   return { permissionStatus, isMonitoring, start, stop, checkGeofence };
 }
