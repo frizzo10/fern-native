@@ -7,6 +7,7 @@ import {
   Modal,
   Platform,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -17,6 +18,7 @@ import { getDifficultyLevel } from '../utils/recipeNormalize';
 import useLanguage from '../hooks/useLanguage';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { uploadPhoto } from '../services/uploadPhotoService';
+import { createRecipeShareLink } from '../services/shareService';
 import ScaleRecipeModal from './modals/ScaleRecipeModal';
 import RecipeWinePairingModal from './modals/RecipeWinePairingModal';
 import RecipePlatingCoachModal from './modals/RecipePlatingCoachModal';
@@ -53,6 +55,7 @@ export default function RecipeDetailModal({
   const [isSaveToCookbookVisible, setIsSaveToCookbookVisible] = useState(false);
   const [isSavingToCookbook, setIsSavingToCookbook] = useState(false);
   const [substitutionIngredient, setSubstitutionIngredient] = useState(null);
+  const [isSharing, setIsSharing] = useState(false);
 
   const handleClose = () => {
     setIsScaleModalVisible(false);
@@ -64,6 +67,23 @@ export default function RecipeDetailModal({
     setEditForm(null);
     setIsSaveToCookbookVisible(false);
     onClose();
+  };
+
+  // Creates a hosted share link (same `share` function the web app uses) and
+  // hands it to the OS share sheet. No second <Modal> here on purpose —
+  // nesting one inside this Modal is what broke touch handling on iOS before.
+  const handleShareRecipe = async () => {
+    if (isSharing || !recipe) return;
+    setIsSharing(true);
+    try {
+      const url = await createRecipeShareLink({ recipe, senderName: user?.name || '', message: '' });
+      await Share.share({ message: t('share_recipe_message', { title: recipe.title, url }) });
+    } catch (e) {
+      console.warn('Share recipe failed:', e);
+      Alert.alert(t('share_link_error_title'), t('share_link_error'));
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const handleOpenSaveToCookbook = () => {
@@ -493,7 +513,15 @@ export default function RecipeDetailModal({
                         </>
                       ) : null}
                     </TouchableOpacity>
-                    {/* <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}><Text style={styles.overlayBottomBtnTextLight}>{t('share_sparkle_btn')}</Text></TouchableOpacity> */}
+                    <TouchableOpacity
+                      style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen, isSharing ? styles.disabledBtn : null]}
+                      onPress={handleShareRecipe}
+                      disabled={isSharing}
+                    >
+                      <Text style={styles.overlayBottomBtnTextLight}>
+                        {isSharing ? t('share_link_creating') : t('share_sparkle_btn')}
+                      </Text>
+                    </TouchableOpacity>
                     <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]} onPress={onAddToList}>
                       <Text style={styles.overlayBottomBtnTextLight}>{t('list_btn')}</Text>
                     </TouchableOpacity>

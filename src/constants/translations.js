@@ -1495,6 +1495,23 @@ export const translations = {
     scan_history_count_singular: "{count} scan",
     scan_history_count_plural: "{count} scans",
     scan_history_items: "{count} items",
+
+    // Share
+    share_cookbook_title: "Share: {title}",
+    share_cookbook_empty_title: "Nothing to share yet",
+    share_cookbook_empty_desc: "Add some recipes to this cookbook first!",
+    share_cookbook_message: "{title} — {count} recipes: {url}",
+    share_recipe_message: "{title}: {url}",
+    share_link_note_label: "PERSONAL NOTE (OPTIONAL)",
+    share_link_note_placeholder: "Made these for Sunday dinner!",
+    share_link_name_label: "YOUR NAME (OPTIONAL)",
+    share_link_name_placeholder: "Your name",
+    share_link_create_btn: "Generate Share Link ✦",
+    share_link_creating: "Creating link…",
+    share_link_ready: "Link ready",
+    share_link_share_btn: "Share…",
+    share_link_error_title: "Couldn't create link",
+    share_link_error: "Something went wrong creating the share link. Please try again.",
   },
   es: {
     // Navigation / Header
@@ -2984,5 +3001,22 @@ export const translations = {
     scan_history_count_singular: "{count} escaneo",
     scan_history_count_plural: "{count} escaneos",
     scan_history_items: "{count} artículos",
+
+    // Share
+    share_cookbook_title: "Compartir: {title}",
+    share_cookbook_empty_title: "Aún no hay nada para compartir",
+    share_cookbook_empty_desc: "¡Primero agrega algunas recetas a este recetario!",
+    share_cookbook_message: "{title} — {count} recetas: {url}",
+    share_recipe_message: "{title}: {url}",
+    share_link_note_label: "NOTA PERSONAL (OPCIONAL)",
+    share_link_note_placeholder: "¡Las hice para la cena del domingo!",
+    share_link_name_label: "TU NOMBRE (OPCIONAL)",
+    share_link_name_placeholder: "Tu nombre",
+    share_link_create_btn: "Generar enlace para compartir ✦",
+    share_link_creating: "Creando enlace…",
+    share_link_ready: "Enlace listo",
+    share_link_share_btn: "Compartir…",
+    share_link_error_title: "No se pudo crear el enlace",
+    share_link_error: "Algo salió mal al crear el enlace. Inténtalo de nuevo.",
   }
 };
