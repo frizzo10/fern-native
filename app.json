@@ -13,8 +13,7 @@
     },
     "updates": {
       "enabled": true,
-      "fallbackToCacheTimeout": 0,
-      "url": "https://u.expo.dev/fern-native"
+      "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": {
       "policy": "sdkVersion"
@@ -81,9 +80,7 @@
       ]
     ],
     "extra": {
-      "eas": {
-        "projectId": "fern-native"
-      }
+      "eas": {}
     }
   }
 }
