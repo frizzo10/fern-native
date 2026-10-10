@@ -895,6 +895,9 @@ export const translations = {
     was_prefix_label: "was:",
     now_prefix_label: "now:",
     scale_recipe_error: "Couldn't scale this recipe right now. Please try again.",
+    substitution_title: "Substitutions",
+    substitution_error: "Couldn't get substitutions right now. Please try again.",
+    substitution_empty: "No substitutions found for this ingredient.",
 
     // Recipes / Search Screens — delete & error alerts
     delete_recipe_failed_title: "Delete failed",
@@ -2392,6 +2395,9 @@ export const translations = {
     was_prefix_label: "antes:",
     now_prefix_label: "ahora:",
     scale_recipe_error: "No se pudo escalar esta receta en este momento. Inténtalo de nuevo.",
+    substitution_title: "Sustituciones",
+    substitution_error: "No se pudieron obtener sustituciones en este momento. Inténtalo de nuevo.",
+    substitution_empty: "No se encontraron sustituciones para este ingrediente.",
 
     // Pantallas de Recetas / Búsqueda — alertas de eliminación y error
     delete_recipe_failed_title: "Error al eliminar",

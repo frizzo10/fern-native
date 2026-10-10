@@ -31,6 +31,7 @@ export const FEATURE_TIERS = {
   family_vault: TIERS.PRO,
   nutrition: TIERS.PRO,
   weekly_nutrition: TIERS.PRO,
+  ingredient_substitutions: TIERS.PRO,
 
   // Pro Max
   charcuterie: TIERS.PRO_MAX,

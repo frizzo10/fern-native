@@ -22,6 +22,7 @@ import RecipeWinePairingModal from './modals/RecipeWinePairingModal';
 import RecipePlatingCoachModal from './modals/RecipePlatingCoachModal';
 import CookModeModal from './modals/CookModeModal';
 import SaveToCookbookModal from './modals/SaveToCookbookModal';
+import IngredientSubstitutionModal from './modals/IngredientSubstitutionModal';
 
 export default function RecipeDetailModal({
   recipe,
@@ -51,12 +52,14 @@ export default function RecipeDetailModal({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSaveToCookbookVisible, setIsSaveToCookbookVisible] = useState(false);
   const [isSavingToCookbook, setIsSavingToCookbook] = useState(false);
+  const [substitutionIngredient, setSubstitutionIngredient] = useState(null);
 
   const handleClose = () => {
     setIsScaleModalVisible(false);
     setIsWinePairingVisible(false);
     setIsPlatingCoachVisible(false);
     setIsCookModeVisible(false);
+    setSubstitutionIngredient(null);
     setIsEditMode(false);
     setEditForm(null);
     setIsSaveToCookbookVisible(false);
@@ -378,7 +381,9 @@ export default function RecipeDetailModal({
                     <View style={styles.overlayIngredientsList}>
                       {recipe.ingredients.map((ingredient, idx) => (
                         <View key={`${recipe.id}-ing-${idx}`} style={styles.overlayIngredientItem}>
-                          <Text style={styles.overlayIngredientText}>- {ingredient}</Text>
+                          <TouchableOpacity activeOpacity={0.6} onPress={() => setSubstitutionIngredient(ingredient)}>
+                            <Text style={styles.overlayIngredientText}>- {ingredient}</Text>
+                          </TouchableOpacity>
                         </View>
                       ))}
                     </View>
@@ -531,6 +536,14 @@ export default function RecipeDetailModal({
           recipe={recipe}
           token={user?.token}
           onClose={() => setIsScaleModalVisible(false)}
+        />
+
+        <IngredientSubstitutionModal
+          visible={!!substitutionIngredient && !!recipe}
+          recipe={recipe}
+          ingredient={substitutionIngredient}
+          token={user?.token}
+          onClose={() => setSubstitutionIngredient(null)}
         />
 
         <RecipeWinePairingModal
