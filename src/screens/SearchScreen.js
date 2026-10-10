@@ -423,11 +423,11 @@ export default function SearchScreen({ user }) {
             setSearchResults(recipes);
 
             // Emoji is just a placeholder until each recipe's real photo loads in.
-            // Similar recipes often get the same top image back from get-recipe-image, so
-            // track URLs already used in this search and retry a repeat with a more
-            // specific query (title + cuisine) instead of showing the same photo twice.
+            // Each recipe sends its position as `index` so get-recipe-image picks a different
+            // Pexels result per recipe. As a backup, track URLs already used in this search
+            // and retry a repeat with a more specific query (title + cuisine).
             const usedImageUrls = new Set();
-            const loadImageFor = async (recipe) => {
+            const loadImageFor = async (recipe, index) => {
                 const category = recipe.category || '';
                 const queries = [
                     recipe.photoSearch || recipe.title,
@@ -435,7 +435,7 @@ export default function SearchScreen({ user }) {
                     `${recipe.title} ${category} food photo`.trim(),
                 ];
                 for (const query of queries) {
-                    const url = await fetchRecipeImage(query, user?.token);
+                    const url = await fetchRecipeImage(query, user?.token, index);
                     if (!url) return;
                     if (usedImageUrls.has(url)) continue;
                     usedImageUrls.add(url);
@@ -448,7 +448,7 @@ export default function SearchScreen({ user }) {
                     return;
                 }
             };
-            recipes.forEach((recipe) => { loadImageFor(recipe); });
+            recipes.forEach((recipe, index) => { loadImageFor(recipe, index); });
         } catch (e) {
             console.warn('[ai-search] request failed', e);
             Alert.alert(t('search_failed'), t('ai_search_failed_desc'));
