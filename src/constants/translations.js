@@ -1469,6 +1469,22 @@ export const translations = {
     tour_end_to_end_step5: "Step four: your shopping list is ready. Sale items are highlighted in green so you know exactly what you're saving. You can take it to the grocery store yourself, or tap Send to Instacart and order everything in seconds — your choice.",
     tour_end_to_end_step6: "Step five: cook on your Echo Show. Say Alexa open Fern and your planned meals are right there. Say cook it and Fern walks you through every step hands-free — ingredients highlighted, timers set automatically. And when you arrive at the grocery store, Fern's geo-fencing detects your location and opens your shopping list automatically. That's Fern — from scan to dinner, start to finish.",
     account_tour_end_to_end: "End to End",
+
+    // Insider Deals
+    tool_insider_deals: "Insider Deals",
+    insider_deals_title: "Pro Insider Deals",
+    insider_deals_loading: "Loading exclusive deals…",
+    insider_deals_load_error: "Could not load deals.",
+    insider_deals_retry_btn: "Try again",
+    insider_deals_pro_only_title: "Pro Insider Deals",
+    insider_deals_pro_only_desc: "Exclusive access to brand partnerships and premium offers, available only to Pro members. If you just subscribed, reopen the app and try again in a moment.",
+    insider_deals_empty_title: "Deals coming soon",
+    insider_deals_empty_desc: "We're being selective about who we partner with. As a Pro member, you'll be first to know when exclusive deals drop.",
+    insider_deals_empty_notify: "We'll notify you the moment the first partnership launches.",
+    insider_deals_featured: "Featured",
+    insider_deals_code_label: "CODE",
+    insider_deals_valid_through: "Valid through",
+    insider_deals_get_deal_btn: "Get the Deal →",
   },
   es: {
     // Navigation / Header
@@ -2932,5 +2948,21 @@ export const translations = {
     account_tour_scan_circular: "Scan a Circular",
     account_tour_start: "Start",
     account_tour_replay: "Replay",
+
+    // Insider Deals
+    tool_insider_deals: "Ofertas Exclusivas",
+    insider_deals_title: "Ofertas Exclusivas Pro",
+    insider_deals_loading: "Cargando ofertas exclusivas…",
+    insider_deals_load_error: "No se pudieron cargar las ofertas.",
+    insider_deals_retry_btn: "Intentar de nuevo",
+    insider_deals_pro_only_title: "Ofertas Exclusivas Pro",
+    insider_deals_pro_only_desc: "Acceso exclusivo a alianzas con marcas y ofertas premium, disponible solo para miembros Pro. Si acabas de suscribirte, vuelve a abrir la app e inténtalo de nuevo en un momento.",
+    insider_deals_empty_title: "Ofertas muy pronto",
+    insider_deals_empty_desc: "Somos selectivos con las marcas con las que nos asociamos. Como miembro Pro, serás de los primeros en saber cuándo lleguen las ofertas exclusivas.",
+    insider_deals_empty_notify: "Te avisaremos en cuanto se lance la primera alianza.",
+    insider_deals_featured: "Destacada",
+    insider_deals_code_label: "CÓDIGO",
+    insider_deals_valid_through: "Válida hasta",
+    insider_deals_get_deal_btn: "Obtener la oferta →",
   }
 };
