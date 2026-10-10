@@ -17,10 +17,8 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "channel": "production"
     }
-  },
-  "update": {
-    "channel": "production"
   }
 }
