@@ -54,6 +54,34 @@ function resolveCoverUri(cover) {
   return `data:image/jpeg;base64,${trimmed.replace(/\s/g, '')}`;
 }
 
+// Same 12 binding colors (and the same pick rule) as the web app's
+// SPINE_COLORS / getSpineColor. On the web a book only gets one of these when
+// it has no saved colorId (and no cover photo); books with a colorId fall back
+// to the default tan spine, so native does the same.
+const SPINE_PALETTE = [
+  { bg: '#A63145', dark: '#5C1520', tc: '#A8D5A2' },
+  { bg: '#2E6040', dark: '#0F2A14', tc: '#E8C97A' },
+  { bg: '#1A3A60', dark: '#050E1C', tc: '#F0D88A' },
+  { bg: '#9B6A10', dark: '#3A2400', tc: '#F5E8B8' },
+  { bg: '#6A2A7A', dark: '#1F0A28', tc: '#F5D8E8' },
+  { bg: '#2A6060', dark: '#0A2020', tc: '#F0E8C0' },
+  { bg: '#7A3A10', dark: '#1F0D03', tc: '#A8D5A2' },
+  { bg: '#3D5260', dark: '#1A222A', tc: '#E8DCC0' },
+  { bg: '#E8D9B8', dark: '#C4B696', tc: '#5C3A1E' },
+  { bg: '#1A1A1A', dark: '#000000', tc: '#7DBD6A' },
+  { bg: '#9B3A20', dark: '#3A1208', tc: '#F5D8B8' },
+  { bg: '#5A5A30', dark: '#2A2A15', tc: '#E8D8A8' },
+];
+
+function getSpinePalette(id) {
+  const key = String(id || '');
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) & 0xFFFFFF;
+  }
+  return SPINE_PALETTE[Math.abs(hash) % SPINE_PALETTE.length];
+}
+
 // Deterministic per-book pseudo-random size so the shelf reads as a real
 // mixed bookshelf (varied widths/heights) instead of uniform tiles, while
 // staying stable across re-renders — re-rolling on every render would make
@@ -143,6 +171,7 @@ function normalizeBook(item, index) {
     subtitle,
     cover,
     color,
+    colorId: pickFirst(item?.colorId, null),
     recipeCount,
     recipeIds,
   };
@@ -1086,6 +1115,7 @@ export default function RecipesScreen({ user }) {
                   >
                     {booksWithMatchedCounts.map((book) => {
                       const { width: spineWidth, height: spineHeight, titleWidth } = getBookSpineSize(book.id);
+                      const spinePalette = !book.cover && !book.colorId ? getSpinePalette(book.id) : null;
                       return (
                         <TouchableOpacity
                           key={book.id}
@@ -1094,7 +1124,11 @@ export default function RecipesScreen({ user }) {
                             setSelectedBook(book);
                             setQuery('');
                           }}
-                          style={[styles.bookSpine, { width: spineWidth, height: spineHeight }]}
+                          style={[
+                            styles.bookSpine,
+                            { width: spineWidth, height: spineHeight },
+                            spinePalette ? { backgroundColor: spinePalette.bg, borderColor: spinePalette.dark } : null,
+                          ]}
                         >
                           {book.cover ? (
                             <View style={[styles.bookSpineCover, { width: spineWidth, height: spineHeight }]}>
@@ -1116,7 +1150,7 @@ export default function RecipesScreen({ user }) {
                             <View style={styles.bookRuleTop} />
 
                             <View style={styles.bookLabelWrap}>
-                              <Text numberOfLines={1} style={[styles.bookSpineTitle, { width: titleWidth }]}>{book.title}</Text>
+                              <Text numberOfLines={1} style={[styles.bookSpineTitle, { width: titleWidth }, spinePalette ? { color: spinePalette.tc } : null]}>{book.title}</Text>
                             </View>
 
                             <View style={styles.bookRuleBottom} />
