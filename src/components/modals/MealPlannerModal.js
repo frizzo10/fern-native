@@ -168,6 +168,9 @@ export default function MealPlannerModal({
                         <View style={styles.loadingState}>
                             <Text style={styles.loadingEmoji}>🗒️</Text>
                             <Text style={styles.loadingText}>{t('meal_planner_empty')}</Text>
+                            <TouchableOpacity style={styles.emptyGenerateBtn} activeOpacity={0.85} onPress={() => setShowPreferences(true)}>
+                                <Text style={styles.emptyGenerateBtnText}>{`✨ ${t('meal_planner_prefs_generate_btn')}`}</Text>
+                            </TouchableOpacity>
                         </View>
                     ) : (
                         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -347,6 +350,24 @@ const styles = StyleSheet.create({
         color: 'rgb(216, 109, 51)',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
+    },
+    // Shown on the empty state (no saved plan yet) so a first plan can be
+    // generated from here; opens the same Preferences screen as the button
+    // that appears once a plan exists.
+    emptyGenerateBtn: {
+        marginTop: 22,
+        borderRadius: 12,
+        backgroundColor: colors.forest,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 28,
+    },
+    emptyGenerateBtnText: {
+        color: '#FFFFFF',
+        fontFamily: 'Jost-Bold',
+        fontSize: 14,
+        letterSpacing: 1,
     },
     regenerateBtn: {
         marginTop: 10,
