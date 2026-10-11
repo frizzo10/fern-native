@@ -262,6 +262,9 @@ export default function HomeScreen({ user, route }) {
   const [isGeneratingMealPlan, setIsGeneratingMealPlan] = useState(false);
   const [selectedMealPlannerMeal, setSelectedMealPlannerMeal] = useState(null);
   const [isSwappingMeal, setIsSwappingMeal] = useState(false);
+  // After a swap: null | 'saved' | 'failed' — shown on the meal detail so the
+  // (automatic) save of the swapped plan is visible.
+  const [mealSwapSaveStatus, setMealSwapSaveStatus] = useState(null);
   const [mealPlannerShoppingList, setMealPlannerShoppingList] = useState([]);
   const [isLoadingMealPlannerShoppingList, setIsLoadingMealPlannerShoppingList] = useState(false);
   const [isSavingMealPlannerShoppingList, setIsSavingMealPlannerShoppingList] = useState(false);
@@ -1920,6 +1923,7 @@ export default function HomeScreen({ user, route }) {
   });
 
   const handleSelectMealPlannerMeal = (meal, dayLabel, dayIndex) => {
+    setMealSwapSaveStatus(null);
     setSelectedMealPlannerMeal({ ...meal, dayLabel, dayIndex });
   };
 
@@ -1928,6 +1932,7 @@ export default function HomeScreen({ user, route }) {
 
     const { dayIndex, slot, id, dayLabel } = selectedMealPlannerMeal;
     setIsSwappingMeal(true);
+    setMealSwapSaveStatus(null);
     try {
       const newMeal = await regenerateMeal({
         userId: user?.id,
@@ -1959,7 +1964,12 @@ export default function HomeScreen({ user, route }) {
         token: user?.token,
         days: nextDays,
         preferences: mealPlannerPreferences,
-      }).catch((e) => console.log('[meal-planner] save after swap failed', e?.message || e));
+      })
+        .then((ok) => setMealSwapSaveStatus(ok ? 'saved' : 'failed'))
+        .catch((e) => {
+          console.log('[meal-planner] save after swap failed', e?.message || e);
+          setMealSwapSaveStatus('failed');
+        });
     } catch (e) {
       console.log('[meal-planner] swap meal failed', e?.message || e);
       Alert.alert(t('save_failed'), t('save_error_desc'));
@@ -2751,6 +2761,7 @@ export default function HomeScreen({ user, route }) {
         onCloseMealDetail={() => setSelectedMealPlannerMeal(null)}
         onSwapMeal={handleSwapMealPlannerMeal}
         isSwapping={isSwappingMeal}
+        swapSaveStatus={mealSwapSaveStatus}
       />
 
       <AlexaSkillModal

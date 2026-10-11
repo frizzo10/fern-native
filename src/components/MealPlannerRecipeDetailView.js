@@ -8,7 +8,7 @@ import MealPlannerImage from './MealPlannerImage';
 // state" alongside the day pager/Preferences), not its own Modal — presenting
 // a second RN Modal on top of one that's already up crashes on iOS
 // ("already presenting <RCTFabricModalHostViewController>").
-export default function MealPlannerRecipeDetailView({ meal, onBack, onSwap, isSwapping }) {
+export default function MealPlannerRecipeDetailView({ meal, onBack, onSwap, isSwapping, swapSaveStatus }) {
     const { t } = useLanguage();
 
     if (!meal) return null;
@@ -61,6 +61,12 @@ export default function MealPlannerRecipeDetailView({ meal, onBack, onSwap, isSw
                 </View>
             ) : null}
 
+            {!isSwapping && swapSaveStatus ? (
+                <Text style={[styles.saveStatus, swapSaveStatus === 'failed' ? styles.saveStatusFailed : null]}>
+                    {swapSaveStatus === 'saved' ? `✓ ${t('meal_planner_swap_saved')}` : t('meal_planner_swap_save_failed')}
+                </Text>
+            ) : null}
+
             <TouchableOpacity
                 style={[styles.swapBtn, isSwapping ? styles.swapBtnDisabled : null]}
                 activeOpacity={0.85}
@@ -82,6 +88,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 18,
         paddingTop: 16,
         paddingBottom: 30,
+    },
+    saveStatus: {
+        marginTop: 16,
+        textAlign: 'center',
+        color: '#3E7A38',
+        fontFamily: 'Jost-Bold',
+        fontSize: 13,
+    },
+    saveStatusFailed: {
+        color: '#B3261E',
     },
     backLink: {
         alignSelf: 'flex-start',

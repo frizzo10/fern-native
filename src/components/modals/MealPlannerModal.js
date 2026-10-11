@@ -75,6 +75,7 @@ export default function MealPlannerModal({
     onCloseMealDetail,
     onSwapMeal,
     isSwapping,
+    swapSaveStatus,
 }) {
     const { t } = useLanguage();
     const { maybeAutoStart, tourKey, closeTour } = useTour();
@@ -153,6 +154,7 @@ export default function MealPlannerModal({
                             onBack={onCloseMealDetail}
                             onSwap={onSwapMeal}
                             isSwapping={isSwapping}
+                            swapSaveStatus={swapSaveStatus}
                         />
                     ) : showShoppingList ? (
                         <MealPlannerShoppingListView
