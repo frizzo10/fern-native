@@ -17,6 +17,7 @@ import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
 import MealPlannerPreferencesScreen from '../MealPlannerPreferencesScreen';
 import MealPlannerRecipeDetailView from '../MealPlannerRecipeDetailView';
+import MealPlannerImage from '../MealPlannerImage';
 import MealPlannerShoppingListView from '../MealPlannerShoppingListView';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -27,7 +28,7 @@ const SHEET_PADDING = 18;
 // day's card visible after each swipe.
 const PAGE_WIDTH = SCREEN_WIDTH;
 
-function MealCard({ meal, onPress }) {
+function MealCard({ meal, onPress, photoIndex }) {
     const { t } = useLanguage();
     return (
         <TouchableOpacity style={styles.mealCard} activeOpacity={0.85} onPress={() => onPress(meal)}>
@@ -39,7 +40,12 @@ function MealCard({ meal, onPress }) {
             </View>
 
             <View style={styles.mealTitleRow}>
-                <Text style={styles.mealEmoji}>{meal.emoji}</Text>
+                <MealPlannerImage
+                    title={meal.title}
+                    index={photoIndex}
+                    variant="thumb"
+                    fallback={<Text style={styles.mealEmoji}>{meal.emoji}</Text>}
+                />
                 <Text style={styles.mealTitle} numberOfLines={2}>{meal.title}</Text>
                 <Text style={styles.mealChevron}>{'→'}</Text>
             </View>
@@ -213,10 +219,11 @@ export default function MealPlannerModal({
                                             {t('meal_planner_day_of', { day: dayIndex + 1, total: days.length })}
                                         </Text>
 
-                                        {day.meals.map((meal) => (
+                                        {day.meals.map((meal, mealIndex) => (
                                             <MealCard
                                                 key={meal.id}
                                                 meal={meal}
+                                                photoIndex={dayIndex * 3 + mealIndex}
                                                 onPress={(selectedMeal) => onSelectMeal(selectedMeal, day.dayLabel, dayIndex)}
                                             />
                                         ))}

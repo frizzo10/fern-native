@@ -157,7 +157,7 @@ See "Local-first sync architecture" above for the full pull/push shape. Payload 
 
 ### `get-recipe-image`
 
-Payload: `{ query, token }`. Response: `{ url }` (returns `null` silently on any error — callers treat a missing image as normal, not exceptional). Called from `src/utils/recipeImage.js`'s `fetchRecipeImage`, used by `eventPlannerService.js`, `useAiRecipeCollection.js`, `SearchScreen.js`, `HomeScreen.js`, `RecipesScreen.js`, `EventPlanResultModal.js` (dead), `TwentyMinDinnerModal.js`, `EventPlannerIntakeModal.js`.
+Payload: `{ query, token }`. Response: `{ url }` (returns `null` silently on any error — callers treat a missing image as normal, not exceptional). Called from `src/utils/recipeImage.js`'s `fetchRecipeImage`, used by `eventPlannerService.js`, `useAiRecipeCollection.js`, `SearchScreen.js`, `HomeScreen.js`, `RecipesScreen.js`, `EventPlanResultModal.js` (dead), `TwentyMinDinnerModal.js`, `EventPlannerIntakeModal.js`, `MealPlannerImage.js` (the AI Meal Planner's per-meal photos on the day cards and detail view — looked up by meal title, remembered for the session, emoji fallback; mirrors the web planner).
 
 ### `upload-photo`
 

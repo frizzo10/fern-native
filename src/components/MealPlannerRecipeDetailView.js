@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
+import MealPlannerImage from './MealPlannerImage';
 
 // Rendered inline inside MealPlannerModal's single Modal (as another "view
 // state" alongside the day pager/Preferences), not its own Modal — presenting
@@ -20,7 +21,11 @@ export default function MealPlannerRecipeDetailView({ meal, onBack, onSwap, isSw
                 <Text style={styles.backLinkText}>{`← ${t('meal_planner_back_to_week')}`}</Text>
             </TouchableOpacity>
 
-            <Text style={styles.mealEmoji}>{meal.emoji}</Text>
+            <MealPlannerImage
+                title={meal.title}
+                variant="hero"
+                fallback={<Text style={styles.mealEmoji}>{meal.emoji}</Text>}
+            />
             <Text style={styles.mealTitle}>{meal.title}</Text>
             {metaLine ? <Text style={styles.mealMeta}>{metaLine}</Text> : null}
 
