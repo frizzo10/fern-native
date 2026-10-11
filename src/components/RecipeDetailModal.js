@@ -492,7 +492,9 @@ export default function RecipeDetailModal({
                         onSaveToCookbook ? styles.overlayBottomBtnSplit : null,
                         isSaving ? styles.disabledBtn : null,
                       ]}
-                      onPress={onSaveNote}
+                      // A recipe that isn't saved yet asks which cookbook first (like the web
+                      // app); an already-saved one keeps updating its note in place.
+                      onPress={!isAlreadySaved && onSaveToCookbook ? handleOpenSaveToCookbook : onSaveNote}
                       onLongPress={onSaveToCookbook ? handleOpenSaveToCookbook : undefined}
                       disabled={isSaving}
                     >
