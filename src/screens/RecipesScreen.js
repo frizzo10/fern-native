@@ -738,7 +738,15 @@ export default function RecipesScreen({ user }) {
 
   const books = useMemo(() => {
     const list = Array.isArray(booksLocal) ? booksLocal : [];
-    const normalized = list.map((item, index) => normalizeBook(item, index));
+    // Cookbook cover photos are synced separately from the books themselves
+    // (cb_covers, keyed by book id) — that's where the web app keeps them, so
+    // a cover set there is only found here. A cover on the book itself (set or
+    // edited on native) wins, since native doesn't write cb_covers.
+    const syncedCovers = data?.cbCovers && typeof data.cbCovers === 'object' ? data.cbCovers : {};
+    const normalized = list.map((item, index) => {
+      const book = normalizeBook(item, index);
+      return { ...book, cover: pickFirst(book.cover, syncedCovers[book.id]) };
+    });
 
     // Deduplicate by ID — backend may send the same book multiple times.
     // Merge duplicates instead of just keeping the first: an older
@@ -757,7 +765,7 @@ export default function RecipesScreen({ user }) {
       });
     });
     return Array.from(byId.values());
-  }, [booksLocal]);
+  }, [booksLocal, data?.cbCovers]);
 
   const booksWithMatchedCounts = useMemo(() => {
     return books.map((book) => ({
