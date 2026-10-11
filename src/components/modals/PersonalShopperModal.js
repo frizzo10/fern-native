@@ -37,10 +37,10 @@ const STAPLES = ['eggs', 'butter', 'milk', 'bread', 'olive oil', 'garlic', 'onio
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 const STEP_META = {
-    dinners: { n: 1, labelKey: 'psp_label_dinners' },
-    hubcheck: { n: 2, labelKey: 'psp_label_week' },
-    activities: { n: 2, labelKey: 'psp_label_activities' },
-    staples: { n: 3, labelKey: 'psp_label_staples' },
+    staples: { n: 1, labelKey: 'psp_label_staples' },
+    dinners: { n: 2, labelKey: 'psp_label_dinners' },
+    hubcheck: { n: 3, labelKey: 'psp_label_week' },
+    activities: { n: 3, labelKey: 'psp_label_activities' },
     ingredients: { n: 4, labelKey: 'psp_label_ingredients' },
     listcheck: { n: 5, labelKey: 'psp_label_list' },
 };
@@ -55,7 +55,7 @@ function newSession() {
         recipes: [],        // dinners to check ingredients for: [{ title, ingredients: string[] | null }]
         recipeIdx: 0,
         staplesHave: [],
-        step: 'dinners',
+        step: 'staples',
     };
 }
 
@@ -181,7 +181,7 @@ export default function PersonalShopperModal({
         run.listItems.push({ name: String(name).trim(), fromRecipe: fromRecipe || '' });
     };
 
-    // ── step 1: dinner suggestions ───────────────────────────────────────────
+    // ── step 2: dinner suggestions ───────────────────────────────────────────
 
     const suggestDinners = async (run) => {
         setTyping(true);
@@ -240,7 +240,7 @@ export default function PersonalShopperModal({
         setMessages([]);
         setPanel(null);
         setChips([]);
-        goStep('dinners');
+        goStep('staples');
         setTyping(true);
 
         const { mealPlan, activities } = await readPlanState();
@@ -262,13 +262,16 @@ export default function PersonalShopperModal({
             run.history.push({ role: 'system', content: res.systemPrompt });
             setTyping(false);
             say(res.reply || t('psp_start_fallback'));
+            // Fern's opening message already asks about the basics: just offer the
+            // answer buttons and wait. Dinners start once the user has answered.
+            setChips(stapleChips());
         } catch (e) {
             console.log('[personal-shopper] start failed', e?.message || e);
             if (run !== session.current) return;
             setTyping(false);
             say(t('psp_start_fallback'));
+            startStaples(); // opening message failed, so ask the question ourselves
         }
-        await suggestDinners(run);
     };
 
     const confirmDinners = async () => {
@@ -324,7 +327,7 @@ export default function PersonalShopperModal({
         if (run === session.current) await showWeekReview();
     };
 
-    // ── step 2: week review, then recurring activities ───────────────────────
+    // ── step 3: week review, then recurring activities ───────────────────────
 
     const showWeekReview = async () => {
         goStep('hubcheck');
@@ -389,7 +392,7 @@ export default function PersonalShopperModal({
             ]);
             return;
         }
-        startStaples();
+        proceedToIngredients();
     };
 
     const changeInFamilyHub = () => {
@@ -397,17 +400,28 @@ export default function PersonalShopperModal({
         navigation?.navigate('Family');
     };
 
-    // ── step 3: staples ──────────────────────────────────────────────────────
+    // ── step 1: staples ──────────────────────────────────────────────────────
+
+    const stapleChips = () => [
+        { label: t('psp_staples_yes_btn'), intent: 'yes' },
+        { label: t('psp_staples_no_btn'), intent: 'no' },
+        { label: t('psp_staples_some_btn'), intent: 'some' },
+    ];
 
     const startStaples = () => {
         goStep('staples');
         setPanel(null);
         say(t('psp_staples_prompt'));
-        setChips([
-            { label: t('psp_staples_yes_btn'), intent: 'yes' },
-            { label: t('psp_staples_no_btn'), intent: 'no' },
-            { label: t('psp_staples_some_btn'), intent: 'some' },
-        ]);
+        setChips(stapleChips());
+    };
+
+    // Staples are answered first; dinners follow.
+    const proceedToDinners = async () => {
+        setPanel(null);
+        setChips([]);
+        say(t('psp_got_it_dinners'));
+        goStep('dinners');
+        await suggestDinners(session.current);
     };
 
     const proceedToIngredients = async () => {
@@ -421,10 +435,10 @@ export default function PersonalShopperModal({
         const run = session.current;
         if (intent === 'yes') {
             run.staplesHave = [...STAPLES];
-            await proceedToIngredients();
+            await proceedToDinners();
         } else if (intent === 'no') {
             STAPLES.forEach((name) => addListItem(run, name, ''));
-            await proceedToIngredients();
+            await proceedToDinners();
         } else if (intent === 'some') {
             say(t('psp_staples_pick_prompt'));
             setPanel({ type: 'staples', items: STAPLES.map((name) => ({ name, checked: false })) });
@@ -437,7 +451,7 @@ export default function PersonalShopperModal({
             if (item.checked) addListItem(run, item.name, '');
             else run.staplesHave.push(item.name);
         });
-        await proceedToIngredients();
+        await proceedToDinners();
     };
 
     // ── step 4: ingredients, one dinner at a time ────────────────────────────
@@ -669,7 +683,7 @@ export default function PersonalShopperModal({
                     console.log('[personal-shopper] adding activities failed', e?.message || e);
                 }
             }
-            startStaples();
+            await proceedToIngredients();
             return;
         }
         if (stepNow === 'staples' && (intent === 'yes' || intent === 'no' || intent === 'some')) {
@@ -702,7 +716,7 @@ export default function PersonalShopperModal({
         }
         if (run !== session.current) return;
         if (stepNow === 'dinners') setChips([{ label: t('psp_chip_those_work'), intent: 'yes' }, { label: t('psp_chip_all_of_them'), intent: 'yes' }]);
-        else if (stepNow === 'staples') setChips([{ label: t('psp_staples_yes_btn'), intent: 'yes' }, { label: t('psp_staples_no_btn'), intent: 'no' }, { label: t('psp_staples_some_btn'), intent: 'some' }]);
+        else if (stepNow === 'staples') setChips(stapleChips());
         else if (stepNow === 'ingredients') setChips([{ label: t('psp_skip_recipe_btn'), intent: 'next' }]);
         else if (stepNow === 'listcheck') setChips([{ label: t('psp_chip_thats_everything'), intent: 'no' }]);
     };
