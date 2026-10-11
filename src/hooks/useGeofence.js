@@ -1,26 +1,30 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
+import {
+  GEOFENCE_RADIUS_M,
+  claimArrival,
+  getDistanceMeters,
+  notifyArrival,
+  registerStoreGeofences,
+  storeKey,
+} from '../services/storeGeofencing';
 
-const GEOFENCE_RADIUS_M = 150;  // ~500ft — same as web app
-const COOLDOWN_MS = 30 * 60 * 1000; // 30 min cooldown per store
-
-function getDistanceMeters(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) ** 2 +
-    Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) * Math.sin(dLon/2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-// useGeofence — monitors stores, fires onArrival when user gets close
+// useGeofence — store-arrival detection.
+//   * With "Always" location permission, the user's stores are registered as OS
+//     geofences (src/services/storeGeofencing.js) so Fern is woken up in the
+//     background when they arrive, even if the app is closed.
+//   * Either way, while the app is running it also checks the GPS every 2 minutes.
+//     That covers users who only granted "While Using", and the case where the user
+//     is already inside the store when the app opens (an OS geofence only fires when
+//     the boundary is crossed).
+// Both paths share one 30-minute per-store cooldown, so an arrival never notifies twice.
 // stores = [{ name, lat, lon }]
 export function useGeofence({ stores = [], onArrival }) {
   const [permissionStatus, setPermissionStatus] = useState(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
-  const lastNotifiedRef = useRef({});
   const intervalRef = useRef(null);
+  const backgroundGrantedRef = useRef(false);
   // Always-current copies, so the 2-minute timer never uses a stale (e.g. empty)
   // store list captured when monitoring first started.
   const storesRef = useRef(stores);
@@ -37,8 +41,9 @@ export function useGeofence({ stores = [], onArrival }) {
       return false;
     }
 
-    // Try background location (for always-on geofence)
+    // Background ("Always") location, needed for OS geofences while the app is closed
     const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
+    backgroundGrantedRef.current = bgStatus === 'granted';
 
     // Notifications (for store arrival alert)
     await Notifications.requestPermissionsAsync();
@@ -58,27 +63,14 @@ export function useGeofence({ stores = [], onArrival }) {
       });
       const { latitude: userLat, longitude: userLon } = pos.coords;
 
-      stores.forEach(store => {
-        if (!store.lat || !store.lon) return;
+      for (const store of stores) {
+        if (!store.lat || !store.lon) continue;
         const dist = getDistanceMeters(userLat, userLon, store.lat, store.lon);
-        const storeKey = `${store.name}_${Math.round(store.lat * 100)}`;
-        const lastNotified = lastNotifiedRef.current[storeKey] || 0;
-
-        if (dist <= GEOFENCE_RADIUS_M && Date.now() - lastNotified > COOLDOWN_MS) {
-          lastNotifiedRef.current[storeKey] = Date.now();
-          onArrivalRef.current?.(store, Math.round(dist));
-
-          // Send push notification
-          Notifications.scheduleNotificationAsync({
-            content: {
-              title: `🛒 ${store.name}`,
-              body: `You've arrived! Open your shopping list?`,
-              data: { store: store.name },
-            },
-            trigger: null, // immediate
-          });
-        }
-      });
+        if (dist > GEOFENCE_RADIUS_M) continue;
+        if (!(await claimArrival(storeKey(store)))) continue;
+        onArrivalRef.current?.(store, Math.round(dist));
+        await notifyArrival(store.name);
+      }
     } catch (e) {
       console.warn('[geofence] GPS error:', e.message);
     }
@@ -89,13 +81,16 @@ export function useGeofence({ stores = [], onArrival }) {
     const granted = await requestPermissions();
     if (!granted) return;
 
+    if (backgroundGrantedRef.current) await registerStoreGeofences(storesRef.current);
+
     checkGeofence(); // immediate check
     clearInterval(intervalRef.current);
     intervalRef.current = setInterval(checkGeofence, 2 * 60 * 1000); // every 2 min
     setIsMonitoring(true);
   }, [requestPermissions, checkGeofence]);
 
-  // Stop monitoring
+  // Stop the foreground poll. (The OS geofences are removed on sign-out via
+  // stopStoreGeofencing(), not here, so closing a screen never switches them off.)
   const stop = useCallback(() => {
     clearInterval(intervalRef.current);
     setIsMonitoring(false);
@@ -105,11 +100,14 @@ export function useGeofence({ stores = [], onArrival }) {
     return () => clearInterval(intervalRef.current);
   }, []);
 
-  // Stores usually finish syncing after monitoring has started — check again
-  // as soon as the list changes instead of waiting for the next 2-minute tick.
+  // Stores usually finish syncing after monitoring has started, and the user can add
+  // or remove stores later — re-register the OS geofences and check right away
+  // instead of waiting for the next 2-minute tick.
   const storesKey = (stores || []).map((s) => `${s.name}:${s.lat}:${s.lon}`).join('|');
   useEffect(() => {
-    if (isMonitoring && storesKey) checkGeofence();
+    if (!isMonitoring) return;
+    if (backgroundGrantedRef.current) registerStoreGeofences(storesRef.current);
+    if (storesKey) checkGeofence();
   }, [storesKey, isMonitoring, checkGeofence]);
 
   return { permissionStatus, isMonitoring, start, stop, checkGeofence };

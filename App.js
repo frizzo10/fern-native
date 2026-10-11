@@ -19,6 +19,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import FindScreen from './src/screens/FindScreen';
 import { useAuth } from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
+import { stopStoreGeofencing } from './src/services/storeGeofencing';
 import { colors, radius, shadow } from './src/constants/tokens';
 import { useFonts } from 'expo-font';
 import { LanguageProvider } from './src/services/LanguageContext';
@@ -36,6 +37,10 @@ import { RevenueCatProvider, useRevenueCat } from './src/services/RevenueCatCont
 import { useSync } from './src/hooks/useSync';
 
 const Tab = createBottomTabNavigator();
+
+// Notification taps already acted on (getLastNotificationResponseAsync can hand the
+// same tap back more than once in one app session).
+const handledArrivalTaps = new Set();
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -224,6 +229,30 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   useEffect(() => {
     if (user) startGeofence();
   }, [user]);
+
+  // Tapping the "you've arrived" notification (from the background geofence or the
+  // foreground check) opens the shopping list. Handles both a tap while the app is
+  // running and a tap that launched the app from closed; the navigator may not be
+  // ready yet in that case, so retry briefly.
+  useEffect(() => {
+    const open = (response) => {
+      const content = response?.notification?.request?.content;
+      if (!content?.data || content.data.type !== 'store_arrival') return;
+      const id = response.notification.request.identifier;
+      if (handledArrivalTaps.has(id)) return;
+      handledArrivalTaps.add(id);
+      setArrivedStore(null);
+      let tries = 0;
+      const go = () => {
+        if (navigationRef.current?.isReady?.()) navigationRef.current.navigate('Shopping');
+        else if (tries++ < 20) setTimeout(go, 250);
+      };
+      go();
+    };
+    Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener(open);
+    return () => sub.remove();
+  }, []);
 
   // A dismissed banner should come back if sync fails again later, rather
   // than staying hidden for the rest of the session after the first dismiss.
@@ -513,6 +542,7 @@ function MainAppContent() {
   }, [user?.id, rcTier, rcLoading]);
 
   const handleSignOut = async () => {
+    await stopStoreGeofencing(); // stop the OS watching this user's stores
     await logoutPurchaser();
     await signOut();
   };
