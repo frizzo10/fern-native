@@ -32,6 +32,7 @@ export const FEATURE_TIERS = {
   nutrition: TIERS.PRO,
   weekly_nutrition: TIERS.PRO,
   ingredient_substitutions: TIERS.PRO,
+  insider_deals: TIERS.PRO,
 
   // Pro Max
   charcuterie: TIERS.PRO_MAX,

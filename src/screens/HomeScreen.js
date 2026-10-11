@@ -59,6 +59,8 @@ import { fetchAllCoupons } from '../services/couponsService';
 import FamilyWeeklyReviewModal from '../components/modals/FamilyWeeklyReviewModal';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import FamilyRecipeVaultModal from '../components/modals/FamilyRecipeVaultModal';
+import InsiderDealsModal from '../components/modals/InsiderDealsModal';
+import PersonalShopperModal from '../components/modals/PersonalShopperModal';
 import { buildWeeklyReviewData } from '../utils/buildWeeklyReviewData';
 import { buildRollingWeekDateKeys, daysBetween, dateToKey, formatDayLabel, normalizeSlot } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
@@ -158,7 +160,8 @@ export default function HomeScreen({ user, route }) {
     'Budget Planner': 'tool_budget_planner',
     'AI Meal Planner': 'tool_ai_meal_planner',
     'Semi-Homemade': 'tool_semi_homemade',
-    'Family Vault': 'tool_family_vault'
+    'Family Vault': 'tool_family_vault',
+    'Insider Deals': 'tool_insider_deals'
   };
 
   const [fernReply, setFernReply] = useState('');
@@ -176,6 +179,8 @@ export default function HomeScreen({ user, route }) {
   const [isCharcuterieModalOpen, setIsCharcuterieModalOpen] = useState(false);
   const [isEventPlannerOpen, setIsEventPlannerOpen] = useState(false);
   const [isFamilyVaultOpen, setIsFamilyVaultOpen] = useState(false);
+  const [isInsiderDealsOpen, setIsInsiderDealsOpen] = useState(false);
+  const [isPersonalShopperOpen, setIsPersonalShopperOpen] = useState(false);
   const [isLeftoverMagicOpen, setIsLeftoverMagicOpen] = useState(false);
   const [leftoverIngredientsInput, setLeftoverIngredientsInput] = useState('');
   const [isLeftoverSearching, setIsLeftoverSearching] = useState(false);
@@ -2290,7 +2295,7 @@ export default function HomeScreen({ user, route }) {
                             : label === 'Wine Pairing'
                               ? () => setIsWineModalOpen(true)
                               : label === 'Personal Shopper'
-                                ? () => navigation.navigate('Shopping')
+                                ? () => setIsPersonalShopperOpen(true)
                                 : label === 'Weekly Nutrition'
                                   ? () => setIsNutritionTrackerOpen(true)
                                   : undefined
@@ -2501,6 +2506,7 @@ export default function HomeScreen({ user, route }) {
                 { label: 'AI Meal Planner', val: '🗓', color: 'rgb(56, 89, 45)', featureKey: 'meal_planner' },
                 { label: 'Semi-Homemade', val: '🥫', color: 'rgb(30, 57, 30)', featureKey: 'semi_homemade' },
                 { label: 'Family Vault', val: '📖', color: 'rgb(216, 109, 51)', featureKey: 'family_vault' },
+                { label: 'Insider Deals', val: '💎', color: 'rgb(56, 89, 45)', featureKey: 'insider_deals' },
               ].map(({ label, val, color, featureKey }) => {
                 const toolHandlers = {
                   'Leftover Magic': openLeftoverMagicModal,
@@ -2510,6 +2516,7 @@ export default function HomeScreen({ user, route }) {
                   'AI Meal Planner': openMealPlannerModal,
                   'Semi-Homemade': openSemiHomemadeModal,
                   'Family Vault': () => setIsFamilyVaultOpen(true),
+                  'Insider Deals': () => setIsInsiderDealsOpen(true),
                 };
                 const onPress = toolHandlers[label];
                 const requiredTier = FEATURE_TIERS[featureKey];
@@ -2776,6 +2783,22 @@ export default function HomeScreen({ user, route }) {
         data={data}
         pushAllFromStorage={pushAllFromStorage}
         pull={pull}
+      />
+
+      <PersonalShopperModal
+        visible={isPersonalShopperOpen}
+        onClose={() => setIsPersonalShopperOpen(false)}
+        user={user}
+        data={data}
+        pushChangedFromStorage={pushChangedFromStorage}
+        pull={pull}
+        navigation={navigation}
+      />
+
+      <InsiderDealsModal
+        visible={isInsiderDealsOpen}
+        onClose={() => setIsInsiderDealsOpen(false)}
+        user={user}
       />
 
       <LeftoverMagicModal

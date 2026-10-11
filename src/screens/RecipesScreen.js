@@ -29,6 +29,8 @@ import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { uploadPhoto } from '../services/uploadPhotoService';
 import NewCookbookModal from '../components/modals/NewCookbookModal';
 import AddRecipesToCookbookModal from '../components/modals/AddRecipesToCookbookModal';
+import ShareLinkModal from '../components/modals/ShareLinkModal';
+import { createCookbookShareLink } from '../services/shareService';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 
@@ -169,6 +171,7 @@ export default function RecipesScreen({ user }) {
   const [isEditCookbookVisible, setIsEditCookbookVisible] = useState(false);
   const [isSavingCookbookEdit, setIsSavingCookbookEdit] = useState(false);
   const [isAddRecipesVisible, setIsAddRecipesVisible] = useState(false);
+  const [isShareCookbookVisible, setIsShareCookbookVisible] = useState(false);
   const [isSavingAddRecipes, setIsSavingAddRecipes] = useState(false);
   const attemptedImageFetchIds = useRef(new Set());
 
@@ -659,6 +662,38 @@ export default function RecipesScreen({ user }) {
     }
   };
 
+  // Every recipe in the open cookbook — unlike `selectedBookRecipes`, this
+  // ignores the on-screen search filter, since a share should include them all.
+  const getAllSelectedBookRecipes = () => {
+    if (!selectedBook) return [];
+    return recipes.filter((recipe) => (
+      recipe.bookIds.includes(selectedBook.id) || selectedBook.recipeIds.includes(String(recipe.id))
+    ));
+  };
+
+  const handlePressShareCookbook = () => {
+    if (!selectedBook) return;
+    if (!getAllSelectedBookRecipes().length) {
+      Alert.alert(t('share_cookbook_empty_title'), t('share_cookbook_empty_desc'));
+      return;
+    }
+    setIsShareCookbookVisible(true);
+  };
+
+  const handleCreateCookbookShareLink = ({ senderName, message }) => {
+    const rawBook = (Array.isArray(booksLocal) ? booksLocal : []).find(
+      (book) => String(book?.id ?? book?.uuid ?? book?.book_id ?? '') === String(selectedBook.id),
+    );
+    return createCookbookShareLink({
+      title: selectedBook.title,
+      colorId: rawBook?.colorId,
+      recipes: getAllSelectedBookRecipes(),
+      coverUrl: selectedBook.cover,
+      senderName,
+      message,
+    });
+  };
+
   const recipes = useMemo(() => {
     const list = Array.isArray(recipesLocal) ? recipesLocal : [];
     const normalized = list.map(normalizeRecipe);
@@ -947,7 +982,7 @@ export default function RecipesScreen({ user }) {
                 >
                   <Text style={styles.bookActionTextLight}>{t('edit_btn_recipes')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnShare]}>
+                <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnShare]} onPress={handlePressShareCookbook}>
                   <Text style={styles.bookActionTextLight}>{t('share_btn')}</Text>
                 </TouchableOpacity>
                 {/* <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnDarkGreen]}>
@@ -1133,6 +1168,19 @@ export default function RecipesScreen({ user }) {
         onClose={() => setIsAddRecipesVisible(false)}
         onSave={handleSaveRecipesToBook}
         isSaving={isSavingAddRecipes}
+      />
+
+      <ShareLinkModal
+        visible={isShareCookbookVisible}
+        onClose={() => setIsShareCookbookVisible(false)}
+        title={selectedBook ? t('share_cookbook_title', { title: selectedBook.title }) : ''}
+        defaultSenderName={user?.name || ''}
+        onCreateLink={handleCreateCookbookShareLink}
+        buildShareText={(url) => t('share_cookbook_message', {
+          title: selectedBook?.title || '',
+          count: getAllSelectedBookRecipes().length,
+          url,
+        })}
       />
     </View>
   );
