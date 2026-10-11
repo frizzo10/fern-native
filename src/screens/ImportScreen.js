@@ -9,6 +9,7 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLanguage from '../hooks/useLanguage';
@@ -118,11 +119,14 @@ export default function ImportScreen({ user, onBack, onImported }) {
     }
   }
 
+  // Same look as the More menu: line icons instead of the emoji that the
+  // translated labels start with (the labels themselves are unchanged).
+  const stripEmoji = (label) => String(label).replace(/^[^\p{L}\p{N}]+/u, '').trim();
   const tabs = [
-    { key: 'url', label: t('import_tab_url') },
-    { key: 'video', label: t('import_tab_video') },
-    { key: 'text', label: t('import_tab_text') },
-    { key: 'card', label: t('import_tab_scan') },
+    { key: 'url', label: stripEmoji(t('import_tab_url')), icon: 'link-outline' },
+    { key: 'video', label: stripEmoji(t('import_tab_video')), icon: 'videocam-outline' },
+    { key: 'text', label: stripEmoji(t('import_tab_text')), icon: 'document-text-outline' },
+    { key: 'card', label: stripEmoji(t('import_tab_scan')), icon: 'camera-outline' },
   ];
 
   return (
@@ -165,6 +169,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
                     style={[s.tab, mode === tb.key && s.tabActive]}
                     onPress={() => setMode(tb.key)}
                   >
+                    <Ionicons name={tb.icon} size={20} color={mode === tb.key ? '#F0E0B0' : C.orange} />
                     <Text style={[s.tabText, mode === tb.key && s.tabTextActive]}>{tb.label}</Text>
                   </TouchableOpacity>
                 ))}
@@ -262,11 +267,14 @@ const s = StyleSheet.create({
   backText: { color: C.forest, fontSize: 15, fontFamily: 'Jost-SemiBold' },
   headerTitle: { color: C.ink, fontSize: 16, fontFamily: 'Playfair-Bold' },
   content: { padding: 20, paddingBottom: 60 },
-  tabs: { flexDirection: 'row', marginBottom: 18, borderRadius: 999, backgroundColor: '#F1EBDD', padding: 4 },
-  tab: { flex: 1, paddingVertical: 8, borderRadius: 999, alignItems: 'center' },
-  tabActive: { backgroundColor: C.forest },
-  tabText: { fontSize: 12, color: C.brown, fontFamily: 'Jost-SemiBold' },
-  tabTextActive: { color: '#fff' },
+  tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 18 },
+  tab: {
+    width: '48%', minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: '#E6DCCF', backgroundColor: '#FFF',
+    paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  tabActive: { backgroundColor: C.forest, borderColor: C.forest },
+  tabText: { fontSize: 13, color: '#20140B', fontFamily: 'Jost-Bold' },
+  tabTextActive: { color: '#F0E0B0' },
   helper: { color: C.brown, fontSize: 13, fontFamily: 'Jost-Regular', marginBottom: 10, lineHeight: 18 },
   input: {
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 12,
