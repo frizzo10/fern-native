@@ -31,6 +31,8 @@ export const MAX_REGIONS = 20;
 
 const COOLDOWN_KEY = 'fern_geofence_last_notified'; // device-only, { [storeKey]: epoch ms }
 const LOCALE_KEY = 'fern_user_locale';
+const TIER_KEY = 'fern_user_tier';       // RevenueCat tier, mirrored by App.js
+const GRANT_KEY = 'fern_granted_tier';   // admin-granted plan, see grantStore.js
 const ENTER = (Location.GeofencingEventType && Location.GeofencingEventType.Enter) || 1;
 
 // expo-task-manager is a native module. A build made before it was added doesn't
@@ -79,10 +81,24 @@ export async function claimArrival(key, now = Date.now()) {
   return true;
 }
 
+// Pro Max (bought, or granted by an admin) is taken to Personal Shopper's flyer scan,
+// so its notification says that instead of "open your shopping list". Read from the
+// device-only copies because the background task has no React tree.
+async function hasProMax() {
+  const tiers = [];
+  try { tiers.push(JSON.parse(await AsyncStorage.getItem(TIER_KEY))); } catch (e) { /* none */ }
+  try {
+    const grant = JSON.parse(await AsyncStorage.getItem(GRANT_KEY));
+    if (grant && (!grant.until || new Date(grant.until).getTime() > Date.now())) tiers.push(grant.tier);
+  } catch (e) { /* none */ }
+  return tiers.includes('pro_max');
+}
+
 async function arrivalBody() {
   let locale = 'en';
   try { locale = (await AsyncStorage.getItem(LOCALE_KEY)) || 'en'; } catch (e) { /* default */ }
   const dict = translations[locale] || translations.en;
+  if (await hasProMax()) return dict.geofence_arrived_body_pro_max || translations.en.geofence_arrived_body_pro_max;
   return dict.geofence_arrived_body || translations.en.geofence_arrived_body;
 }
 

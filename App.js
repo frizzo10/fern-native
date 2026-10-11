@@ -20,6 +20,11 @@ import FindScreen from './src/screens/FindScreen';
 import { useAuth } from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import { stopStoreGeofencing } from './src/services/storeGeofencing';
+import useEntitlement from './src/hooks/useEntitlement';
+import { FEATURE_TIERS } from './src/constants/featureAccess';
+import { TIERS } from './src/constants/tiers';
+import { dateToKey } from './src/utils/familyDates';
+import UpgradeGateModal from './src/components/UpgradeGateModal';
 import { colors, radius, shadow } from './src/constants/tokens';
 import { useFonts } from 'expo-font';
 import { LanguageProvider } from './src/services/LanguageContext';
@@ -208,7 +213,17 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [showArrivalUpsell, setShowArrivalUpsell] = useState(false);
   const navigationRef = React.useRef(null);
+
+  // Plan checks for the arrival-notification tap. Refs, because that handler is
+  // registered once and must see the current plan (RevenueCat can still be
+  // loading when the tap cold-starts the app).
+  const { hasAccess, loading: tierLoading } = useEntitlement();
+  const hasShopperRef = useRef(false);
+  const tierLoadingRef = useRef(true);
+  hasShopperRef.current = hasAccess(FEATURE_TIERS.personal_shopper);
+  tierLoadingRef.current = tierLoading;
 
   // Real saved stores from sync data, mapped to the {name, lat, lon}
   // shape useGeofence expects (stored stores use `lng`, not `lon`).
@@ -231,28 +246,55 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   }, [user]);
 
   // Tapping the "you've arrived" notification (from the background geofence or the
-  // foreground check) opens the shopping list. Handles both a tap while the app is
-  // running and a tap that launched the app from closed; the navigator may not be
-  // ready yet in that case, so retry briefly.
+  // foreground check). Pro Max opens Personal Shopper, which starts by scanning the
+  // store flyer; everyone else lands on the shopping list, with a (once a day)
+  // note about what Pro Max adds. Handles both a tap while the app is running and
+  // a tap that launched the app from closed; the navigator and the plan may not
+  // be ready yet in that case, so retry briefly.
   useEffect(() => {
-    const open = (response) => {
+    const open = (response, coldStart = false) => {
       const content = response?.notification?.request?.content;
       if (!content?.data || content.data.type !== 'store_arrival') return;
       const id = response.notification.request.identifier;
       if (handledArrivalTaps.has(id)) return;
       handledArrivalTaps.add(id);
       setArrivedStore(null);
+      const store = String(content.data.store || '');
       let tries = 0;
+      // When the tap launched the app, give a plan granted from the admin panel a
+      // moment to load from the device cache, so it isn't mistaken for a free plan.
+      const settleUntil = Date.now() + (coldStart ? 1200 : 0);
       const go = () => {
-        if (navigationRef.current?.isReady?.()) navigationRef.current.navigate('Shopping');
-        else if (tries++ < 20) setTimeout(go, 250);
+        const nav = navigationRef.current;
+        const navReady = Boolean(nav?.isReady?.());
+        if (!navReady || tierLoadingRef.current || Date.now() < settleUntil) {
+          if (tries++ < 40) setTimeout(go, 250);
+          else if (navReady) nav.navigate('Shopping'); // plan never resolved: safe default
+          return;
+        }
+        if (hasShopperRef.current) {
+          nav.navigate('Home', { openPersonalShopperArrival: { store, ts: Date.now() } });
+          return;
+        }
+        nav.navigate('Shopping');
+        maybeShowArrivalUpsell();
       };
       go();
     };
-    Notifications.getLastNotificationResponseAsync().then(open).catch(() => {});
-    const sub = Notifications.addNotificationResponseReceivedListener(open);
+    Notifications.getLastNotificationResponseAsync().then((response) => open(response, true)).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => open(response, false));
     return () => sub.remove();
   }, []);
+
+  // At most once a day, so a weekly shop never turns into a nag. Device-only.
+  const maybeShowArrivalUpsell = async () => {
+    const today = dateToKey(new Date());
+    try {
+      if ((await AsyncStorage.getItem('fern_arrival_upsell_last')) === today) return;
+      await AsyncStorage.setItem('fern_arrival_upsell_last', today);
+    } catch (e) { /* storage unavailable: show it anyway */ }
+    setShowArrivalUpsell(true);
+  };
 
   // A dismissed banner should come back if sync fails again later, rather
   // than staying hidden for the rest of the session after the first dismiss.
@@ -335,6 +377,14 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
       <HelpModal
         visible={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
+      />
+
+      <UpgradeGateModal
+        visible={showArrivalUpsell}
+        onClose={() => setShowArrivalUpsell(false)}
+        tier={TIERS.PRO_MAX}
+        title={t('arrival_upsell_title')}
+        desc={t('arrival_upsell_desc')}
       />
 
       <AccountScreen

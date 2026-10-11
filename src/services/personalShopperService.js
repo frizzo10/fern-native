@@ -53,7 +53,7 @@ export async function startPersonalShopper({ userProfile, lat, lon, mealPlan, sa
 }
 
 // action: 'suggest_dinners' → { suggestions: [{ dayName, date, title, reason, quick }], pitch }
-export async function fetchDinnerSuggestions({ savedRecipes, forecast, activities, mealPlan, userProfile, locale }) {
+export async function fetchDinnerSuggestions({ savedRecipes, forecast, activities, mealPlan, userProfile, locale, deals, dealsStore }) {
     const json = await postShopper({
         action: 'suggest_dinners',
         locale: locale || 'en',
@@ -62,6 +62,8 @@ export async function fetchDinnerSuggestions({ savedRecipes, forecast, activitie
         activities: activities || [],
         mealPlan: mealPlan || {},
         userProfile: userProfile || {},
+        // Sale items scanned from the store flyer (Pro Max arrival flow); omitted otherwise.
+        ...(Array.isArray(deals) && deals.length ? { deals, dealsStore: dealsStore || '' } : {}),
     });
 
     return {

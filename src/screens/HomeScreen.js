@@ -122,6 +122,15 @@ export default function HomeScreen({ user, route }) {
       navigation.setParams({ openImport: false });
     }
   }, [route?.params?.openImport]);
+
+  // Store-arrival notification tap (Pro Max): App.js navigates here with this param.
+  useEffect(() => {
+    const arrival = route?.params?.openPersonalShopperArrival;
+    if (!arrival) return;
+    setPersonalShopperArrival({ store: String(arrival.store || '') });
+    setIsPersonalShopperOpen(true);
+    navigation.setParams({ openPersonalShopperArrival: undefined });
+  }, [route?.params?.openPersonalShopperArrival]);
   const { open: openAccount } = useAccountModal();
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { tier, hasAccess } = useEntitlement();
@@ -181,6 +190,8 @@ export default function HomeScreen({ user, route }) {
   const [isFamilyVaultOpen, setIsFamilyVaultOpen] = useState(false);
   const [isInsiderDealsOpen, setIsInsiderDealsOpen] = useState(false);
   const [isPersonalShopperOpen, setIsPersonalShopperOpen] = useState(false);
+  // Set when Personal Shopper was opened by tapping the store-arrival notification (Pro Max).
+  const [personalShopperArrival, setPersonalShopperArrival] = useState(null);
   const [isLeftoverMagicOpen, setIsLeftoverMagicOpen] = useState(false);
   const [leftoverIngredientsInput, setLeftoverIngredientsInput] = useState('');
   const [isLeftoverSearching, setIsLeftoverSearching] = useState(false);
@@ -2798,12 +2809,14 @@ export default function HomeScreen({ user, route }) {
 
       <PersonalShopperModal
         visible={isPersonalShopperOpen}
-        onClose={() => setIsPersonalShopperOpen(false)}
+        onClose={() => { setIsPersonalShopperOpen(false); setPersonalShopperArrival(null); }}
         user={user}
         data={data}
         pushChangedFromStorage={pushChangedFromStorage}
         pull={pull}
         navigation={navigation}
+        startWithCircular={Boolean(personalShopperArrival)}
+        arrivedStoreName={personalShopperArrival?.store || ''}
       />
 
       <InsiderDealsModal

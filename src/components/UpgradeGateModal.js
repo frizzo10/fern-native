@@ -15,7 +15,7 @@ import { stopFernAudio } from '../utils/fernAudioBus';
 //   if (visible && !hasAccess(REQUIRED_TIER)) {
 //     return <UpgradeGateModal visible={visible} onClose={onClose} tier={REQUIRED_TIER} />;
 //   }
-export default function UpgradeGateModal({ visible, onClose, tier }) {
+export default function UpgradeGateModal({ visible, onClose, tier, title, desc }) {
   const { t } = useLanguage();
   const { open: openPlans } = usePlansModal();
   const { presentPaywall, restore } = useRevenueCat();
@@ -74,8 +74,8 @@ export default function UpgradeGateModal({ visible, onClose, tier }) {
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{badgeLabel}</Text>
           </View>
-          <Text style={styles.title}>{t('upgrade_required_title')}</Text>
-          <Text style={styles.desc}>{t(descKey)}</Text>
+          <Text style={styles.title}>{title || t('upgrade_required_title')}</Text>
+          <Text style={styles.desc}>{desc || t(descKey)}</Text>
 
           <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.9} onPress={handleUpgrade} disabled={purchasing}>
             {purchasing ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaBtnText}>{t('upgrade_required_cta')}</Text>}

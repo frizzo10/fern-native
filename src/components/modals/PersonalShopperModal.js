@@ -26,6 +26,8 @@ import {
     startPersonalShopper,
 } from '../../services/personalShopperService';
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
+import { scanCircular } from '../../services/scanCircularService';
+import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoPickerService';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
 import { buildRollingWeekDateKeys, formatDayLabel, normalizeSlot, parseDateKey } from '../../utils/familyDates';
 import { toList } from '../../utils/recipeNormalize';
@@ -37,6 +39,7 @@ const STAPLES = ['eggs', 'butter', 'milk', 'bread', 'olive oil', 'garlic', 'onio
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 const STEP_META = {
+    circular: { n: 1, labelKey: 'psp_label_circular' },
     staples: { n: 1, labelKey: 'psp_label_staples' },
     dinners: { n: 2, labelKey: 'psp_label_dinners' },
     hubcheck: { n: 3, labelKey: 'psp_label_week' },
@@ -55,6 +58,9 @@ function newSession() {
         recipes: [],        // dinners to check ingredients for: [{ title, ingredients: string[] | null }]
         recipeIdx: 0,
         staplesHave: [],
+        deals: [],          // sale items scanned from the store flyer (Pro Max arrival flow)
+        dealsStore: '',
+        startReply: '',     // Fern's opening message, held back until the flyer step is done
         step: 'staples',
     };
 }
@@ -101,6 +107,8 @@ export default function PersonalShopperModal({
     pushChangedFromStorage,
     pull,
     navigation,
+    startWithCircular = false, // opened from the store-arrival notification: scan the flyer first
+    arrivedStoreName = '',
 }) {
     const { t, locale } = useLanguage();
     const { hasAccess } = useEntitlement();
@@ -122,6 +130,7 @@ export default function PersonalShopperModal({
     const [input, setInput] = useState('');
     const [listInput, setListInput] = useState('');
     const [busy, setBusy] = useState(false);
+    const [circularMode, setCircularMode] = useState(false);
 
     useEffect(() => {
         // Fresh session each time the modal opens; also invalidates any async
@@ -136,6 +145,9 @@ export default function PersonalShopperModal({
         setInput('');
         setListInput('');
         setBusy(false);
+        setCircularMode(false);
+        // Opened from the arrival notification: skip the intro and go straight to the flyer.
+        if (visible && allowed && startWithCircular) startCircularPlanning();
     }, [visible]);
 
     if (visible && !allowed) {
@@ -196,6 +208,8 @@ export default function PersonalShopperModal({
                 mealPlan,
                 userProfile: data?.userProfile,
                 locale,
+                deals: run.deals,
+                dealsStore: run.dealsStore,
             });
             if (run !== session.current) return;
             setTyping(false);
@@ -272,6 +286,120 @@ export default function PersonalShopperModal({
             say(t('psp_start_fallback'));
             startStaples(); // opening message failed, so ask the question ourselves
         }
+    };
+
+    // ── optional first step: scan the store flyer (arrival notification) ─────
+
+    // Same as startPlanning, but the opening message is held back: the user is
+    // standing in the store, so the flyer comes first, then the staples question,
+    // then dinners built around what's on sale.
+    const startCircularPlanning = async () => {
+        const run = newSession();
+        session.current = run;
+        setCircularMode(true);
+        setPhase('chat');
+        setMessages([]);
+        setPanel(null);
+        setChips([]);
+        goStep('circular');
+        setTyping(true);
+
+        const { mealPlan, activities } = await readPlanState();
+        const store = Array.isArray(data?.userStores) ? data.userStores[0] : null;
+        run.dealsStore = String(arrivedStoreName || '').trim();
+        try {
+            const res = await startPersonalShopper({
+                userProfile: data?.userProfile,
+                lat: store?.lat,
+                lon: store?.lng ?? store?.lon,
+                mealPlan,
+                savedRecipes: data?.recipes,
+                activities,
+                locale,
+            });
+            if (run !== session.current) return;
+            run.systemPrompt = res.systemPrompt;
+            run.forecast = res.forecast;
+            run.recurringActs = res.recurringActs;
+            run.history.push({ role: 'system', content: res.systemPrompt });
+            run.startReply = res.reply || t('psp_start_fallback');
+        } catch (e) {
+            console.log('[personal-shopper] start failed', e?.message || e);
+            if (run !== session.current) return;
+            run.startReply = t('psp_staples_prompt');
+        }
+        setTyping(false);
+        say(run.dealsStore ? t('psp_circular_prompt', { store: run.dealsStore }) : t('psp_circular_prompt_nostore'));
+        setPanel({ type: 'circular' });
+    };
+
+    // After the flyer step (scanned or skipped): Fern's usual opening + staples question.
+    const proceedToStaplesAfterCircular = () => {
+        const run = session.current;
+        setPanel(null);
+        goStep('staples');
+        say(run.startReply || t('psp_staples_prompt'));
+        setChips(stapleChips());
+    };
+
+    const scanFlyer = async (fromCamera) => {
+        if (busy) return;
+        const run = session.current;
+        const result = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+        if (result.permissionDenied) {
+            Alert.alert(t('permission_needed_title'), t('photo_permission_denied_desc'));
+            return;
+        }
+        if (!result.photo?.base64) return;
+
+        setBusy(true);
+        setPanel(null);
+        say(t('psp_circular_scanning'));
+        setTyping(true);
+        let scan;
+        try {
+            scan = await scanCircular({
+                userId: user?.id,
+                base64: result.photo.base64,
+                mimeType: result.photo.mimeType,
+                token,
+            });
+        } catch (e) {
+            console.log('[personal-shopper] flyer scan failed', e?.message || e);
+            if (run !== session.current) return;
+            setBusy(false);
+            setTyping(false);
+            Alert.alert(t('scan_circular_scan_failed_title'), t('scan_circular_scan_failed_desc'));
+            setPanel({ type: 'circular' });
+            return;
+        }
+        if (run !== session.current) return;
+        setBusy(false);
+        setTyping(false);
+
+        // Best deals first; the server takes up to 30.
+        const items = (scan.items || []).filter((item) => item.name);
+        const ranked = [...items].sort((a, b) => (Number(b.cookable) - Number(a.cookable)) || (b.dealScore - a.dealScore));
+        run.deals = ranked.slice(0, 30).map((item) => ({
+            name: item.name,
+            salePrice: item.salePrice || '',
+            isBogo: Boolean(item.isBogo),
+        }));
+        if (scan.store) run.dealsStore = scan.store;
+
+        if (!run.deals.length) {
+            say(t('psp_circular_none'));
+        } else {
+            say(run.dealsStore
+                ? t('psp_circular_found', { n: run.deals.length, store: run.dealsStore })
+                : t('psp_circular_found_nostore', { n: run.deals.length }));
+        }
+        proceedToStaplesAfterCircular();
+    };
+
+    const skipFlyer = () => {
+        userSays(t('psp_circular_skip_btn'));
+        proceedToStaplesAfterCircular();
     };
 
     const confirmDinners = async () => {
@@ -733,10 +861,28 @@ export default function PersonalShopperModal({
 
     // ── render ───────────────────────────────────────────────────────────────
 
-    const meta = STEP_META[step] || STEP_META.dinners;
+    const baseMeta = STEP_META[step] || STEP_META.dinners;
+    // The flyer step is step 1 when present, which pushes the others down by one.
+    const meta = { ...baseMeta, n: baseMeta.n + (circularMode && step !== 'circular' ? 1 : 0) };
 
     const renderPanel = () => {
         if (!panel) return null;
+
+        if (panel.type === 'circular') {
+            return (
+                <View style={styles.panelCard}>
+                    <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={() => scanFlyer(true)}>
+                        <Text style={styles.orangeBtnText}>{t('psp_circular_take_btn')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.greenBtn} activeOpacity={0.85} onPress={() => scanFlyer(false)}>
+                        <Text style={styles.greenBtnText}>{t('psp_circular_choose_btn')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.85} onPress={skipFlyer}>
+                        <Text style={styles.ghostBtnText}>{t('psp_circular_skip_btn')}</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
 
         if (panel.type === 'dinners') {
             return (
