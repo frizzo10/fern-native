@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { setGrant } from '../services/grantStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SYNC_URL = 'https://app.clickpickandcook.com/.netlify/functions/sync';
@@ -98,6 +99,10 @@ export function useSync(user) {
 
       setData(next);
       setLastSync(new Date());
+
+      // Admin-granted plan (separate from RevenueCat's tier; see grantStore.js).
+      // Absent/expired on the server = no grant, which also clears a revoked one.
+      setGrant({ tier: dd.granted_tier || null, until: dd.granted_until || null });
 
       // Cache locally
       await AsyncStorage.setItem('fern_sync_cache', JSON.stringify(next));

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { clearGrant } from '../services/grantStore';
 
 const AUTH_KEY = 'fern_user';
 const AUTH_URL = 'https://app.clickpickandcook.com/.netlify/functions/auth';
@@ -307,6 +308,7 @@ export function useAuth() {
   const signOut = async () => {
     await supabase.auth.signOut();
     await SecureStore.deleteItemAsync(AUTH_KEY);
+    clearGrant(); // an admin-granted plan belongs to the account, not the device
     setUser(null);
   };
 
