@@ -33,6 +33,7 @@ import {
   summarizeLedger,
   syncCircularSavings,
   couponItemName,
+  isNonFoodCoupon,
   tooGoodCoupons,
   updateLedger,
   weekKeyFor,
@@ -90,6 +91,7 @@ export default function ShoppingScreen({ user }) {
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
+  const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
 
   useEffect(() => {
     maybeAutoStart('shopping');
@@ -120,7 +122,7 @@ export default function ShoppingScreen({ user }) {
     useMemo(() => () => {
       loadWeekDeals().then(setWeekDeals);
       loadLedger().then(setLedger);
-      fetchAllCoupons().then((list) => setCatalog(normalizeCoupons(list))).catch(() => {});
+      fetchAllCoupons().then((list) => { const n = normalizeCoupons(list); setCatalog(n); setCatalogState(n.length ? 'ok' : 'failed'); }).catch(() => setCatalogState('failed'));
     }, [])
   );
 
@@ -503,6 +505,14 @@ export default function ShoppingScreen({ user }) {
             />
           ) : null}
         </View>
+
+        {!greatDeals.length && !listCoupons.length ? (
+          <Text style={styles.checkoutSub}>
+            {catalogState === 'loading' ? t('sav_status_loading')
+              : coupons.length ? t('sav_status_none', { n: coupons.length, m: coupons.filter(isNonFoodCoupon).length })
+              : t('sav_status_empty')}
+          </Text>
+        ) : null}
 
         {greatDeals.length ? (
           <View style={[styles.greatCard, shadow.card]}>
