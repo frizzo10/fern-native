@@ -116,11 +116,19 @@ const NEUTRAL_PREV = new Set(['or', 'and', 'of', 'oz', 'lb', 'lbs', 'cup', 'cups
 // Does this single ingredient line contain this on-sale item? Compares the main noun
 // ("pepper") and refuses when the ingredient's own qualifier ("black") isn't part of the
 // sale item's name, so "Rainbow Bell Peppers" never matches "black pepper".
+// A sale item that is a prepared/processed form ("Rotisserie Chicken", "Smoked ...") is not the
+// plain ingredient, so it only matches when the recipe itself asks for that form.
+const DEAL_FORM_WORDS = ['rotisserie', 'smoked', 'cooked', 'canned', 'deli', 'prepared', 'roasted', 'breaded', 'fried', 'sauce', 'juice', 'dried', 'pickled', 'jarred', 'frozen', 'dressing', 'soup'];
+
+NEUTRAL_PREV.forEach((w) => NEUTRAL_PREV.add(singular(w))); // ingredient words are compared singularized
+
 function ingredientHasSaleItem(ingredient, deal) {
     const ing = String(ingredient || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).map(singular);
     const dealWords = String(deal.name || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).map(singular);
     const keyWords = dealWords.filter((w) => w.length > 2 && !SALE_STOP.has(w));
     if (!keyWords.length || !ing.length) return false;
+    const dealForms = DEAL_FORM_WORDS.filter((w) => dealWords.includes(w));
+    if (dealForms.some((w) => !ing.includes(w))) return false;
     // The sale item's main noun: its last meaningful word (brand words come first).
     const head = keyWords[keyWords.length - 1];
     const pos = ing.indexOf(head);
@@ -132,7 +140,12 @@ function ingredientHasSaleItem(ingredient, deal) {
 
 // Which on-sale items does this ingredient list really contain?
 function matchSaleItems(ingredients, deals) {
-    return (deals || []).filter((deal) => (ingredients || []).some((ing) => ingredientHasSaleItem(ing, deal)));
+    const out = [];
+    (deals || []).forEach((deal) => {
+        const hit = (ingredients || []).find((ing) => ingredientHasSaleItem(ing, deal));
+        if (hit) out.push({ ...deal, usedFor: hit });
+    });
+    return out;
 }
 
 function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t }) {
@@ -214,6 +227,7 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
                                 {sale.map((x) => (
                                     <View key={x.name} style={styles.saleChip}>
                                         <Text style={styles.saleChipText}>{'🏷 '}{x.name}{x.isBogo ? ' · BOGO' : (x.salePrice || x.price ? ` · ${x.salePrice || x.price}` : '')}{x.store ? ` · ${x.store}` : ''}</Text>
+                                        {x.usedFor ? <Text style={styles.saleChipFor}>{t('psp_sale_used_for', { ingredient: x.usedFor })}</Text> : null}
                                     </View>
                                 ))}
                             </View>
@@ -1683,6 +1697,7 @@ const styles = StyleSheet.create({
     ideasDone: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 6 },
     saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
     saleChip: { backgroundColor: 'rgba(232,119,34,0.14)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginRight: 6, marginTop: 2 },
+    saleChipFor: { fontFamily: 'Jost-Regular', fontSize: 11, color: colors.brown, marginTop: 1 },
     saleChipText: { fontFamily: 'Jost-SemiBold', fontSize: 11, color: colors.ink },
     checkRowWrap: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.sage },
     dinnerBody: { flex: 1, flexDirection: 'row', alignItems: 'flex-start' },
