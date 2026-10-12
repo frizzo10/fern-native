@@ -316,6 +316,11 @@ export default function PersonalShopperModal({
         setMessages((prev) => [...prev, { id: nextMessageId.current++, role: 'user', text }]);
     };
 
+    // A visible receipt for something Fern's AI just did: a green check card that stays in the chat.
+    const addCard = ({ title, sub, lines, more }) => {
+        setMessages((prev) => [...prev, { id: nextMessageId.current++, role: 'card', card: { title, sub: sub || '', lines: lines || [], more: more || 0 } }]);
+    };
+
     const goStep = (next) => {
         session.current.step = next;
         setStep(next);
@@ -608,6 +613,14 @@ export default function PersonalShopperModal({
     const acceptScan = () => {
         const run = session.current;
         userSays(t('psp_scan_ok_btn'));
+        if (panel?.type === 'scancheck') {
+            addCard({
+                title: t('psp_card_flyer_read', { store: panel.store || t('psp_scan_unknown_store') }),
+                sub: `${t('psp_scan_items_found', { n: panel.count })}${panel.validDates ? ` · ${panel.validDates}` : ''}`,
+                lines: panel.sample,
+                more: Math.max(0, panel.count - panel.sample.length),
+            });
+        }
         setPanel(null);
         say(run.dealsStore
             ? t('psp_circular_found', { n: run.deals.length, store: run.dealsStore })
@@ -682,6 +695,10 @@ export default function PersonalShopperModal({
         setBusy(false);
 
         userSays(t(picked.length === 1 ? 'psp_dinners_added_singular' : 'psp_dinners_added_plural', { n: picked.length }));
+        addCard({
+            title: t('psp_card_added_week'),
+            lines: picked.map((x) => `${x.dayLabel}: ${x.title}${(x.saleItems || []).length ? ' 🏷' : ''}`),
+        });
         setPanel(null);
         if (run === session.current) await showWeekReview();
     };
@@ -1058,6 +1075,9 @@ export default function PersonalShopperModal({
 
         try {
             await addPlannedItemsToShoppingList(run);
+            if (run.listItems.length) {
+                addCard({ title: t('psp_card_list_saved', { n: run.listItems.length }), sub: t('psp_card_list_saved_sub') });
+            }
         } catch (e) {
             console.log('[personal-shopper] adding to shopping list failed', e?.message || e);
             Alert.alert(t('save_failed'), t('save_error_desc'));
@@ -1110,6 +1130,12 @@ export default function PersonalShopperModal({
         if (stepNow === 'circular' && run.storedDeals.length && (intent === 'usedeals' || intent === 'yes')) {
             run.deals = run.storedDeals.flatMap((k) => k.deals);
             run.dealsStore = run.storedDeals.length === 1 ? run.storedDeals[0].store : '';
+            addCard({
+                title: t('psp_card_saved_ad', { store: run.storedDeals.map((k) => k.store).join(', ') }),
+                sub: t('psp_scan_items_found', { n: run.deals.length }),
+                lines: run.deals.slice(0, 6).map((d) => `${d.name}${d.salePrice ? ` · ${d.salePrice}` : ''}`),
+                more: Math.max(0, run.deals.length - 6),
+            });
             proceedToStaplesAfterCircular();
             return;
         }
@@ -1521,14 +1547,21 @@ export default function PersonalShopperModal({
                             keyboardShouldPersistTaps="handled"
                             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
                         >
-                            {messages.map((message) => (
+                            {messages.map((message) => (message.role === 'card' ? (
+                                <View key={message.id} style={styles.receiptCard}>
+                                    <Text style={styles.receiptTitle}>✓ {message.card.title}</Text>
+                                    {message.card.sub ? <Text style={styles.receiptSub}>{message.card.sub}</Text> : null}
+                                    {message.card.lines.map((line, i) => <Text key={`${line}-${i}`} style={styles.receiptLine}>• {line}</Text>)}
+                                    {message.card.more ? <Text style={styles.receiptSub}>{t('psp_scan_and_more', { n: message.card.more })}</Text> : null}
+                                </View>
+                            ) : (
                                 <View
                                     key={message.id}
                                     style={[styles.bubble, message.role === 'user' ? styles.bubbleUser : styles.bubbleFern]}
                                 >
                                     <Text style={[styles.bubbleText, message.role === 'user' ? styles.bubbleTextUser : null]}>{message.text}</Text>
                                 </View>
-                            ))}
+                            )))}
                             {typing ? (
                                 <View style={[styles.bubble, styles.bubbleFern, styles.typingBubble]}>
                                     <ActivityIndicator size="small" color={colors.forest} />
@@ -1619,6 +1652,10 @@ const styles = StyleSheet.create({
     chatContent: { padding: 16, paddingBottom: 24 },
     bubble: { maxWidth: '88%', borderRadius: 16, paddingVertical: 10, paddingHorizontal: 14, marginBottom: 10 },
     bubbleFern: { alignSelf: 'flex-start', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: colors.border },
+    receiptCard: { alignSelf: 'stretch', marginBottom: 10, padding: 12, borderRadius: 14, borderWidth: 1.5, borderColor: colors.forest, backgroundColor: 'rgba(31,64,40,0.06)' },
+    receiptTitle: { fontFamily: 'Jost-Bold', fontSize: 14, color: colors.forest },
+    receiptSub: { fontFamily: 'Jost-Regular', fontSize: 12, color: colors.brown, marginTop: 2 },
+    receiptLine: { fontFamily: 'Jost-Regular', fontSize: 13, color: colors.ink, marginTop: 2 },
     bubbleUser: { alignSelf: 'flex-end', backgroundColor: colors.forest },
     bubbleText: { fontFamily: 'Jost-Regular', fontSize: 15, lineHeight: 21, color: colors.ink },
     bubbleTextUser: { color: '#F0E0B0' },
