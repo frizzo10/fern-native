@@ -99,6 +99,23 @@ function inferIntent(text) {
     return null;
 }
 
+// Full recipe preview: time, difficulty, description, every ingredient and every step.
+function RecipePreview({ recipe, sides, t, style }) {
+    const meta = [recipe.time ? `⏱ ${recipe.time}` : '', recipe.difficulty || ''].filter(Boolean).join('  ·  ');
+    return (
+        <View style={style}>
+            <Text style={styles.previewTitle}>{recipe.emoji ? `${recipe.emoji} ` : ''}{recipe.title}</Text>
+            {meta ? <Text style={styles.previewMeta}>{meta}</Text> : null}
+            {recipe.description ? <Text style={styles.previewDesc}>{recipe.description}</Text> : null}
+            {(sides || []).length ? <Text style={styles.sidesText}>{t('psp_with_sides', { sides: sides.join(', ') })}</Text> : null}
+            <Text style={styles.previewHeading}>{t('psp_preview_ingredients')}</Text>
+            {recipe.ingredients.map((line, n) => <Text key={n} style={styles.previewLine}>• {line}</Text>)}
+            {recipe.instructions.length ? <Text style={styles.previewHeading}>{t('psp_preview_steps')}</Text> : null}
+            {recipe.instructions.map((line, n) => <Text key={n} style={styles.previewStep}>{n + 1}. {line}</Text>)}
+        </View>
+    );
+}
+
 function Checkbox({ checked }) {
     return (
         <View style={[styles.checkbox, checked ? styles.checkboxOn : null]}>
@@ -1925,14 +1942,7 @@ export default function PersonalShopperModal({
                                             </View>
                                             {pv?.loading ? <ActivityIndicator color={colors.forest} style={{ marginVertical: 6 }} /> : null}
                                             {pv?.failed ? <Text style={styles.checkRowSub}>{t('psp_ideas_error')}</Text> : null}
-                                            {pv?.recipe ? (
-                                                <View style={styles.previewBox}>
-                                                    <Text style={styles.previewHeading}>{t('psp_preview_ingredients')}</Text>
-                                                    {pv.recipe.ingredients.slice(0, 14).map((line, n2) => <Text key={n2} style={styles.previewLine}>• {line}</Text>)}
-                                                    {pv.recipe.instructions.length ? <Text style={styles.previewHeading}>{t('psp_preview_steps')}</Text> : null}
-                                                    {pv.recipe.instructions.slice(0, 4).map((line, n2) => <Text key={n2} style={styles.previewLine}>{n2 + 1}. {line}</Text>)}
-                                                </View>
-                                            ) : null}
+                                            {pv?.recipe ? <RecipePreview recipe={pv.recipe} sides={idea.sides} t={t} style={styles.previewBox} /> : null}
                                         </View>
                                     );
                                 })}
@@ -2038,14 +2048,7 @@ export default function PersonalShopperModal({
                                                             <Text style={styles.checkRowSub}>{idea.time ? `${idea.time} · ` : ''}{idea.why}</Text>
                                                             {pv?.loading ? <ActivityIndicator color={colors.forest} style={{ marginTop: 6 }} /> : null}
                                                             {pv?.failed ? <Text style={styles.checkRowSub}>{t('psp_ideas_error')}</Text> : null}
-                                                            {pv?.recipe ? (
-                                                                <View style={styles.ideaPreview}>
-                                                                    <Text style={styles.previewHeading}>{t('psp_preview_ingredients')}</Text>
-                                                                    {pv.recipe.ingredients.slice(0, 14).map((line, n) => <Text key={n} style={styles.previewLine}>• {line}</Text>)}
-                                                                    {pv.recipe.instructions.length ? <Text style={styles.previewHeading}>{t('psp_preview_steps')}</Text> : null}
-                                                                    {pv.recipe.instructions.slice(0, 4).map((line, n) => <Text key={n} style={styles.previewLine}>{n + 1}. {line}</Text>)}
-                                                                </View>
-                                                            ) : null}
+                                                            {pv?.recipe ? <RecipePreview recipe={pv.recipe} sides={idea.sides} t={t} style={styles.ideaPreview} /> : null}
                                                             <View style={styles.ideaActions}>
                                                                 <TouchableOpacity style={styles.ideaGhost} activeOpacity={0.8} onPress={() => previewIdea(idea)}>
                                                                     <Text style={styles.ideaGhostText}>{pv ? t('psp_idea_hide') : t('psp_idea_preview')}</Text>
@@ -2607,6 +2610,10 @@ const styles = StyleSheet.create({
     noSaleText: { fontFamily: 'Jost-Regular', fontSize: 11, color: colors.brown, marginTop: 4, fontStyle: 'italic' },
     previewHint: { fontFamily: 'Jost-Bold', fontSize: 11, color: colors.forest, marginTop: 4 },
     previewBox: { marginLeft: 34, marginBottom: 10, padding: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.04)' },
+    previewTitle: { fontFamily: 'Playfair-Bold', fontSize: 16, color: colors.forest, marginBottom: 2 },
+    previewMeta: { fontFamily: 'Jost-Bold', fontSize: 12, color: colors.orange, marginBottom: 4 },
+    previewDesc: { fontFamily: 'Jost-Regular', fontSize: 13, color: colors.brown, marginBottom: 4 },
+    previewStep: { fontFamily: 'Jost-Regular', fontSize: 13, lineHeight: 19, color: colors.ink, marginBottom: 5 },
     previewHeading: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 0.8, color: colors.brown, textTransform: 'uppercase', marginTop: 4, marginBottom: 2 },
     previewLine: { fontFamily: 'Jost-Regular', fontSize: 13, color: colors.ink, marginBottom: 2 },
     previewSale: { fontFamily: 'Jost-Bold', color: '#B85A12' },

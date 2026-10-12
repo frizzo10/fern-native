@@ -86,7 +86,7 @@ export async function fetchDealRecipeIdeas({ itemName, locale, token, exclude = 
 
 export async function fetchFullRecipeForDealIdea({ idea, itemName, locale, token }) {
     const json = await postToAi({
-        system: 'You are a world-class chef. Return ONLY a single JSON object (no array, no markdown, no explanation) for one full recipe: {"title":"","cuisine":"","mealType":"Dinner","time":"","difficulty":"Easy|Medium|Hard","description":"","ingredients":["2 cups flour"],"instructions":["step one"],"emoji":"🍽️"}',
+        system: 'You are a world-class chef. Return ONLY a single JSON object (no array, no markdown, no explanation) for one full recipe: {"title":"","cuisine":"","mealType":"Dinner","time":"35 min total (prep + cook)","difficulty":"Easy|Medium|Hard","description":"one sentence","ingredients":["2 cups flour"],"instructions":["complete step with temperatures and times"],"emoji":"🍽️"}',
         messages: [
             {
                 role: 'user',
