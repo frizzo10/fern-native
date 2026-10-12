@@ -180,6 +180,32 @@ export function parseCouponValue(label) {
     return out;
 }
 
+// "Save $1.00 on Bounty Paper Towels" -> "Bounty Paper Towels" (what you'd write on a shopping list).
+export function couponItemName(coupon) {
+    let t = String(coupon?.title || '').trim().replace(/^(?:buy (?:one|1),? get (?:one|1)(?: free| 50% off)?|bogo)\s*/i, '');
+    t = t.replace(/^(?:save|get|take|earn)\s+(?:up to\s+)?(?:\$\s*\d+(?:\.\d+)?|\d+\s*(?:¢|cents?)|\d+\s*%)\s*(?:off|back)?\s*(?:on|when you buy|with purchase of|any|one|1)?\s*/i, '');
+    t = t.replace(/\s*(?:when you buy|with purchase|with coupon|\(.*\)).*$/i, '').replace(/^(?:any|one|1)\s+/i, '').trim();
+    t = t || String(coupon?.title || '').trim();
+    return t.length > 60 ? t.slice(0, 60).trim() : t;
+}
+
+// Coupons big enough to be worth putting an item on the list for, whether or not the item is
+// already on it. Non-food only (see isNonFoodCoupon). Biggest first.
+export function tooGoodCoupons(coupons, { excludeIds = [], limit = 4 } = {}) {
+    const skip = new Set(excludeIds.map(String));
+    return (coupons || [])
+        .filter((c) => isNonFoodCoupon(c) && !skip.has(String(c.id)))
+        .map((c) => {
+            const value = parseCouponValue(`${c.discountLabel || ''} ${c.title || ''}`);
+            const free = /\bfree\b/i.test(`${c.discountLabel || ''} ${c.title || ''}`);
+            const score = value.amount + value.percent / 20 + (value.bogo || free ? 3 : 0);
+            return { coupon: c, value, score };
+        })
+        .filter((m) => m.score >= 2)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, limit);
+}
+
 // For each list item, the best flyer deal and the coupons that fit it.
 export function matchListItems(items, deals, coupons) {
     const out = {};

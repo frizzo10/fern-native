@@ -30,6 +30,8 @@ import {
   matchListItems,
   summarizeLedger,
   syncCircularSavings,
+  couponItemName,
+  tooGoodCoupons,
   updateLedger,
   weekKeyFor,
   weekLabel,
@@ -188,6 +190,12 @@ export default function ShoppingScreen({ user }) {
     return () => clearTimeout(timer);
   }, [listCoupons]);
 
+  // Big coupons worth adding an item for, even though nothing on the list matches them yet.
+  const greatDeals = useMemo(
+    () => tooGoodCoupons(coupons, { excludeIds: listCoupons.map((m) => m.coupon.id) }),
+    [coupons, listCoupons]
+  );
+
   const [addedIds, setAddedIds] = useState([]);
   const walletIds = useMemo(() => new Set([...(data.walletCoupons || []).map((c) => String(c?.id)), ...addedIds]), [data.walletCoupons, addedIds]);
 
@@ -206,6 +214,18 @@ export default function ShoppingScreen({ user }) {
       setAddedIds((prev) => prev.filter((id) => id !== String(coupon.id)));
       Alert.alert(t('save_error_title'), t('save_error_desc'));
     }
+  };
+
+  const addGreatDeal = async (m) => {
+    const name = couponItemName(m.coupon);
+    const exists = items.some((it) => it.text.toLowerCase() === name.toLowerCase());
+    if (!exists) {
+      await persistShopping([
+        ...items,
+        { id: `deal-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: name, recipe: 'Coupon deal', checked: false },
+      ]);
+    }
+    await addToWallet(m.coupon);
   };
 
   const checkedCount = items.filter((i) => i.checked).length;
@@ -459,6 +479,34 @@ export default function ShoppingScreen({ user }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {greatDeals.length ? (
+          <View style={[styles.greatCard, shadow.card]}>
+            <Text style={styles.checkoutTitle}>{`🔥 ${t('sav_great_title')}`}</Text>
+            <Text style={styles.checkoutSub}>{t('sav_great_sub')}</Text>
+            {greatDeals.map((m) => {
+              const c = m.coupon;
+              const done = walletIds.has(String(c.id));
+              return (
+                <View key={c.id} style={styles.couponRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.couponTitle} numberOfLines={2}>{couponItemName(c)}</Text>
+                    <Text style={styles.greatValue}>{c.discountLabel || c.title}</Text>
+                    {c.store ? <Text style={styles.couponMeta}>{c.store}</Text> : null}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.usedBtn, done ? styles.usedBtnOn : null]}
+                    onPress={() => addGreatDeal(m)}
+                    disabled={done}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.usedBtnText, done ? styles.usedBtnTextOn : null]}>{done ? t('sav_great_done') : t('sav_great_btn')}</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
 
         {listCoupons.length ? (
           <View style={[styles.checkoutCard, shadow.card]}>
@@ -895,6 +943,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Jost-SemiBold',
     marginTop: 2,
   },
+  greatCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 2, borderColor: '#E8651A', padding: 14, marginBottom: 14 },
+  greatValue: { color: '#C25A12', fontSize: 15, fontFamily: 'Jost-Bold', marginTop: 2 },
   doneBtn: {
     backgroundColor: colors.forest,
     borderRadius: 14,

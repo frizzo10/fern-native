@@ -1826,6 +1826,10 @@ export const translations = {
     scan_unlock_title_plain: "Fern can turn these sales into dinners",
     scan_unlock_body: "Unlock meals built around these sales, coupons matched to your list, and your weekly savings total.",
     scan_unlock_btn: "Unlock with Pro Max",
+    sav_great_title: "Too good to pass up",
+    sav_great_sub: "Big coupons for things you could add to your list. Add the item and the coupon together.",
+    sav_great_btn: "Add to list + wallet",
+    sav_great_done: "Added ✓",
   },
   es: {
     // Navigation / Header
@@ -3646,5 +3650,9 @@ export const translations = {
     scan_unlock_title_plain: "Fern puede convertir estas ofertas en cenas",
     scan_unlock_body: "Desbloquea comidas basadas en estas ofertas, cupones para tu lista y tu total semanal de ahorros.",
     scan_unlock_btn: "Desbloquear con Pro Max",
+    sav_great_title: "Demasiado buenos para dejarlos pasar",
+    sav_great_sub: "Cupones grandes para cosas que podrías agregar a tu lista. Agrega el artículo y el cupón juntos.",
+    sav_great_btn: "Agregar a lista + billetera",
+    sav_great_done: "Agregado ✓",
   }
 };
