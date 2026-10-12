@@ -92,6 +92,7 @@ export async function fetchDinnerSuggestions({ savedRecipes, forecast, activitie
                 reason: String(item?.reason || '').trim(),
                 quick: Boolean(item?.quick),
                 source: item?.source === 'cookbook' ? 'cookbook' : 'ai',
+                sides: (Array.isArray(item?.sides) ? item.sides : []).map((x) => String(x || '').trim()).filter(Boolean).slice(0, 2),
                 saleItems: (Array.isArray(item?.saleItems) ? item.saleItems : [])
                     .filter((sale) => sale && sale.name)
                     .map((sale) => ({ name: String(sale.name), price: String(sale.price || ''), isBogo: Boolean(sale.isBogo), store: String(sale.store || '') })),

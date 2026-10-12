@@ -173,7 +173,8 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
     const ingredients = detail ? detail.ingredients : savedIngredients.filter((i) => !/no ingredients listed/i.test(i));
     const steps = detail ? detail.directions : savedSteps.filter((i) => !/no instructions/i.test(i));
     const known = ingredients.length > 0;
-    const sale = known ? matchSaleItems(ingredients, allDeals) : [];
+    const sides = item.sides || [];
+    const sale = known ? matchSaleItems([...ingredients, ...sides], allDeals) : [];
     const saleNames = new Set(sale.map((x) => x.name));
 
     // Verify every dinner against its real ingredients as soon as it appears, so the
@@ -222,6 +223,7 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
                     <View style={styles.checkRowText}>
                         <Text style={styles.checkRowTitle}>{item.title}</Text>
                         <Text style={styles.checkRowSub}>{item.dayLabel}{item.reason ? ` · ${item.reason}` : ''}</Text>
+                        {sides.length ? <Text style={styles.sidesText}>{t('psp_with_sides', { sides: sides.join(', ') })}</Text> : null}
                         {sale.length ? (
                             <View style={styles.saleChipRow}>
                                 {sale.map((x) => (
@@ -241,6 +243,7 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
             {open ? (
                 <View style={styles.previewBox}>
                     {loading ? <ActivityIndicator color={colors.forest} /> : null}
+                    {sides.length ? <Text style={styles.previewLine}>{'🥗 '}{t('psp_with_sides', { sides: sides.join(', ') })}</Text> : null}
                     {ingredients.length ? <Text style={styles.previewHeading}>{t('psp_preview_ingredients')}</Text> : null}
                     {ingredients.map((ing, i) => {
                         const isSale = matchSaleItems([ing], sale).length > 0;
@@ -693,10 +696,12 @@ export default function PersonalShopperModal({
                             title: suggestion.title,
                             emoji: match?.emoji || '🍽️',
                             ...(matchId != null ? { recipeId: matchId } : {}),
+                            ...((suggestion.sides || []).length ? { sides: suggestion.sides } : {}),
                         },
                     ],
                 };
             });
+            picked.forEach((suggestion) => (suggestion.sides || []).forEach((side) => addListItem(run, side, `${suggestion.title} (side)`)));
             await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
             await pushChangedFromStorage?.({ meal_plan: next });
             await refreshAfterWrite();
@@ -711,7 +716,7 @@ export default function PersonalShopperModal({
         userSays(t(picked.length === 1 ? 'psp_dinners_added_singular' : 'psp_dinners_added_plural', { n: picked.length }));
         addCard({
             title: t('psp_card_added_week'),
-            lines: picked.map((x) => `${x.dayLabel}: ${x.title}${(x.saleItems || []).length ? ' 🏷' : ''}`),
+            lines: picked.map((x) => `${x.dayLabel}: ${x.title}${(x.sides || []).length ? ` + ${x.sides.join(', ')}` : ''}`),
         });
         setPanel(null);
         if (run === session.current) await showWeekReview();
@@ -735,7 +740,7 @@ export default function PersonalShopperModal({
                 meals: ['breakfast', 'lunch', 'dinner']
                     .map((slot) => dayMeals.find((entry) => normalizeSlot(entry) === slot))
                     .filter(Boolean)
-                    .map((entry) => ({ slot: entry.slot, title: String(entry.title || '').replace(/\s*\(exact match\)/gi, '') })),
+                    .map((entry) => ({ slot: entry.slot, title: String(entry.title || '').replace(/\s*\(exact match\)/gi, ''), sides: Array.isArray(entry.sides) ? entry.sides : [] })),
                 acts: (Array.isArray(activities) ? activities : []).filter((activity) => activity?.dateKey === key),
             };
         });
@@ -854,6 +859,19 @@ export default function PersonalShopperModal({
         } catch (e) {
             console.log('[personal-shopper] could not save household answers', e?.message || e);
         }
+        // The one question that changes every week: what are they in the mood to eat?
+        run.askingCraving = true;
+        say(t('psp_craving_q'));
+        setChips([
+            ['chicken', 'psp_craving_chicken'], ['beef', 'psp_craving_beef'], ['pork', 'psp_craving_pork'],
+            ['seafood', 'psp_craving_seafood'], ['pasta', 'psp_craving_pasta'], ['', 'psp_craving_surprise'],
+        ].map(([value, key]) => ({ label: t(key), intent: `ans:${value || 'surprise'}` })));
+    };
+
+    const finishCraving = (value) => {
+        const run = session.current;
+        run.askingCraving = false;
+        run.profile.craving = value && value !== 'surprise' ? String(value).trim().slice(0, 80) : '';
         say(t('psp_about_done'));
         proceedToStaplesAfterCircular();
     };
@@ -862,6 +880,7 @@ export default function PersonalShopperModal({
         const run = session.current;
         const answered = typeof explicitIntent === 'string' && explicitIntent.startsWith('ans:') ? explicitIntent.slice(4) : null;
 
+        if (run.askingCraving) { finishCraving(answered != null ? answered : text); return; }
         if (answered === 'keep') { await finishAbout(); return; }
         if (answered === 'change') { run.profile = {}; run.aboutQ = 0; askAboutQuestion(run); return; }
 
@@ -1252,6 +1271,7 @@ export default function PersonalShopperModal({
                 ...it,
                 title: idea.title,
                 source: 'ai',
+                sides: [],
                 reason: idea.why || '',
                 quick: false,
                 checked: true,
@@ -1262,7 +1282,22 @@ export default function PersonalShopperModal({
     };
 
     const toggleListItem = (key) => {
-        setPanel((prev) => (prev?.type === 'list' ? { ...prev, done: { ...prev.done, [key]: !prev.done[key] } } : prev));
+        setPanel((prev) => ((prev?.type === 'list' || prev?.type === 'walk') ? { ...prev, done: { ...prev.done, [key]: !prev.done[key] } } : prev));
+    };
+
+    // "Walk me through it": one store section at a time, in order.
+    const startWalk = () => {
+        setPanel((prev) => (prev?.type === 'list' && prev.sections.length ? { type: 'walk', sections: prev.sections, added: prev.added, done: prev.done, idx: 0 } : prev));
+        say(t('psp_walk_start'));
+    };
+
+    const walkStep = (delta) => {
+        setPanel((prev) => (prev?.type === 'walk' ? { ...prev, idx: Math.max(0, Math.min(prev.sections.length - 1, prev.idx + delta)) } : prev));
+    };
+
+    const finishWalk = () => {
+        setPanel((prev) => (prev?.type === 'walk' ? { type: 'list', sections: prev.sections, added: prev.added, done: prev.done } : prev));
+        say(t('psp_walk_done'));
     };
 
     // ── render ───────────────────────────────────────────────────────────────
@@ -1328,7 +1363,7 @@ export default function PersonalShopperModal({
             const indexed = panel.items.map((item, index) => ({ item, index }));
             const cookbook = indexed.filter((x) => x.item.source === 'cookbook');
             const found = indexed.filter((x) => x.item.source !== 'cookbook');
-            const deals = panel.deals || [];
+            const deals = panel.showAll ? (panel.allDeals || []) : (panel.deals || []);
             const ideas = panel.ideas;
             return (
                 <View style={styles.panelCard}>
@@ -1346,6 +1381,11 @@ export default function PersonalShopperModal({
                                     </TouchableOpacity>
                                 </View>
                             ))}
+                            {(panel.allDeals || []).length > (panel.deals || []).length ? (
+                                <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.85} onPress={() => setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, showAll: !prev.showAll } : prev))}>
+                                    <Text style={styles.ghostBtnText}>{panel.showAll ? t('psp_show_fewer') : t('psp_show_all_sale', { n: panel.allDeals.length })}</Text>
+                                </TouchableOpacity>
+                            ) : null}
                             {ideas ? (
                                 <View style={styles.ideasBox}>
                                     <Text style={styles.ideasTitle}>{t('psp_ideas_for', { item: ideas.itemName })}</Text>
@@ -1392,7 +1432,7 @@ export default function PersonalShopperModal({
                             </Text>
                             {day.meals.length ? day.meals.map((meal) => (
                                 <Text key={`${day.key}-${meal.slot}`} style={styles.dayMeal}>
-                                    <Text style={styles.daySlot}>{`${meal.slot}  `}</Text>{meal.title}
+                                    <Text style={styles.daySlot}>{`${meal.slot}  `}</Text>{meal.title}{meal.sides && meal.sides.length ? `  + ${meal.sides.join(', ')}` : ''}
                                 </Text>
                             )) : <Text style={styles.dayEmpty}>{t('psp_no_meals_planned')}</Text>}
                             {day.acts.map((activity, index) => (
@@ -1504,9 +1544,42 @@ export default function PersonalShopperModal({
                         </View>
                     ) : null}
 
+                    {panel.sections.length ? (
+                        <TouchableOpacity style={styles.greenBtn} activeOpacity={0.85} onPress={startWalk}>
+                            <Text style={styles.greenBtnText}>{t('psp_walk_btn')}</Text>
+                        </TouchableOpacity>
+                    ) : null}
                     <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={finishPlanning}>
                         <Text style={styles.orangeBtnText}>{t('psp_ready_btn')}</Text>
                     </TouchableOpacity>
+                </View>
+            );
+        }
+
+        if (panel.type === 'walk') {
+            const section = panel.sections[panel.idx];
+            const last = panel.idx >= panel.sections.length - 1;
+            return (
+                <View style={styles.panelCard}>
+                    <Text style={styles.groupLabel}>{t('psp_walk_progress', { n: panel.idx + 1, total: panel.sections.length })}</Text>
+                    <Text style={styles.panelTitle}>{`${section.emoji} ${section.name}`}</Text>
+                    {section.items.map((item, index) => {
+                        const key = `${section.id}:${item}:${index}`;
+                        return (
+                            <TouchableOpacity key={key} style={styles.checkRow} activeOpacity={0.8} onPress={() => toggleListItem(key)}>
+                                <Checkbox checked={Boolean(panel.done[key])} />
+                                <Text style={[styles.checkRowTitle, panel.done[key] ? styles.struck : null]}>{item}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                    <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={last ? finishWalk : () => walkStep(1)}>
+                        <Text style={styles.orangeBtnText}>{last ? t('psp_walk_finish_btn') : t('psp_walk_next_btn')}</Text>
+                    </TouchableOpacity>
+                    {panel.idx > 0 ? (
+                        <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.85} onPress={() => walkStep(-1)}>
+                            <Text style={styles.ghostBtnText}>{t('psp_walk_back_btn')}</Text>
+                        </TouchableOpacity>
+                    ) : null}
                 </View>
             );
         }
@@ -1697,6 +1770,7 @@ const styles = StyleSheet.create({
     ideasDone: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 6 },
     saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
     saleChip: { backgroundColor: 'rgba(232,119,34,0.14)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginRight: 6, marginTop: 2 },
+    sidesText: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 3 },
     saleChipFor: { fontFamily: 'Jost-Regular', fontSize: 11, color: colors.brown, marginTop: 1 },
     saleChipText: { fontFamily: 'Jost-SemiBold', fontSize: 11, color: colors.ink },
     checkRowWrap: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.sage },
