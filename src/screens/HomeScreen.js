@@ -134,9 +134,8 @@ export default function HomeScreen({ user, route }) {
   useEffect(() => {
     const arrival = route?.params?.openPersonalShopperArrival;
     if (!arrival) return;
-    setPersonalShopperArrival({ store: String(arrival.store || '') });
-    setIsPersonalShopperOpen(true);
     navigation.setParams({ openPersonalShopperArrival: undefined });
+    navigation.navigate('Shopping', { tripStart: Date.now(), store: String(arrival.store || '') });
   }, [route?.params?.openPersonalShopperArrival]);
   const { open: openAccount } = useAccountModal();
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
@@ -1345,12 +1344,8 @@ export default function HomeScreen({ user, route }) {
   // then Fern plans dinners around the sales, fills the week and builds the list) -- the same
   // flow the store-arrival notification opens. Other plans keep the plain flyer scan.
   const handleHomeScanFlyer = () => {
-    if (hasAccess(FEATURE_TIERS.personal_shopper)) {
-      setPersonalShopperArrival({ store: '' });
-      setIsPersonalShopperOpen(true);
-      return;
-    }
-    openScanCircularModal();
+    // The whole trip lives on the Shopping screen now (flyer, sales, coupons, a week of dinners).
+    navigation.navigate('Shopping', { tripStart: Date.now() });
   };
 
   const closeScanCircularModal = () => {
@@ -2272,7 +2267,7 @@ export default function HomeScreen({ user, route }) {
     { label: 'Dinner Party', icon: 'sparkles-outline', featureKey: 'dinner_party', onPress: () => setIsEventPlannerOpen(true) },
     { label: 'Charcuterie', icon: 'restaurant-outline', featureKey: 'charcuterie', onPress: () => setIsCharcuterieModalOpen(true) },
     { label: 'Wine Pairing', icon: 'wine-outline', featureKey: 'wine_pairing', onPress: () => setIsWineModalOpen(true) },
-    { label: 'Personal Shopper', icon: 'cart-outline', featureKey: 'personal_shopper', onPress: () => setIsPersonalShopperOpen(true) },
+    { label: 'Personal Shopper', icon: 'cart-outline', onPress: () => navigation.navigate('Shopping', { tripStart: Date.now() }) },
     { label: 'Weekly Nutrition', icon: 'nutrition-outline', featureKey: 'nutrition', onPress: () => setIsNutritionTrackerOpen(true) },
     { label: 'Alexa Skill', icon: 'volume-high-outline', featureKey: 'alexa_skill', onPress: () => setIsAlexaModalOpen(true) },
     { label: 'Fridge Challenge', icon: 'snow-outline', featureKey: 'fridge_challenge', onPress: openFridgeChallengeModal },
@@ -2421,7 +2416,7 @@ export default function HomeScreen({ user, route }) {
                 { label: 'Charcuterie', val: '🧀', color: 'rgb(56, 89, 45)', featureKey: 'charcuterie' },
                 { label: 'Dinner Party', val: `🎉`, color: 'rgb(216, 109, 51)', featureKey: 'dinner_party' },
                 { label: 'Wine Pairing', val: '🍷', color: 'rgb(30, 57, 30)', featureKey: 'wine_pairing' },
-                { label: 'Personal Shopper', val: '🛒', color: 'rgb(56, 89, 45)', featureKey: 'personal_shopper' },
+                { label: 'Personal Shopper', val: '🛒', color: 'rgb(56, 89, 45)' },
                 { label: 'Weekly Nutrition', val: '🥗', color: 'rgb(216, 109, 51)', featureKey: 'nutrition' },
               ].map(({ label, val, color, featureKey }) => {
                 const requiredTier = FEATURE_TIERS[featureKey];
@@ -2440,7 +2435,7 @@ export default function HomeScreen({ user, route }) {
                             : label === 'Wine Pairing'
                               ? () => setIsWineModalOpen(true)
                               : label === 'Personal Shopper'
-                                ? () => setIsPersonalShopperOpen(true)
+                                ? () => navigation.navigate('Shopping', { tripStart: Date.now() })
                                 : label === 'Weekly Nutrition'
                                   ? () => setIsNutritionTrackerOpen(true)
                                   : undefined

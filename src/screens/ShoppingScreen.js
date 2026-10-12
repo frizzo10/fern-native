@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
@@ -20,6 +20,8 @@ import { useTour } from '../services/TourContext';
 import { sendListToInstacart, sendListToKroger, sendListToAlbertsons } from '../services/storeShoppingListService';
 import Confetti from '../components/Confetti';
 import SaleItemsList from '../components/SaleItemsList';
+import FlyerSection from '../components/trip/FlyerSection';
+import WeekMealsSection from '../components/trip/WeekMealsSection';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { toShoppingName } from '../utils/shoppingName';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
@@ -80,6 +82,7 @@ export default function ShoppingScreen({ user }) {
   const { t, locale } = useLanguage();
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
+  const route = useRoute();
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -127,6 +130,36 @@ export default function ShoppingScreen({ user }) {
       fetchAllCoupons().then((list) => { const n = normalizeCoupons(list); setCatalog(n); setCatalogState(n.length ? 'ok' : 'failed'); setCatalogError(n.length ? '' : 'empty list'); }).catch((e) => { setCatalogState('failed'); setCatalogError(String(e?.message || e)); });
     }, [])
   );
+
+  const reloadDeals = () => loadWeekDeals().then(setWeekDeals);
+
+  // Arriving at the store (notification tap / Home's "Scan a flyer") lands here: jump to the flyer.
+  // Leaving the store (savings notification tap) lands on the savings card.
+  useEffect(() => {
+    if (route?.params?.tripStart) {
+      const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.flyer || 0) - 8), animated: true }), 450);
+      return () => clearTimeout(timer);
+    }
+    if (route?.params?.tripDone) {
+      setDoneShopping(true);
+      loadLedger().then(setLedger);
+      const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.savings || 0) - 8), animated: true }), 450);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [route?.params?.tripStart, route?.params?.tripDone]);
+
+  // Add a batch of recipes' ingredients (the week of dinners) to the list in one save.
+  const addRecipesToList = async (recipes) => {
+    let next = items;
+    for (const recipe of recipes) {
+      const r = await addRecipeIngredientsToShoppingList(recipe, next);
+      next = r.nextShopping;
+    }
+    await persistShopping(next);
+  };
+
+  const goTo = (key) => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current[key] || 0) - 8), animated: true });
 
   // Wallet coupons first, then the catalog (minus anything already in the wallet and expired ones).
   const coupons = useMemo(() => {
@@ -400,6 +433,15 @@ export default function ShoppingScreen({ user }) {
           </View>
         </View>
 
+        <View style={styles.tripStrip}>
+          {[['addRow', '📝', 'trip_step_list'], ['flyer', '📰', 'trip_step_sales'], ['coupons', '🎟', 'trip_step_coupons'], ['meals', '📅', 'trip_step_meals']].map(([key, icon, label], i) => (
+            <TouchableOpacity key={key} style={styles.tripStep} activeOpacity={0.85} onPress={() => goTo(key)}>
+              <Text style={styles.tripStepNum}>{`${i + 1}`}</Text>
+              <Text style={styles.tripStepLabel} numberOfLines={1}>{`${icon} ${t(label)}`}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
         <Text style={styles.sendToStoreLabel}>{t('send_to_store_label')}</Text>
         <View style={styles.storeRow}>
           <TouchableOpacity
@@ -486,6 +528,10 @@ export default function ShoppingScreen({ user }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
+          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} />
+        </View>
 
         <View style={[styles.checkoutCard, shadow.card]}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
@@ -580,6 +626,20 @@ export default function ShoppingScreen({ user }) {
           </View>
         ) : null}
 
+        <View onLayout={(e) => { sectionY.current.coupons = e.nativeEvent.layout.y; }} />
+
+        <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
+          <WeekMealsSection
+            t={t}
+            locale={locale}
+            token={user?.token}
+            weekDeals={weekDeals}
+            onAddToList={addRecipesToList}
+            pushChangedFromStorage={pushChangedFromStorage}
+            onChanged={pull}
+          />
+        </View>
+
         {showCheckout ? (
           <View style={[styles.checkoutCard, shadow.card]}>
             <View style={styles.checkoutHead}>
@@ -632,7 +692,7 @@ export default function ShoppingScreen({ user }) {
           </TouchableOpacity>
         ) : null}
 
-        <View style={[styles.savingsCard, shadow.card]}>
+        <View style={[styles.savingsCard, shadow.card]} onLayout={(e) => { sectionY.current.savings = e.nativeEvent.layout.y; }}>
           <Text style={styles.savingsTitle}>{t('sav_card_title')}</Text>
           {savings.allTime.total > 0 ? (
             <>
@@ -765,6 +825,10 @@ export default function ShoppingScreen({ user }) {
 }
 
 const styles = StyleSheet.create({
+  tripStrip: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  tripStep: { flex: 1, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', borderWidth: 1, borderColor: '#E4DCD2' },
+  tripStepNum: { fontSize: 11, fontWeight: '800', color: colors.orange },
+  tripStepLabel: { fontSize: 11, fontWeight: '700', color: '#2D1B10', marginTop: 1 },
   container: {
     flex: 1,
     backgroundColor: '#F4F1ED',

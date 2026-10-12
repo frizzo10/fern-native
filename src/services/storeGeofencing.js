@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { translations } from '../constants/translations';
+import { fmtMoney, loadLedger, summarizeSince } from '../utils/savings';
 
 export const GEOFENCE_TASK = 'fern-store-geofence';
 export const GEOFENCE_RADIUS_M = 150;      // ~500 ft, same as the web app
@@ -34,6 +35,8 @@ const LOCALE_KEY = 'fern_user_locale';
 const TIER_KEY = 'fern_user_tier';       // RevenueCat tier, mirrored by App.js
 const GRANT_KEY = 'fern_granted_tier';   // admin-granted plan, see grantStore.js
 const ENTER = (Location.GeofencingEventType && Location.GeofencingEventType.Enter) || 1;
+const EXIT = (Location.GeofencingEventType && Location.GeofencingEventType.Exit) || 2;
+const TRIP_KEY = 'fern_trip_started';     // device-only, { store, at } written on arrival, read on exit
 
 // expo-task-manager is a native module. A build made before it was added doesn't
 // contain it, and importing it would crash the whole app on launch. Load it
@@ -98,11 +101,12 @@ async function arrivalBody() {
   let locale = 'en';
   try { locale = (await AsyncStorage.getItem(LOCALE_KEY)) || 'en'; } catch (e) { /* default */ }
   const dict = translations[locale] || translations.en;
-  if (await hasProMax()) return dict.geofence_arrived_body_pro_max || translations.en.geofence_arrived_body_pro_max;
-  return dict.geofence_arrived_body || translations.en.geofence_arrived_body;
+  // The whole trip (flyer, sales, coupons, a week of dinners) is open to every plan for now.
+  return dict.geofence_arrived_body_pro_max || translations.en.geofence_arrived_body_pro_max;
 }
 
 export async function notifyArrival(name) {
+  try { await AsyncStorage.setItem(TRIP_KEY, JSON.stringify({ store: name, at: Date.now() })); } catch (e) { /* best effort */ }
   await Notifications.scheduleNotificationAsync({
     content: {
       title: `🛒 ${name}`,
@@ -113,11 +117,39 @@ export async function notifyArrival(name) {
   });
 }
 
+// Leaving the store: tell the shopper what this trip saved them (ticked-off sale items + coupons
+// marked used, both from the savings ledger since they arrived). Nothing saved = no notification.
+export async function notifyDeparture(name) {
+  const trip = await readJson(TRIP_KEY, null);
+  const since = trip && typeof trip.at === 'number' && Date.now() - trip.at < 12 * 60 * 60 * 1000 ? trip.at : Date.now() - 6 * 60 * 60 * 1000;
+  const sum = summarizeSince(await loadLedger(), since);
+  if (!sum.count || sum.total <= 0) return;
+  let locale = 'en';
+  try { locale = (await AsyncStorage.getItem(LOCALE_KEY)) || 'en'; } catch (e) { /* default */ }
+  const dict = translations[locale] || translations.en;
+  const fill = (str, vars) => String(str || '').replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m));
+  const body = fill(dict.geofence_left_body || translations.en.geofence_left_body, {
+    amt: `${sum.est ? '~' : ''}${fmtMoney(sum.total)}`,
+    sale: fmtMoney(sum.circular),
+    coupons: fmtMoney(sum.coupon),
+  });
+  await Notifications.scheduleNotificationAsync({
+    content: { title: `🎉 ${name}`, body, data: { store: name, type: 'store_exit' } },
+    trigger: null,
+  });
+  try { await AsyncStorage.removeItem(TRIP_KEY); } catch (e) { /* ignore */ }
+}
+
 // What the OS calls us with (also exported for tests).
 export async function handleGeofenceEvent({ data, error } = {}) {
   if (error) { console.warn('[geofence] task error:', error.message); return; }
   const { eventType, region } = data || {};
-  if (eventType !== ENTER || !region || !region.identifier) return;
+  if (!region || !region.identifier) return;
+  if (eventType === EXIT) {
+    if (await claimArrival(`exit:${region.identifier}`)) await notifyDeparture(storeNameFromKey(region.identifier));
+    return;
+  }
+  if (eventType !== ENTER) return;
   if (!(await claimArrival(region.identifier))) return;
   await notifyArrival(storeNameFromKey(region.identifier));
 }
@@ -139,7 +171,7 @@ export function buildRegions(stores, position) {
     const id = storeKey(s);
     if (seen.has(id)) continue;
     seen.add(id);
-    regions.push({ identifier: id, latitude: s.lat, longitude: s.lon, radius: GEOFENCE_RADIUS_M, notifyOnEnter: true, notifyOnExit: false });
+    regions.push({ identifier: id, latitude: s.lat, longitude: s.lon, radius: GEOFENCE_RADIUS_M, notifyOnEnter: true, notifyOnExit: true });
     if (regions.length >= MAX_REGIONS) break;
   }
   return regions;

@@ -128,6 +128,13 @@ export async function saveWeekDeals(deals) {
     } catch (e) { /* best effort */ }
 }
 
+// Put the week's deals back exactly as they were (used when a scan turns out to be the wrong photo).
+export async function replaceWeekDeals(deals) {
+    try {
+        await AsyncStorage.setItem(WEEK_DEALS_KEY, JSON.stringify({ weekKey: weekKeyFor(), deals: Array.isArray(deals) ? deals : [] }));
+    } catch (e) { /* best effort */ }
+}
+
 export async function loadWeekDeals() {
     try {
         const raw = JSON.parse((await AsyncStorage.getItem(WEEK_DEALS_KEY)) || 'null');
@@ -276,4 +283,17 @@ export function summarizeLedger(ledger, weekKey = weekKeyFor()) {
     const weeks = Object.keys(ledger || {}).sort().reverse().map((k) => ({ weekKey: k, ...round(totalOf(ledger[k])) }));
     const allTime = round(weeks.reduce((a, w) => ({ circular: a.circular + w.circular, coupon: a.coupon + w.coupon, total: a.total + w.total, est: a.est || w.est, count: a.count + w.count }), { circular: 0, coupon: 0, total: 0, est: false, count: 0 }));
     return { thisWeek: round(totalOf(ledger?.[weekKey])), weeks, allTime };
+}
+
+// Savings recorded since a moment in time (a store trip), across the weeks the ledger holds.
+export function summarizeSince(ledger, sinceMs) {
+    const out = { circular: 0, coupon: 0, total: 0, est: false, count: 0 };
+    Object.values(ledger || {}).forEach((week) => Object.values(week || {}).forEach((e) => {
+        if (!e || (Number(e.at) || 0) < sinceMs) return;
+        out[e.type] = (out[e.type] || 0) + (e.amount || 0);
+        out.total += e.amount || 0;
+        out.est = out.est || Boolean(e.est);
+        out.count += 1;
+    }));
+    return { ...out, circular: Math.round(out.circular * 100) / 100, coupon: Math.round(out.coupon * 100) / 100, total: Math.round(out.total * 100) / 100 };
 }

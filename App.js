@@ -257,7 +257,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   useEffect(() => {
     const open = (response, coldStart = false) => {
       const content = response?.notification?.request?.content;
-      if (!content?.data || content.data.type !== 'store_arrival') return;
+      if (!content?.data || !['store_arrival', 'store_exit'].includes(content.data.type)) return;
+      const isExit = content.data.type === 'store_exit';
       const id = response.notification.request.identifier;
       if (handledArrivalTaps.has(id)) return;
       handledArrivalTaps.add(id);
@@ -275,12 +276,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           else if (navReady) nav.navigate('Shopping'); // plan never resolved: safe default
           return;
         }
-        if (hasShopperRef.current) {
-          nav.navigate('Home', { openPersonalShopperArrival: { store, ts: Date.now() } });
-          return;
-        }
-        nav.navigate('Shopping');
-        maybeShowArrivalUpsell();
+        // The whole trip (list, flyer, sales, coupons, a week of dinners) lives on the Shopping screen.
+        nav.navigate('Shopping', isExit ? { tripDone: Date.now() } : { tripStart: Date.now(), store });
       };
       go();
     };
