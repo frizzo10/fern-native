@@ -4,7 +4,7 @@
 // Purely presentational: HomeScreen owns all state, handlers and tier checks and
 // passes them in, so no feature, gate or label logic lives (or can drift) here.
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { formatDayLabel } from '../../utils/familyDates';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/tokens';
@@ -64,9 +64,10 @@ export default function NewHome({
 }) {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(null);
-  const [daySheet, setDaySheet] = useState(null); // a weekDays entry | null
+  const [selectedKey, setSelectedKey] = useState(null); // dateKey of the highlighted day (null = today)
 
   const todayEntry = weekDays[0] || {};
+  const selectedDay = weekDays.find((d) => d.key === selectedKey) || todayEntry;
   const tonightTitle = todayEntry.meals?.dinner || '';
   const tonightEmoji = todayEntry.mealEmojis?.dinner || '';
   const tonightActivity = (todayEntry.activities || [])[0] || null;
@@ -201,10 +202,11 @@ export default function NewHome({
           <TouchableOpacity
             key={`nh-${d.key}`}
             activeOpacity={0.8}
-            onPress={() => setDaySheet(d)}
+            onPress={() => setSelectedKey(d.key)}
             accessibilityRole="button"
             accessibilityLabel={formatDayLabel(d.key)}
-            style={[styles.dayCell, d.isToday ? styles.dayCellToday : null]}
+            accessibilityState={{ selected: d.key === selectedDay.key }}
+            style={[styles.dayCell, d.isToday ? styles.dayCellToday : null, d.key === selectedDay.key ? styles.dayCellSelected : null]}
           >
             <Text style={[styles.dayName, d.isToday ? styles.dayNameToday : null]}>{d.day}</Text>
             <Text style={[styles.dayNum, d.isToday ? styles.dayNumToday : null]}>{d.date}</Text>
@@ -218,12 +220,31 @@ export default function NewHome({
         ))}
       </View>
 
+      <View style={styles.dayPanel}>
+        <Text style={styles.dayPanelTitle}>{formatDayLabel(selectedDay.key || '')}</Text>
+        {!Object.keys(selectedDay.meals || {}).length && !(selectedDay.activities || []).length ? (
+          <Text style={styles.sheetEmpty}>{t('home_day_nothing')}</Text>
+        ) : null}
+        {['breakfast', 'lunch', 'dinner'].filter((slot) => selectedDay.meals?.[slot]).map((slot) => (
+          <View key={slot} style={styles.sheetRow}>
+            <Text style={styles.sheetSlot}>{t('meal_planner_slot_' + slot)}</Text>
+            <Text style={styles.sheetItem} numberOfLines={2}>{`${selectedDay.mealEmojis?.[slot] ? selectedDay.mealEmojis[slot] + ' ' : ''}${selectedDay.meals[slot]}`}</Text>
+          </View>
+        ))}
+        {(selectedDay.activities || []).map((a, i) => (
+          <View key={`a-${i}`} style={styles.sheetRow}>
+            <Text style={styles.sheetSlot}>{a.time || ''}</Text>
+            <Text style={styles.sheetItem} numberOfLines={2}>{`${a.emoji ? a.emoji + ' ' : ''}${a.label || ''}`}</Text>
+          </View>
+        ))}
+      </View>
+
       <View style={styles.addRow}>
-        <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={() => onAddForDay(weekDays[0]?.key, 'meal')} accessibilityRole="button">
+        <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={() => onAddForDay(selectedDay.key, 'meal')} accessibilityRole="button">
           <Ionicons name="add" size={18} color={FOREST} />
           <Text style={styles.addBtnText}>{t('home_add_meal')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={() => onAddForDay(weekDays[0]?.key, 'activity')} accessibilityRole="button">
+        <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={() => onAddForDay(selectedDay.key, 'activity')} accessibilityRole="button">
           <Ionicons name="add" size={18} color={FOREST} />
           <Text style={styles.addBtnText}>{t('home_add_activity')}</Text>
         </TouchableOpacity>
@@ -240,40 +261,6 @@ export default function NewHome({
       </View>
 
 
-      <Modal transparent animationType="slide" visible={Boolean(daySheet)} onRequestClose={() => setDaySheet(null)}>
-        <View style={styles.sheetBackdrop}>
-          <TouchableOpacity style={styles.sheetDismiss} activeOpacity={1} onPress={() => setDaySheet(null)} />
-          <View style={styles.sheet}>
-            <Text style={styles.sheetTitle}>{daySheet ? formatDayLabel(daySheet.key) : ''}</Text>
-            {daySheet && !Object.keys(daySheet.meals || {}).length && !(daySheet.activities || []).length ? (
-              <Text style={styles.sheetEmpty}>{t('home_day_nothing')}</Text>
-            ) : null}
-            {daySheet ? ['breakfast', 'lunch', 'dinner'].filter((slot) => daySheet.meals?.[slot]).map((slot) => (
-              <View key={slot} style={styles.sheetRow}>
-                <Text style={styles.sheetSlot}>{t('meal_planner_slot_' + slot)}</Text>
-                <Text style={styles.sheetItem} numberOfLines={2}>{`${daySheet.mealEmojis?.[slot] ? daySheet.mealEmojis[slot] + ' ' : ''}${daySheet.meals[slot]}`}</Text>
-              </View>
-            )) : null}
-            {daySheet ? (daySheet.activities || []).map((a, i) => (
-              <View key={`a-${i}`} style={styles.sheetRow}>
-                <Text style={styles.sheetSlot}>{a.time || ''}</Text>
-                <Text style={styles.sheetItem} numberOfLines={2}>{`${a.emoji ? a.emoji + ' ' : ''}${a.label || ''}`}</Text>
-              </View>
-            )) : null}
-            <View style={styles.sheetBtns}>
-              <TouchableOpacity style={styles.sheetPrimary} activeOpacity={0.88} onPress={() => { const k = daySheet.key; setDaySheet(null); onAddForDay(k, 'meal'); }}>
-                <Text style={styles.sheetPrimaryText}>{t('home_add_meal')}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.sheetPrimary} activeOpacity={0.88} onPress={() => { const k = daySheet.key; setDaySheet(null); onAddForDay(k, 'activity'); }}>
-                <Text style={styles.sheetPrimaryText}>{t('home_add_activity')}</Text>
-              </TouchableOpacity>
-            </View>
-            <TouchableOpacity style={styles.sheetClose} activeOpacity={0.8} onPress={() => setDaySheet(null)}>
-              <Text style={styles.sheetCloseText}>{t('home_day_done')}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -319,6 +306,9 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
   dayCell: { flex: 1, alignItems: 'center', gap: 3, paddingTop: 8, paddingBottom: 7, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER },
   dayCellToday: { backgroundColor: FOREST, borderColor: FOREST },
+  dayCellSelected: { borderColor: '#C4521A', borderWidth: 2 },
+  dayPanel: { marginTop: 12, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 12 },
+  dayPanelTitle: { fontFamily: 'Playfair-Bold', fontSize: 18, color: FOREST, marginBottom: 6 },
   dayName: { fontFamily: 'Jost-SemiBold', fontSize: 11, color: BROWN },
   dayNameToday: { color: SAGE },
   dayNum: { fontFamily: 'Jost-Bold', fontSize: 15, color: colors.ink },
