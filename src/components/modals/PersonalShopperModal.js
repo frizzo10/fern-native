@@ -541,20 +541,57 @@ export default function PersonalShopperModal({
         showPlanAndStaples(run);
     };
 
-    // Fern's own plan outline (not the server's generic opener, which didn't know the
-    // user's dinner count) followed by the pantry check as a tick-list.
-    const showPlanAndStaples = (run) => {
+    // Visual plan overview (built from what the app already has: household answers,
+    // sale items, saved recipes, forecast, this week's meals/activities) + pantry tiles.
+    const weatherEmoji = (condition) => {
+        const c = String(condition || '').toLowerCase();
+        if (/thunder|storm/.test(c)) return '⛈️';
+        if (/snow|flurr/.test(c)) return '🌨️';
+        if (/rain|shower|drizzle/.test(c)) return '🌧️';
+        if (/cloud|overcast/.test(c)) return /part|mostly sunny|partly/.test(c) ? '⛅' : '☁️';
+        if (/sun|clear/.test(c)) return '☀️';
+        return '🌤️';
+    };
+
+    const showPlanAndStaples = async (run) => {
         const n = Number(run.profile?.dinnersWanted) || 5;
-        const lines = [t('psp_plan_outline_head', { n }), t('psp_plan_outline_sides')];
-        if (run.dealsStore) lines.push(t('psp_plan_outline_deals', { store: run.dealsStore }));
-        lines.push(t('psp_plan_outline_choose'));
+        const { mealPlan, activities } = await readPlanState();
+        if (run !== session.current) return;
+        const days = buildRollingWeekDateKeys().map((key, index) => {
+            const date = parseDateKey(key);
+            const enName = date.toLocaleDateString('en-US', { weekday: 'long' });
+            const fc = (run.forecast || []).find((f) => f?.dayName === enName);
+            const meals = Array.isArray(mealPlan[key]) ? mealPlan[key] : [];
+            return {
+                key,
+                isToday: index === 0,
+                short: date.toLocaleDateString(dateLocale, { weekday: 'short' }),
+                num: date.getDate(),
+                weather: fc ? weatherEmoji(fc.condition) : '',
+                temp: fc && fc.temp != null ? `${fc.temp}°` : '',
+                hasDinner: meals.some((entry) => normalizeSlot(entry) === 'dinner'),
+                acts: (Array.isArray(activities) ? activities : []).filter((a) => a?.dateKey === key).length,
+            };
+        });
         setPanel(null);
         goStep('staples');
-        say(lines.join('\n'));
-        say(t('psp_staples_prompt'));
+        say(t('psp_plan_intro'));
         setChips([{ label: t('psp_staples_yes_btn'), intent: 'yes' }]);
-        setPanel({ type: 'staples', items: STAPLES.map((name) => ({ name, checked: false })) });
+        setPanel({
+            type: 'staples',
+            overview: {
+                store: run.dealsStore || '',
+                people: run.profile?.householdSize || '',
+                dinners: n,
+                sales: (run.deals || []).length,
+                recipes: Array.isArray(data?.recipes) ? data.recipes.length : 0,
+                days,
+            },
+            items: STAPLES.map((name) => ({ name, checked: false })),
+        });
     };
+
+    const STAPLE_EMOJI = { eggs: '🥚', butter: '🧈', milk: '🥛', bread: '🍞', 'olive oil': '🫒', garlic: '🧄', onions: '🧅', pasta: '🍝' };
 
     const scanFlyer = async (fromCamera) => {
         if (busy) return;
@@ -1553,19 +1590,60 @@ export default function PersonalShopperModal({
         }
 
         if (panel.type === 'staples') {
+            const ov = panel.overview;
             return (
-                <View style={styles.prefsCard}>
-                    <Text style={styles.prefsHeading}>{t('psp_staples_heading')}</Text>
-                    <Text style={styles.prefsLabel}>{t('psp_staples_sub')}</Text>
-                    {panel.items.map((item, index) => (
-                        <TouchableOpacity key={item.name} style={styles.checkRow} activeOpacity={0.8} onPress={() => togglePanelItem(index)}>
-                            <Checkbox checked={item.checked} />
-                            <Text style={styles.checkRowTitle}>{item.name}</Text>
+                <View>
+                    {ov ? (
+                        <View style={styles.planCard}>
+                            <Text style={styles.planKicker}>{t('psp_plan_kicker')}</Text>
+                            <Text style={styles.planTitle}>{t('psp_plan_title', { n: ov.dinners })}</Text>
+                            {ov.store ? <Text style={styles.planSub}>{t('psp_plan_store', { store: ov.store })}</Text> : null}
+                            <View style={styles.planStats}>
+                                {[
+                                    ['👨‍👩‍👧', ov.people || '–', t('psp_plan_stat_people')],
+                                    ['🍽️', ov.dinners, t('psp_plan_stat_dinners')],
+                                    ['🏷️', ov.sales, t('psp_plan_stat_sales')],
+                                    ['📖', ov.recipes, t('psp_plan_stat_recipes')],
+                                ].map(([icon, value, label]) => (
+                                    <View key={label} style={styles.planStat}>
+                                        <Text style={styles.planStatIcon}>{icon}</Text>
+                                        <Text style={styles.planStatValue}>{value}</Text>
+                                        <Text style={styles.planStatLabel}>{label}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <View style={styles.planWeek}>
+                                {ov.days.map((day) => (
+                                    <View key={day.key} style={[styles.planDay, day.isToday ? styles.planDayToday : null]}>
+                                        <Text style={styles.planDayName}>{day.short}</Text>
+                                        <Text style={styles.planDayNum}>{day.num}</Text>
+                                        <Text style={styles.planDayWx}>{day.weather || ' '}</Text>
+                                        <Text style={styles.planDayTemp}>{day.temp || ' '}</Text>
+                                        <Text style={styles.planDayDot}>{day.hasDinner ? '✅' : '⚪'}</Text>
+                                        <Text style={styles.planDayAct}>{day.acts ? `📅${day.acts}` : ' '}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                            <Text style={styles.planLegend}>{t('psp_plan_legend')}</Text>
+                            <Text style={styles.planNote}>{t('psp_plan_sides_note')}</Text>
+                        </View>
+                    ) : null}
+                    <View style={styles.prefsCard}>
+                        <Text style={styles.prefsHeading}>{t('psp_staples_heading')}</Text>
+                        <Text style={styles.prefsLabel}>{t('psp_staples_sub')}</Text>
+                        <View style={styles.stapleGrid}>
+                            {panel.items.map((item, index) => (
+                                <TouchableOpacity key={item.name} style={[styles.stapleTile, item.checked ? styles.stapleTileOut : null]} activeOpacity={0.8} onPress={() => togglePanelItem(index)}>
+                                    <Text style={styles.stapleEmoji}>{STAPLE_EMOJI[item.name] || '🛒'}</Text>
+                                    <Text style={styles.stapleName}>{item.name}</Text>
+                                    <Text style={[styles.stapleState, item.checked ? styles.stapleStateOut : null]}>{item.checked ? t('psp_staple_out') : t('psp_staple_have')}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={confirmStaples}>
+                            <Text style={styles.orangeBtnText}>{t('psp_staples_add_btn')}</Text>
                         </TouchableOpacity>
-                    ))}
-                    <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={confirmStaples}>
-                        <Text style={styles.orangeBtnText}>{t('psp_staples_add_btn')}</Text>
-                    </TouchableOpacity>
+                    </View>
                 </View>
             );
         }
@@ -1899,6 +1977,33 @@ const styles = StyleSheet.create({
     prefsEdit: { marginTop: 8 },
     prefsOption: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: 'rgba(31,64,40,0.1)', marginRight: 6, marginBottom: 6 },
     prefsOptionText: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: colors.forest },
+    planCard: { backgroundColor: colors.forest, borderRadius: 18, padding: 16, marginBottom: 12 },
+    planKicker: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.2, color: colors.sage, textTransform: 'uppercase' },
+    planTitle: { fontFamily: 'Playfair-Bold', fontSize: 24, color: '#fff', marginTop: 2 },
+    planSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: colors.sage, marginTop: 2 },
+    planStats: { flexDirection: 'row', marginTop: 14 },
+    planStat: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, paddingVertical: 10, marginHorizontal: 3 },
+    planStatIcon: { fontSize: 20 },
+    planStatValue: { fontFamily: 'Jost-Bold', fontSize: 20, color: '#fff', marginTop: 2 },
+    planStatLabel: { fontFamily: 'Jost-Regular', fontSize: 10, color: colors.sage, marginTop: 1 },
+    planWeek: { flexDirection: 'row', marginTop: 12 },
+    planDay: { flex: 1, alignItems: 'center', paddingVertical: 8, marginHorizontal: 2, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.06)' },
+    planDayToday: { backgroundColor: 'rgba(255,255,255,0.2)' },
+    planDayName: { fontFamily: 'Jost-Bold', fontSize: 10, color: colors.sage, textTransform: 'uppercase' },
+    planDayNum: { fontFamily: 'Jost-Bold', fontSize: 15, color: '#fff' },
+    planDayWx: { fontSize: 16, marginTop: 4 },
+    planDayTemp: { fontFamily: 'Jost-Regular', fontSize: 10, color: '#fff' },
+    planDayDot: { fontSize: 12, marginTop: 4 },
+    planDayAct: { fontFamily: 'Jost-Regular', fontSize: 10, color: colors.sage, marginTop: 2 },
+    planLegend: { fontFamily: 'Jost-Regular', fontSize: 11, color: colors.sage, marginTop: 8 },
+    planNote: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#fff', marginTop: 6 },
+    stapleGrid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 10, marginHorizontal: -4 },
+    stapleTile: { width: '25%', paddingHorizontal: 4, marginBottom: 8 },
+    stapleEmoji: { fontSize: 26, textAlign: 'center' },
+    stapleName: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.ink, textAlign: 'center' },
+    stapleState: { fontFamily: 'Jost-Bold', fontSize: 10, color: colors.forest, textAlign: 'center', marginTop: 2 },
+    stapleStateOut: { color: '#fff', backgroundColor: '#D9622B', borderRadius: 8, overflow: 'hidden', paddingVertical: 1 },
+    stapleTileOut: { opacity: 1 },
     panelTitle: { fontFamily: 'Playfair-Bold', fontSize: 17, color: colors.forest, marginBottom: 6 },
     panelDesc: { fontFamily: 'Jost-Regular', fontSize: 13, lineHeight: 19, color: colors.brown, marginBottom: 10 },
 
