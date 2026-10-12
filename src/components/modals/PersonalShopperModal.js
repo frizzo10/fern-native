@@ -199,6 +199,32 @@ function sumSavings(deals) {
 
 // The flyer "board": the scanned photo with a live scan sweep, then the sale items Fern
 // found pop onto it one by one. Replaces the chat feel with the circular itself.
+const STEPPER = [
+    ['circular', 'psp_stp_flyer', '📰'],
+    ['about', 'psp_stp_you', '👤'],
+    ['staples', 'psp_stp_pantry', '🧺'],
+    ['dinners', 'psp_stp_dinners', '🍽️'],
+    ['week', 'psp_stp_week', '📅'],
+    ['list', 'psp_stp_list', '🛒'],
+];
+const STEP_TO_STEPPER = { circular: 0, about: 1, staples: 2, dinners: 3, hubcheck: 4, activities: 4, ingredients: 5, listcheck: 5 };
+
+function Stepper({ step, t }) {
+    const cur = STEP_TO_STEPPER[step] ?? 0;
+    return (
+        <View style={styles.stepper}>
+            {STEPPER.map(([key, labelKey, icon], i) => (
+                <View key={key} style={styles.stepItem}>
+                    <View style={[styles.stepDot, i < cur ? styles.stepDotDone : null, i === cur ? styles.stepDotNow : null]}>
+                        <Text style={styles.stepDotText}>{i < cur ? '✓' : icon}</Text>
+                    </View>
+                    <Text style={[styles.stepLabel, i === cur ? styles.stepLabelNow : null]} numberOfLines={1}>{t(labelKey)}</Text>
+                </View>
+            ))}
+        </View>
+    );
+}
+
 function FlyerTag({ deal, index }) {
     const v = useRef(new Animated.Value(0)).current;
     useEffect(() => {
@@ -216,7 +242,7 @@ function FlyerTag({ deal, index }) {
     );
 }
 
-function FlyerBoard({ uri, scanning, store, deals, t }) {
+function FlyerBoard({ uri, scanning, store, deals, t, compact }) {
     const sweep = useRef(new Animated.Value(0)).current;
     useEffect(() => {
         if (!scanning) { sweep.setValue(0); return undefined; }
@@ -226,7 +252,22 @@ function FlyerBoard({ uri, scanning, store, deals, t }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [scanning]);
     const savings = sumSavings(deals);
-    const shown = (deals || []).slice(0, 10);
+    const shown = (deals || []).slice(0, 6);
+    if (compact) {
+        return (
+            <View style={styles.flyerCompact}>
+                <View style={styles.flyerThumb}>
+                    {uri ? <Image source={{ uri }} style={styles.flyerImg} resizeMode="cover" /> : <Text style={styles.flyerThumbEmoji}>📰</Text>}
+                </View>
+                <View style={styles.checkRowText}>
+                    <Text style={styles.flyerCompactStore} numberOfLines={1}>{store || t('psp_board_your_flyer')}</Text>
+                    <Text style={styles.flyerCompactMeta}>
+                        {t('psp_board_items', { n: (deals || []).length })}{savings.total ? `  ·  💰 ${t('psp_board_up_to', { amt: fmtMoney(savings.total) })}` : ''}
+                    </Text>
+                </View>
+            </View>
+        );
+    }
     return (
         <View style={styles.flyerBoard}>
             <View style={styles.flyerImgWrap}>
@@ -416,6 +457,8 @@ export default function PersonalShopperModal({
     // Only jump to the bottom when something NEW arrives (a message, or a different panel) —
     // never when a panel just grows because the user opened a preview or an idea list.
     const autoScroll = useRef(false);
+    const currentY = useRef(0);
+    const [showDone, setShowDone] = useState(false);
     useEffect(() => {
         autoScroll.current = true;
         const timer = setTimeout(() => { autoScroll.current = false; }, 700);
@@ -1987,6 +2030,7 @@ export default function PersonalShopperModal({
         return null;
     };
 
+    const receipts = messages.filter((m) => m.role === 'card');
     const boardDeals = session.current?.deals || [];
     const boardSave = sumSavings(boardDeals);
     const lastNote = [...messages].reverse().find((m) => m.role === 'assistant')?.text || '';
@@ -1999,17 +2043,15 @@ export default function PersonalShopperModal({
             >
                 <View style={styles.header}>
                     <View style={styles.headerText}>
-                        <Text style={styles.headerKicker}>
-                            {phase === 'chat'
-                                ? `🌿 ${t('psp_step_of', { n: meta.n })}`
-                                : `🌿 ${t('tool_personal_shopper')}`}
-                        </Text>
+                        <Text style={styles.headerKicker}>{`🌿 ${t('tool_personal_shopper')}`}</Text>
                         <Text style={styles.headerTitle}>{phase === 'chat' ? t(meta.labelKey) : t('psp_intro_title')}</Text>
                     </View>
                     <TouchableOpacity style={styles.headerClose} activeOpacity={0.85} onPress={onClose}>
                         <Text style={styles.headerCloseText}>✕</Text>
                     </TouchableOpacity>
                 </View>
+
+                {phase === 'chat' ? <Stepper step={step} t={t} /> : null}
 
                 {phase === 'intro' ? (
                     <View style={styles.introWrap}>
@@ -2043,19 +2085,35 @@ export default function PersonalShopperModal({
                             style={styles.chat}
                             contentContainerStyle={styles.chatContent}
                             keyboardShouldPersistTaps="handled"
-                            onContentSizeChange={() => { if (autoScroll.current) scrollRef.current?.scrollToEnd({ animated: true }); }}
+                            onContentSizeChange={() => { if (autoScroll.current) scrollRef.current?.scrollTo({ y: Math.max(0, currentY.current - 6), animated: true }); }}
                         >
                             {(flyerUri || boardDeals.length) ? (
-                                <FlyerBoard uri={flyerUri} scanning={busy && step === 'circular'} store={session.current?.dealsStore} deals={boardDeals} t={t} />
+                                <FlyerBoard
+                                    uri={flyerUri}
+                                    scanning={busy && step === 'circular'}
+                                    store={session.current?.dealsStore}
+                                    deals={boardDeals}
+                                    t={t}
+                                    compact={step !== 'circular' && !(busy && step === 'circular')}
+                                />
                             ) : null}
-                            {messages.filter((m) => m.role === 'card').map((message) => (
-                                <View key={message.id} style={styles.receiptCard}>
-                                    <Text style={styles.receiptTitle}>✓ {message.card.title}</Text>
-                                    {message.card.sub ? <Text style={styles.receiptSub}>{message.card.sub}</Text> : null}
-                                    {message.card.lines.map((line, i) => <Text key={`${line}-${i}`} style={styles.receiptLine}>• {line}</Text>)}
-                                    {message.card.more ? <Text style={styles.receiptSub}>{t('psp_scan_and_more', { n: message.card.more })}</Text> : null}
+                            {receipts.length ? (
+                                <View style={styles.doneBox}>
+                                    <TouchableOpacity style={styles.doneHead} activeOpacity={0.8} onPress={() => setShowDone((v) => !v)}>
+                                        <Text style={styles.doneHeadText}>{`✓ ${t('psp_done_so_far', { n: receipts.length })}`}</Text>
+                                        <Text style={styles.doneHeadText}>{showDone ? '▴' : '▾'}</Text>
+                                    </TouchableOpacity>
+                                    {showDone ? receipts.map((message) => (
+                                        <View key={message.id} style={styles.doneItem}>
+                                            <Text style={styles.receiptTitle}>{message.card.title}</Text>
+                                            {message.card.sub ? <Text style={styles.receiptSub}>{message.card.sub}</Text> : null}
+                                            {message.card.lines.map((line, i) => <Text key={`${line}-${i}`} style={styles.receiptLine}>• {line}</Text>)}
+                                            {message.card.more ? <Text style={styles.receiptSub}>{t('psp_scan_and_more', { n: message.card.more })}</Text> : null}
+                                        </View>
+                                    )) : null}
                                 </View>
-                            ))}
+                            ) : null}
+                            <View onLayout={(e) => { currentY.current = e.nativeEvent.layout.y; if (autoScroll.current) scrollRef.current?.scrollTo({ y: Math.max(0, currentY.current - 6), animated: true }); }}>
                             {typing || lastNote ? (
                                 <View style={styles.fernNote}>
                                     {typing ? <ActivityIndicator size="small" color={colors.forest} style={{ marginRight: 8 }} /> : <Text style={styles.fernNoteIcon}>🌿</Text>}
@@ -2063,6 +2121,7 @@ export default function PersonalShopperModal({
                                 </View>
                             ) : null}
                             {renderPanel()}
+                            </View>
                         </ScrollView>
 
                         {chips.length ? (
@@ -2195,13 +2254,13 @@ const styles = StyleSheet.create({
     saveBannerSub: { fontFamily: 'Jost-Regular', fontSize: 12, color: colors.brown, marginTop: 2 },
     planSave: { fontFamily: 'Jost-Bold', fontSize: 14, color: '#A5D6A7', marginTop: 10 },
     flyerBoard: { borderRadius: 18, overflow: 'hidden', backgroundColor: colors.forest, marginBottom: 12 },
-    flyerImgWrap: { height: 200, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    flyerImgWrap: { height: 230, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
     flyerImg: { ...StyleSheet.absoluteFillObject },
     flyerPlaceholder: { fontSize: 64, opacity: 0.4 },
     flyerShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,35,20,0.45)' },
     flyerSweep: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: '#8BE08B', shadowColor: '#8BE08B', shadowOpacity: 0.9, shadowRadius: 8 },
     flyerScanning: { position: 'absolute', bottom: 12, fontFamily: 'Jost-Bold', fontSize: 14, color: '#fff', letterSpacing: 0.5 },
-    flyerTags: { ...StyleSheet.absoluteFillObject, padding: 10, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end' },
+    flyerTags: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 10, flexDirection: 'row', flexWrap: 'wrap' },
     flyerTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, marginRight: 6, marginBottom: 6, maxWidth: '100%' },
     flyerTagText: { fontFamily: 'Jost-SemiBold', fontSize: 11, color: colors.ink, flexShrink: 1 },
     flyerTagSave: { fontFamily: 'Jost-Bold', fontSize: 11, color: '#2E7D32', marginLeft: 4 },
@@ -2215,6 +2274,23 @@ const styles = StyleSheet.create({
     fernNoteText: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 15, color: colors.ink, lineHeight: 21 },
     typeToggle: { alignItems: 'center', paddingTop: 8 },
     typeToggleText: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.brown },
+    stepper: { flexDirection: 'row', backgroundColor: '#fff', paddingVertical: 8, paddingHorizontal: 6, borderBottomWidth: 1, borderBottomColor: colors.border },
+    stepItem: { flex: 1, alignItems: 'center' },
+    stepDot: { width: 30, height: 30, borderRadius: 15, backgroundColor: '#EFEDE6', alignItems: 'center', justifyContent: 'center' },
+    stepDotDone: { backgroundColor: '#2E7D32' },
+    stepDotNow: { backgroundColor: '#D9622B' },
+    stepDotText: { fontSize: 14, color: '#fff' },
+    stepLabel: { fontFamily: 'Jost-SemiBold', fontSize: 10, color: colors.brown, marginTop: 3 },
+    stepLabelNow: { fontFamily: 'Jost-Bold', color: '#D9622B' },
+    flyerCompact: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.forest, borderRadius: 14, padding: 10, marginBottom: 10 },
+    flyerThumb: { width: 52, height: 52, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+    flyerThumbEmoji: { fontSize: 26 },
+    flyerCompactStore: { fontFamily: 'Playfair-Bold', fontSize: 16, color: '#F0E0B0' },
+    flyerCompactMeta: { fontFamily: 'Jost-Regular', fontSize: 12, color: colors.sage, marginTop: 2 },
+    doneBox: { borderRadius: 12, borderWidth: 1, borderColor: colors.forest, backgroundColor: 'rgba(31,64,40,0.05)', marginBottom: 10, overflow: 'hidden' },
+    doneHead: { flexDirection: 'row', justifyContent: 'space-between', padding: 10 },
+    doneHeadText: { fontFamily: 'Jost-Bold', fontSize: 13, color: colors.forest },
+    doneItem: { paddingHorizontal: 12, paddingBottom: 10 },
     ideaRow: { paddingVertical: 6 },
     ideasDone: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 6 },
     saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
