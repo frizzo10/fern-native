@@ -413,6 +413,14 @@ export default function PersonalShopperModal({
     const [listInput, setListInput] = useState('');
     const [busy, setBusy] = useState(false);
     const [circularMode, setCircularMode] = useState(false);
+    // Only jump to the bottom when something NEW arrives (a message, or a different panel) —
+    // never when a panel just grows because the user opened a preview or an idea list.
+    const autoScroll = useRef(false);
+    useEffect(() => {
+        autoScroll.current = true;
+        const timer = setTimeout(() => { autoScroll.current = false; }, 700);
+        return () => clearTimeout(timer);
+    }, [messages.length, panel?.type, typing]);
     const [flyerUri, setFlyerUri] = useState(null);
     const [showInput, setShowInput] = useState(false);
 
@@ -2035,7 +2043,7 @@ export default function PersonalShopperModal({
                             style={styles.chat}
                             contentContainerStyle={styles.chatContent}
                             keyboardShouldPersistTaps="handled"
-                            onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                            onContentSizeChange={() => { if (autoScroll.current) scrollRef.current?.scrollToEnd({ animated: true }); }}
                         >
                             {(flyerUri || boardDeals.length) ? (
                                 <FlyerBoard uri={flyerUri} scanning={busy && step === 'circular'} store={session.current?.dealsStore} deals={boardDeals} t={t} />
