@@ -1815,6 +1815,10 @@ export const translations = {
     sav_none_yet: "Check off sale items and mark coupons used to start your savings total.",
     psp_mylist_edit_hint: "Tap an item to rename it. ✕ removes it.",
     psp_mylist_remove_dupes: "Remove duplicates",
+    sav_for_list_title: "Coupons for your list",
+    sav_for_list_sub: "{n} coupons match things you're buying. Add them to your wallet so you don't forget.",
+    sav_add_wallet: "Add to wallet",
+    sav_in_wallet: "In wallet ✓",
   },
   es: {
     // Navigation / Header
@@ -3624,5 +3628,9 @@ export const translations = {
     sav_none_yet: "Marca artículos en oferta y cupones usados para empezar tu total de ahorros.",
     psp_mylist_edit_hint: "Toca un artículo para cambiarlo. ✕ lo quita.",
     psp_mylist_remove_dupes: "Quitar duplicados",
+    sav_for_list_title: "Cupones para tu lista",
+    sav_for_list_sub: "{n} cupones coinciden con lo que vas a comprar. Agrégalos a tu billetera para no olvidarlos.",
+    sav_add_wallet: "Agregar a la billetera",
+    sav_in_wallet: "En la billetera ✓",
   }
 };

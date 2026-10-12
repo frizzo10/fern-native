@@ -153,6 +153,40 @@ export default function ShoppingScreen({ user }) {
     return out;
   }, [items, matches]);
 
+  // Every coupon that fits something on the list (bought or not), for the "Coupons for your list" card.
+  const listCoupons = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    items.forEach((item) => {
+      (matches[item.id]?.coupons || []).forEach((m) => {
+        if (seen.has(m.coupon.id)) return;
+        seen.add(m.coupon.id);
+        out.push({ ...m, itemText: item.text, itemId: item.id });
+      });
+    });
+    return out;
+  }, [items, matches]);
+
+  const [addedIds, setAddedIds] = useState([]);
+  const walletIds = useMemo(() => new Set([...(data.walletCoupons || []).map((c) => String(c?.id)), ...addedIds]), [data.walletCoupons, addedIds]);
+
+  const addToWallet = async (coupon) => {
+    if (walletIds.has(String(coupon.id))) return;
+    setAddedIds((prev) => [...prev, String(coupon.id)]);
+    try {
+      const wallet = JSON.parse((await AsyncStorage.getItem('rv4_wallet_coupons')) || '[]');
+      const next = [...wallet, coupon];
+      await AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(next));
+      const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, walletCoupons: next }));
+      // Both keys: the backend's writable field name for the wallet is unconfirmed (see DATAMODEL.md).
+      await pushChangedFromStorage({ wallet_coupons: next, coupons: next });
+    } catch (e) {
+      setAddedIds((prev) => prev.filter((id) => id !== String(coupon.id)));
+      Alert.alert(t('save_error_title'), t('save_error_desc'));
+    }
+  };
+
   const checkedCount = items.filter((i) => i.checked).length;
   const showCheckout = items.length > 0 && checkedCount > 0 && (doneShopping || checkedCount === items.length);
 
@@ -404,6 +438,36 @@ export default function ShoppingScreen({ user }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        {listCoupons.length ? (
+          <View style={[styles.checkoutCard, shadow.card]}>
+            <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_for_list_title')}`}</Text>
+            <Text style={styles.checkoutSub}>{t('sav_for_list_sub', { n: listCoupons.length })}</Text>
+            {listCoupons.map((m) => {
+              const c = m.coupon;
+              const inWallet = walletIds.has(String(c.id));
+              return (
+                <View key={c.id} style={styles.couponRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.couponTitle} numberOfLines={2}>{c.title || c.discountLabel}</Text>
+                    <Text style={styles.couponMeta}>
+                      {[c.discountLabel, c.store, t('sav_for_item', { item: m.itemText })].filter(Boolean).join(' · ')}
+                    </Text>
+                    {m.level === 'possible' ? <Text style={styles.couponPossible}>{t('sav_possible')}</Text> : null}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.usedBtn, inWallet ? styles.usedBtnOn : null]}
+                    onPress={() => addToWallet(c)}
+                    disabled={inWallet}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.usedBtnText, inWallet ? styles.usedBtnTextOn : null]}>{inWallet ? t('sav_in_wallet') : t('sav_add_wallet')}</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
 
         {showCheckout ? (
           <View style={[styles.checkoutCard, shadow.card]}>
