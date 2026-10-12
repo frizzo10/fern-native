@@ -30,6 +30,8 @@ import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPick
 import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
 import { fetchBudgetMealPlan } from '../services/budgetPlannerService';
 import { fetchSemiHomemadeRecipe } from '../services/semiHomemadeService';
+import NewHome from '../components/home/NewHome';
+import { openChat } from '../services/chatBus';
 import { fetchSuggestedRecipeGroups, fetchQuickSuggestions, buildSuggestionsPrompt } from '../services/suggestedRecipesService';
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
@@ -85,6 +87,9 @@ function todayKey() {
 }
 
 const DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+// Set to false to bring back the previous Home layout (kept below, untouched).
+const USE_NEW_HOME = true;
 
 function getGreeting(t) {
   const h = new Date().getHours();
@@ -2209,6 +2214,45 @@ export default function HomeScreen({ user, route }) {
     start();
   };
 
+  // Rows for the new Home's collapsible list. Same handlers and tier gates as the
+  // old tile grids -- only the presentation differs.
+  const newHomeToolDefs = [
+    { label: 'Dinner Party', icon: 'sparkles-outline', featureKey: 'dinner_party', onPress: () => setIsEventPlannerOpen(true) },
+    { label: 'Charcuterie', icon: 'restaurant-outline', featureKey: 'charcuterie', onPress: () => setIsCharcuterieModalOpen(true) },
+    { label: 'Wine Pairing', icon: 'wine-outline', featureKey: 'wine_pairing', onPress: () => setIsWineModalOpen(true) },
+    { label: 'Personal Shopper', icon: 'cart-outline', featureKey: 'personal_shopper', onPress: () => setIsPersonalShopperOpen(true) },
+    { label: 'Weekly Nutrition', icon: 'nutrition-outline', featureKey: 'nutrition', onPress: () => setIsNutritionTrackerOpen(true) },
+    { label: 'Alexa Skill', icon: 'volume-high-outline', featureKey: 'alexa_skill', onPress: () => setIsAlexaModalOpen(true) },
+    { label: 'Fridge Challenge', icon: 'snow-outline', featureKey: 'fridge_challenge', onPress: openFridgeChallengeModal },
+    { label: 'Leftover Magic', icon: 'color-wand-outline', featureKey: 'leftover_magic', onPress: openLeftoverMagicModal },
+    { label: '20-Min Dinner', icon: 'flash-outline', featureKey: 'quick_dinner', onPress: openQuickDinnerModal },
+    { label: 'Budget Planner', icon: 'wallet-outline', featureKey: 'budget_planner', onPress: openBudgetPlannerModal },
+    { label: 'AI Meal Planner', icon: 'calendar-outline', featureKey: 'meal_planner', onPress: openMealPlannerModal },
+    { label: 'Semi-Homemade', icon: 'basket-outline', featureKey: 'semi_homemade', onPress: openSemiHomemadeModal },
+    { label: 'Family Vault', icon: 'book-outline', featureKey: 'family_vault', onPress: () => setIsFamilyVaultOpen(true) },
+    { label: 'Insider Deals', icon: 'diamond-outline', featureKey: 'insider_deals', onPress: () => setIsInsiderDealsOpen(true) },
+  ];
+  const newHomeTools = newHomeToolDefs.map(({ label, icon, featureKey, onPress }) => {
+    const requiredTier = FEATURE_TIERS[featureKey];
+    const isLocked = requiredTier && requiredTier !== TIERS.FREE && !hasAccess(requiredTier);
+    return {
+      key: label,
+      label: t(toolKeysMap[label] || label),
+      icon,
+      onPress,
+      badge: isLocked ? (requiredTier === TIERS.PRO_MAX ? t('tier_badge_max') : t('tier_badge_pro')) : null,
+      badgeMax: requiredTier === TIERS.PRO_MAX,
+    };
+  });
+  const newHomeLibrary = [
+    { key: 'recipes', label: t('stat_recipes_saved'), icon: 'book-outline', value: `${recipesCount}`, onPress: () => navigation.navigate('Recipes', { openTab: 'recipes', requestKey: Date.now() }) },
+    { key: 'cookbooks', label: t('stat_cookbooks'), icon: 'library-outline', value: `${booksCount}`, onPress: () => navigation.navigate('Recipes', { openTab: 'cookbooks', openSection: 'cookbooks', requestKey: Date.now() }) },
+    { key: 'bloggers', label: t('stat_bloggers'), icon: 'people-outline', value: `${followersCount}`, onPress: () => navigation.navigate('Find', { openBloggers: true, requestKey: Date.now() }) },
+    { key: 'coupons', label: t('stat_coupons'), icon: 'pricetag-outline', value: `${couponsCount}`, onPress: openCouponWallet },
+    { key: 'suggested', label: t('suggested_meals_title'), icon: 'bulb-outline', onPress: openSuggestedRecipes },
+    { key: 'loyalty', label: t('loyalty_card_title'), icon: 'card-outline', value: linkedLoyaltyCard ? t('loyalty_card_linked_badge') : null, onPress: openLoyaltyModal },
+  ];
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -2250,6 +2294,28 @@ export default function HomeScreen({ user, route }) {
           />
         ) : (
           <>
+            {USE_NEW_HOME ? (
+              <NewHome
+                t={t}
+                user={user}
+                localeLabel={locale.toUpperCase()}
+                tierBadgeLabel={tierBadgeLabel}
+                onOpenPlans={openPlans}
+                onOpenAccount={openAccount}
+                onOpenLanguage={() => setIsLanguageModalOpen(true)}
+                onScan={openScanCircularModal}
+                stores={userStoresLocal}
+                onAddStore={openAddStoreModal}
+                onAskFern={openChat}
+                weekDays={weekDays}
+                onOpenFamily={() => navigation.navigate('Family')}
+                onPlanTonight={() => navigation.navigate('Family')}
+                onFamilyLayout={(e) => { homeSectionY.current.weekPanel = e.nativeEvent.layout.y; }}
+                tools={newHomeTools}
+                libraryItems={newHomeLibrary}
+              />
+            ) : (
+              <>
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 <Text style={styles.greeting}>{getGreeting(t)}, {"\n"}{userName}</Text>
@@ -2277,6 +2343,9 @@ export default function HomeScreen({ user, route }) {
               </View>
             </View>
 
+              </>
+            )}
+
             {loading ? (
               <View style={styles.loadingRow}>
                 <ActivityIndicator color={colors.forest} />
@@ -2291,6 +2360,8 @@ export default function HomeScreen({ user, route }) {
               </View>
             ) : null}
 
+            {!USE_NEW_HOME ? (
+              <>
             <View style={styles.mainCardRow}>
               {[
                 { label: 'Alexa Skill', val: '🔊', color: 'rgb(30, 57, 30)', featureKey: 'alexa_skill' },
@@ -2479,6 +2550,9 @@ export default function HomeScreen({ user, route }) {
               </View>
             </View>
 
+              </>
+            ) : null}
+
             <View style={[styles.panelCard, shadow.card]}>
               <View style={styles.panelHeaderRow}>
                 <Text style={styles.panelTitle}>{t('shopping_list_title')}</Text>
@@ -2516,6 +2590,8 @@ export default function HomeScreen({ user, route }) {
               </View>
             </View>
 
+            {!USE_NEW_HOME ? (
+              <>
             <Text style={styles.toolsHeading}>{t('tool_your_tools')}</Text>
 
             <View style={styles.mainCardRow}>
@@ -2568,6 +2644,9 @@ export default function HomeScreen({ user, route }) {
                 );
               })}
             </View>
+
+              </>
+            ) : null}
 
             <View style={styles.bottomSpacer} />
           </>
