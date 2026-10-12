@@ -4,7 +4,8 @@
 // Purely presentational: HomeScreen owns all state, handlers and tier checks and
 // passes them in, so no feature, gate or label logic lives (or can drift) here.
 import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { formatDayLabel } from '../../utils/familyDates';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/tokens';
 import { fetchRecipeImage } from '../../utils/recipeImage';
@@ -57,11 +58,13 @@ export default function NewHome({
   onOpenFamily,
   onPlanTonight,
   onFamilyLayout,
+  onAddForDay,
   tools,
   libraryItems,
 }) {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(null);
+  const [daySheet, setDaySheet] = useState(null); // a weekDays entry | null
 
   const todayEntry = weekDays[0] || {};
   const tonightTitle = todayEntry.meals?.dinner || '';
@@ -95,6 +98,16 @@ export default function NewHome({
           <TouchableOpacity style={styles.tierPill} activeOpacity={0.85} onPress={onOpenPlans}>
             <Text style={styles.tierPillText}>{tierBadgeLabel}</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.roundBtn, toolsOpen ? styles.roundBtnOn : null]}
+            activeOpacity={0.85}
+            onPress={() => setToolsOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={t('home_tools_menu_a11y')}
+            accessibilityState={{ expanded: toolsOpen }}
+          >
+            <Ionicons name={toolsOpen ? 'close' : 'apps-outline'} size={20} color={toolsOpen ? CREAM : FOREST} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.roundBtn} activeOpacity={0.85} onPress={onOpenAccount} accessibilityRole="button" accessibilityLabel={t('home_profile_a11y')}>
             <Ionicons name="person-outline" size={20} color={FOREST} />
           </TouchableOpacity>
@@ -103,6 +116,19 @@ export default function NewHome({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Tools menu (opened from the top bar) */}
+      {toolsOpen ? (
+        <View style={styles.accordion}>
+          {tools.map((item, i) => (
+            <ToolRow key={item.key} item={item} last={i === tools.length - 1} />
+          ))}
+          <Text style={styles.groupLabel}>{t('home_library_group')}</Text>
+          {libraryItems.map((item, i) => (
+            <ToolRow key={item.key} item={item} last={i === libraryItems.length - 1} />
+          ))}
+        </View>
+      ) : null}
 
       {/* Scan card */}
       <View style={styles.hero}>
@@ -172,7 +198,14 @@ export default function NewHome({
 
       <View style={styles.weekRow}>
         {weekDays.map((d) => (
-          <View key={`nh-${d.key}`} style={[styles.dayCell, d.isToday ? styles.dayCellToday : null]}>
+          <TouchableOpacity
+            key={`nh-${d.key}`}
+            activeOpacity={0.8}
+            onPress={() => setDaySheet(d)}
+            accessibilityRole="button"
+            accessibilityLabel={formatDayLabel(d.key)}
+            style={[styles.dayCell, d.isToday ? styles.dayCellToday : null]}
+          >
             <Text style={[styles.dayName, d.isToday ? styles.dayNameToday : null]}>{d.day}</Text>
             <Text style={[styles.dayNum, d.isToday ? styles.dayNumToday : null]}>{d.date}</Text>
             <Ionicons
@@ -181,8 +214,19 @@ export default function NewHome({
               color={d.meals?.dinner ? (d.isToday ? SAGE : '#2D5A27') : '#C4521A'}
             />
             <View style={[styles.actDot, d.activities && d.activities.length ? styles.actDotOn : null]} />
-          </View>
+          </TouchableOpacity>
         ))}
+      </View>
+
+      <View style={styles.addRow}>
+        <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={() => onAddForDay(weekDays[0]?.key, 'meal')} accessibilityRole="button">
+          <Ionicons name="add" size={18} color={FOREST} />
+          <Text style={styles.addBtnText}>{t('home_add_meal')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={() => onAddForDay(weekDays[0]?.key, 'activity')} accessibilityRole="button">
+          <Ionicons name="add" size={18} color={FOREST} />
+          <Text style={styles.addBtnText}>{t('home_add_activity')}</Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity activeOpacity={0.8} onPress={openDinners ? onScan : onOpenFamily} style={styles.openLine}>
@@ -195,31 +239,41 @@ export default function NewHome({
       </TouchableOpacity>
       </View>
 
-      {/* Everything else */}
-      <View style={styles.accordion}>
-        <TouchableOpacity
-          style={styles.accHead}
-          activeOpacity={0.8}
-          onPress={() => setToolsOpen((v) => !v)}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: toolsOpen }}
-        >
-          <Text style={styles.accTitle}>{t('home_more_tools')}</Text>
-          <Text style={styles.accCount}>{tools.length}</Text>
-          <Ionicons name={toolsOpen ? 'chevron-up' : 'chevron-down'} size={18} color={BROWN} />
-        </TouchableOpacity>
-        {toolsOpen ? (
-          <View>
-            {tools.map((item, i) => (
-              <ToolRow key={item.key} item={item} last={i === tools.length - 1} />
-            ))}
-            <Text style={styles.groupLabel}>{t('home_library_group')}</Text>
-            {libraryItems.map((item, i) => (
-              <ToolRow key={item.key} item={item} last={i === libraryItems.length - 1} />
-            ))}
+
+      <Modal transparent animationType="slide" visible={Boolean(daySheet)} onRequestClose={() => setDaySheet(null)}>
+        <View style={styles.sheetBackdrop}>
+          <TouchableOpacity style={styles.sheetDismiss} activeOpacity={1} onPress={() => setDaySheet(null)} />
+          <View style={styles.sheet}>
+            <Text style={styles.sheetTitle}>{daySheet ? formatDayLabel(daySheet.key) : ''}</Text>
+            {daySheet && !Object.keys(daySheet.meals || {}).length && !(daySheet.activities || []).length ? (
+              <Text style={styles.sheetEmpty}>{t('home_day_nothing')}</Text>
+            ) : null}
+            {daySheet ? ['breakfast', 'lunch', 'dinner'].filter((slot) => daySheet.meals?.[slot]).map((slot) => (
+              <View key={slot} style={styles.sheetRow}>
+                <Text style={styles.sheetSlot}>{t('meal_planner_slot_' + slot)}</Text>
+                <Text style={styles.sheetItem} numberOfLines={2}>{`${daySheet.mealEmojis?.[slot] ? daySheet.mealEmojis[slot] + ' ' : ''}${daySheet.meals[slot]}`}</Text>
+              </View>
+            )) : null}
+            {daySheet ? (daySheet.activities || []).map((a, i) => (
+              <View key={`a-${i}`} style={styles.sheetRow}>
+                <Text style={styles.sheetSlot}>{a.time || ''}</Text>
+                <Text style={styles.sheetItem} numberOfLines={2}>{`${a.emoji ? a.emoji + ' ' : ''}${a.label || ''}`}</Text>
+              </View>
+            )) : null}
+            <View style={styles.sheetBtns}>
+              <TouchableOpacity style={styles.sheetPrimary} activeOpacity={0.88} onPress={() => { const k = daySheet.key; setDaySheet(null); onAddForDay(k, 'meal'); }}>
+                <Text style={styles.sheetPrimaryText}>{t('home_add_meal')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.sheetPrimary} activeOpacity={0.88} onPress={() => { const k = daySheet.key; setDaySheet(null); onAddForDay(k, 'activity'); }}>
+                <Text style={styles.sheetPrimaryText}>{t('home_add_activity')}</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.sheetClose} activeOpacity={0.8} onPress={() => setDaySheet(null)}>
+              <Text style={styles.sheetCloseText}>{t('home_day_done')}</Text>
+            </TouchableOpacity>
           </View>
-        ) : null}
-      </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -274,7 +328,24 @@ const styles = StyleSheet.create({
   openLine: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, paddingHorizontal: 4, minHeight: 32 },
   openLineText: { flex: 1, fontFamily: 'Jost-Regular', fontSize: 13, lineHeight: 18, color: '#5E4A33' },
 
-  accordion: { marginTop: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER, borderRadius: 18, paddingHorizontal: 14 },
+  roundBtnOn: { backgroundColor: FOREST, borderColor: FOREST },
+  accordion: { marginBottom: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER, borderRadius: 18, paddingHorizontal: 14 },
+  addRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  addBtn: { flex: 1, height: 46, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  addBtnText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: FOREST },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(20,30,15,0.45)', justifyContent: 'flex-end' },
+  sheetDismiss: { flex: 1 },
+  sheet: { backgroundColor: '#FDFAF6', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 34 },
+  sheetTitle: { fontFamily: 'Playfair-Bold', fontSize: 22, color: FOREST, marginBottom: 10 },
+  sheetEmpty: { fontFamily: 'Jost-Regular', fontSize: 14, color: BROWN, marginBottom: 6 },
+  sheetRow: { flexDirection: 'row', gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EFE6DA' },
+  sheetSlot: { width: 96, fontFamily: 'Jost-Bold', fontSize: 12, letterSpacing: 0.4, color: '#C4521A' },
+  sheetItem: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 15, color: colors.ink },
+  sheetBtns: { flexDirection: 'row', gap: 10, marginTop: 16 },
+  sheetPrimary: { flex: 1, minHeight: 48, borderRadius: 14, backgroundColor: FOREST, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  sheetPrimaryText: { fontFamily: 'Jost-Bold', fontSize: 14, color: CREAM, textAlign: 'center' },
+  sheetClose: { alignItems: 'center', justifyContent: 'center', minHeight: 44, marginTop: 8 },
+  sheetCloseText: { fontFamily: 'Jost-SemiBold', fontSize: 15, color: BROWN },
   accHead: { flexDirection: 'row', alignItems: 'center', height: 54, gap: 8 },
   accTitle: { flex: 1, fontFamily: 'Jost-Bold', fontSize: 15, color: colors.ink },
   accCount: { fontFamily: 'Jost-Regular', fontSize: 12, color: BROWN },

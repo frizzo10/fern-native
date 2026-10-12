@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { colors, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 import useLanguage from '../hooks/useLanguage';
@@ -89,12 +89,37 @@ export default function FamilyScreen({ user }) {
     }, [activeTourKey, activeTourStepIndex]);
 
     const navigation = useNavigation();
+    const route = useRoute();
 
     const goToDay = (index) => {
         const clamped = Math.max(0, Math.min(index, dateKeys.length - 1));
         setSelectedDayIndex(clamped);
         dayScrollRef.current?.scrollTo({ x: clamped * SCREEN_WIDTH, animated: true });
     };
+
+    // Deep link from Home ("Add a meal" / "Add an activity" / a tapped day): jump to
+    // that day, then open the same add flow the Family Hub buttons use.
+    useEffect(() => {
+        const params = route?.params;
+        if (!params?.addAction) return;
+        const idx = Math.max(0, dateKeys.indexOf(params.addDateKey));
+        goToDay(idx);
+        // On a cold open the day pager may not be mounted yet; re-sync its position once it is.
+        setTimeout(() => dayScrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: false }), 350);
+        const dateKey = dateKeys[idx];
+        if (params.addAction === 'activity') {
+            setIsAddActivityOpen(true);
+        } else if (params.addAction === 'meal') {
+            Alert.alert(t('home_add_meal'), undefined, [
+                { text: t('meal_planner_slot_breakfast'), onPress: () => openAddMealModal(dateKey, 'Breakfast', t('meal_planner_slot_breakfast')) },
+                { text: t('meal_planner_slot_lunch'), onPress: () => openAddMealModal(dateKey, 'Lunch', t('meal_planner_slot_lunch')) },
+                { text: t('meal_planner_slot_dinner'), onPress: () => openAddMealModal(dateKey, 'Dinner', t('meal_planner_slot_dinner')) },
+                { text: t('cancel_btn'), style: 'cancel' },
+            ]);
+        }
+        navigation.setParams({ addAction: undefined, addDateKey: undefined });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [route?.params?.requestKey]);
 
     const dinnersPlannedCount = dateKeys.filter((key) => (
         (mealPlanLocal[key] || []).some((entry) => normalizeSlot(entry) === 'dinner')

@@ -2311,6 +2311,7 @@ export default function HomeScreen({ user, route }) {
                 onOpenFamily={() => navigation.navigate('Family')}
                 onPlanTonight={() => navigation.navigate('Family')}
                 onFamilyLayout={(e) => { homeSectionY.current.weekPanel = e.nativeEvent.layout.y; }}
+                onAddForDay={(dateKey, kind) => navigation.navigate('Family', { addAction: kind, addDateKey: dateKey, requestKey: Date.now() })}
                 tools={newHomeTools}
                 libraryItems={newHomeLibrary}
               />
@@ -2569,6 +2570,8 @@ export default function HomeScreen({ user, route }) {
               </Text>
             </View>
 
+            {!USE_NEW_HOME ? (
+              <>
             <View style={[styles.fernKnowledgeCard, shadow.card]}>
               <View style={styles.fernKnowledgeHeader}>
                 <Text style={styles.fernKnowledgeTitle}>{t('fern_knows_title')}</Text>
@@ -2589,6 +2592,9 @@ export default function HomeScreen({ user, route }) {
                 </View>
               </View>
             </View>
+
+              </>
+            ) : null}
 
             {!USE_NEW_HOME ? (
               <>
