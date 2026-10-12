@@ -49,13 +49,15 @@ async function postToAi(payload) {
     return res.json();
 }
 
-export async function fetchDealRecipeIdeas({ itemName, locale, token }) {
+export async function fetchDealRecipeIdeas({ itemName, locale, token, exclude = [] }) {
+    const skip = (Array.isArray(exclude) ? exclude : []).map((x) => String(x || '').trim()).filter(Boolean).slice(0, 30);
+    const skipLine = skip.length ? ` Do NOT suggest any of these dishes or close variations of them: ${skip.join('; ')}. Make the 3 ideas clearly different from each other (different cuisines or cooking methods).` : ' Make the 3 ideas clearly different from each other (different cuisines or cooking methods).';
     const json = await postToAi({
         system: 'Return ONLY a JSON array of 3 recipe objects. No text before or after. Example: [{"title":"Chicken Stir Fry","time":"25 min","emoji":"🍳","why":"Uses the chicken as the star"},{"title":"Chicken Soup","time":"40 min","emoji":"🥣","why":"A classic comfort meal"},{"title":"Grilled Chicken Salad","time":"20 min","emoji":"🥗","why":"Light and fresh option"}]',
         messages: [
             {
                 role: 'user',
-                content: `Give me 3 recipe ideas using ${itemName}. Return ONLY the JSON array, nothing else.`,
+                content: `Give me 3 recipe ideas using ${itemName}.${skipLine} Return ONLY the JSON array, nothing else.`,
             },
         ],
         feature: 'fern_chat',
@@ -68,7 +70,9 @@ export async function fetchDealRecipeIdeas({ itemName, locale, token }) {
     const parsed = parseJsonLoose(extractResponseText(json));
     const list = Array.isArray(parsed) ? parsed : [];
 
+    const skipSet = new Set(skip.map((x) => x.toLowerCase()));
     return list
+        .filter((idea) => !skipSet.has(String(idea?.title || '').trim().toLowerCase()))
         .map((idea, index) => ({
             id: `deal-idea-${Date.now()}-${index}`,
             title: String(idea?.title || '').trim(),

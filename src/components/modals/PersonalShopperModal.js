@@ -28,7 +28,7 @@ import {
 } from '../../services/personalShopperService';
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
 import { fetchRecipeImage } from '../../utils/recipeImage';
-import { scanCircular, fetchDealRecipeIdeas } from '../../services/scanCircularService';
+import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../../services/scanCircularService';
 import { zipsByStoreName } from '../../utils/storeZip';
 import { discardLatestScan, fetchStoreDeals } from '../../services/storeDealsService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoPickerService';
@@ -1323,29 +1323,55 @@ export default function PersonalShopperModal({
             : prev));
     };
 
-    // Tap "Find recipes" on a sale item: get a few ideas built around it.
-    const findDealIdeas = async (deal) => {
-        setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { itemName: deal.name, loading: true, list: [] } } : prev));
+    // Tap "Find recipes" on a sale item: show 3 ideas right under that item, all different
+    // from the dinners already on the list (and from earlier ideas for the same item).
+    // Nothing goes into the week until the user picks an idea AND a night.
+    const findDealIdeas = async (deal, dealKey, more = false) => {
+        const prevShown = more && panel?.ideas?.dealKey === dealKey ? (panel.ideas.shown || []) : [];
+        const exclude = [...(panel?.items || []).map((it) => it.title), ...prevShown];
+        setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { dealKey, itemName: deal.name, deal, loading: true, list: [], shown: prevShown, previews: {} } } : prev));
         try {
-            const list = await fetchDealRecipeIdeas({ itemName: deal.name, locale, token });
-            setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { itemName: deal.name, loading: false, list, deal } } : prev));
+            const list = await fetchDealRecipeIdeas({ itemName: deal.name, locale, token, exclude });
+            setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { dealKey, itemName: deal.name, deal, loading: false, list, shown: [...prevShown, ...list.map((x) => x.title)], previews: {} } } : prev));
         } catch (e) {
             console.log('[personal-shopper] deal ideas failed', e?.message || e);
-            setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { itemName: deal.name, loading: false, list: [], failed: true } } : prev));
+            setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { dealKey, itemName: deal.name, deal, loading: false, list: [], failed: true, shown: prevShown, previews: {} } } : prev));
         }
     };
 
-    // Swap an idea into the week: replaces a dinner that doesn't use any sale item
-    // (else the last one), and tags it with the sale item it was built around.
-    const useDealIdea = (idea) => {
+    const closeIdeas = () => setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: null } : prev));
+
+    const patchIdeas = (patch) => setPanel((prev) => (prev?.type === 'dinners' && prev.ideas ? { ...prev, ideas: { ...prev.ideas, ...patch } } : prev));
+
+    // Preview: fetch the full recipe (ingredients + steps) so they can judge it before choosing.
+    const previewIdea = async (idea) => {
+        const open = panel?.ideas?.previews?.[idea.id];
+        if (open) {
+            patchIdeas({ previews: { ...panel.ideas.previews, [idea.id]: undefined } });
+            return;
+        }
+        patchIdeas({ previews: { ...(panel?.ideas?.previews || {}), [idea.id]: { loading: true } } });
+        try {
+            const recipe = await fetchFullRecipeForDealIdea({ idea, itemName: panel?.ideas?.itemName, locale, token });
+            setPanel((prev) => (prev?.type === 'dinners' && prev.ideas ? { ...prev, ideas: { ...prev.ideas, previews: { ...prev.ideas.previews, [idea.id]: { recipe } } } } : prev));
+        } catch (e) {
+            setPanel((prev) => (prev?.type === 'dinners' && prev.ideas ? { ...prev, ideas: { ...prev.ideas, previews: { ...prev.ideas.previews, [idea.id]: { failed: true } } } } : prev));
+        }
+    };
+
+    // Step 1 of choosing: "I'll cook this" → asks which night.
+    const pickIdea = (idea) => patchIdeas({ pendingId: panel?.ideas?.pendingId === idea.id ? null : idea.id });
+
+    // Step 2: the user taps the night it replaces.
+    const placeIdea = (idea, target) => {
         setPanel((prev) => {
-            if (prev?.type !== 'dinners' || !prev.items.length) return prev;
-            let target = prev.items.findIndex((it) => !(it.saleItems || []).length);
-            if (target < 0) target = prev.items.length - 1;
+            if (prev?.type !== 'dinners' || !prev.items[target]) return prev;
             const deal = prev.ideas?.deal;
+            const ingredients = prev.ideas?.previews?.[idea.id]?.recipe?.ingredients;
             const items = prev.items.map((it, i) => (i === target ? {
                 ...it,
                 title: idea.title,
+                emoji: idea.emoji || it.emoji,
                 source: 'ai',
                 sides: [],
                 reason: idea.why || '',
@@ -1353,7 +1379,7 @@ export default function PersonalShopperModal({
                 checked: true,
                 saleItems: deal ? [{ name: deal.name, price: deal.salePrice || '', isBogo: Boolean(deal.isBogo), store: deal.store || '' }] : [],
             } : it));
-            return { ...prev, items, ideas: { ...prev.ideas, usedTitle: idea.title, usedDay: prev.items[target].dayLabel } };
+            return { ...prev, items, ideas: { ...prev.ideas, pendingId: null, usedTitle: idea.title, usedDay: prev.items[target].dayLabel } };
         });
     };
 
@@ -1507,36 +1533,81 @@ export default function PersonalShopperModal({
                     {deals.length ? (
                         <View style={styles.saleBox}>
                             <Text style={styles.groupLabel}>{t('psp_on_sale_heading')}</Text>
-                            {deals.map((deal, i) => (
-                                <View key={`${deal.name}-${i}`} style={styles.saleRow}>
-                                    <View style={styles.checkRowText}>
-                                        <Text style={styles.saleName}>{deal.name}</Text>
-                                        <Text style={styles.checkRowSub}>{deal.isBogo ? 'BOGO' : deal.salePrice}{deal.store ? `${deal.salePrice || deal.isBogo ? ' · ' : ''}${deal.store}` : ''}</Text>
+                            {deals.map((deal, i) => {
+                                const dealKey = `${deal.name}-${i}`;
+                                const open = ideas && ideas.dealKey === dealKey;
+                                return (
+                                    <View key={dealKey}>
+                                        <View style={styles.saleRow}>
+                                            <View style={styles.checkRowText}>
+                                                <Text style={styles.saleName}>{deal.name}</Text>
+                                                <Text style={styles.checkRowSub}>{deal.isBogo ? 'BOGO' : deal.salePrice}{deal.store ? `${deal.salePrice || deal.isBogo ? ' · ' : ''}${deal.store}` : ''}</Text>
+                                            </View>
+                                            <TouchableOpacity style={[styles.findBtn, open ? styles.findBtnOpen : null]} activeOpacity={0.8} onPress={() => (open ? closeIdeas() : findDealIdeas(deal, dealKey))}>
+                                                <Text style={styles.findBtnText}>{open ? t('psp_close_btn') : t('psp_find_recipes_btn')}</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        {open ? (
+                                            <View style={styles.ideasBox}>
+                                                <Text style={styles.ideasTitle}>{t('psp_ideas_for', { item: ideas.itemName })}</Text>
+                                                <Text style={styles.checkRowSub}>{t('psp_idea_choose_hint')}</Text>
+                                                {ideas.loading ? <ActivityIndicator color={colors.forest} style={{ marginVertical: 10 }} /> : null}
+                                                {ideas.failed ? <Text style={styles.checkRowSub}>{t('psp_ideas_error')}</Text> : null}
+                                                {(ideas.list || []).map((idea) => {
+                                                    const pv = ideas.previews?.[idea.id];
+                                                    const picking = ideas.pendingId === idea.id;
+                                                    return (
+                                                        <View key={idea.id} style={styles.ideaCard}>
+                                                            <Text style={styles.checkRowTitle}>{idea.emoji} {idea.title}</Text>
+                                                            <Text style={styles.checkRowSub}>{idea.time ? `${idea.time} · ` : ''}{idea.why}</Text>
+                                                            {pv?.loading ? <ActivityIndicator color={colors.forest} style={{ marginTop: 6 }} /> : null}
+                                                            {pv?.failed ? <Text style={styles.checkRowSub}>{t('psp_ideas_error')}</Text> : null}
+                                                            {pv?.recipe ? (
+                                                                <View style={styles.ideaPreview}>
+                                                                    <Text style={styles.previewHeading}>{t('psp_preview_ingredients')}</Text>
+                                                                    {pv.recipe.ingredients.slice(0, 14).map((line, n) => <Text key={n} style={styles.previewLine}>• {line}</Text>)}
+                                                                    {pv.recipe.instructions.length ? <Text style={styles.previewHeading}>{t('psp_preview_steps')}</Text> : null}
+                                                                    {pv.recipe.instructions.slice(0, 4).map((line, n) => <Text key={n} style={styles.previewLine}>{n + 1}. {line}</Text>)}
+                                                                </View>
+                                                            ) : null}
+                                                            <View style={styles.ideaActions}>
+                                                                <TouchableOpacity style={styles.ideaGhost} activeOpacity={0.8} onPress={() => previewIdea(idea)}>
+                                                                    <Text style={styles.ideaGhostText}>{pv ? t('psp_idea_hide') : t('psp_idea_preview')}</Text>
+                                                                </TouchableOpacity>
+                                                                <TouchableOpacity style={styles.ideaPick} activeOpacity={0.85} onPress={() => pickIdea(idea)}>
+                                                                    <Text style={styles.ideaPickText}>{picking ? t('psp_prefs_cancel') : t('psp_idea_cook_this')}</Text>
+                                                                </TouchableOpacity>
+                                                            </View>
+                                                            {picking ? (
+                                                                <View>
+                                                                    <Text style={styles.ideasTitle}>{t('psp_idea_which_night')}</Text>
+                                                                    <View style={styles.saleChipRow}>
+                                                                        {panel.items.map((it, n) => (
+                                                                            <TouchableOpacity key={it.dateKey} style={styles.prefsOption} activeOpacity={0.8} onPress={() => placeIdea(idea, n)}>
+                                                                                <Text style={styles.prefsOptionText}>{it.dayLabel}</Text>
+                                                                            </TouchableOpacity>
+                                                                        ))}
+                                                                    </View>
+                                                                </View>
+                                                            ) : null}
+                                                        </View>
+                                                    );
+                                                })}
+                                                {ideas.usedTitle ? <Text style={styles.ideasDone}>{t('psp_idea_swapped', { title: ideas.usedTitle, day: ideas.usedDay })}</Text> : null}
+                                                {!ideas.loading ? (
+                                                    <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.85} onPress={() => findDealIdeas(deal, dealKey, true)}>
+                                                        <Text style={styles.ghostBtnText}>{t('psp_idea_more_btn')}</Text>
+                                                    </TouchableOpacity>
+                                                ) : null}
+                                            </View>
+                                        ) : null}
                                     </View>
-                                    <TouchableOpacity style={styles.findBtn} activeOpacity={0.8} onPress={() => findDealIdeas(deal)}>
-                                        <Text style={styles.findBtnText}>{t('psp_find_recipes_btn')}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
+                                );
+                            })}
                             {(panel.allDeals || []).length > (panel.deals || []).length ? (
                                 <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.85} onPress={() => setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, showAll: !prev.showAll } : prev))}>
                                     <Text style={styles.ghostBtnText}>{panel.showAll ? t('psp_show_fewer') : t('psp_show_all_sale', { n: panel.allDeals.length })}</Text>
                                 </TouchableOpacity>
-                            ) : null}
-                            {ideas ? (
-                                <View style={styles.ideasBox}>
-                                    <Text style={styles.ideasTitle}>{t('psp_ideas_for', { item: ideas.itemName })}</Text>
-                                    {ideas.loading ? <ActivityIndicator color={colors.forest} /> : null}
-                                    {ideas.failed ? <Text style={styles.checkRowSub}>{t('psp_ideas_error')}</Text> : null}
-                                    {(ideas.list || []).map((idea) => (
-                                        <TouchableOpacity key={idea.id} style={styles.ideaRow} activeOpacity={0.8} onPress={() => useDealIdea(idea)}>
-                                            <Text style={styles.checkRowTitle}>{idea.emoji} {idea.title}</Text>
-                                            <Text style={styles.checkRowSub}>{idea.time ? `${idea.time} · ` : ''}{idea.why}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                    {ideas.usedTitle ? <Text style={styles.ideasDone}>{t('psp_idea_swapped', { title: ideas.usedTitle, day: ideas.usedDay })}</Text> : null}
-                                    {!ideas.loading && (ideas.list || []).length && !ideas.usedTitle ? <Text style={styles.checkRowSub}>{t('psp_idea_tap_hint')}</Text> : null}
-                                </View>
                             ) : null}
                         </View>
                     ) : null}
@@ -1946,6 +2017,14 @@ const styles = StyleSheet.create({
     findBtnText: { fontFamily: 'Jost-Bold', fontSize: 11, color: '#fff' },
     ideasBox: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.04)' },
     ideasTitle: { fontFamily: 'Jost-Bold', fontSize: 13, color: colors.forest, marginBottom: 4 },
+    findBtnOpen: { backgroundColor: colors.brown },
+    ideaCard: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.sage },
+    ideaPreview: { marginTop: 8, padding: 8, borderRadius: 8, backgroundColor: 'rgba(0,0,0,0.04)' },
+    ideaActions: { flexDirection: 'row', marginTop: 8 },
+    ideaGhost: { flex: 1, paddingVertical: 8, borderRadius: 14, borderWidth: 1.5, borderColor: colors.forest, alignItems: 'center', marginRight: 6 },
+    ideaGhostText: { fontFamily: 'Jost-Bold', fontSize: 12, color: colors.forest },
+    ideaPick: { flex: 1, paddingVertical: 8, borderRadius: 14, backgroundColor: '#D9622B', alignItems: 'center', marginLeft: 6 },
+    ideaPickText: { fontFamily: 'Jost-Bold', fontSize: 12, color: '#fff' },
     ideaRow: { paddingVertical: 6 },
     ideasDone: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 6 },
     saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
