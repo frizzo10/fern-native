@@ -507,9 +507,9 @@ export default function ShoppingScreen({ user }) {
         </View>
 
         {!greatDeals.length && !listCoupons.length ? (
-          <Text style={styles.checkoutSub}>
+          <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
             {catalogState === 'loading' ? t('sav_status_loading')
-              : coupons.length ? t('sav_status_none', { n: coupons.length, m: coupons.filter(isNonFoodCoupon).length })
+              : coupons.length ? t('sav_status_none', { n: coupons.length })
               : t('sav_status_empty')}
           </Text>
         ) : null}

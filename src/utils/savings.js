@@ -190,11 +190,11 @@ export function couponItemName(coupon) {
 }
 
 // Coupons big enough to be worth putting an item on the list for, whether or not the item is
-// already on it. Non-food only (see isNonFoodCoupon). Biggest first.
+// already on it. Any category (it's an offer to buy the item, not a match to a recipe ingredient). Biggest first.
 export function tooGoodCoupons(coupons, { excludeIds = [], limit = 4 } = {}) {
     const skip = new Set(excludeIds.map(String));
     return (coupons || [])
-        .filter((c) => isNonFoodCoupon(c) && !skip.has(String(c.id)))
+        .filter((c) => !skip.has(String(c.id)))
         .map((c) => {
             const value = parseCouponValue(`${c.discountLabel || ''} ${c.title || ''}`);
             const free = /\bfree\b/i.test(`${c.discountLabel || ''} ${c.title || ''}`);
