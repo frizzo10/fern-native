@@ -45,6 +45,7 @@ const STAPLES = ['eggs', 'butter', 'milk', 'bread', 'olive oil', 'garlic', 'onio
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 const STEP_META = {
+    mylist: { n: 1, labelKey: 'psp_label_mylist' },
     circular: { n: 1, labelKey: 'psp_label_circular' },
     about: { n: 1, labelKey: 'psp_label_about' },
     staples: { n: 1, labelKey: 'psp_label_staples' },
@@ -200,14 +201,40 @@ function sumSavings(deals) {
 // The flyer "board": the scanned photo with a live scan sweep, then the sale items Fern
 // found pop onto it one by one. Replaces the chat feel with the circular itself.
 const STEPPER = [
+    ['mylist', 'psp_stp_mylist', '📝'],
     ['circular', 'psp_stp_flyer', '📰'],
-    ['about', 'psp_stp_you', '👤'],
-    ['staples', 'psp_stp_pantry', '🧺'],
-    ['dinners', 'psp_stp_dinners', '🍽️'],
-    ['week', 'psp_stp_week', '📅'],
-    ['list', 'psp_stp_list', '🛒'],
+    ['about', 'psp_stp_thisweek', '👨‍👩‍👧'],
+    ['dinners', 'psp_stp_meals', '🍽️'],
+    ['listcheck', 'psp_stp_shop', '🛒'],
 ];
-const STEP_TO_STEPPER = { circular: 0, about: 1, staples: 2, dinners: 3, hubcheck: 4, activities: 4, ingredients: 5, listcheck: 5 };
+const STEP_TO_STEPPER = { mylist: 0, circular: 1, about: 2, staples: 2, dinners: 3, hubcheck: 3, activities: 3, ingredients: 4, listcheck: 4 };
+
+// Never worth planning a dinner around these, even when they're a great deal.
+const NOT_FOOD = /(gift card|batter|detergent|paper towel|toilet|soap|diaper|vitamin|pet food|litter|candle|wine|beer|vodka|whiskey|liquor|cigarette|lotto|lottery|bleach|trash bag)/i;
+const PANTRY_SKIP = /^\s*(salt|pepper|black pepper|salt and pepper|water|ice)\b/i;
+
+// The week's "star" deals: biggest saving, food that can anchor a dinner, one per kind of product.
+function pickStarDeals(deals, n, craving) {
+    const scored = (deals || []).filter((d) => d?.name && !NOT_FOOD.test(d.name)).map((d) => {
+        const sv = dealSaving(d).amount;
+        const food = d.cookable || /meat|poultry|seafood|produce|deli|dairy|fish|chicken|beef|pork|vegetable|fruit/i.test(`${d.category || ''} ${d.name}`);
+        let score = sv * 2 + (d.isBogo ? 2 : 0) + (food ? 4 : 0) + (Number(d.dealScore) || 0) * 0.5;
+        if (craving && String(d.name).toLowerCase().includes(String(craving).toLowerCase())) score += 6;
+        return { d, score, food };
+    }).sort((a, b) => b.score - a.score);
+    const out = [];
+    const seen = new Set();
+    for (const { d, food } of scored) {
+        if (!food) continue;
+        const words = String(d.name).toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !SALE_STOP.has(w)).map(singular);
+        const key = words.filter((w) => w.length > 3);
+        if (key.some((w) => seen.has(w))) continue;
+        key.forEach((w) => seen.add(w));
+        out.push(d);
+        if (out.length >= n) break;
+    }
+    return out;
+}
 
 function Stepper({ step, t }) {
     const cur = STEP_TO_STEPPER[step] ?? 0;
@@ -589,46 +616,8 @@ export default function PersonalShopperModal({
         }
     };
 
-    const startPlanning = async () => {
-        const run = newSession();
-        session.current = run;
-        setPhase('chat');
-        setMessages([]);
-        setPanel(null);
-        setChips([]);
-        goStep('staples');
-        setTyping(true);
-
-        const { mealPlan, activities } = await readPlanState();
-        const store = Array.isArray(data?.userStores) ? data.userStores[0] : null;
-        try {
-            const res = await startPersonalShopper({
-                userProfile: data?.userProfile,
-                lat: store?.lat,
-                lon: store?.lng ?? store?.lon,
-                mealPlan,
-                savedRecipes: data?.recipes,
-                activities,
-                locale,
-            });
-            if (run !== session.current) return;
-            run.systemPrompt = res.systemPrompt;
-            run.forecast = res.forecast;
-            run.recurringActs = res.recurringActs;
-            run.history.push({ role: 'system', content: res.systemPrompt });
-            setTyping(false);
-            say(res.reply || t('psp_start_fallback'));
-            // Fern's opening message already asks about the basics: just offer the
-            // answer buttons and wait. Dinners start once the user has answered.
-            setChips(stapleChips());
-        } catch (e) {
-            console.log('[personal-shopper] start failed', e?.message || e);
-            if (run !== session.current) return;
-            setTyping(false);
-            say(t('psp_start_fallback'));
-            startStaples(); // opening message failed, so ask the question ourselves
-        }
-    };
+    // One flow for every entry point (tile, arrival notification, Home scan card).
+    const startPlanning = async () => startCircularPlanning();
 
     // ── optional first step: scan the store flyer (arrival notification) ─────
 
@@ -679,11 +668,26 @@ export default function PersonalShopperModal({
         });
         if (run !== session.current) return;
         setTyping(false);
+        const existing = (await readJson('rv4_master_shop', [])).filter((it) => it && !it.checked && String(it.text || '').trim());
+        if (run !== session.current) return;
+        run.afterList = () => runFlyerStep(run, known);
+        if (existing.length) {
+            goStep('mylist');
+            say(t('psp_mylist_intro', { n: existing.length }));
+            setPanel({ type: 'mylist', items: existing.map((it) => ({ id: it.id, text: String(it.text), recipe: it.recipe || '' })) });
+            return;
+        }
+        runFlyerStep(run, known);
+    };
+
+    const runFlyerStep = (run, known) => {
+        goStep('circular');
+        setPanel(null);
         if (known.length) {
             run.storedDeals = known.map((k) => ({
                 store: k.store,
                 scannedAt: k.scannedAt,
-                deals: k.items.slice(0, 15).map((it) => ({ name: it.name, salePrice: it.price || '', originalPrice: it.originalPrice || '', savings: it.savings || '', isBogo: Boolean(it.isBogo), store: k.store })),
+                deals: k.items.slice(0, 15).map((it) => ({ name: it.name, salePrice: it.price || '', originalPrice: it.originalPrice || '', savings: it.savings || '', category: it.category || '', cookable: Boolean(it.cookable), isBogo: Boolean(it.isBogo), store: k.store })),
             }));
             const total = known.reduce((n, k) => n + k.itemCount, 0);
             const newest = known.map((k) => new Date(k.scannedAt).getTime()).filter(Boolean).sort((a, b) => b - a)[0];
@@ -700,15 +704,22 @@ export default function PersonalShopperModal({
         setPanel({ type: 'circular' });
     };
 
-    // After the flyer step (scanned or skipped): Fern's usual opening + staples question.
-    const proceedToStaplesAfterCircular = () => {
+    // After the flyer step: ONE confirm screen (household, diet, dinners, kind of week, craving).
+    const proceedToStaplesAfterCircular = () => { showThisWeek(); };
+
+    const showThisWeek = async () => {
         const run = session.current;
-        // A few quick questions about the household come before staples/dinners.
-        if (!run.aboutDone) {
-            startAbout();
-            return;
-        }
-        showPlanAndStaples(run);
+        setPanel(null);
+        goStep('about');
+        const saved = await readJson(ABOUT_PREFS_KEY, null);
+        if (run !== session.current) return;
+        const has = Boolean(saved && saved.householdSize && saved.dinnersWanted);
+        const profile = { householdSize: '4', dietary: 'none', dinnersWanted: '5', vibe: '', ...(has ? saved : {}) };
+        run.profile = { ...profile };
+        say(t(has ? 'psp_prefs_intro' : 'psp_prefs_intro_new'));
+        setChips([]);
+        setPrefText('');
+        setPanel({ type: 'prefs', profile: { ...profile }, editing: null, craving: '' });
     };
 
     // Visual plan overview (built from what the app already has: household answers,
@@ -809,6 +820,9 @@ export default function PersonalShopperModal({
             salePrice: item.salePrice || '',
             originalPrice: item.originalPrice || '',
             savings: item.savings || '',
+            category: item.category || '',
+            cookable: Boolean(item.cookable),
+            dealScore: Number(item.dealScore) || 0,
             isBogo: Boolean(item.isBogo),
             ...(scannedStore && run.storedDeals.length ? { store: scannedStore } : {}),
         }));
@@ -1082,9 +1096,18 @@ export default function PersonalShopperModal({
     };
 
     const confirmPrefs = async () => {
+        const run = session.current;
         userSays(t('psp_prefs_continue_btn'));
+        run.profile.craving = panel?.craving || '';
+        run.aboutDone = true;
+        try {
+            const { householdSize, dietary, dinnersWanted, vibe } = run.profile;
+            await AsyncStorage.setItem(ABOUT_PREFS_KEY, JSON.stringify({ householdSize, dietary, dinnersWanted, vibe }));
+        } catch (e) {
+            console.log('[personal-shopper] could not save household answers', e?.message || e);
+        }
         setPanel(null);
-        await finishAbout();
+        await startBestDeals();
     };
 
     const startAbout = async () => {
@@ -1199,6 +1222,188 @@ export default function PersonalShopperModal({
             else run.staplesHave.push(item.name);
         });
         await proceedToDinners();
+    };
+
+    // ── best deals: star items fan out into several complete meals ──────────
+
+    const startBestDeals = async () => {
+        const run = session.current;
+        goStep('dinners');
+        setPanel(null);
+        setChips([]);
+        const { mealPlan } = await readPlanState();
+        const openKeys = buildRollingWeekDateKeys().filter((k) => !(Array.isArray(mealPlan[k]) ? mealPlan[k] : []).some((e) => normalizeSlot(e) === 'dinner'));
+        run.openKeys = openKeys;
+        if (!openKeys.length) {
+            say(t('psp_no_open_days'));
+            await finishList();
+            return;
+        }
+        const n = Math.max(1, Math.min(openKeys.length, parseInt(run.profile?.dinnersWanted, 10) || 5));
+        const starCount = Math.min(4, Math.max(2, Math.ceil(n / 2)));
+        const stars = pickStarDeals(run.deals || [], starCount, run.profile?.craving);
+        if (!stars.length) {
+            say(t('psp_best_none'));
+            await suggestDinners(run);
+            return;
+        }
+        setTyping(true);
+        say(t('psp_best_finding'));
+        const exclude = Object.values(mealPlan).flat().map((e) => String(e?.title || '')).filter(Boolean);
+        const note = [
+            run.profile?.householdSize ? `Cooking for ${run.profile.householdSize} people.` : '',
+            run.profile?.dietary && run.profile.dietary !== 'none' ? `Dietary needs: ${run.profile.dietary}.` : '',
+            run.profile?.vibe ? `The week is: ${run.profile.vibe}.` : '',
+        ].filter(Boolean).join(' ');
+        const results = await Promise.all(stars.map((d) => fetchDealRecipeIdeas({ itemName: d.name, locale, token, exclude, note }).catch(() => [])));
+        if (run !== session.current) return;
+        setTyping(false);
+        const cards = stars.map((d, i) => ({ key: `${d.name}-${i}`, deal: d, ideas: (results[i] || []).map((x) => ({ ...x, checked: false })) })).filter((c) => c.ideas.length);
+        if (!cards.length) {
+            say(t('psp_best_none'));
+            await suggestDinners(run);
+            return;
+        }
+        // Pre-pick a ready plan, one meal per star in turn, so there is always a sensible default.
+        let picked = 0;
+        for (let r = 0; r < 3 && picked < n; r += 1) {
+            for (const c of cards) {
+                if (picked >= n) break;
+                if (c.ideas[r]) { c.ideas[r].checked = true; picked += 1; }
+            }
+        }
+        say(t('psp_best_intro', { n: picked }));
+        setPanel({ type: 'meals', stars: cards, n, openCount: openKeys.length, previews: {} });
+    };
+
+    const toggleMeal = (starIdx, id) => setPanel((prev) => {
+        if (prev?.type !== 'meals') return prev;
+        const total = prev.stars.reduce((a, c) => a + c.ideas.filter((x) => x.checked).length, 0);
+        return {
+            ...prev,
+            stars: prev.stars.map((c, i) => (i !== starIdx ? c : {
+                ...c,
+                ideas: c.ideas.map((x) => (x.id !== id ? x : (x.checked ? { ...x, checked: false } : (total >= prev.openCount ? x : { ...x, checked: true })))),
+            })),
+        };
+    });
+
+    const previewMeal = async (idea, itemName) => {
+        const cur = panel?.previews?.[idea.id];
+        if (cur) {
+            setPanel((prev) => (prev?.type === 'meals' ? { ...prev, previews: { ...prev.previews, [idea.id]: undefined } } : prev));
+            return;
+        }
+        setPanel((prev) => (prev?.type === 'meals' ? { ...prev, previews: { ...prev.previews, [idea.id]: { loading: true } } } : prev));
+        try {
+            const recipe = await fetchFullRecipeForDealIdea({ idea, itemName, locale, token });
+            setPanel((prev) => (prev?.type === 'meals' ? { ...prev, previews: { ...prev.previews, [idea.id]: { recipe } } } : prev));
+        } catch (e) {
+            setPanel((prev) => (prev?.type === 'meals' ? { ...prev, previews: { ...prev.previews, [idea.id]: { failed: true } } } : prev));
+        }
+    };
+
+    // "3 different ones" for one star: keeps what's ticked, replaces the rest.
+    const moreForStar = async (starIdx) => {
+        const star = panel?.stars?.[starIdx];
+        if (!star || star.loading) return;
+        const run = session.current;
+        const shown = panel.stars.flatMap((c) => c.ideas.map((x) => x.title));
+        setPanel((prev) => (prev?.type === 'meals' ? { ...prev, stars: prev.stars.map((c, i) => (i === starIdx ? { ...c, loading: true } : c)) } : prev));
+        try {
+            const fresh = await fetchDealRecipeIdeas({ itemName: star.deal.name, locale, token, exclude: shown, note: '' });
+            setPanel((prev) => (prev?.type === 'meals' ? {
+                ...prev,
+                stars: prev.stars.map((c, i) => (i !== starIdx ? c : { ...c, loading: false, ideas: [...c.ideas.filter((x) => x.checked), ...fresh.map((x) => ({ ...x, checked: false }))].slice(0, 6) })),
+            } : prev));
+        } catch (e) {
+            setPanel((prev) => (prev?.type === 'meals' ? { ...prev, stars: prev.stars.map((c, i) => (i === starIdx ? { ...c, loading: false } : c)) } : prev));
+        }
+        if (run !== session.current) return;
+    };
+
+    // Saves the picked dinners (with sides) to the calendar, gathers every ingredient, and
+    // goes straight to ONE combined, sorted shopping list.
+    const confirmMeals = async () => {
+        const run = session.current;
+        const picks = (panel?.stars || []).flatMap((c) => c.ideas.filter((x) => x.checked).map((x) => ({ ...x, star: c.deal })));
+        if (!picks.length) {
+            Alert.alert(t('psp_meals_none'));
+            return;
+        }
+        setBusy(true);
+        try {
+            const keys = (run.openKeys || []).slice(0, picks.length);
+            const mealPlan = await readJson('rv4_meal_plan', {});
+            let next = { ...mealPlan };
+            picks.forEach((p, i) => {
+                const key = keys[i];
+                if (!key) return;
+                p.dateKey = key;
+                p.dayLabel = weekdayName(key);
+                const dayMeals = Array.isArray(next[key]) ? next[key] : [];
+                next = { ...next, [key]: [...dayMeals, { slot: 'Dinner', title: p.title, emoji: p.emoji || '🍽️', ...((p.sides || []).length ? { sides: p.sides } : {}) }] };
+            });
+            await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
+            await pushChangedFromStorage?.({ meal_plan: next });
+            setPanel(null);
+            setTyping(true);
+            say(t('psp_gathering'));
+            const details = await Promise.all(picks.map((p) => fetchMealPlanRecipeDetail({ title: p.title, locale, token }).catch(() => null)));
+            if (run !== session.current) return;
+            picks.forEach((p, i) => {
+                const ings = (details[i]?.ingredients || []).filter((ing) => !PANTRY_SKIP.test(String(ing)));
+                if (ings.length) ings.forEach((ing) => addListItem(run, ing, p.title));
+                else addListItem(run, p.star.name, p.title);
+                (p.sides || []).forEach((side) => addListItem(run, side, `${p.title} (side)`));
+            });
+            const sv = sumSavings(picks.map((p) => p.star));
+            addCard({
+                title: t('psp_card_added_week'),
+                sub: sv.total ? t('psp_card_savings', { amt: `${sv.est ? '~' : ''}${fmtMoney(sv.total)}` }) : undefined,
+                lines: picks.map((p) => `${p.dayLabel || ''}: ${p.title}${(p.sides || []).length ? ` + ${p.sides.join(', ')}` : ''}`),
+            });
+            await refreshAfterWrite();
+            setBusy(false);
+            setTyping(false);
+            await finishList();
+        } catch (e) {
+            console.log('[personal-shopper] confirm meals failed', e?.message || e);
+            setBusy(false);
+            setTyping(false);
+            Alert.alert(t('save_failed'), t('save_error_desc'));
+        }
+    };
+
+    // ── mylist step ──────────────────────────────────────────────────────────
+
+    const addMylistItem = async () => {
+        const name = listInput.trim();
+        if (!name || panel?.type !== 'mylist') return;
+        setListInput('');
+        try {
+            const shopping = await readJson('rv4_master_shop', []);
+            if (!shopping.some((item) => String(item?.text || '').trim().toLowerCase() === name.toLowerCase())) {
+                const next = [...shopping, { id: `manual-${Date.now()}`, text: name, recipe: 'Manual Add', checked: false }];
+                await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(next));
+                const cache = await readJson('fern_sync_cache', {});
+                await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, shopping: next }));
+                await pushChangedFromStorage?.({ shopping: next });
+            }
+            setPanel((prev) => (prev?.type === 'mylist' && !prev.items.some((x) => x.text.toLowerCase() === name.toLowerCase()) ? { ...prev, items: [...prev.items, { id: `manual-${Date.now()}`, text: name, recipe: 'Manual Add' }] } : prev));
+        } catch (e) {
+            console.log('[personal-shopper] adding item failed', e?.message || e);
+            Alert.alert(t('save_failed'), t('save_error_desc'));
+        }
+    };
+
+    const continueFromMylist = () => {
+        const run = session.current;
+        const items = panel?.items || [];
+        userSays(t('psp_mylist_ok_btn'));
+        addCard({ title: t('psp_card_mylist', { n: items.length }), lines: items.slice(0, 6).map((x) => x.text), more: Math.max(0, items.length - 6) });
+        setPanel(null);
+        run.afterList?.();
     };
 
     // ── step 4: ingredients, one dinner at a time ────────────────────────────
@@ -1346,7 +1551,8 @@ export default function PersonalShopperModal({
         say(t('psp_list_ready_msg'));
         setTyping(true);
 
-        const names = run.listItems.map((item) => item.name);
+        const existingNow = (await readJson('rv4_master_shop', [])).filter((it) => it && !it.checked).map((it) => String(it.text || '').trim()).filter(Boolean);
+        const names = [...new Set([...existingNow, ...run.listItems.map((item) => item.name)])];
         let sections = [];
         try {
             if (names.length) sections = await buildSortedShoppingList({ items: names, locale });
@@ -1658,8 +1864,117 @@ export default function PersonalShopperModal({
                             </View>
                         );
                     })}
+                    <View style={styles.prefsRow}>
+                        <Text style={styles.prefsLabel}>{`🍴 ${t('psp_prefs_mood_label')}`}</Text>
+                        <View style={[styles.saleChipRow, { marginTop: 6 }]}>
+                            {[['chicken', 'psp_craving_chicken'], ['beef', 'psp_craving_beef'], ['pork', 'psp_craving_pork'], ['seafood', 'psp_craving_seafood'], ['pasta', 'psp_craving_pasta'], ['', 'psp_craving_surprise']].map(([value, key]) => (
+                                <TouchableOpacity key={key} style={[styles.prefsOption, (panel.craving || '') === value ? styles.prefsOptionOn : null]} activeOpacity={0.8} onPress={() => setPanel((prev) => (prev?.type === 'prefs' ? { ...prev, craving: value } : prev))}>
+                                    <Text style={[styles.prefsOptionText, (panel.craving || '') === value ? styles.prefsOptionTextOn : null]}>{t(key)}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
                     <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={confirmPrefs}>
-                        <Text style={styles.orangeBtnText}>{t('psp_prefs_continue_btn')}</Text>
+                        <Text style={styles.orangeBtnText}>{t('psp_prefs_plan_btn')}</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        if (panel.type === 'mylist') {
+            return (
+                <View style={styles.prefsCard}>
+                    <Text style={styles.prefsHeading}>{`📝 ${t('psp_mylist_heading')}`}</Text>
+                    {panel.items.map((item, i) => (
+                        <View key={`${item.id}-${i}`} style={styles.mylistRow}>
+                            <Text style={styles.mylistDot}>•</Text>
+                            <Text style={styles.checkRowTitle}>{item.text}</Text>
+                        </View>
+                    ))}
+                    <View style={styles.addItemRow}>
+                        <TextInput
+                            value={listInput}
+                            onChangeText={setListInput}
+                            placeholder={t('psp_mylist_add_placeholder')}
+                            placeholderTextColor="#B0AEA9"
+                            style={styles.addItemInput}
+                            returnKeyType="done"
+                            onSubmitEditing={addMylistItem}
+                        />
+                        <TouchableOpacity style={styles.addItemBtn} activeOpacity={0.85} onPress={addMylistItem}>
+                            <Text style={styles.addItemBtnText}>+</Text>
+                        </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={continueFromMylist}>
+                        <Text style={styles.orangeBtnText}>{t('psp_mylist_ok_btn')}</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
+        if (panel.type === 'meals') {
+            const picked = panel.stars.flatMap((c) => c.ideas.filter((x) => x.checked).map(() => c.deal));
+            const savedNow = sumSavings(panel.stars.filter((c) => c.ideas.some((x) => x.checked)).map((c) => c.deal));
+            const total = picked.length;
+            return (
+                <View>
+                    <View style={styles.saveBanner}>
+                        <Text style={styles.saveBannerKicker}>{t('psp_savings_kicker')}</Text>
+                        <Text style={styles.saveBannerAmt}>{savedNow.total ? `${savedNow.est ? '~' : ''}${fmtMoney(savedNow.total)}` : '—'}</Text>
+                        <Text style={styles.saveBannerSub}>{t('psp_meals_picked', { n: total, total: panel.n })}</Text>
+                    </View>
+                    <Text style={styles.prefsHeading}>{`⭐ ${t('psp_best_heading')}`}</Text>
+                    {panel.stars.map((c, si) => {
+                        const sv = dealSaving(c.deal);
+                        return (
+                            <View key={c.key} style={styles.starCard}>
+                                <View style={styles.starHead}>
+                                    <View style={styles.checkRowText}>
+                                        <Text style={styles.starName}>{c.deal.name}</Text>
+                                        <Text style={styles.checkRowSub}>
+                                            {c.deal.isBogo ? 'BOGO' : c.deal.salePrice}{c.deal.store ? ` · ${c.deal.store}` : ''}
+                                        </Text>
+                                    </View>
+                                    {sv.amount > 0 ? <View style={styles.starSave}><Text style={styles.starSaveText}>{t('psp_save_amt', { amt: `${sv.est ? '~' : ''}${fmtMoney(sv.amount)}` })}</Text></View> : null}
+                                </View>
+                                <Text style={styles.checkRowSub}>{t('psp_star_ways', { n: c.ideas.length })}</Text>
+                                {c.ideas.map((idea) => {
+                                    const pv = panel.previews?.[idea.id];
+                                    return (
+                                        <View key={idea.id} style={styles.mealRow}>
+                                            <View style={styles.checkRow}>
+                                                <TouchableOpacity onPress={() => toggleMeal(si, idea.id)} activeOpacity={0.8}>
+                                                    <Checkbox checked={idea.checked} />
+                                                </TouchableOpacity>
+                                                <TouchableOpacity style={styles.checkRowText} activeOpacity={0.8} onPress={() => previewMeal(idea, c.deal.name)}>
+                                                    <Text style={styles.checkRowTitle}>{idea.emoji} {idea.title}</Text>
+                                                    <Text style={styles.checkRowSub}>{idea.time ? `${idea.time} · ` : ''}{idea.why}</Text>
+                                                    {(idea.sides || []).length ? <Text style={styles.sidesText}>{t('psp_with_sides', { sides: idea.sides.join(', ') })}</Text> : null}
+                                                    <Text style={styles.previewHint}>{pv ? t('psp_hide_recipe') : t('psp_see_recipe')}</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                            {pv?.loading ? <ActivityIndicator color={colors.forest} style={{ marginVertical: 6 }} /> : null}
+                                            {pv?.failed ? <Text style={styles.checkRowSub}>{t('psp_ideas_error')}</Text> : null}
+                                            {pv?.recipe ? (
+                                                <View style={styles.previewBox}>
+                                                    <Text style={styles.previewHeading}>{t('psp_preview_ingredients')}</Text>
+                                                    {pv.recipe.ingredients.slice(0, 14).map((line, n2) => <Text key={n2} style={styles.previewLine}>• {line}</Text>)}
+                                                    {pv.recipe.instructions.length ? <Text style={styles.previewHeading}>{t('psp_preview_steps')}</Text> : null}
+                                                    {pv.recipe.instructions.slice(0, 4).map((line, n2) => <Text key={n2} style={styles.previewLine}>{n2 + 1}. {line}</Text>)}
+                                                </View>
+                                            ) : null}
+                                        </View>
+                                    );
+                                })}
+                                <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.85} onPress={() => moreForStar(si)} disabled={Boolean(c.loading)}>
+                                    {c.loading ? <ActivityIndicator color={colors.forest} /> : <Text style={styles.ghostBtnText}>{t('psp_idea_more_btn')}</Text>}
+                                </TouchableOpacity>
+                            </View>
+                        );
+                    })}
+                    {total >= panel.openCount ? <Text style={styles.checkRowSub}>{t('psp_meals_max')}</Text> : null}
+                    <TouchableOpacity style={[styles.orangeBtn, busy ? styles.btnDisabled : null]} activeOpacity={0.85} onPress={confirmMeals} disabled={busy}>
+                        {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.orangeBtnText}>{`${t('psp_meals_confirm_btn')} (${total})`}</Text>}
                     </TouchableOpacity>
                 </View>
             );
@@ -2291,6 +2606,16 @@ const styles = StyleSheet.create({
     doneHead: { flexDirection: 'row', justifyContent: 'space-between', padding: 10 },
     doneHeadText: { fontFamily: 'Jost-Bold', fontSize: 13, color: colors.forest },
     doneItem: { paddingHorizontal: 12, paddingBottom: 10 },
+    prefsOptionOn: { backgroundColor: colors.forest },
+    prefsOptionTextOn: { color: '#fff' },
+    mylistRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
+    mylistDot: { fontSize: 18, color: colors.forest, marginRight: 8 },
+    starCard: { borderWidth: 1.5, borderColor: colors.forest, borderRadius: 14, padding: 12, marginBottom: 12, backgroundColor: '#fff' },
+    starHead: { flexDirection: 'row', alignItems: 'center' },
+    starName: { fontFamily: 'Playfair-Bold', fontSize: 17, color: colors.forest },
+    starSave: { backgroundColor: '#E8F5E9', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
+    starSaveText: { fontFamily: 'Jost-Bold', fontSize: 12, color: '#2E7D32' },
+    mealRow: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.sage, marginTop: 6, paddingTop: 4 },
     ideaRow: { paddingVertical: 6 },
     ideasDone: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 6 },
     saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
