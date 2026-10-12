@@ -1,6 +1,7 @@
 import { defaultScanZip } from '../utils/storeZip';
 import { logApiResponse } from '../utils/apiLogger';
 import { archiveCircularScan } from '../utils/circularHistory';
+import { saveWeekDeals } from '../utils/savings';
 
 const SCAN_CIRCULAR_URL = 'https://app.clickpickandcook.com/.netlify/functions/scan-circular';
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
@@ -209,6 +210,8 @@ export async function scanCircular({ userId, base64, mimeType, token, zipCode })
     // Fire-and-forget: archive into per-store scan history (shown in the Scan
     // Circular sheet). Never blocks or fails the scan itself.
     archiveCircularScan({ storeName, items });
+    // Also remembered for the week so the Shopping tab can show "This week's sales" (every plan, not just Pro Max).
+    saveWeekDeals(items.map((item) => ({ ...item, store: storeName })));
 
     return {
         store: storeName,

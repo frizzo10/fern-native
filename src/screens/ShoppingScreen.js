@@ -19,6 +19,8 @@ import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import { sendListToInstacart, sendListToKroger, sendListToAlbertsons } from '../services/storeShoppingListService';
 import Confetti from '../components/Confetti';
+import SaleItemsList from '../components/SaleItemsList';
+import { toShoppingName } from '../utils/shoppingName';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
 import { normalizeCoupons } from '../utils/couponNormalize';
@@ -87,6 +89,7 @@ export default function ShoppingScreen({ user }) {
   const [catalog, setCatalog] = useState([]);
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
+  const [showSales, setShowSales] = useState(false);
 
   useEffect(() => {
     maybeAutoStart('shopping');
@@ -479,6 +482,27 @@ export default function ShoppingScreen({ user }) {
             </TouchableOpacity>
           ))}
         </ScrollView>
+
+        <View style={[styles.checkoutCard, shadow.card]}>
+          <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
+          <Text style={styles.checkoutSub}>{weekDeals.length ? t('sale_list_week_sub', { n: weekDeals.length }) : t('sale_list_week_empty')}</Text>
+          {weekDeals.length ? (
+            <TouchableOpacity style={styles.usedBtn} activeOpacity={0.85} onPress={() => setShowSales((v) => !v)}>
+              <Text style={styles.usedBtnText}>{showSales ? t('sale_list_week_hide') : t('sale_list_week_show')}</Text>
+            </TouchableOpacity>
+          ) : null}
+          {showSales && weekDeals.length ? (
+            <SaleItemsList
+              deals={weekDeals}
+              t={t}
+              isOnList={(deal) => {
+                const key = toShoppingName(deal.name).toLowerCase();
+                return items.some((it) => String(it.text).toLowerCase() === key);
+              }}
+              onAdd={(deal) => addItem(toShoppingName(deal.name))}
+            />
+          ) : null}
+        </View>
 
         {greatDeals.length ? (
           <View style={[styles.greatCard, shadow.card]}>

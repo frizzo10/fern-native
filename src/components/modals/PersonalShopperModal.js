@@ -40,6 +40,7 @@ import { toList } from '../../utils/recipeNormalize';
 import { SALE_STOP, singular, ingredientHasSaleItem, matchSaleItems, priceNum, dealSaving, fmtMoney, sumSavings, saveWeekDeals } from '../../utils/savings';
 import { toShoppingName } from '../../utils/shoppingName';
 import UpgradeGateModal from '../UpgradeGateModal';
+import SaleItemsList from '../SaleItemsList';
 
 // Grocery names are stored/synced in English on purpose (see CLAUDE.md →
 // Translations), so these are not run through t().
@@ -1972,6 +1973,20 @@ export default function PersonalShopperModal({
                         {panel.sample.map((line) => <Text key={line} style={styles.previewLine}>• {line}</Text>)}
                         {panel.count > panel.sample.length ? <Text style={styles.checkRowSub}>{t('psp_scan_and_more', { n: panel.count - panel.sample.length })}</Text> : null}
                     </View>
+                    <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.85} onPress={() => setPanel({ ...panel, showList: !panel.showList })}>
+                        <Text style={styles.ghostBtnText}>{panel.showList ? t('sale_list_hide') : t('sale_list_see_all', { n: panel.count })}</Text>
+                    </TouchableOpacity>
+                    {panel.showList ? (
+                        <SaleItemsList
+                            deals={session.current.deals}
+                            t={t}
+                            isOnList={(deal) => {
+                                const key = toShoppingName(deal.name).toLowerCase();
+                                return session.current.listItems.some((it) => it.name.toLowerCase() === key);
+                            }}
+                            onAdd={(deal) => addListItem(session.current, deal.name, 'On sale')}
+                        />
+                    ) : null}
                     {panel.warnings.map((w) => <Text key={w} style={styles.scanWarn}>⚠️ {w}</Text>)}
                     <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={acceptScan}>
                         <Text style={styles.orangeBtnText}>{t('psp_scan_ok_btn')}</Text>
