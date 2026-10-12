@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { toShoppingName } from './shoppingName';
 
 function normalizeText(value) {
     return String(value || '').trim();
@@ -12,7 +13,7 @@ function normalizeText(value) {
 // cache) so callers just need to push/pull afterwards.
 export async function addRecipeIngredientsToShoppingList(recipe, existingShopping) {
     const ingredients = Array.isArray(recipe?.ingredients)
-        ? recipe.ingredients.map((item) => normalizeText(item)).filter(Boolean)
+        ? recipe.ingredients.map((item) => toShoppingName(normalizeText(item))).filter(Boolean) // "1/4 cup soy sauce" -> "Soy sauce"
         : [];
 
     const baseShopping = Array.isArray(existingShopping) ? existingShopping : [];

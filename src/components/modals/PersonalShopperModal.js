@@ -38,6 +38,7 @@ import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync
 import { buildRollingWeekDateKeys, formatDayLabel, normalizeSlot, parseDateKey } from '../../utils/familyDates';
 import { toList } from '../../utils/recipeNormalize';
 import { SALE_STOP, singular, ingredientHasSaleItem, matchSaleItems, priceNum, dealSaving, fmtMoney, sumSavings, saveWeekDeals } from '../../utils/savings';
+import { toShoppingName } from '../../utils/shoppingName';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 // Grocery names are stored/synced in English on purpose (see CLAUDE.md →
@@ -487,10 +488,11 @@ export default function PersonalShopperModal({
         }
     };
 
-    const addListItem = (run, name, fromRecipe) => {
-        const key = String(name || '').trim().toLowerCase();
+    const addListItem = (run, rawName, fromRecipe) => {
+        const name = toShoppingName(rawName); // buyable name, no "1/4 cup"
+        const key = name.toLowerCase();
         if (!key || run.listItems.some((item) => item.name.toLowerCase() === key)) return;
-        run.listItems.push({ name: String(name).trim(), fromRecipe: fromRecipe || '' });
+        run.listItems.push({ name, fromRecipe: fromRecipe || '' });
     };
 
     // ── step 2: dinner suggestions ───────────────────────────────────────────
@@ -1358,7 +1360,8 @@ export default function PersonalShopperModal({
     // Same item twice (case-insensitive): keep the first, drop the rest. Ticked-off items are left alone.
     const dedupeMylist = () => saveMylist((list) => {
         const seen = new Set();
-        return list.filter((it) => {
+        // Also turns leftover recipe lines ("1/4 cup soy sauce") into buyable names ("Soy sauce").
+        return list.map((it) => (it && it.checked !== true ? { ...it, text: toShoppingName(it.text) || it.text } : it)).filter((it) => {
             if (!it || it.checked === true) return true;
             const key = String(it.text || '').trim().toLowerCase();
             if (seen.has(key)) return false;
@@ -1856,7 +1859,7 @@ export default function PersonalShopperModal({
                 <View style={styles.prefsCard}>
                     <Text style={styles.prefsHeading}>{`📝 ${t('psp_mylist_heading')}`}</Text>
                     <Text style={styles.mylistHint}>{t('psp_mylist_edit_hint')}</Text>
-                    {panel.items.some((a, i) => panel.items.findIndex((b) => b.text.trim().toLowerCase() === a.text.trim().toLowerCase()) !== i) ? (
+                    {panel.items.some((a, i) => panel.items.findIndex((b) => b.text.trim().toLowerCase() === a.text.trim().toLowerCase()) !== i || toShoppingName(a.text) !== a.text.trim()) ? (
                         <TouchableOpacity style={styles.mylistDedupe} activeOpacity={0.85} onPress={dedupeMylist}>
                             <Text style={styles.mylistDedupeText}>{t('psp_mylist_remove_dupes')}</Text>
                         </TouchableOpacity>
