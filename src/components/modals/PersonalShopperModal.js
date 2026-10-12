@@ -29,6 +29,7 @@ import {
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
 import { fetchRecipeImage } from '../../utils/recipeImage';
 import { scanCircular, fetchDealRecipeIdeas } from '../../services/scanCircularService';
+import { zipsByStoreName } from '../../utils/storeZip';
 import { discardLatestScan, fetchStoreDeals } from '../../services/storeDealsService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoPickerService';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
@@ -481,6 +482,7 @@ export default function PersonalShopperModal({
         const known = await fetchStoreDeals({
             token,
             stores: (Array.isArray(data?.userStores) ? data.userStores : []).map((st) => st?.name),
+            zips: zipsByStoreName(data?.userStores),
         });
         if (run !== session.current) return;
         setTyping(false);

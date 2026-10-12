@@ -1,3 +1,4 @@
+import { defaultScanZip } from '../utils/storeZip';
 import { logApiResponse } from '../utils/apiLogger';
 import { archiveCircularScan } from '../utils/circularHistory';
 
@@ -171,7 +172,8 @@ function computeTotalSavings(items) {
     return hasNumericSavings ? total : null;
 }
 
-export async function scanCircular({ userId, base64, mimeType, token }) {
+export async function scanCircular({ userId, base64, mimeType, token, zipCode }) {
+    const zip = zipCode || (await defaultScanZip());
     const res = await fetch(SCAN_CIRCULAR_URL, {
         method: 'POST',
         headers: {
@@ -183,6 +185,7 @@ export async function scanCircular({ userId, base64, mimeType, token }) {
             userId,
             token,
             imageData: base64,
+            ...(zip ? { zipCode: zip } : {}),
         }),
     });
 
