@@ -19,6 +19,20 @@ import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import { sendListToInstacart, sendListToKroger, sendListToAlbertsons } from '../services/storeShoppingListService';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
+import { fetchAllCoupons } from '../services/couponsService';
+import { normalizeCoupons } from '../utils/couponNormalize';
+import {
+  dealSaving,
+  fmtMoney,
+  loadLedger,
+  loadWeekDeals,
+  matchListItems,
+  summarizeLedger,
+  syncCircularSavings,
+  updateLedger,
+  weekKeyFor,
+  weekLabel,
+} from '../utils/savings';
 
 const QUICK_ADD_ITEMS = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Butter', 'Pasta'];
 const FERN_STARTER_ITEMS = ['Olive oil', 'Garlic', 'Onion', 'Chicken', 'Rice'];
@@ -66,6 +80,10 @@ export default function ShoppingScreen({ user }) {
   const [remainingItemsModal, setRemainingItemsModal] = useState(null);
   const scrollRef = useRef(null);
   const sectionY = useRef({});
+  const [weekDeals, setWeekDeals] = useState([]);
+  const [catalog, setCatalog] = useState([]);
+  const [ledger, setLedger] = useState({});
+  const [doneShopping, setDoneShopping] = useState(false);
 
   useEffect(() => {
     maybeAutoStart('shopping');
@@ -90,6 +108,62 @@ export default function ShoppingScreen({ user }) {
   useEffect(() => {
     setItems(toUiItems(data.shopping));
   }, [data.shopping]);
+
+  // This week's flyer deals, the live coupon catalog and the savings ledger (all best effort).
+  useFocusEffect(
+    useMemo(() => () => {
+      loadWeekDeals().then(setWeekDeals);
+      loadLedger().then(setLedger);
+      fetchAllCoupons().then((list) => setCatalog(normalizeCoupons(list))).catch(() => {});
+    }, [])
+  );
+
+  // Wallet coupons first, then the catalog (minus anything already in the wallet and expired ones).
+  const coupons = useMemo(() => {
+    const now = Date.now();
+    const wallet = normalizeCoupons(data.walletCoupons).map((c) => ({ ...c, inWallet: true }));
+    const ids = new Set(wallet.map((c) => c.id));
+    const live = (c) => { const ts = Date.parse(c.expiresAt); return !ts || ts > now; };
+    return [...wallet, ...catalog.filter((c) => !ids.has(c.id))].filter(live);
+  }, [data.walletCoupons, catalog]);
+
+  const matches = useMemo(() => matchListItems(items, weekDeals, coupons), [items, weekDeals, coupons]);
+
+  // Ticked-off sale items turn into circular savings (unticking takes them back out).
+  useEffect(() => {
+    if (!items.length) return;
+    syncCircularSavings(items, matches).then(setLedger);
+  }, [items, matches]);
+
+  const savings = useMemo(() => summarizeLedger(ledger), [ledger]);
+  const thisWeekKey = weekKeyFor();
+  const usedIds = useMemo(() => new Set(Object.keys(ledger[thisWeekKey] || {})), [ledger, thisWeekKey]);
+
+  // Coupons that fit things already in the cart.
+  const checkoutCoupons = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    items.filter((i) => i.checked).forEach((item) => {
+      (matches[item.id]?.coupons || []).forEach((m) => {
+        if (seen.has(m.coupon.id)) return;
+        seen.add(m.coupon.id);
+        out.push({ ...m, itemText: item.text, itemId: item.id });
+      });
+    });
+    return out;
+  }, [items, matches]);
+
+  const checkedCount = items.filter((i) => i.checked).length;
+  const showCheckout = items.length > 0 && checkedCount > 0 && (doneShopping || checkedCount === items.length);
+
+  const toggleCouponUsed = async (m) => {
+    const id = `k:${m.coupon.id}`;
+    if (usedIds.has(id)) {
+      setLedger(await updateLedger({ remove: [id] }));
+    } else {
+      setLedger(await updateLedger({ upsert: [{ id, type: 'coupon', label: m.coupon.title || m.itemText, amount: m.value.amount, est: false, store: m.coupon.store }] }));
+    }
+  };
 
   const remainingCount = useMemo(() => items.filter((item) => !item.checked).length, [items]);
   const recipeSections = useMemo(() => {
@@ -331,6 +405,96 @@ export default function ShoppingScreen({ user }) {
           ))}
         </ScrollView>
 
+        {showCheckout ? (
+          <View style={[styles.checkoutCard, shadow.card]}>
+            <View style={styles.checkoutHead}>
+              <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_checkout_title')}`}</Text>
+              <TouchableOpacity onPress={() => setDoneShopping(false)} activeOpacity={0.8}>
+                <Text style={styles.checkoutHide}>{t('sav_hide')}</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.checkoutSub}>
+              {checkoutCoupons.length ? t('sav_checkout_sub', { n: checkoutCoupons.length }) : t('sav_checkout_none')}
+            </Text>
+            {checkoutCoupons.map((m) => {
+              const used = usedIds.has(`k:${m.coupon.id}`);
+              const c = m.coupon;
+              return (
+                <View key={c.id} style={styles.couponRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.couponTitle} numberOfLines={2}>{c.title || c.discountLabel}</Text>
+                    <Text style={styles.couponMeta}>
+                      {[c.discountLabel, c.store, t('sav_for_item', { item: m.itemText })].filter(Boolean).join(' · ')}
+                    </Text>
+                    {m.level === 'possible' ? <Text style={styles.couponPossible}>{t('sav_possible')}</Text> : null}
+                    {c.redemption === 'code' && c.realCode ? (
+                      <Text style={styles.couponCode}>{t('sav_use_code', { code: c.realCode })}</Text>
+                    ) : null}
+                    {c.redemption === 'link' && c.url ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(c.url)} activeOpacity={0.8}>
+                        <Text style={styles.couponLink}>{t('sav_open_link')}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    {c.redemption !== 'code' && c.redemption !== 'link' ? (
+                      <Text style={styles.couponMeta}>{t('sav_digital')}</Text>
+                    ) : null}
+                    {m.value.percent && !m.value.amount ? <Text style={styles.couponMeta}>{t('sav_pct_note')}</Text> : null}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.usedBtn, used ? styles.usedBtnOn : null]}
+                    onPress={() => toggleCouponUsed(m)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.usedBtnText, used ? styles.usedBtnTextOn : null]}>{used ? t('sav_used') : t('sav_mark_used')}</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        ) : items.length > 0 && checkedCount > 0 ? (
+          <TouchableOpacity style={styles.doneBtn} onPress={() => setDoneShopping(true)} activeOpacity={0.88}>
+            <Text style={styles.doneBtnText}>{`🎟 ${t('sav_done_btn')}`}</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        <View style={[styles.savingsCard, shadow.card]}>
+          <Text style={styles.savingsTitle}>{t('sav_card_title')}</Text>
+          {savings.allTime.total > 0 ? (
+            <>
+              <Text style={styles.savingsBig}>{`${savings.thisWeek.est ? '~' : ''}${fmtMoney(savings.thisWeek.total)}`}</Text>
+              <Text style={styles.savingsSub}>{t('sav_this_week')}</Text>
+              <View style={styles.savingsSplit}>
+                <View style={styles.savingsCell}>
+                  <Text style={styles.savingsCellNum}>{fmtMoney(savings.thisWeek.circular)}</Text>
+                  <Text style={styles.savingsCellLabel}>{t('sav_flyer')}</Text>
+                </View>
+                <View style={styles.savingsCell}>
+                  <Text style={styles.savingsCellNum}>{fmtMoney(savings.thisWeek.coupon)}</Text>
+                  <Text style={styles.savingsCellLabel}>{t('sav_coupons')}</Text>
+                </View>
+                <View style={styles.savingsCell}>
+                  <Text style={styles.savingsCellNum}>{fmtMoney(savings.allTime.total)}</Text>
+                  <Text style={styles.savingsCellLabel}>{t('sav_all_time')}</Text>
+                </View>
+              </View>
+              {savings.weeks.filter((w) => w.weekKey !== thisWeekKey).slice(0, 4).length ? (
+                <View style={styles.savingsWeeks}>
+                  <Text style={styles.savingsCellLabel}>{t('sav_earlier_weeks')}</Text>
+                  {savings.weeks.filter((w) => w.weekKey !== thisWeekKey).slice(0, 4).map((w) => (
+                    <View key={w.weekKey} style={styles.savingsWeekRow}>
+                      <Text style={styles.savingsWeekName}>{t('sav_week_of', { date: weekLabel(w.weekKey) })}</Text>
+                      <Text style={styles.savingsWeekAmt}>{fmtMoney(w.total)}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              <Text style={styles.savingsNote}>{t('sav_est_note')}</Text>
+            </>
+          ) : (
+            <Text style={styles.savingsNote}>{t('sav_none_yet')}</Text>
+          )}
+        </View>
+
         {items.length ? (
           <View style={styles.listWrap}>
             <Text style={styles.listMeta}>
@@ -359,6 +523,21 @@ export default function ShoppingScreen({ user }) {
                     <View style={styles.listTextWrap}>
                       <Text style={[styles.listText, item.checked ? styles.listTextDone : null]}>{item.text}</Text>
                       <Text style={styles.listRecipeLabel}>{section.recipe}</Text>
+                      {matches[item.id]?.deal ? (() => {
+                        const sv = dealSaving(matches[item.id].deal);
+                        return (
+                          <Text style={styles.tagSale}>
+                            {sv.amount > 0
+                              ? t(sv.est ? 'sav_sale_tag_est' : 'sav_sale_tag', { amount: fmtMoney(sv.amount) })
+                              : t('sav_sale_tag_plain')}
+                          </Text>
+                        );
+                      })() : null}
+                      {(matches[item.id]?.coupons || []).slice(0, 1).map((m) => (
+                        <Text key={m.coupon.id} style={styles.tagCoupon} numberOfLines={2}>
+                          {t(m.level === 'match' ? 'sav_coupon_tag' : 'sav_coupon_possible', { label: m.coupon.discountLabel || m.coupon.title })}
+                        </Text>
+                      ))}
                     </View>
                     <TouchableOpacity onPress={() => removeItem(item.id)} activeOpacity={0.75} style={styles.removeBtn}>
                       <Text style={styles.removeBtnText}>✕</Text>
@@ -595,6 +774,81 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingVertical: 4,
   },
+  tagSale: {
+    color: '#2A6A2A',
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: 'Jost-SemiBold',
+    marginTop: 3,
+  },
+  tagCoupon: {
+    color: '#C25A12',
+    fontSize: 11,
+    lineHeight: 15,
+    fontFamily: 'Jost-SemiBold',
+    marginTop: 2,
+  },
+  doneBtn: {
+    backgroundColor: colors.forest,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  doneBtnText: { color: '#F3EEE4', fontSize: 14, fontFamily: 'Jost-Bold' },
+  checkoutCard: {
+    backgroundColor: '#FFF4E3',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E8651A',
+    padding: 14,
+    marginBottom: 14,
+  },
+  checkoutHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  checkoutTitle: { color: '#2B1E13', fontSize: 17, fontFamily: 'Jost-Bold' },
+  checkoutHide: { color: '#7A5C3A', fontSize: 12, fontFamily: 'Jost-SemiBold' },
+  checkoutSub: { color: '#5A4630', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginTop: 6, marginBottom: 6 },
+  couponRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#EBCFA6',
+    paddingVertical: 10,
+  },
+  couponTitle: { color: '#2B1E13', fontSize: 14, lineHeight: 19, fontFamily: 'Jost-SemiBold' },
+  couponMeta: { color: '#7A5C3A', fontSize: 11, lineHeight: 15, fontFamily: 'Jost-Regular', marginTop: 2 },
+  couponPossible: { color: '#C25A12', fontSize: 11, fontFamily: 'Jost-Bold', marginTop: 2 },
+  couponCode: { color: '#2B1E13', fontSize: 13, fontFamily: 'Jost-Bold', marginTop: 3, letterSpacing: 1 },
+  couponLink: { color: '#2A6A2A', fontSize: 12, fontFamily: 'Jost-Bold', marginTop: 3, textDecorationLine: 'underline' },
+  usedBtn: {
+    borderWidth: 1.5,
+    borderColor: '#2A6A2A',
+    borderRadius: 18,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginLeft: 10,
+  },
+  usedBtnOn: { backgroundColor: '#2A6A2A' },
+  usedBtnText: { color: '#2A6A2A', fontSize: 12, fontFamily: 'Jost-Bold' },
+  usedBtnTextOn: { color: '#F7F5F0' },
+  savingsCard: {
+    backgroundColor: colors.forest,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 14,
+  },
+  savingsTitle: { color: colors.sage, fontSize: 11, letterSpacing: 2, textTransform: 'uppercase', fontFamily: 'Jost-Bold' },
+  savingsBig: { color: '#F3EEE4', fontSize: 34, lineHeight: 40, fontFamily: 'Jost-Bold', marginTop: 4 },
+  savingsSub: { color: colors.muted, fontSize: 12, fontFamily: 'Jost-Regular' },
+  savingsSplit: { flexDirection: 'row', marginTop: 12 },
+  savingsCell: { flex: 1 },
+  savingsCellNum: { color: '#F3EEE4', fontSize: 16, fontFamily: 'Jost-Bold' },
+  savingsCellLabel: { color: colors.muted, fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', fontFamily: 'Jost-SemiBold', marginTop: 2 },
+  savingsWeeks: { marginTop: 14 },
+  savingsWeekRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4 },
+  savingsWeekName: { color: colors.muted, fontSize: 12, fontFamily: 'Jost-Regular' },
+  savingsWeekAmt: { color: '#F3EEE4', fontSize: 12, fontFamily: 'Jost-Bold' },
+  savingsNote: { color: colors.muted, fontSize: 11, lineHeight: 15, fontFamily: 'Jost-Regular', marginTop: 10 },
   listMeta: {
     color: '#7A5C3A',
     fontSize: 12,

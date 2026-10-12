@@ -37,6 +37,7 @@ import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoP
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
 import { buildRollingWeekDateKeys, formatDayLabel, normalizeSlot, parseDateKey } from '../../utils/familyDates';
 import { toList } from '../../utils/recipeNormalize';
+import { SALE_STOP, singular, ingredientHasSaleItem, matchSaleItems, priceNum, dealSaving, fmtMoney, sumSavings, saveWeekDeals } from '../../utils/savings';
 import UpgradeGateModal from '../UpgradeGateModal';
 
 // Grocery names are stored/synced in English on purpose (see CLAUDE.md →
@@ -108,95 +109,8 @@ function Checkbox({ checked }) {
 
 // ── dinner row: photo, tap-to-preview, and sale items matched against the real ingredients ──
 
-const SALE_STOP = new Set(['fresh', 'crisp', 'sweet', 'honey', 'crowns', 'crown', 'large', 'small', 'whole', 'boneless', 'skinless', 'family', 'pack', 'value', 'select', 'premium', 'natural', 'farm', 'brand', 'organic', 'frozen', 'ground', 'lean', 'extra', 'with', 'and', 'the', 'each', 'lb', 'oz']);
 const dinnerThumbCache = {};
 
-function singular(w) { return w.length > 3 ? w.replace(/(ies)$/, 'y').replace(/(es|s)$/, '') : w; }
-
-// Words in front of an ingredient's main noun that don't change what it is.
-const NEUTRAL_PREV = new Set(['or', 'and', 'of', 'oz', 'lb', 'lbs', 'cup', 'cups', 'tbsp', 'tsp', 'can', 'cans', 'large', 'small', 'medium', 'fresh', 'chopped', 'sliced', 'diced', 'cooked', 'crispy', 'thick', 'cut', 'the', 'a', 'with', 'for', 'to', 'into', 'about', 'plus', 'extra', 'finely', 'roughly', 'thinly', 'pieces', 'piece', 'strips', 'whole', 'boneless', 'skinless', 'lean', 'raw', 'ripe', 'frozen']);
-
-// Does this single ingredient line contain this on-sale item? Compares the main noun
-// ("pepper") and refuses when the ingredient's own qualifier ("black") isn't part of the
-// sale item's name, so "Rainbow Bell Peppers" never matches "black pepper".
-// A sale item that is a prepared/processed form ("Rotisserie Chicken", "Smoked ...") is not the
-// plain ingredient, so it only matches when the recipe itself asks for that form.
-const DEAL_FORM_WORDS = ['rotisserie', 'smoked', 'cooked', 'canned', 'deli', 'prepared', 'roasted', 'breaded', 'fried', 'sauce', 'juice', 'dried', 'pickled', 'jarred', 'frozen', 'dressing', 'soup'];
-
-NEUTRAL_PREV.forEach((w) => NEUTRAL_PREV.add(singular(w))); // ingredient words are compared singularized
-
-function ingredientHasSaleItem(ingredient, deal) {
-    const ing = String(ingredient || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).map(singular);
-    const dealWords = String(deal.name || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).map(singular);
-    const keyWords = dealWords.filter((w) => w.length > 2 && !SALE_STOP.has(w));
-    if (!keyWords.length || !ing.length) return false;
-    const dealForms = DEAL_FORM_WORDS.filter((w) => dealWords.includes(w));
-    if (dealForms.some((w) => !ing.includes(w))) return false;
-    // The sale item's main noun: its last meaningful word (brand words come first).
-    const head = keyWords[keyWords.length - 1];
-    const pos = ing.indexOf(head);
-    if (pos < 0) return false;
-    const prev = pos > 0 ? ing[pos - 1] : '';
-    if (!prev || NEUTRAL_PREV.has(prev) || prev.length < 3) return true;
-    return dealWords.includes(prev);
-}
-
-// Which on-sale items does this ingredient list really contain?
-function matchSaleItems(ingredients, deals) {
-    const out = [];
-    (deals || []).forEach((deal) => {
-        const hit = (ingredients || []).find((ing) => ingredientHasSaleItem(ing, deal));
-        if (hit) out.push({ ...deal, usedFor: hit });
-    });
-    return out;
-}
-
-// ── savings math (from the flyer's own prices) ──────────────────────────────
-const priceNum = (v) => {
-    const str = String(v || '');
-    if (/\d\s*\/\s*\$?\d/.test(str)) return null; // "2/$5" style multi-buys: unit price unknown
-    const m = str.match(/(\d+(?:\.\d+)?)/);
-    return m ? parseFloat(m[1]) : null;
-};
-
-// How much one purchase of this sale item saves. BOGO ≈ the price of one (second is free), marked estimated.
-function dealSaving(deal) {
-    const sv = String(deal?.savings || '');
-    if (/\$/.test(sv)) {
-        const n = priceNum(sv);
-        if (n) return { amount: n, est: false };
-    }
-    const orig = priceNum(deal?.originalPrice);
-    const sale = priceNum(deal?.salePrice || deal?.price);
-    if (deal?.isBogo) {
-        const base = orig || sale;
-        return { amount: base || 0, est: true };
-    }
-    if (orig && sale && orig > sale) return { amount: Math.round((orig - sale) * 100) / 100, est: false };
-    return { amount: 0, est: false };
-}
-
-const fmtMoney = (n) => `$${Number(n || 0).toFixed(2)}`;
-
-// Total across a list of deals, counting each product once.
-function sumSavings(deals) {
-    const seen = new Set();
-    let total = 0;
-    let est = false;
-    let counted = 0;
-    (deals || []).forEach((d) => {
-        const key = `${String(d?.name || '').toLowerCase()}|${d?.store || ''}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        const sv = dealSaving(d);
-        if (sv.amount > 0) {
-            total += sv.amount;
-            counted += 1;
-            if (sv.est) est = true;
-        }
-    });
-    return { total: Math.round(total * 100) / 100, est, counted };
-}
 
 // The flyer "board": the scanned photo with a live scan sweep, then the sale items Fern
 // found pop onto it one by one. Replaces the chat feel with the circular itself.
@@ -1228,6 +1142,7 @@ export default function PersonalShopperModal({
 
     const startBestDeals = async () => {
         const run = session.current;
+        saveWeekDeals(run.deals); // remembered so the Shopping list can match items to this week's sales
         goStep('dinners');
         setPanel(null);
         setChips([]);

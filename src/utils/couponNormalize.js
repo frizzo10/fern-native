@@ -16,6 +16,10 @@ export function normalizeCoupon(raw, index = 0) {
         image: raw?.image || raw?.imageUrl || raw?.photo || null,
         expiresAt: String(raw?.expiresAt || raw?.expiry || raw?.validUntil || raw?.expirationDate || '').trim(),
         code: String(raw?.code || raw?.barcode || raw?.upc || id || '').trim(),
+        // How it is redeemed ('digital' | 'link' | 'code') and where, when the catalog says.
+        redemption: String(raw?.redemption || '').trim().toLowerCase(),
+        url: String(raw?.url || raw?.link || raw?.redeemUrl || '').trim(),
+        realCode: String(raw?.code || '').trim(),
     };
 }
 
