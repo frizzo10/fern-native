@@ -148,7 +148,54 @@ function matchSaleItems(ingredients, deals) {
     return out;
 }
 
-function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t }) {
+// ── savings math (from the flyer's own prices) ──────────────────────────────
+const priceNum = (v) => {
+    const str = String(v || '');
+    if (/\d\s*\/\s*\$?\d/.test(str)) return null; // "2/$5" style multi-buys: unit price unknown
+    const m = str.match(/(\d+(?:\.\d+)?)/);
+    return m ? parseFloat(m[1]) : null;
+};
+
+// How much one purchase of this sale item saves. BOGO ≈ the price of one (second is free), marked estimated.
+function dealSaving(deal) {
+    const sv = String(deal?.savings || '');
+    if (/\$/.test(sv)) {
+        const n = priceNum(sv);
+        if (n) return { amount: n, est: false };
+    }
+    const orig = priceNum(deal?.originalPrice);
+    const sale = priceNum(deal?.salePrice || deal?.price);
+    if (deal?.isBogo) {
+        const base = orig || sale;
+        return { amount: base || 0, est: true };
+    }
+    if (orig && sale && orig > sale) return { amount: Math.round((orig - sale) * 100) / 100, est: false };
+    return { amount: 0, est: false };
+}
+
+const fmtMoney = (n) => `$${Number(n || 0).toFixed(2)}`;
+
+// Total across a list of deals, counting each product once.
+function sumSavings(deals) {
+    const seen = new Set();
+    let total = 0;
+    let est = false;
+    let counted = 0;
+    (deals || []).forEach((d) => {
+        const key = `${String(d?.name || '').toLowerCase()}|${d?.store || ''}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        const sv = dealSaving(d);
+        if (sv.amount > 0) {
+            total += sv.amount;
+            counted += 1;
+            if (sv.est) est = true;
+        }
+    });
+    return { total: Math.round(total * 100) / 100, est, counted };
+}
+
+function DinnerRow({ item, index, onToggle, onSale, saved, allDeals, token, locale, t }) {
     const match = (saved || []).find((r) => String(r?.title || '').trim().toLowerCase() === item.title.toLowerCase());
     const [open, setOpen] = useState(false);
     const [detail, setDetail] = useState(null);
@@ -176,6 +223,11 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
     const sides = item.sides || [];
     const sale = known ? matchSaleItems([...ingredients, ...sides], allDeals) : [];
     const saleNames = new Set(sale.map((x) => x.name));
+    const saleSig = sale.map((x) => x.name).join('|');
+    useEffect(() => {
+        if (onSale) onSale(`${item.dateKey}|${item.title}`, sale);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [saleSig, item.title]);
 
     // Verify every dinner against its real ingredients as soon as it appears, so the
     // sale tags are never a guess. Staggered so seven lookups don't hit at once.
@@ -228,7 +280,7 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
                             <View style={styles.saleChipRow}>
                                 {sale.map((x) => (
                                     <View key={x.name} style={styles.saleChip}>
-                                        <Text style={styles.saleChipText}>{'🏷 '}{x.name}{x.isBogo ? ' · BOGO' : (x.salePrice || x.price ? ` · ${x.salePrice || x.price}` : '')}{x.store ? ` · ${x.store}` : ''}</Text>
+                                        <Text style={styles.saleChipText}>{'🏷 '}{x.name}{x.isBogo ? ' · BOGO' : (x.salePrice || x.price ? ` · ${x.salePrice || x.price}` : '')}{dealSaving(x).amount > 0 ? ` · ${t('psp_save_amt', { amt: fmtMoney(dealSaving(x).amount) })}` : ''}{x.store ? ` · ${x.store}` : ''}</Text>
                                         {x.usedFor ? <Text style={styles.saleChipFor}>{t('psp_sale_used_for', { ingredient: x.usedFor })}</Text> : null}
                                     </View>
                                 ))}
@@ -290,6 +342,12 @@ export default function PersonalShopperModal({
     const [phase, setPhase] = useState('intro'); // intro | chat
     const [messages, setMessages] = useState([]);
     const [prefText, setPrefText] = useState('');
+    const [dinnerSales, setDinnerSales] = useState({});
+    const reportDinnerSale = (key, sale) => setDinnerSales((prev) => {
+        const same = prev[key] && prev[key].map((x) => x.name).join('|') === sale.map((x) => x.name).join('|');
+        return same ? prev : { ...prev, [key]: sale };
+    });
+    const checkedSavings = () => sumSavings((panel?.items || []).filter((it) => it.checked).flatMap((it) => dinnerSales[`${it.dateKey}|${it.title}`] || []));
     const [step, setStep] = useState('dinners');
     const [typing, setTyping] = useState(false);
     const [chips, setChips] = useState([]);
@@ -513,7 +571,7 @@ export default function PersonalShopperModal({
             run.storedDeals = known.map((k) => ({
                 store: k.store,
                 scannedAt: k.scannedAt,
-                deals: k.items.slice(0, 15).map((it) => ({ name: it.name, salePrice: it.price || '', isBogo: Boolean(it.isBogo), store: k.store })),
+                deals: k.items.slice(0, 15).map((it) => ({ name: it.name, salePrice: it.price || '', originalPrice: it.originalPrice || '', savings: it.savings || '', isBogo: Boolean(it.isBogo), store: k.store })),
             }));
             const total = known.reduce((n, k) => n + k.itemCount, 0);
             const newest = known.map((k) => new Date(k.scannedAt).getTime()).filter(Boolean).sort((a, b) => b - a)[0];
@@ -584,6 +642,7 @@ export default function PersonalShopperModal({
                 people: run.profile?.householdSize || '',
                 dinners: n,
                 sales: (run.deals || []).length,
+                potential: sumSavings(run.deals || []).total,
                 recipes: Array.isArray(data?.recipes) ? data.recipes.length : 0,
                 days,
             },
@@ -635,6 +694,8 @@ export default function PersonalShopperModal({
         const scannedDeals = ranked.slice(0, 30).map((item) => ({
             name: item.name,
             salePrice: item.salePrice || '',
+            originalPrice: item.originalPrice || '',
+            savings: item.savings || '',
             isBogo: Boolean(item.isBogo),
             ...(scannedStore && run.storedDeals.length ? { store: scannedStore } : {}),
         }));
@@ -764,8 +825,10 @@ export default function PersonalShopperModal({
         setBusy(false);
 
         userSays(t(picked.length === 1 ? 'psp_dinners_added_singular' : 'psp_dinners_added_plural', { n: picked.length }));
+        const savedNow = checkedSavings();
         addCard({
             title: t('psp_card_added_week'),
+            sub: savedNow.total ? t('psp_card_savings', { amt: `${savedNow.est ? '~' : ''}${fmtMoney(savedNow.total)}` }) : undefined,
             lines: picked.map((x) => `${x.dayLabel}: ${x.title}${(x.sides || []).length ? ` + ${x.sides.join(', ')}` : ''}`),
         });
         setPanel(null);
@@ -1516,6 +1579,7 @@ export default function PersonalShopperModal({
                     item={item}
                     index={index}
                     onToggle={togglePanelItem}
+                    onSale={reportDinnerSale}
                     saved={data?.recipes}
                     allDeals={panel.allDeals}
                     token={token}
@@ -1530,6 +1594,19 @@ export default function PersonalShopperModal({
             const ideas = panel.ideas;
             return (
                 <View style={styles.panelCard}>
+                    {(() => {
+                        const mine = checkedSavings();
+                        const potential = sumSavings(panel.allDeals || []);
+                        if (!mine.total && !potential.total) return null;
+                        return (
+                            <View style={styles.saveBanner}>
+                                <Text style={styles.saveBannerKicker}>{t('psp_savings_kicker')}</Text>
+                                <Text style={styles.saveBannerAmt}>{mine.total ? `${mine.est ? '~' : ''}${fmtMoney(mine.total)}` : t('psp_savings_pending')}</Text>
+                                <Text style={styles.saveBannerSub}>{mine.total ? t('psp_savings_from', { n: mine.counted }) : t('psp_savings_tick_hint')}</Text>
+                                {potential.total ? <Text style={styles.saveBannerSub}>{t('psp_savings_potential', { amt: fmtMoney(potential.total), n: potential.counted })}</Text> : null}
+                            </View>
+                        );
+                    })()}
                     {deals.length ? (
                         <View style={styles.saleBox}>
                             <Text style={styles.groupLabel}>{t('psp_on_sale_heading')}</Text>
@@ -1542,6 +1619,7 @@ export default function PersonalShopperModal({
                                             <View style={styles.checkRowText}>
                                                 <Text style={styles.saleName}>{deal.name}</Text>
                                                 <Text style={styles.checkRowSub}>{deal.isBogo ? 'BOGO' : deal.salePrice}{deal.store ? `${deal.salePrice || deal.isBogo ? ' · ' : ''}${deal.store}` : ''}</Text>
+                                                {dealSaving(deal).amount > 0 ? <Text style={styles.saveText}>{t('psp_save_amt', { amt: `${dealSaving(deal).est ? '~' : ''}${fmtMoney(dealSaving(deal).amount)}` })}</Text> : null}
                                             </View>
                                             <TouchableOpacity style={[styles.findBtn, open ? styles.findBtnOpen : null]} activeOpacity={0.8} onPress={() => (open ? closeIdeas() : findDealIdeas(deal, dealKey))}>
                                                 <Text style={styles.findBtnText}>{open ? t('psp_close_btn') : t('psp_find_recipes_btn')}</Text>
@@ -1695,6 +1773,7 @@ export default function PersonalShopperModal({
                                     </View>
                                 ))}
                             </View>
+                            {ov.potential ? <Text style={styles.planSave}>{t('psp_plan_savings', { amt: fmtMoney(ov.potential) })}</Text> : null}
                             <Text style={styles.planLegend}>{t('psp_plan_legend')}</Text>
                             <Text style={styles.planNote}>{t('psp_plan_sides_note')}</Text>
                         </View>
@@ -2025,6 +2104,12 @@ const styles = StyleSheet.create({
     ideaGhostText: { fontFamily: 'Jost-Bold', fontSize: 12, color: colors.forest },
     ideaPick: { flex: 1, paddingVertical: 8, borderRadius: 14, backgroundColor: '#D9622B', alignItems: 'center', marginLeft: 6 },
     ideaPickText: { fontFamily: 'Jost-Bold', fontSize: 12, color: '#fff' },
+    saveText: { fontFamily: 'Jost-Bold', fontSize: 12, color: '#2E7D32', marginTop: 1 },
+    saveBanner: { backgroundColor: '#E8F5E9', borderWidth: 1.5, borderColor: '#2E7D32', borderRadius: 14, padding: 12, marginBottom: 10 },
+    saveBannerKicker: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1, color: '#2E7D32', textTransform: 'uppercase' },
+    saveBannerAmt: { fontFamily: 'Playfair-Bold', fontSize: 30, color: '#1B5E20', marginTop: 2 },
+    saveBannerSub: { fontFamily: 'Jost-Regular', fontSize: 12, color: colors.brown, marginTop: 2 },
+    planSave: { fontFamily: 'Jost-Bold', fontSize: 14, color: '#A5D6A7', marginTop: 10 },
     ideaRow: { paddingVertical: 6 },
     ideasDone: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 6 },
     saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
