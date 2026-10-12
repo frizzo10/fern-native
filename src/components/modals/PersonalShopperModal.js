@@ -26,7 +26,7 @@ import {
     startPersonalShopper,
 } from '../../services/personalShopperService';
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
-import { scanCircular } from '../../services/scanCircularService';
+import { scanCircular, fetchDealRecipeIdeas } from '../../services/scanCircularService';
 import { fetchStoreDeals } from '../../services/storeDealsService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoPickerService';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
@@ -243,7 +243,7 @@ export default function PersonalShopperModal({
             }
 
             say(res.pitch || t('psp_dinners_pitch_fallback'));
-            setPanel({ type: 'dinners', items });
+            setPanel({ type: 'dinners', items, deals: (run.deals || []).slice(0, 12), ideas: null });
         } catch (e) {
             console.log('[personal-shopper] suggest dinners failed', e?.message || e);
             if (run !== session.current) return;
@@ -1002,6 +1002,39 @@ export default function PersonalShopperModal({
             : prev));
     };
 
+    // Tap "Find recipes" on a sale item: get a few ideas built around it.
+    const findDealIdeas = async (deal) => {
+        setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { itemName: deal.name, loading: true, list: [] } } : prev));
+        try {
+            const list = await fetchDealRecipeIdeas({ itemName: deal.name, locale, token });
+            setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { itemName: deal.name, loading: false, list, deal } } : prev));
+        } catch (e) {
+            console.log('[personal-shopper] deal ideas failed', e?.message || e);
+            setPanel((prev) => (prev?.type === 'dinners' ? { ...prev, ideas: { itemName: deal.name, loading: false, list: [], failed: true } } : prev));
+        }
+    };
+
+    // Swap an idea into the week: replaces a dinner that doesn't use any sale item
+    // (else the last one), and tags it with the sale item it was built around.
+    const useDealIdea = (idea) => {
+        setPanel((prev) => {
+            if (prev?.type !== 'dinners' || !prev.items.length) return prev;
+            let target = prev.items.findIndex((it) => !(it.saleItems || []).length);
+            if (target < 0) target = prev.items.length - 1;
+            const deal = prev.ideas?.deal;
+            const items = prev.items.map((it, i) => (i === target ? {
+                ...it,
+                title: idea.title,
+                source: 'ai',
+                reason: idea.why || '',
+                quick: false,
+                checked: true,
+                saleItems: deal ? [{ name: deal.name, price: deal.salePrice || '', isBogo: Boolean(deal.isBogo), store: deal.store || '' }] : [],
+            } : it));
+            return { ...prev, items, ideas: { ...prev.ideas, usedTitle: idea.title, usedDay: prev.items[target].dayLabel } };
+        });
+    };
+
     const toggleListItem = (key) => {
         setPanel((prev) => (prev?.type === 'list' ? { ...prev, done: { ...prev.done, [key]: !prev.done[key] } } : prev));
     };
@@ -1033,18 +1066,69 @@ export default function PersonalShopperModal({
         }
 
         if (panel.type === 'dinners') {
+            const renderDinner = (item, index) => (
+                <TouchableOpacity key={item.dateKey} style={styles.checkRow} activeOpacity={0.8} onPress={() => togglePanelItem(index)}>
+                    <Checkbox checked={item.checked} />
+                    <View style={styles.checkRowText}>
+                        <Text style={styles.checkRowTitle}>{item.title}</Text>
+                        <Text style={styles.checkRowSub}>{item.dayLabel}{item.reason ? ` · ${item.reason}` : ''}</Text>
+                        {(item.saleItems || []).length ? (
+                            <View style={styles.saleChipRow}>
+                                {item.saleItems.map((sale) => (
+                                    <View key={sale.name} style={styles.saleChip}>
+                                        <Text style={styles.saleChipText}>
+                                            {'🏷 '}{sale.name}{sale.isBogo ? ' · BOGO' : (sale.price ? ` · ${sale.price}` : '')}{sale.store ? ` · ${sale.store}` : ''}
+                                        </Text>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : null}
+                    </View>
+                </TouchableOpacity>
+            );
+            const indexed = panel.items.map((item, index) => ({ item, index }));
+            const cookbook = indexed.filter((x) => x.item.source === 'cookbook');
+            const found = indexed.filter((x) => x.item.source !== 'cookbook');
+            const deals = panel.deals || [];
+            const ideas = panel.ideas;
             return (
                 <View style={styles.panelCard}>
+                    {deals.length ? (
+                        <View style={styles.saleBox}>
+                            <Text style={styles.groupLabel}>{t('psp_on_sale_heading')}</Text>
+                            {deals.map((deal, i) => (
+                                <View key={`${deal.name}-${i}`} style={styles.saleRow}>
+                                    <View style={styles.checkRowText}>
+                                        <Text style={styles.saleName}>{deal.name}</Text>
+                                        <Text style={styles.checkRowSub}>{deal.isBogo ? 'BOGO' : deal.salePrice}{deal.store ? `${deal.salePrice || deal.isBogo ? ' · ' : ''}${deal.store}` : ''}</Text>
+                                    </View>
+                                    <TouchableOpacity style={styles.findBtn} activeOpacity={0.8} onPress={() => findDealIdeas(deal)}>
+                                        <Text style={styles.findBtnText}>{t('psp_find_recipes_btn')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                            {ideas ? (
+                                <View style={styles.ideasBox}>
+                                    <Text style={styles.ideasTitle}>{t('psp_ideas_for', { item: ideas.itemName })}</Text>
+                                    {ideas.loading ? <ActivityIndicator color={colors.forest} /> : null}
+                                    {ideas.failed ? <Text style={styles.checkRowSub}>{t('psp_ideas_error')}</Text> : null}
+                                    {(ideas.list || []).map((idea) => (
+                                        <TouchableOpacity key={idea.id} style={styles.ideaRow} activeOpacity={0.8} onPress={() => useDealIdea(idea)}>
+                                            <Text style={styles.checkRowTitle}>{idea.emoji} {idea.title}</Text>
+                                            <Text style={styles.checkRowSub}>{idea.time ? `${idea.time} · ` : ''}{idea.why}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                    {ideas.usedTitle ? <Text style={styles.ideasDone}>{t('psp_idea_swapped', { title: ideas.usedTitle, day: ideas.usedDay })}</Text> : null}
+                                    {!ideas.loading && (ideas.list || []).length && !ideas.usedTitle ? <Text style={styles.checkRowSub}>{t('psp_idea_tap_hint')}</Text> : null}
+                                </View>
+                            ) : null}
+                        </View>
+                    ) : null}
                     <Text style={styles.panelTitle}>{t('psp_dinners_heading')}</Text>
-                    {panel.items.map((item, index) => (
-                        <TouchableOpacity key={item.dateKey} style={styles.checkRow} activeOpacity={0.8} onPress={() => togglePanelItem(index)}>
-                            <Checkbox checked={item.checked} />
-                            <View style={styles.checkRowText}>
-                                <Text style={styles.checkRowTitle}>{item.title}</Text>
-                                <Text style={styles.checkRowSub}>{item.dayLabel}{item.reason ? ` · ${item.reason}` : ''}</Text>
-                            </View>
-                        </TouchableOpacity>
-                    ))}
+                    {cookbook.length ? <Text style={styles.groupLabel}>{t('psp_from_cookbook')}</Text> : null}
+                    {cookbook.map((x) => renderDinner(x.item, x.index))}
+                    {found.length ? <Text style={styles.groupLabel}>{t('psp_fern_found')}</Text> : null}
+                    {found.map((x) => renderDinner(x.item, x.index))}
                     <TouchableOpacity
                         style={[styles.orangeBtn, busy ? styles.btnDisabled : null]}
                         activeOpacity={0.85}
@@ -1351,6 +1435,19 @@ const styles = StyleSheet.create({
         marginTop: 4,
         marginBottom: 10,
     },
+    groupLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 0.8, color: colors.brown, textTransform: 'uppercase', marginTop: 10, marginBottom: 2 },
+    saleBox: { marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: colors.sage },
+    saleRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+    saleName: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: colors.ink },
+    findBtn: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 14, backgroundColor: colors.forest },
+    findBtnText: { fontFamily: 'Jost-Bold', fontSize: 11, color: '#fff' },
+    ideasBox: { marginTop: 8, padding: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.04)' },
+    ideasTitle: { fontFamily: 'Jost-Bold', fontSize: 13, color: colors.forest, marginBottom: 4 },
+    ideaRow: { paddingVertical: 6 },
+    ideasDone: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 6 },
+    saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
+    saleChip: { backgroundColor: 'rgba(232,119,34,0.14)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginRight: 6, marginTop: 2 },
+    saleChipText: { fontFamily: 'Jost-SemiBold', fontSize: 11, color: colors.ink },
     panelTitle: { fontFamily: 'Playfair-Bold', fontSize: 17, color: colors.forest, marginBottom: 6 },
     panelDesc: { fontFamily: 'Jost-Regular', fontSize: 13, lineHeight: 19, color: colors.brown, marginBottom: 10 },
 

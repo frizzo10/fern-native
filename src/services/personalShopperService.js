@@ -52,12 +52,28 @@ export async function startPersonalShopper({ userProfile, lat, lon, mealPlan, sa
     };
 }
 
+// Saved recipes with a few ingredient names, so the backend can tell which
+// cookbook recipes actually use the sale items.
+function recipesWithIngredients(recipes) {
+    return (Array.isArray(recipes) ? recipes : [])
+        .map((recipe) => ({
+            title: String(recipe?.title || '').trim(),
+            ingredients: (Array.isArray(recipe?.ingredients) ? recipe.ingredients : [])
+                .map((ing) => (typeof ing === 'string' ? ing : String(ing?.item || ing?.name || '')))
+                .map((ing) => ing.replace(/^[\d\s¼½¾⅓⅔./-]+(cups?|tbsp|tsp|oz|lbs?|g|kg|ml|l|cans?|cloves?)?\s*/i, '').trim())
+                .filter(Boolean)
+                .slice(0, 10),
+        }))
+        .filter((recipe) => recipe.title)
+        .slice(0, 25);
+}
+
 // action: 'suggest_dinners' → { suggestions: [{ dayName, date, title, reason, quick }], pitch }
 export async function fetchDinnerSuggestions({ savedRecipes, forecast, activities, mealPlan, userProfile, locale, deals, dealsStore }) {
     const json = await postShopper({
         action: 'suggest_dinners',
         locale: locale || 'en',
-        savedRecipes: titlesOnly(savedRecipes),
+        savedRecipes: recipesWithIngredients(savedRecipes),
         forecast: forecast || [],
         activities: activities || [],
         mealPlan: mealPlan || {},
@@ -75,6 +91,10 @@ export async function fetchDinnerSuggestions({ savedRecipes, forecast, activitie
                 title: String(item?.title || '').trim(),
                 reason: String(item?.reason || '').trim(),
                 quick: Boolean(item?.quick),
+                source: item?.source === 'cookbook' ? 'cookbook' : 'ai',
+                saleItems: (Array.isArray(item?.saleItems) ? item.saleItems : [])
+                    .filter((sale) => sale && sale.name)
+                    .map((sale) => ({ name: String(sale.name), price: String(sale.price || ''), isBogo: Boolean(sale.isBogo), store: String(sale.store || '') })),
             }))
             .filter((item) => item.title && /^\d{4}-\d{2}-\d{2}$/.test(item.date)),
     };
