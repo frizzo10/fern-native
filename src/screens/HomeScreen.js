@@ -1341,6 +1341,18 @@ export default function HomeScreen({ user, route }) {
     setIsScanCircularOpen(true);
   };
 
+  // New Home's "Scan a flyer": Pro Max starts the Personal Shopper agent (scan the flyer,
+  // then Fern plans dinners around the sales, fills the week and builds the list) -- the same
+  // flow the store-arrival notification opens. Other plans keep the plain flyer scan.
+  const handleHomeScanFlyer = () => {
+    if (hasAccess(FEATURE_TIERS.personal_shopper)) {
+      setPersonalShopperArrival({ store: '' });
+      setIsPersonalShopperOpen(true);
+      return;
+    }
+    openScanCircularModal();
+  };
+
   const closeScanCircularModal = () => {
     setIsScanCircularOpen(false);
     resetScanCircularModal();
@@ -2343,7 +2355,7 @@ export default function HomeScreen({ user, route }) {
                 onOpenPlans={openPlans}
                 onOpenAccount={openAccount}
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
-                onScan={openScanCircularModal}
+                onScan={handleHomeScanFlyer}
                 stores={userStoresLocal}
                 onAddStore={openAddStoreModal}
                 onAskFern={openChat}
