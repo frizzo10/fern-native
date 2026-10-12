@@ -220,6 +220,7 @@ export default function NewHome({
         ))}
       </View>
 
+      {selectedDay.key !== todayEntry.key ? (
       <View style={styles.dayPanel}>
         <Text style={styles.dayPanelTitle}>{formatDayLabel(selectedDay.key || '')}</Text>
         {!Object.keys(selectedDay.meals || {}).length && !(selectedDay.activities || []).length ? (
@@ -238,14 +239,15 @@ export default function NewHome({
           </View>
         ))}
       </View>
+      ) : null}
 
       <View style={styles.addRow}>
         <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={() => onAddForDay(selectedDay.key, 'meal')} accessibilityRole="button">
-          <Ionicons name="add" size={18} color={FOREST} />
+          <Ionicons name="add" size={14} color={FOREST} />
           <Text style={styles.addBtnText}>{t('home_add_meal')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={() => onAddForDay(selectedDay.key, 'activity')} accessibilityRole="button">
-          <Ionicons name="add" size={18} color={FOREST} />
+          <Ionicons name="add" size={14} color={FOREST} />
           <Text style={styles.addBtnText}>{t('home_add_activity')}</Text>
         </TouchableOpacity>
       </View>
@@ -320,9 +322,9 @@ const styles = StyleSheet.create({
 
   roundBtnOn: { backgroundColor: FOREST, borderColor: FOREST },
   accordion: { marginBottom: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER, borderRadius: 18, paddingHorizontal: 14 },
-  addRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  addBtn: { flex: 1, height: 46, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  addBtnText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: FOREST },
+  addRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  addBtn: { height: 34, paddingHorizontal: 14, borderRadius: 11, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  addBtnText: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: FOREST },
   sheetBackdrop: { flex: 1, backgroundColor: 'rgba(20,30,15,0.45)', justifyContent: 'flex-end' },
   sheetDismiss: { flex: 1 },
   sheet: { backgroundColor: '#FDFAF6', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 20, paddingBottom: 34 },
