@@ -143,6 +143,14 @@ function keyWords(text) {
         .map(singular).filter((w) => w.length > 2 && !MATCH_STOP.has(w));
 }
 
+// Coupons only apply to non-food products (cleaning, paper goods, health & beauty, baby, pet).
+// Food coupons are brand-specific and never fit a recipe ingredient like "chicken" or "milk".
+// Categories are the backend's COUPON_SECTIONS buckets (netlify/functions/fetch-coupons.js).
+const NON_FOOD_COUPON_CATEGORIES = ['household & cleaning', 'health & beauty', 'baby & kids', 'pet care'];
+export function isNonFoodCoupon(coupon) {
+    return NON_FOOD_COUPON_CATEGORIES.includes(String(coupon?.category || '').trim().toLowerCase());
+}
+
 // 'match' when every key word of the list item is in the coupon's title (and a single-word item is its main noun); 'possible' when
 // at least the item's main noun (its last key word) shows up in the title or description.
 export function couponMatchLevel(itemText, coupon) {
@@ -178,7 +186,7 @@ export function matchListItems(items, deals, coupons) {
     (items || []).forEach((item) => {
         const deal = (deals || []).find((d) => ingredientHasSaleItem(item.text, d)) || null;
         const found = [];
-        (coupons || []).forEach((c) => {
+        (coupons || []).filter(isNonFoodCoupon).forEach((c) => {
             const level = couponMatchLevel(item.text, c);
             if (level) found.push({ coupon: c, level, value: parseCouponValue(c.discountLabel || c.title) });
         });
