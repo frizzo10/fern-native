@@ -367,10 +367,6 @@ export default function FamilyScreen({ user }) {
                 </TouchableOpacity> */}
 
                 <Text style={styles.title}>{`🗓️ ${t('family_hub_title')}`}</Text>
-                <Text style={styles.statusLine}>
-                    {isFullWeekPlanned ? t('family_hub_full_week_planned') : t('family_hub_dinners_left', { count: Math.max(0, dateKeys.length - dinnersPlannedCount) })}
-                </Text>
-
                 {isLoadingMealRecipe ? (
                     <View style={styles.recipeLoadingRow}>
                         <ActivityIndicator color={colors.forest} size="small" />
@@ -413,20 +409,12 @@ export default function FamilyScreen({ user }) {
 
                 <View style={styles.statsRow}>
                     <View style={[styles.statCard, shadow.card]}>
-                        <Text style={styles.statLabel}>{t('family_hub_stat_dinners')}</Text>
-                        <Text style={styles.statValue}>{`${dinnersPlannedCount}/${dateKeys.length}`}</Text>
-                    </View>
-                    <View style={[styles.statCard, shadow.card]}>
                         <Text style={styles.statLabel}>{t('family_hub_stat_activities')}</Text>
                         <Text style={styles.statValue}>{activitiesThisWeek.length}</Text>
                     </View>
                     <View style={[styles.statCard, shadow.card]}>
                         <Text style={styles.statLabel}>{t('family_hub_stat_shopping')}</Text>
                         <Text style={styles.statValue}>{t('family_hub_stat_shopping_items', { count: shoppingCount })}</Text>
-                    </View>
-                    <View style={[styles.statCard, shadow.card]}>
-                        <Text style={styles.statLabel}>{t('family_hub_stat_unplanned')}</Text>
-                        <Text style={styles.statValue}>{t('family_hub_stat_unplanned_dinners', { count: unplannedDinners })}</Text>
                     </View>
                 </View>
 
@@ -640,15 +628,6 @@ export default function FamilyScreen({ user }) {
                             <Text style={styles.addActivityText}>{t('family_hub_add_activity')}</Text>
                         </TouchableOpacity>
 
-                        {missingMealsCount > 0 ? (
-                            <View style={styles.fernBanner}>
-                                <Text style={styles.fernBannerEmoji}>🌿</Text>
-                                <View style={styles.fernBannerTextWrap}>
-                                    <Text style={styles.fernBannerLabel}>{t('family_hub_fern_says_label')}</Text>
-                                    <Text style={styles.fernBannerText}>{t('family_hub_fern_says_meals', { count: missingMealsCount })}</Text>
-                                </View>
-                            </View>
-                        ) : null}
                     </>
                 )}
             </ScrollView>
