@@ -20,6 +20,7 @@ import { useTour } from '../services/TourContext';
 import { sendListToInstacart, sendListToKroger, sendListToAlbertsons } from '../services/storeShoppingListService';
 import Confetti from '../components/Confetti';
 import SaleItemsList from '../components/SaleItemsList';
+import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { toShoppingName } from '../utils/shoppingName';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
@@ -76,7 +77,7 @@ function toSyncPayload(list) {
 }
 
 export default function ShoppingScreen({ user }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const [items, setItems] = useState([]);
@@ -92,6 +93,7 @@ export default function ShoppingScreen({ user }) {
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
+  const [catalogError, setCatalogError] = useState('');
 
   useEffect(() => {
     maybeAutoStart('shopping');
@@ -122,7 +124,7 @@ export default function ShoppingScreen({ user }) {
     useMemo(() => () => {
       loadWeekDeals().then(setWeekDeals);
       loadLedger().then(setLedger);
-      fetchAllCoupons().then((list) => { const n = normalizeCoupons(list); setCatalog(n); setCatalogState(n.length ? 'ok' : 'failed'); }).catch(() => setCatalogState('failed'));
+      fetchAllCoupons().then((list) => { const n = normalizeCoupons(list); setCatalog(n); setCatalogState(n.length ? 'ok' : 'failed'); setCatalogError(n.length ? '' : 'empty list'); }).catch((e) => { setCatalogState('failed'); setCatalogError(String(e?.message || e)); });
     }, [])
   );
 
@@ -502,6 +504,12 @@ export default function ShoppingScreen({ user }) {
                 return items.some((it) => String(it.text).toLowerCase() === key);
               }}
               onAdd={(deal) => addItem(toShoppingName(deal.name))}
+              token={user?.token}
+              locale={locale}
+              onAddRecipe={async (recipe) => {
+                const r = await addRecipeIngredientsToShoppingList(recipe, items);
+                await persistShopping(r.nextShopping);
+              }}
             />
           ) : null}
         </View>
@@ -510,7 +518,7 @@ export default function ShoppingScreen({ user }) {
           <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
             {catalogState === 'loading' ? t('sav_status_loading')
               : coupons.length ? t('sav_status_none', { n: coupons.length })
-              : t('sav_status_empty')}
+              : `${t('sav_status_empty')} (${catalogError || '…'})`}
           </Text>
         ) : null}
 

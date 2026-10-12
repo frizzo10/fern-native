@@ -1985,6 +1985,9 @@ export default function PersonalShopperModal({
                                 return session.current.listItems.some((it) => it.name.toLowerCase() === key);
                             }}
                             onAdd={(deal) => addListItem(session.current, deal.name, 'On sale')}
+                            token={token}
+                            locale={locale}
+                            onAddRecipe={(recipe) => (recipe.ingredients || []).forEach((ing) => addListItem(session.current, ing, recipe.title))}
                         />
                     ) : null}
                     {panel.warnings.map((w) => <Text key={w} style={styles.scanWarn}>⚠️ {w}</Text>)}

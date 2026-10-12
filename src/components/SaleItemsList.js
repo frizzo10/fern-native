@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
 import { colors, radius } from '../constants/tokens';
 import { dealSaving, fmtMoney } from '../utils/savings';
 
@@ -8,9 +9,39 @@ import { dealSaving, fmtMoney } from '../utils/savings';
 //   deals     [{ name, salePrice, originalPrice, category, isBogo, store, emoji }]
 //   isOnList  (deal) => boolean   already on the shopping list / queued for it
 //   onAdd     (deal) => void
-export default function SaleItemsList({ deals, isOnList, onAdd, t }) {
+//   token, locale, onAddRecipe(recipe, deal) — when given, each row gets a "Recipes" button:
+//   3 dinner ideas for that item, a full preview on tap, and "Add ingredients to my list".
+export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe }) {
   const [query, setQuery] = useState('');
   const [added, setAdded] = useState({});
+  const [open, setOpen] = useState(null); // { key, loading, ideas, failed, idea, recipe, recipeLoading, done }
+
+  const findRecipes = async (deal, key) => {
+    if (open?.key === key) { setOpen(null); return; }
+    setOpen({ key, loading: true, ideas: [] });
+    try {
+      const ideas = await fetchDealRecipeIdeas({ itemName: deal.name, locale, token });
+      setOpen((p) => (p?.key === key ? { key, loading: false, ideas, failed: !ideas.length } : p));
+    } catch (e) {
+      setOpen((p) => (p?.key === key ? { key, loading: false, ideas: [], failed: true } : p));
+    }
+  };
+
+  const previewIdea = async (deal, idea) => {
+    setOpen((p) => (p ? { ...p, idea, recipe: null, recipeLoading: true, done: false } : p));
+    try {
+      const recipe = await fetchFullRecipeForDealIdea({ idea, itemName: deal.name, locale, token });
+      setOpen((p) => (p?.idea === idea ? { ...p, recipe, recipeLoading: false } : p));
+    } catch (e) {
+      setOpen((p) => (p?.idea === idea ? { ...p, recipe: null, recipeLoading: false, recipeFailed: true } : p));
+    }
+  };
+
+  const addRecipe = async (deal) => {
+    if (!open?.recipe) return;
+    await onAddRecipe?.(open.recipe, deal);
+    setOpen((p) => (p ? { ...p, done: true } : p));
+  };
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -48,8 +79,10 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t }) {
             const done = Boolean(added[key]) || Boolean(isOnList?.(deal));
             const saving = dealSaving(deal);
             const price = deal.isBogo ? 'BOGO' : deal.salePrice;
+            const isOpen = open?.key === key;
             return (
-              <View key={key} style={styles.row}>
+              <View key={key}>
+              <View style={styles.row}>
                 <View style={styles.rowText}>
                   <Text style={styles.name} numberOfLines={2}>{`${deal.emoji ? `${deal.emoji} ` : ''}${deal.name}`}</Text>
                   <Text style={styles.sub} numberOfLines={1}>
@@ -57,6 +90,11 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t }) {
                   </Text>
                   {saving.amount > 0 ? <Text style={styles.save}>{t('psp_save_amt', { amt: `${saving.est ? '~' : ''}${fmtMoney(saving.amount)}` })}</Text> : null}
                 </View>
+                {onAddRecipe ? (
+                  <TouchableOpacity style={[styles.recipeBtn, open?.key === key ? styles.recipeBtnOn : null]} activeOpacity={0.85} onPress={() => findRecipes(deal, key)}>
+                    <Text style={styles.recipeBtnText}>{open?.key === key ? t('sale_list_close') : t('sale_list_recipes')}</Text>
+                  </TouchableOpacity>
+                ) : null}
                 <TouchableOpacity
                   style={[styles.btn, done ? styles.btnOn : null]}
                   activeOpacity={0.85}
@@ -68,6 +106,37 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t }) {
                 >
                   <Text style={[styles.btnText, done ? styles.btnTextOn : null]}>{done ? t('sale_list_on_list') : t('sale_list_add')}</Text>
                 </TouchableOpacity>
+              </View>
+              {isOpen ? (
+                <View style={styles.ideas}>
+                  {open.loading ? <ActivityIndicator color={colors?.orange || '#E8742A'} /> : null}
+                  {open.failed ? <Text style={styles.sub}>{t('sale_list_recipes_failed')}</Text> : null}
+                  {(open.ideas || []).map((idea, i) => (
+                    <View key={`${idea.title}-${i}`}>
+                      <TouchableOpacity style={styles.ideaRow} activeOpacity={0.85} onPress={() => (open.idea === idea ? setOpen((p) => ({ ...p, idea: null, recipe: null })) : previewIdea(deal, idea))}>
+                        <Text style={styles.ideaTitle}>{`${idea.emoji || '🍽️'} ${idea.title}`}</Text>
+                        <Text style={styles.sub}>{[idea.time, idea.why].filter(Boolean).join(' · ')}</Text>
+                      </TouchableOpacity>
+                      {open.idea === idea ? (
+                        <View style={styles.preview}>
+                          {open.recipeLoading ? <ActivityIndicator color={colors?.orange || '#E8742A'} /> : null}
+                          {open.recipeFailed && !open.recipe ? <Text style={styles.sub}>{t('sale_list_recipes_failed')}</Text> : null}
+                          {open.recipe ? (
+                            <View>
+                              <Text style={styles.sub}>{[open.recipe.time, open.recipe.difficulty].filter(Boolean).join(' · ')}</Text>
+                              {open.recipe.description ? <Text style={styles.previewText}>{open.recipe.description}</Text> : null}
+                              {(open.recipe.instructions || []).map((step, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${step}`}</Text>)}
+                              <TouchableOpacity style={[styles.btn, { alignSelf: 'flex-start', marginTop: 8 }, open.done ? styles.btnOn : null]} disabled={open.done} activeOpacity={0.85} onPress={() => addRecipe(deal)}>
+                                <Text style={[styles.btnText, open.done ? styles.btnTextOn : null]}>{open.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              ) : null}
               </View>
             );
           })}
@@ -98,6 +167,14 @@ const styles = StyleSheet.create({
   sub: { fontSize: 12, color: '#7a6d60', marginTop: 1 },
   save: { fontSize: 12, color: '#2F7D4F', fontWeight: '700', marginTop: 1 },
   btn: { backgroundColor: colors?.orange || '#E8742A', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  recipeBtn: { borderWidth: 1, borderColor: colors?.orange || '#E8742A', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
+  recipeBtnOn: { backgroundColor: '#FFF1E6' },
+  recipeBtnText: { color: colors?.orange || '#E8742A', fontSize: 12, fontWeight: '700' },
+  ideas: { backgroundColor: '#FBF8F4', borderRadius: 10, padding: 10, marginBottom: 6, gap: 6 },
+  ideaRow: { paddingVertical: 4 },
+  ideaTitle: { fontSize: 14, fontWeight: '700', color: '#2D1B10' },
+  preview: { paddingVertical: 6, paddingLeft: 6, borderLeftWidth: 2, borderLeftColor: '#E4DCD2' },
+  previewText: { fontSize: 13, color: '#2D1B10', marginTop: 4, lineHeight: 18 },
   btnOn: { backgroundColor: '#E6F1EA' },
   btnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   btnTextOn: { color: '#2F7D4F' },
