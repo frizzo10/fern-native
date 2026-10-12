@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Animated,
+    Easing,
     Image,
     KeyboardAvoidingView,
     Modal,
@@ -195,6 +197,61 @@ function sumSavings(deals) {
     return { total: Math.round(total * 100) / 100, est, counted };
 }
 
+// The flyer "board": the scanned photo with a live scan sweep, then the sale items Fern
+// found pop onto it one by one. Replaces the chat feel with the circular itself.
+function FlyerTag({ deal, index }) {
+    const v = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        Animated.timing(v, { toValue: 1, duration: 320, delay: Math.min(index, 12) * 110, easing: Easing.out(Easing.back(1.6)), useNativeDriver: true }).start();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const sv = dealSaving(deal);
+    return (
+        <Animated.View style={[styles.flyerTag, { opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }]}>
+            <Text style={styles.flyerTagText} numberOfLines={1}>
+                {deal.name}{deal.isBogo ? ' · BOGO' : (deal.salePrice ? ` · ${deal.salePrice}` : '')}
+            </Text>
+            {sv.amount > 0 ? <Text style={styles.flyerTagSave}>{`-${fmtMoney(sv.amount)}`}</Text> : null}
+        </Animated.View>
+    );
+}
+
+function FlyerBoard({ uri, scanning, store, deals, t }) {
+    const sweep = useRef(new Animated.Value(0)).current;
+    useEffect(() => {
+        if (!scanning) { sweep.setValue(0); return undefined; }
+        const loop = Animated.loop(Animated.timing(sweep, { toValue: 1, duration: 1600, easing: Easing.inOut(Easing.quad), useNativeDriver: true }));
+        loop.start();
+        return () => loop.stop();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scanning]);
+    const savings = sumSavings(deals);
+    const shown = (deals || []).slice(0, 10);
+    return (
+        <View style={styles.flyerBoard}>
+            <View style={styles.flyerImgWrap}>
+                {uri ? <Image source={{ uri }} style={styles.flyerImg} resizeMode="cover" /> : <Text style={styles.flyerPlaceholder}>📰</Text>}
+                <View style={styles.flyerShade} />
+                {scanning ? (
+                    <Animated.View style={[styles.flyerSweep, { transform: [{ translateY: sweep.interpolate({ inputRange: [0, 1], outputRange: [0, 170] }) }] }]} />
+                ) : null}
+                {scanning ? <Text style={styles.flyerScanning}>{t('psp_board_reading')}</Text> : null}
+                {!scanning ? (
+                    <View style={styles.flyerTags}>
+                        {shown.map((deal, i) => <FlyerTag key={`${deal.name}-${i}`} deal={deal} index={i} />)}
+                    </View>
+                ) : null}
+            </View>
+            <View style={styles.flyerFooter}>
+                <Text style={styles.flyerStore} numberOfLines={1}>{store || t('psp_board_your_flyer')}</Text>
+                <Text style={styles.flyerMeta}>
+                    {t('psp_board_items', { n: (deals || []).length })}{savings.total ? `  ·  💰 ${t('psp_board_up_to', { amt: fmtMoney(savings.total) })}` : ''}
+                </Text>
+            </View>
+        </View>
+    );
+}
+
 function DinnerRow({ item, index, onToggle, onSale, saved, allDeals, token, locale, t }) {
     const match = (saved || []).find((r) => String(r?.title || '').trim().toLowerCase() === item.title.toLowerCase());
     const [open, setOpen] = useState(false);
@@ -356,10 +413,14 @@ export default function PersonalShopperModal({
     const [listInput, setListInput] = useState('');
     const [busy, setBusy] = useState(false);
     const [circularMode, setCircularMode] = useState(false);
+    const [flyerUri, setFlyerUri] = useState(null);
+    const [showInput, setShowInput] = useState(false);
 
     useEffect(() => {
         // Fresh session each time the modal opens; also invalidates any async
         // work still in flight from a previous run (they compare their `run`).
+        setFlyerUri(null);
+        setShowInput(false);
         session.current = newSession();
         setPhase('intro');
         setMessages([]);
@@ -661,6 +722,7 @@ export default function PersonalShopperModal({
             return;
         }
         if (!result.photo?.base64) return;
+        setFlyerUri(`data:${result.photo.mimeType || 'image/jpeg'};base64,${result.photo.base64}`);
 
         setBusy(true);
         setPanel(null);
@@ -1917,6 +1979,10 @@ export default function PersonalShopperModal({
         return null;
     };
 
+    const boardDeals = session.current?.deals || [];
+    const boardSave = sumSavings(boardDeals);
+    const lastNote = [...messages].reverse().find((m) => m.role === 'assistant')?.text || '';
+
     return (
         <Modal animationType="slide" visible={visible} onRequestClose={onClose}>
             <KeyboardAvoidingView
@@ -1957,6 +2023,13 @@ export default function PersonalShopperModal({
                     </View>
                 ) : (
                     <>
+                        {(boardDeals.length || flyerUri) && !(busy && step === 'circular') ? (
+                            <View style={styles.pinStrip}>
+                                <Text style={styles.pinText} numberOfLines={1}>
+                                    {`🏷 ${boardDeals.length}`}{boardSave.total ? `   💰 ${boardSave.est ? '~' : ''}${fmtMoney(boardSave.total)}` : ''}{session.current?.dealsStore ? `   · ${session.current.dealsStore}` : ''}
+                                </Text>
+                            </View>
+                        ) : null}
                         <ScrollView
                             ref={scrollRef}
                             style={styles.chat}
@@ -1964,25 +2037,21 @@ export default function PersonalShopperModal({
                             keyboardShouldPersistTaps="handled"
                             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
                         >
-                            {messages.map((message) => (message.role === 'card' ? (
+                            {(flyerUri || boardDeals.length) ? (
+                                <FlyerBoard uri={flyerUri} scanning={busy && step === 'circular'} store={session.current?.dealsStore} deals={boardDeals} t={t} />
+                            ) : null}
+                            {messages.filter((m) => m.role === 'card').map((message) => (
                                 <View key={message.id} style={styles.receiptCard}>
                                     <Text style={styles.receiptTitle}>✓ {message.card.title}</Text>
                                     {message.card.sub ? <Text style={styles.receiptSub}>{message.card.sub}</Text> : null}
                                     {message.card.lines.map((line, i) => <Text key={`${line}-${i}`} style={styles.receiptLine}>• {line}</Text>)}
                                     {message.card.more ? <Text style={styles.receiptSub}>{t('psp_scan_and_more', { n: message.card.more })}</Text> : null}
                                 </View>
-                            ) : (
-                                <View
-                                    key={message.id}
-                                    style={[styles.bubble, message.role === 'user' ? styles.bubbleUser : styles.bubbleFern]}
-                                >
-                                    <Text style={[styles.bubbleText, message.role === 'user' ? styles.bubbleTextUser : null]}>{message.text}</Text>
-                                </View>
-                            )))}
-                            {typing ? (
-                                <View style={[styles.bubble, styles.bubbleFern, styles.typingBubble]}>
-                                    <ActivityIndicator size="small" color={colors.forest} />
-                                    <Text style={styles.typingText}>{t('psp_typing')}</Text>
+                            ))}
+                            {typing || lastNote ? (
+                                <View style={styles.fernNote}>
+                                    {typing ? <ActivityIndicator size="small" color={colors.forest} style={{ marginRight: 8 }} /> : <Text style={styles.fernNoteIcon}>🌿</Text>}
+                                    <Text style={styles.fernNoteText}>{typing ? t('psp_typing') : lastNote}</Text>
                                 </View>
                             ) : null}
                             {renderPanel()}
@@ -2003,6 +2072,12 @@ export default function PersonalShopperModal({
                             </View>
                         ) : null}
 
+                        {!showInput ? (
+                            <TouchableOpacity style={[styles.typeToggle, { paddingBottom: Math.max(insets.bottom, 10) }]} activeOpacity={0.8} onPress={() => setShowInput(true)}>
+                                <Text style={styles.typeToggleText}>{t('psp_type_instead')}</Text>
+                            </TouchableOpacity>
+                        ) : null}
+                        {showInput ? (
                         <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 12) }]}>
                             <TextInput
                                 value={input}
@@ -2023,6 +2098,7 @@ export default function PersonalShopperModal({
                                 <Text style={styles.sendBtnText}>{t('psp_send_btn')}</Text>
                             </TouchableOpacity>
                         </View>
+                        ) : null}
                     </>
                 )}
             </KeyboardAvoidingView>
@@ -2110,6 +2186,27 @@ const styles = StyleSheet.create({
     saveBannerAmt: { fontFamily: 'Playfair-Bold', fontSize: 30, color: '#1B5E20', marginTop: 2 },
     saveBannerSub: { fontFamily: 'Jost-Regular', fontSize: 12, color: colors.brown, marginTop: 2 },
     planSave: { fontFamily: 'Jost-Bold', fontSize: 14, color: '#A5D6A7', marginTop: 10 },
+    flyerBoard: { borderRadius: 18, overflow: 'hidden', backgroundColor: colors.forest, marginBottom: 12 },
+    flyerImgWrap: { height: 200, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+    flyerImg: { ...StyleSheet.absoluteFillObject },
+    flyerPlaceholder: { fontSize: 64, opacity: 0.4 },
+    flyerShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(15,35,20,0.45)' },
+    flyerSweep: { position: 'absolute', top: 0, left: 0, right: 0, height: 3, backgroundColor: '#8BE08B', shadowColor: '#8BE08B', shadowOpacity: 0.9, shadowRadius: 8 },
+    flyerScanning: { position: 'absolute', bottom: 12, fontFamily: 'Jost-Bold', fontSize: 14, color: '#fff', letterSpacing: 0.5 },
+    flyerTags: { ...StyleSheet.absoluteFillObject, padding: 10, flexDirection: 'row', flexWrap: 'wrap', alignContent: 'flex-end' },
+    flyerTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4, marginRight: 6, marginBottom: 6, maxWidth: '100%' },
+    flyerTagText: { fontFamily: 'Jost-SemiBold', fontSize: 11, color: colors.ink, flexShrink: 1 },
+    flyerTagSave: { fontFamily: 'Jost-Bold', fontSize: 11, color: '#2E7D32', marginLeft: 4 },
+    flyerFooter: { paddingHorizontal: 14, paddingVertical: 10 },
+    flyerStore: { fontFamily: 'Playfair-Bold', fontSize: 18, color: '#F0E0B0' },
+    flyerMeta: { fontFamily: 'Jost-Regular', fontSize: 12, color: colors.sage, marginTop: 2 },
+    pinStrip: { backgroundColor: '#E8F5E9', paddingHorizontal: 16, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: colors.sage },
+    pinText: { fontFamily: 'Jost-Bold', fontSize: 12, color: '#1B5E20' },
+    fernNote: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, backgroundColor: '#fff', borderLeftWidth: 4, borderLeftColor: colors.forest, marginBottom: 10 },
+    fernNoteIcon: { fontSize: 16, marginRight: 8 },
+    fernNoteText: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 15, color: colors.ink, lineHeight: 21 },
+    typeToggle: { alignItems: 'center', paddingTop: 8 },
+    typeToggleText: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.brown },
     ideaRow: { paddingVertical: 6 },
     ideasDone: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: colors.forest, marginTop: 6 },
     saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
