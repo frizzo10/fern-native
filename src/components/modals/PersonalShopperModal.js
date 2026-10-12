@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Image,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -26,6 +27,7 @@ import {
     startPersonalShopper,
 } from '../../services/personalShopperService';
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
+import { fetchRecipeImage } from '../../utils/recipeImage';
 import { scanCircular, fetchDealRecipeIdeas } from '../../services/scanCircularService';
 import { fetchStoreDeals } from '../../services/storeDealsService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoPickerService';
@@ -99,6 +101,113 @@ function Checkbox({ checked }) {
         </View>
     );
 }
+
+// ── dinner row: photo, tap-to-preview, and sale items matched against the real ingredients ──
+
+const SALE_STOP = new Set(['fresh', 'crisp', 'sweet', 'honey', 'crowns', 'large', 'small', 'whole', 'boneless', 'skinless', 'family', 'pack', 'value', 'select', 'premium', 'natural', 'farm', 'brand', 'organic', 'frozen', 'ground', 'lean', 'extra', 'with', 'and', 'the', 'each', 'lb', 'oz']);
+const dinnerThumbCache = {};
+
+function singular(w) { return w.length > 3 ? w.replace(/(ies)$/, 'y').replace(/(es|s)$/, '') : w; }
+
+// Which on-sale items does this ingredient list really contain?
+function matchSaleItems(ingredients, deals) {
+    const text = ` ${(ingredients || []).join(' ').toLowerCase().replace(/[^a-z\s]/g, ' ')} `;
+    if (!text.trim()) return [];
+    return (deals || []).filter((deal) => {
+        const words = String(deal.name || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
+            .filter((w) => w.length > 2 && !SALE_STOP.has(w)).map(singular);
+        return words.some((w) => new RegExp(`\\b${w}`).test(text));
+    });
+}
+
+function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t }) {
+    const match = (saved || []).find((r) => String(r?.title || '').trim().toLowerCase() === item.title.toLowerCase());
+    const [open, setOpen] = useState(false);
+    const [detail, setDetail] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [imageUrl, setImageUrl] = useState((match && match.image) || dinnerThumbCache[item.title] || null);
+
+    useEffect(() => {
+        if (imageUrl) return undefined;
+        let alive = true;
+        fetchRecipeImage(item.title, token).then((found) => {
+            if (!found) return;
+            dinnerThumbCache[item.title] = found;
+            if (alive) setImageUrl(found);
+        });
+        return () => { alive = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [item.title]);
+
+    const savedIngredients = match ? (toList(match.ingredients).length ? toList(match.ingredients) : toList(match._ingredients)) : [];
+    const savedSteps = match ? toList(match.instructions) : [];
+    const ingredients = detail ? detail.ingredients : savedIngredients.filter((i) => !/no ingredients listed/i.test(i));
+    const steps = detail ? detail.directions : savedSteps.filter((i) => !/no instructions/i.test(i));
+    const known = ingredients.length > 0;
+    const sale = known ? matchSaleItems(ingredients, allDeals) : (item.saleItems || []);
+    const saleNames = new Set(sale.map((x) => x.name));
+
+    const toggleOpen = async () => {
+        const next = !open;
+        setOpen(next);
+        if (next && !known && !detail && !loading) {
+            setLoading(true);
+            try {
+                setDetail(await fetchMealPlanRecipeDetail({ title: item.title, locale, token }));
+            } catch (e) {
+                console.log('[personal-shopper] preview failed', e?.message || e);
+            } finally {
+                setLoading(false);
+            }
+        }
+    };
+
+    return (
+        <View style={styles.checkRowWrap}>
+            <View style={styles.checkRow}>
+                <TouchableOpacity onPress={() => onToggle(index)} activeOpacity={0.8}>
+                    <Checkbox checked={item.checked} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.dinnerBody} activeOpacity={0.8} onPress={toggleOpen}>
+                    <View style={styles.dinnerThumb}>
+                        {imageUrl ? <Image source={{ uri: imageUrl }} style={styles.dinnerThumbImg} resizeMode="cover" /> : <Text style={styles.dinnerThumbEmoji}>🍽️</Text>}
+                    </View>
+                    <View style={styles.checkRowText}>
+                        <Text style={styles.checkRowTitle}>{item.title}</Text>
+                        <Text style={styles.checkRowSub}>{item.dayLabel}{item.reason ? ` · ${item.reason}` : ''}</Text>
+                        {sale.length ? (
+                            <View style={styles.saleChipRow}>
+                                {sale.map((x) => (
+                                    <View key={x.name} style={styles.saleChip}>
+                                        <Text style={styles.saleChipText}>{'🏷 '}{x.name}{x.isBogo ? ' · BOGO' : (x.salePrice || x.price ? ` · ${x.salePrice || x.price}` : '')}{x.store ? ` · ${x.store}` : ''}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : (
+                            <Text style={styles.noSaleText}>{t('psp_no_sale_items')}</Text>
+                        )}
+                        <Text style={styles.previewHint}>{open ? t('psp_hide_recipe') : t('psp_see_recipe')}</Text>
+                    </View>
+                </TouchableOpacity>
+            </View>
+            {open ? (
+                <View style={styles.previewBox}>
+                    {loading ? <ActivityIndicator color={colors.forest} /> : null}
+                    {ingredients.length ? <Text style={styles.previewHeading}>{t('psp_preview_ingredients')}</Text> : null}
+                    {ingredients.map((ing, i) => {
+                        const isSale = sale.some((x) => matchSaleItems([ing], [x]).length);
+                        return <Text key={`${ing}-${i}`} style={[styles.previewLine, isSale ? styles.previewSale : null]}>{isSale ? '🏷 ' : '• '}{ing}</Text>;
+                    })}
+                    {steps.length ? <Text style={styles.previewHeading}>{t('psp_preview_steps')}</Text> : null}
+                    {steps.slice(0, 4).map((step, i) => <Text key={i} style={styles.previewLine}>{i + 1}. {step}</Text>)}
+                    {steps.length > 4 ? <Text style={styles.checkRowSub}>{t('psp_preview_more', { n: steps.length - 4 })}</Text> : null}
+                    {!loading && !ingredients.length ? <Text style={styles.checkRowSub}>{t('psp_preview_none')}</Text> : null}
+                </View>
+            ) : null}
+        </View>
+    );
+}
+
 
 // Plan the week with Fern: dinner suggestions → week review → (recurring
 // activities) → staples → per-recipe ingredients → sorted shopping list, with
@@ -243,7 +352,7 @@ export default function PersonalShopperModal({
             }
 
             say(res.pitch || t('psp_dinners_pitch_fallback'));
-            setPanel({ type: 'dinners', items, deals: (run.deals || []).slice(0, 12), ideas: null });
+            setPanel({ type: 'dinners', items, deals: (run.deals || []).slice(0, 12), allDeals: run.deals || [], ideas: null });
         } catch (e) {
             console.log('[personal-shopper] suggest dinners failed', e?.message || e);
             if (run !== session.current) return;
@@ -1067,24 +1176,17 @@ export default function PersonalShopperModal({
 
         if (panel.type === 'dinners') {
             const renderDinner = (item, index) => (
-                <TouchableOpacity key={item.dateKey} style={styles.checkRow} activeOpacity={0.8} onPress={() => togglePanelItem(index)}>
-                    <Checkbox checked={item.checked} />
-                    <View style={styles.checkRowText}>
-                        <Text style={styles.checkRowTitle}>{item.title}</Text>
-                        <Text style={styles.checkRowSub}>{item.dayLabel}{item.reason ? ` · ${item.reason}` : ''}</Text>
-                        {(item.saleItems || []).length ? (
-                            <View style={styles.saleChipRow}>
-                                {item.saleItems.map((sale) => (
-                                    <View key={sale.name} style={styles.saleChip}>
-                                        <Text style={styles.saleChipText}>
-                                            {'🏷 '}{sale.name}{sale.isBogo ? ' · BOGO' : (sale.price ? ` · ${sale.price}` : '')}{sale.store ? ` · ${sale.store}` : ''}
-                                        </Text>
-                                    </View>
-                                ))}
-                            </View>
-                        ) : null}
-                    </View>
-                </TouchableOpacity>
+                <DinnerRow
+                    key={item.dateKey}
+                    item={item}
+                    index={index}
+                    onToggle={togglePanelItem}
+                    saved={data?.recipes}
+                    allDeals={panel.allDeals}
+                    token={token}
+                    locale={locale}
+                    t={t}
+                />
             );
             const indexed = panel.items.map((item, index) => ({ item, index }));
             const cookbook = indexed.filter((x) => x.item.source === 'cookbook');
@@ -1448,6 +1550,17 @@ const styles = StyleSheet.create({
     saleChipRow: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 },
     saleChip: { backgroundColor: 'rgba(232,119,34,0.14)', borderRadius: 10, paddingHorizontal: 8, paddingVertical: 3, marginRight: 6, marginTop: 2 },
     saleChipText: { fontFamily: 'Jost-SemiBold', fontSize: 11, color: colors.ink },
+    checkRowWrap: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.sage },
+    dinnerBody: { flex: 1, flexDirection: 'row', alignItems: 'flex-start' },
+    dinnerThumb: { width: 56, height: 56, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(0,0,0,0.05)', alignItems: 'center', justifyContent: 'center', marginRight: 10 },
+    dinnerThumbImg: { width: 56, height: 56 },
+    dinnerThumbEmoji: { fontSize: 24 },
+    noSaleText: { fontFamily: 'Jost-Regular', fontSize: 11, color: colors.brown, marginTop: 4, fontStyle: 'italic' },
+    previewHint: { fontFamily: 'Jost-Bold', fontSize: 11, color: colors.forest, marginTop: 4 },
+    previewBox: { marginLeft: 34, marginBottom: 10, padding: 10, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.04)' },
+    previewHeading: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 0.8, color: colors.brown, textTransform: 'uppercase', marginTop: 4, marginBottom: 2 },
+    previewLine: { fontFamily: 'Jost-Regular', fontSize: 13, color: colors.ink, marginBottom: 2 },
+    previewSale: { fontFamily: 'Jost-Bold', color: '#B85A12' },
     panelTitle: { fontFamily: 'Playfair-Bold', fontSize: 17, color: colors.forest, marginBottom: 6 },
     panelDesc: { fontFamily: 'Jost-Regular', fontSize: 13, lineHeight: 19, color: colors.brown, marginBottom: 10 },
 
