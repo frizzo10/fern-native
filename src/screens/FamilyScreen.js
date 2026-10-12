@@ -673,6 +673,7 @@ export default function FamilyScreen({ user }) {
                 visible={Boolean(addMealModal)}
                 slotLabel={addMealModal?.slotLabel}
                 savedRecipes={data.recipes}
+                token={user?.token}
                 onClose={() => setAddMealModal(null)}
                 onSelect={handleSelectSavedMealForAdd}
             />

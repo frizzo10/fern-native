@@ -2789,6 +2789,7 @@ export default function HomeScreen({ user, route }) {
         visible={Boolean(homeAddMeal)}
         slotLabel={homeAddMeal?.slotLabel}
         savedRecipes={data.recipes}
+        token={user?.token}
         onClose={() => setHomeAddMeal(null)}
         onSelect={handleHomeSelectSavedMeal}
       />

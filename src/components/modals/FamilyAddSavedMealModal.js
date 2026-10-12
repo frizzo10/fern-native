@@ -1,9 +1,35 @@
-import React, { useMemo, useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
 import { normalizeRecipe } from '../../utils/recipeNormalize';
+import { fetchRecipeImage } from '../../utils/recipeImage';
 
-export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecipes, onClose, onSelect }) {
+// Remembered for the session so reopening the picker doesn't re-fetch.
+const thumbCache = {};
+
+function RecipeThumb({ recipe, token }) {
+    const [url, setUrl] = useState(recipe.image || thumbCache[recipe.title] || null);
+    useEffect(() => {
+        if (url) return undefined;
+        let alive = true;
+        fetchRecipeImage(recipe.title, token).then((found) => {
+            if (!found) return;
+            thumbCache[recipe.title] = found;
+            if (alive) setUrl(found);
+        });
+        return () => { alive = false; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [recipe.title]);
+    return (
+        <View style={styles.rowIconWrap}>
+            {url
+                ? <Image source={{ uri: url }} style={styles.rowImage} resizeMode="cover" />
+                : <Text style={styles.rowIconEmoji}>{recipe.emoji}</Text>}
+        </View>
+    );
+}
+
+export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecipes, token, onClose, onSelect }) {
     const { t } = useLanguage();
     const [search, setSearch] = useState('');
 
@@ -43,34 +69,37 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecip
                         />
                     </View>
 
-                    <ScrollView contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
-                        {filtered.length ? (
-                            filtered.map((recipe) => (
-                                <TouchableOpacity
-                                    key={recipe.id}
-                                    style={styles.row}
-                                    activeOpacity={0.85}
-                                    onPress={() => onSelect(recipe)}
-                                >
-                                    <View style={styles.rowIconWrap}>
-                                        <Text style={styles.rowIconEmoji}>{recipe.emoji}</Text>
-                                    </View>
-                                    <View style={styles.rowInfo}>
-                                        <Text style={styles.rowTitle} numberOfLines={1}>{recipe.title}</Text>
-                                        <Text style={styles.rowMeta} numberOfLines={1}>
-                                            {[recipe.category, recipe.time].filter(Boolean).join(' · ')}
-                                        </Text>
-                                    </View>
-                                    <Text style={styles.rowChevron}>{'→'}</Text>
-                                </TouchableOpacity>
-                            ))
-                        ) : (
+                    <FlatList
+                        data={filtered}
+                        keyExtractor={(recipe) => String(recipe.id)}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                        initialNumToRender={10}
+                        windowSize={5}
+                        keyboardShouldPersistTaps="handled"
+                        renderItem={({ item: recipe }) => (
+                            <TouchableOpacity
+                                style={styles.row}
+                                activeOpacity={0.85}
+                                onPress={() => onSelect(recipe)}
+                            >
+                                <RecipeThumb recipe={recipe} token={token} />
+                                <View style={styles.rowInfo}>
+                                    <Text style={styles.rowTitle} numberOfLines={1}>{recipe.title}</Text>
+                                    <Text style={styles.rowMeta} numberOfLines={1}>
+                                        {[recipe.category, recipe.time].filter(Boolean).join(' · ')}
+                                    </Text>
+                                </View>
+                                <Text style={styles.rowChevron}>{'→'}</Text>
+                            </TouchableOpacity>
+                        )}
+                        ListEmptyComponent={(
                             <View style={styles.emptyState}>
                                 <Text style={styles.emptyTitle}>{t('no_saved_recipes_title')}</Text>
                                 <Text style={styles.emptySub}>{t('no_saved_recipes_sub')}</Text>
                             </View>
                         )}
-                    </ScrollView>
+                    />
                 </View>
             </View>
         </Modal>
@@ -161,6 +190,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#F1EEE7',
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    rowImage: {
+        width: '100%',
+        height: '100%',
     },
     rowIconEmoji: {
         fontSize: 20,
