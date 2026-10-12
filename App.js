@@ -143,11 +143,11 @@ function MoreSheet({ visible, onClose, onProfile, onCookbooks, onImport, onHelp,
   const { t } = useLanguage();
 
   const items = [
-    { key: 'profile', label: t('more_profile'), icon: 'person-outline', onPress: onProfile },
-    { key: 'cookbooks', label: t('more_cookbooks'), icon: 'book-outline', onPress: onCookbooks },
-    { key: 'import', label: t('importNavText'), icon: 'download-outline', onPress: onImport },
-    { key: 'help', label: t('more_help'), icon: 'help-circle-outline', onPress: onHelp },
-    { key: 'logout', label: t('more_logout'), icon: 'log-out-outline', onPress: onLogout },
+    { key: 'profile', label: t('more_profile'), emoji: '👤', onPress: onProfile },
+    { key: 'cookbooks', label: t('more_cookbooks'), emoji: '📚', onPress: onCookbooks },
+    { key: 'import', label: t('importNavText'), emoji: '📥', onPress: onImport },
+    { key: 'help', label: t('more_help'), emoji: '❓', onPress: onHelp },
+    { key: 'logout', label: t('more_logout'), emoji: '🚪', onPress: onLogout },
   ];
 
   return (
@@ -173,8 +173,8 @@ function MoreSheet({ visible, onClose, onProfile, onCookbooks, onImport, onHelp,
                 onPress={item.onPress}
                 style={styles.moreAction}
               >
-                <Ionicons name={item.icon} size={20} color={colors.orange} />
-                <Text style={styles.moreActionText}>{item.label}</Text>
+                <Text style={styles.moreActionEmoji}>{item.emoji}</Text>
+                <Text style={styles.moreActionText} numberOfLines={1} adjustsFontSizeToFit>{item.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -729,11 +729,11 @@ const styles = StyleSheet.create({
   // Same look as the app's feature screens: forest header band, Playfair title in
   // gold, parchment body.
   moreSheet: {
-    backgroundColor: colors.parch,
+    backgroundColor: colors.forest,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
-    paddingBottom: 28,
+    paddingBottom: 34,
     ...shadow.strong,
   },
   moreHeader: {
@@ -776,29 +776,31 @@ const styles = StyleSheet.create({
     color: '#F0E0B0',
     marginTop: -2,
   },
+  // Buttons match the bottom tab bar: emoji icon over a small uppercase label, on forest.
   moreGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    paddingHorizontal: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    paddingTop: 2,
   },
   moreAction: {
-    width: '48%',
-    minHeight: 48,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E6DCCF',
-    backgroundColor: '#FFF',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: 'row',
+    flex: 1,
+    height: 70,
+    paddingTop: 6,
+    paddingHorizontal: 2,
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
+  },
+  moreActionEmoji: {
+    fontSize: 22,
   },
   moreActionText: {
-    fontSize: 13,
-    fontFamily: 'Jost-Bold',
-    color: '#20140B',
+    marginTop: 2,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    color: colors.sage,
   },
 
 });
