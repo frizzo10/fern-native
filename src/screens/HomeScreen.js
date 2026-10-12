@@ -70,6 +70,8 @@ import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants
 const WEEKLY_REVIEW_LAST_SHOWN_KEY = 'fern_weekly_review_last_shown';
 import useLanguage from '../hooks/useLanguage';
 import LanguageModal from '../components/modals/LanguageModal';
+import FamilyAddSavedMealModal from '../components/modals/FamilyAddSavedMealModal';
+import FamilyAddActivityModal from '../components/modals/FamilyAddActivityModal';
 import { useAccountModal } from '../services/AccountModalContext';
 import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
@@ -359,6 +361,44 @@ export default function HomeScreen({ user, route }) {
       .then(() => pushChangedFromStorage({ activities: nextActivities }))
       .then(() => pull())
       .catch((e) => console.log('[home] failed to sync activities', e?.message || e));
+  };
+
+  // "Add a meal" / "Add an activity" / a tapped day on the new Home: the add happens
+  // right here (same pickers as Family Hub, same save helpers) instead of navigating away.
+  const [homeAddMeal, setHomeAddMeal] = useState(null); // { dateKey, slot, slotLabel } | null
+  const [homeAddActivityDateKey, setHomeAddActivityDateKey] = useState(null); // dateKey | null
+
+  const handleHomeAddForDay = (dateKey, kind) => {
+    // Wait for any sheet that was just dismissed (the day sheet) to finish closing --
+    // presenting a native Modal/Alert mid-dismiss is silently dropped on iOS.
+    setTimeout(() => {
+      if (kind === 'activity') {
+        setHomeAddActivityDateKey(dateKey);
+        return;
+      }
+      const pick = (slot, slotLabel) => setTimeout(() => setHomeAddMeal({ dateKey, slot, slotLabel }), 400);
+      Alert.alert(t('home_add_meal'), undefined, [
+        { text: t('meal_planner_slot_breakfast'), onPress: () => pick('Breakfast', t('meal_planner_slot_breakfast')) },
+        { text: t('meal_planner_slot_lunch'), onPress: () => pick('Lunch', t('meal_planner_slot_lunch')) },
+        { text: t('meal_planner_slot_dinner'), onPress: () => pick('Dinner', t('meal_planner_slot_dinner')) },
+        { text: t('cancel_btn'), style: 'cancel' },
+      ]);
+    }, 400);
+  };
+
+  const handleHomeSelectSavedMeal = (recipe) => {
+    if (!homeAddMeal) return;
+    const { dateKey, slot } = homeAddMeal;
+    const mealPlan = data.mealPlan || {};
+    const dayMeals = mealPlan[dateKey] || [];
+    const newEntry = { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: recipe.image || null };
+    persistFamilyMealPlan({ ...mealPlan, [dateKey]: [...dayMeals, newEntry] });
+    setHomeAddMeal(null);
+  };
+
+  const handleHomeAddActivity = (activity) => {
+    persistFamilyActivities([...(Array.isArray(data.activities) ? data.activities : []), activity]);
+    setHomeAddActivityDateKey(null);
   };
 
   const handleWeeklyReviewDone = () => {
@@ -2311,7 +2351,7 @@ export default function HomeScreen({ user, route }) {
                 onOpenFamily={() => navigation.navigate('Family')}
                 onPlanTonight={() => navigation.navigate('Family')}
                 onFamilyLayout={(e) => { homeSectionY.current.weekPanel = e.nativeEvent.layout.y; }}
-                onAddForDay={(dateKey, kind) => navigation.navigate('Family', { addAction: kind, addDateKey: dateKey, requestKey: Date.now() })}
+                onAddForDay={handleHomeAddForDay}
                 tools={newHomeTools}
                 libraryItems={newHomeLibrary}
               />
@@ -2744,6 +2784,22 @@ export default function HomeScreen({ user, route }) {
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
+
+      <FamilyAddSavedMealModal
+        visible={Boolean(homeAddMeal)}
+        slotLabel={homeAddMeal?.slotLabel}
+        savedRecipes={data.recipes}
+        onClose={() => setHomeAddMeal(null)}
+        onSelect={handleHomeSelectSavedMeal}
+      />
+
+      <FamilyAddActivityModal
+        visible={Boolean(homeAddActivityDateKey)}
+        dayOptions={weekDays.map((d) => ({ dateKey: d.key, label: formatDayLabel(d.key) }))}
+        initialDateKey={homeAddActivityDateKey}
+        onClose={() => setHomeAddActivityDateKey(null)}
+        onAdd={handleHomeAddActivity}
+      />
 
       <LanguageModal
         visible={isLanguageModalOpen}
