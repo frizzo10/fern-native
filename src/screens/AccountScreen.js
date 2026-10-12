@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, AppState, Linking, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
@@ -72,6 +73,45 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
     const [fridgeChallengeDone, setFridgeChallengeDone] = useState(false);
     const [fernVoiceEnabled, setFernVoiceEnabled] = useState(true);
     const [lockedTier, setLockedTier] = useState(null);
+    const [notifGranted, setNotifGranted] = useState(false);
+
+    // Current OS notification permission; re-checked when this page opens and when
+    // the app returns from iPhone Settings.
+    const refreshNotifStatus = async () => {
+        try {
+            const { status } = await Notifications.getPermissionsAsync();
+            setNotifGranted(status === 'granted');
+        } catch {
+            // leave as-is
+        }
+    };
+
+    useEffect(() => {
+        if (!visible) return undefined;
+        refreshNotifStatus();
+        const sub = AppState.addEventListener('change', (state) => {
+            if (state === 'active') refreshNotifStatus();
+        });
+        return () => sub.remove();
+    }, [visible]);
+
+    const handleNotificationsPress = async () => {
+        try {
+            const current = await Notifications.getPermissionsAsync();
+            if (current.status !== 'granted' && current.canAskAgain) {
+                const result = await Notifications.requestPermissionsAsync();
+                setNotifGranted(result.status === 'granted');
+                return;
+            }
+        } catch {
+            // fall through to the Settings prompt
+        }
+        // Already on, or previously declined: iOS only lets the user change it in Settings.
+        Alert.alert(t('account_notifications'), t('account_notifications_settings_desc'), [
+            { text: t('cancel_btn'), style: 'cancel' },
+            { text: t('account_open_settings'), onPress: () => Linking.openSettings() },
+        ]);
+    };
 
     useEffect(() => {
         if (!visible) return;
@@ -302,6 +342,22 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             >
                                 <Text style={fernVoiceEnabled ? styles.statePillText : styles.statePillOffText}>
                                     {fernVoiceEnabled ? `✓ ${t('account_on')}` : t('account_enable')}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.settingCard}>
+                            <View style={styles.settingTextWrap}>
+                                <Text style={styles.settingTitle}>🔔 {t('account_notifications')}</Text>
+                                <Text style={styles.settingDesc}>{notifGranted ? t('account_notifications_on_desc') : t('account_notifications_off_desc')}</Text>
+                            </View>
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                onPress={handleNotificationsPress}
+                                style={notifGranted ? styles.statePill : styles.statePillOff}
+                            >
+                                <Text style={notifGranted ? styles.statePillText : styles.statePillOffText}>
+                                    {notifGranted ? `✓ ${t('account_on')}` : t('account_enable')}
                                 </Text>
                             </TouchableOpacity>
                         </View>

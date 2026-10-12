@@ -99,7 +99,7 @@ Nearly every premium feature is a controlled modal component in `src/components/
 ## Translations (EN/ES)
 
 All UI copy goes through a single i18n module, not per-screen strings:
-- `src/constants/translations.js` — flat `{ en: {...}, es: {...} }` dictionary, **961 keys per locale**, verified key-for-key parity. A missing key on one side falls back silently to English via `useLanguage`'s `t()`, so a typo'd key won't crash, it'll just render the wrong language.
+- `src/constants/translations.js` — flat `{ en: {...}, es: {...} }` dictionary, **966 keys per locale**, verified key-for-key parity. A missing key on one side falls back silently to English via `useLanguage`'s `t()`, so a typo'd key won't crash, it'll just render the wrong language.
 - `src/services/LanguageContext.js` — `LanguageProvider` (wraps the app in `App.js`) holds `locale` state, persists the choice to `AsyncStorage` under `fern_user_locale`, and exposes `t(key, params)` which does literal `{paramName}` substitution (e.g. `t('item_added_success', { item: itemName })` for a string like `"{item} was added..."`).
 - `src/hooks/useLanguage.js` — thin `useContext` wrapper; every screen/component that renders user-facing text calls `const { t } = useLanguage();` directly (each component gets its own hook call — `t` is not threaded down as a prop, except `LanguageModal` which HomeScreen passes `t` into explicitly).
 - `src/components/modals/LanguageModal.js` — the EN/ES picker sheet, opened from a button on `HomeScreen`.
