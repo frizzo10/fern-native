@@ -289,6 +289,7 @@ export default function PersonalShopperModal({
 
     const [phase, setPhase] = useState('intro'); // intro | chat
     const [messages, setMessages] = useState([]);
+    const [prefText, setPrefText] = useState('');
     const [step, setStep] = useState('dinners');
     const [typing, setTyping] = useState(false);
     const [chips, setChips] = useState([]);
@@ -833,6 +834,34 @@ export default function PersonalShopperModal({
         setChips(q.chips.map(([value, labelKey]) => ({ label: t(labelKey), intent: `ans:${value}` })));
     };
 
+    // Remembered answers shown as an editable list: change one at a time, then continue.
+    const prefValueText = (key, value) => {
+        if (!value) return t('psp_prefs_not_set');
+        if (key === 'householdSize') return t(Number(value) === 1 ? 'psp_prefs_person_one' : 'psp_prefs_people_n', { n: value });
+        if (key === 'dietary') return value === 'none' ? t('psp_about_diet_none') : value;
+        if (key === 'dinnersWanted') return t('psp_prefs_dinners_n', { n: value });
+        return value;
+    };
+
+    const setPref = (key, value) => {
+        const run = session.current;
+        run.profile[key] = value;
+        setPrefText('');
+        setPanel((prev) => (prev?.type === 'prefs' ? { ...prev, profile: { ...prev.profile, [key]: value }, editing: null } : prev));
+    };
+
+    const submitPrefText = (q) => {
+        const value = q.parse(prefText);
+        if (!value) return;
+        setPref(q.key, value);
+    };
+
+    const confirmPrefs = async () => {
+        userSays(t('psp_prefs_continue_btn'));
+        setPanel(null);
+        await finishAbout();
+    };
+
     const startAbout = async () => {
         const run = session.current;
         setPanel(null);
@@ -842,9 +871,10 @@ export default function PersonalShopperModal({
         if (run !== session.current) return;
         if (saved && saved.householdSize && saved.dinnersWanted) {
             run.profile = { ...saved };
-            const diet = saved.dietary && saved.dietary !== 'none' ? saved.dietary : t('psp_about_diet_none').toLowerCase();
-            say(t('psp_about_remembered', { people: saved.householdSize, diet, dinners: saved.dinnersWanted }));
-            setChips([{ label: t('psp_about_keep_btn'), intent: 'ans:keep' }, { label: t('psp_about_change_btn'), intent: 'ans:change' }]);
+            say(t('psp_prefs_intro'));
+            setChips([]);
+            setPrefText('');
+            setPanel({ type: 'prefs', profile: { ...saved }, editing: null });
             return;
         }
         say(t('psp_about_intro'));
@@ -1326,6 +1356,67 @@ export default function PersonalShopperModal({
             );
         }
 
+        if (panel.type === 'prefs') {
+            const qs = aboutQuestions();
+            const rows = [
+                ['householdSize', t('psp_prefs_people_label'), '👨‍👩‍👧'],
+                ['dietary', t('psp_prefs_diet_label'), '🥗'],
+                ['dinnersWanted', t('psp_prefs_dinners_label'), '🍽️'],
+                ['vibe', t('psp_prefs_vibe_label'), '✨'],
+            ];
+            return (
+                <View style={styles.prefsCard}>
+                    <Text style={styles.prefsHeading}>{t('psp_prefs_heading')}</Text>
+                    {rows.map(([key, label, icon]) => {
+                        const q = qs.find((x) => x.key === key);
+                        const open = panel.editing === key;
+                        return (
+                            <View key={key} style={styles.prefsRow}>
+                                <View style={styles.prefsRowTop}>
+                                    <Text style={styles.prefsIcon}>{icon}</Text>
+                                    <View style={styles.checkRowText}>
+                                        <Text style={styles.prefsLabel}>{label}</Text>
+                                        <Text style={styles.prefsValue}>{prefValueText(key, panel.profile[key])}</Text>
+                                    </View>
+                                    <TouchableOpacity style={styles.prefsChangeBtn} activeOpacity={0.8} onPress={() => { setPrefText(''); setPanel((prev) => (prev?.type === 'prefs' ? { ...prev, editing: open ? null : key } : prev)); }}>
+                                        <Text style={styles.prefsChangeText}>{open ? t('psp_prefs_cancel') : t('psp_prefs_change')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                                {open && q ? (
+                                    <View style={styles.prefsEdit}>
+                                        <View style={styles.saleChipRow}>
+                                            {q.chips.map(([value, labelKey]) => (
+                                                <TouchableOpacity key={value} style={styles.prefsOption} activeOpacity={0.8} onPress={() => setPref(key, value)}>
+                                                    <Text style={styles.prefsOptionText}>{t(labelKey)}</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                        <View style={styles.addItemRow}>
+                                            <TextInput
+                                                value={prefText}
+                                                onChangeText={setPrefText}
+                                                placeholder={t('psp_prefs_type_own')}
+                                                placeholderTextColor="#B0AEA9"
+                                                style={styles.addItemInput}
+                                                returnKeyType="done"
+                                                onSubmitEditing={() => submitPrefText(q)}
+                                            />
+                                            <TouchableOpacity style={styles.addItemBtn} activeOpacity={0.85} onPress={() => submitPrefText(q)}>
+                                                <Text style={styles.addItemBtnText}>✓</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                ) : null}
+                            </View>
+                        );
+                    })}
+                    <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={confirmPrefs}>
+                        <Text style={styles.orangeBtnText}>{t('psp_prefs_continue_btn')}</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
         if (panel.type === 'scancheck') {
             return (
                 <View style={styles.panelCard}>
@@ -1785,6 +1876,18 @@ const styles = StyleSheet.create({
     previewLine: { fontFamily: 'Jost-Regular', fontSize: 13, color: colors.ink, marginBottom: 2 },
     previewSale: { fontFamily: 'Jost-Bold', color: '#B85A12' },
     scanWarn: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#B85A12', marginTop: 8 },
+    prefsCard: { borderWidth: 2, borderColor: colors.forest, borderRadius: 16, padding: 14, marginBottom: 12, backgroundColor: '#fff' },
+    prefsHeading: { fontFamily: 'Playfair-Bold', fontSize: 20, color: colors.forest, marginBottom: 6 },
+    prefsRow: { paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.sage },
+    prefsRowTop: { flexDirection: 'row', alignItems: 'center' },
+    prefsIcon: { fontSize: 24, marginRight: 10 },
+    prefsLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 0.8, color: colors.brown, textTransform: 'uppercase' },
+    prefsValue: { fontFamily: 'Jost-Bold', fontSize: 18, color: colors.ink, marginTop: 1 },
+    prefsChangeBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 16, borderWidth: 1.5, borderColor: colors.forest },
+    prefsChangeText: { fontFamily: 'Jost-Bold', fontSize: 12, color: colors.forest },
+    prefsEdit: { marginTop: 8 },
+    prefsOption: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: 'rgba(31,64,40,0.1)', marginRight: 6, marginBottom: 6 },
+    prefsOptionText: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: colors.forest },
     panelTitle: { fontFamily: 'Playfair-Bold', fontSize: 17, color: colors.forest, marginBottom: 6 },
     panelDesc: { fontFamily: 'Jost-Regular', fontSize: 13, lineHeight: 19, color: colors.brown, marginBottom: 10 },
 
