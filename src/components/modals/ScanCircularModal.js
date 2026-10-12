@@ -296,6 +296,7 @@ export default function ScanCircularModal({
                                     <Text style={styles.tipBannerIcon}>📄</Text>
                                     <Text style={styles.tipBannerText}>{t('scan_circular_tip_desc')}</Text>
                                 </View>
+                                <Text style={styles.shareNote}>{t('scan_share_note')}</Text>
 
                                 <View style={styles.sourceRow}>
                                     <TouchableOpacity
@@ -447,6 +448,13 @@ const styles = StyleSheet.create({
     },
     tipBannerIcon: {
         fontSize: 18,
+    },
+    shareNote: {
+        marginTop: 10,
+        color: '#6B4A26',
+        fontFamily: 'Jost-Regular',
+        fontSize: 12,
+        lineHeight: 17,
     },
     tipBannerText: {
         flex: 1,

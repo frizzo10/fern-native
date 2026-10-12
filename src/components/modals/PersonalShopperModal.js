@@ -27,6 +27,7 @@ import {
 } from '../../services/personalShopperService';
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
 import { scanCircular } from '../../services/scanCircularService';
+import { fetchStoreDeals } from '../../services/storeDealsService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoPickerService';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
 import { buildRollingWeekDateKeys, formatDayLabel, normalizeSlot, parseDateKey } from '../../utils/familyDates';
@@ -64,6 +65,7 @@ function newSession() {
         startReply: '',     // Fern's opening message, held back until the flyer step is done
         profile: {},        // answers to the "about your household" questions: { householdSize, dietary, dinnersWanted, vibe }
         aboutDone: false,
+        storedDeals: [],    // this week's ad(s) already on file for the user's saved stores: [{ store, scannedAt, deals[] }]
         aboutQ: 0,
         step: 'staples',
     };
@@ -332,7 +334,31 @@ export default function PersonalShopperModal({
             if (run !== session.current) return;
             run.startReply = t('psp_staples_prompt');
         }
+        // Has anyone already scanned this week's ad for the user's saved stores? Then Fern
+        // already knows the sales and the user doesn't need to photograph anything.
+        const known = await fetchStoreDeals({
+            token,
+            stores: (Array.isArray(data?.userStores) ? data.userStores : []).map((st) => st?.name),
+        });
+        if (run !== session.current) return;
         setTyping(false);
+        if (known.length) {
+            run.storedDeals = known.map((k) => ({
+                store: k.store,
+                scannedAt: k.scannedAt,
+                deals: k.items.slice(0, 15).map((it) => ({ name: it.name, salePrice: it.price || '', isBogo: Boolean(it.isBogo), store: k.store })),
+            }));
+            const total = known.reduce((n, k) => n + k.itemCount, 0);
+            const newest = known.map((k) => new Date(k.scannedAt).getTime()).filter(Boolean).sort((a, b) => b - a)[0];
+            const days = newest ? Math.max(0, Math.floor((Date.now() - newest) / 86400000)) : 0;
+            const when = days === 0 ? t('psp_when_today') : days === 1 ? t('psp_when_yesterday') : t('psp_when_days_ago', { n: days });
+            say(t('psp_deals_known', { stores: known.map((k) => k.store).join(', '), n: total, when }));
+            setChips([
+                { label: t('psp_deals_use_btn'), intent: 'usedeals' },
+                { label: t('psp_deals_scan_btn'), intent: 'scannew' },
+            ]);
+            return;
+        }
         say(run.dealsStore ? t('psp_circular_prompt', { store: run.dealsStore }) : t('psp_circular_prompt_nostore'));
         setPanel({ type: 'circular' });
     };
@@ -389,12 +415,22 @@ export default function PersonalShopperModal({
         // Best deals first; the server takes up to 30.
         const items = (scan.items || []).filter((item) => item.name);
         const ranked = [...items].sort((a, b) => (Number(b.cookable) - Number(a.cookable)) || (b.dealScore - a.dealScore));
-        run.deals = ranked.slice(0, 30).map((item) => ({
+        const scannedStore = String(scan.store || '').trim();
+        const scannedDeals = ranked.slice(0, 30).map((item) => ({
             name: item.name,
             salePrice: item.salePrice || '',
             isBogo: Boolean(item.isBogo),
+            ...(scannedStore && run.storedDeals.length ? { store: scannedStore } : {}),
         }));
-        if (scan.store) run.dealsStore = scan.store;
+        // Deals already on file for the user's OTHER stores stay in, so the plan can compare stores.
+        const sameStore = (a) => {
+            const x = String(a || '').toLowerCase();
+            const y = scannedStore.toLowerCase();
+            return Boolean(x && y) && (x.includes(y) || y.includes(x));
+        };
+        const otherStores = run.storedDeals.filter((k) => !sameStore(k.store)).flatMap((k) => k.deals);
+        run.deals = [...scannedDeals, ...otherStores];
+        run.dealsStore = otherStores.length ? '' : scannedStore;
 
         if (!run.deals.length) {
             say(t('psp_circular_none'));
@@ -885,6 +921,17 @@ export default function PersonalShopperModal({
         setChips([]);
         userSays(text);
 
+        if (stepNow === 'circular' && run.storedDeals.length && (intent === 'usedeals' || intent === 'yes')) {
+            run.deals = run.storedDeals.flatMap((k) => k.deals);
+            run.dealsStore = run.storedDeals.length === 1 ? run.storedDeals[0].store : '';
+            proceedToStaplesAfterCircular();
+            return;
+        }
+        if (stepNow === 'circular' && intent === 'scannew') {
+            say(t('psp_circular_prompt_nostore'));
+            setPanel({ type: 'circular' });
+            return;
+        }
         if (stepNow === 'about') {
             await handleAboutAnswer(text, explicitIntent);
             return;
@@ -971,6 +1018,7 @@ export default function PersonalShopperModal({
         if (panel.type === 'circular') {
             return (
                 <View style={styles.panelCard}>
+                    <Text style={styles.shareNote}>{t('scan_share_note')}</Text>
                     <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={() => scanFlyer(true)}>
                         <Text style={styles.orangeBtnText}>{t('psp_circular_take_btn')}</Text>
                     </TouchableOpacity>
@@ -1250,6 +1298,7 @@ export default function PersonalShopperModal({
 }
 
 const styles = StyleSheet.create({
+    shareNote: { fontFamily: 'Jost-Regular', fontSize: 12, lineHeight: 17, color: '#6B4A26', marginBottom: 10 },
     screen: { flex: 1, backgroundColor: colors.parch },
     header: {
         backgroundColor: colors.forest,
