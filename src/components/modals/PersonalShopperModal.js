@@ -40,6 +40,7 @@ const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frid
 
 const STEP_META = {
     circular: { n: 1, labelKey: 'psp_label_circular' },
+    about: { n: 1, labelKey: 'psp_label_about' },
     staples: { n: 1, labelKey: 'psp_label_staples' },
     dinners: { n: 2, labelKey: 'psp_label_dinners' },
     hubcheck: { n: 3, labelKey: 'psp_label_week' },
@@ -61,6 +62,9 @@ function newSession() {
         deals: [],          // sale items scanned from the store flyer (Pro Max arrival flow)
         dealsStore: '',
         startReply: '',     // Fern's opening message, held back until the flyer step is done
+        profile: {},        // answers to the "about your household" questions: { householdSize, dietary, dinnersWanted, vibe }
+        aboutDone: false,
+        aboutQ: 0,
         step: 'staples',
     };
 }
@@ -206,7 +210,7 @@ export default function PersonalShopperModal({
                 forecast: run.forecast,
                 activities,
                 mealPlan,
-                userProfile: data?.userProfile,
+                userProfile: { ...(data?.userProfile || {}), ...(run.profile || {}) },
                 locale,
                 deals: run.deals,
                 dealsStore: run.dealsStore,
@@ -227,7 +231,7 @@ export default function PersonalShopperModal({
                 const hasDinner = (Array.isArray(mealPlan[dateKey]) ? mealPlan[dateKey] : []).some((entry) => normalizeSlot(entry) === 'dinner');
                 if (hasDinner) return;
                 seen.add(dateKey);
-                items.push({ ...suggestion, dateKey, dayLabel: weekdayName(dateKey), checked: true });
+                items.push({ ...suggestion, dateKey, dayLabel: weekdayName(dateKey), checked: items.length < (parseInt(run.profile?.dinnersWanted, 10) || 99) });
             });
 
             if (!items.length) {
@@ -336,6 +340,11 @@ export default function PersonalShopperModal({
     // After the flyer step (scanned or skipped): Fern's usual opening + staples question.
     const proceedToStaplesAfterCircular = () => {
         const run = session.current;
+        // A few quick questions about the household come before staples/dinners.
+        if (!run.aboutDone) {
+            startAbout();
+            return;
+        }
         setPanel(null);
         goStep('staples');
         say(run.startReply || t('psp_staples_prompt'));
@@ -526,6 +535,92 @@ export default function PersonalShopperModal({
     const changeInFamilyHub = () => {
         onClose();
         navigation?.navigate('Family');
+    };
+
+    // ── "about your household": a few tap-to-answer questions before planning ──
+
+    const ABOUT_PREFS_KEY = 'fern_shopper_prefs'; // device-only, remembers the last answers
+
+    const aboutQuestions = () => [
+        {
+            key: 'householdSize',
+            prompt: t('psp_about_q_people'),
+            chips: [['1', 'psp_about_people_1'], ['2', 'psp_about_people_2'], ['4', 'psp_about_people_4'], ['6', 'psp_about_people_6']],
+            parse: (text) => { const n = parseInt(String(text).replace(/\D+/g, ''), 10); return n > 0 && n < 30 ? String(n) : null; },
+        },
+        {
+            key: 'dietary',
+            prompt: t('psp_about_q_diet'),
+            chips: [['none', 'psp_about_diet_none'], ['vegetarian', 'psp_about_diet_vegetarian'], ['gluten-free', 'psp_about_diet_glutenfree'], ['dairy-free', 'psp_about_diet_dairyfree'], ['nut-free', 'psp_about_diet_nutfree']],
+            parse: (text) => String(text).trim().slice(0, 80) || null,
+        },
+        {
+            key: 'dinnersWanted',
+            prompt: t('psp_about_q_dinners'),
+            chips: [['3', 'psp_about_dinners_3'], ['5', 'psp_about_dinners_5'], ['7', 'psp_about_dinners_7']],
+            parse: (text) => { const n = parseInt(String(text).replace(/\D+/g, ''), 10); return n >= 1 && n <= 7 ? String(n) : null; },
+        },
+        {
+            key: 'vibe',
+            prompt: t('psp_about_q_vibe'),
+            chips: [['quick and easy weeknight meals', 'psp_about_vibe_quick'], ['comfort food', 'psp_about_vibe_comfort'], ['new and adventurous dishes', 'psp_about_vibe_new']],
+            parse: (text) => String(text).trim().slice(0, 80) || null,
+        },
+    ];
+
+    const askAboutQuestion = (run) => {
+        const q = aboutQuestions()[run.aboutQ];
+        if (!q) return;
+        say(q.prompt);
+        setChips(q.chips.map(([value, labelKey]) => ({ label: t(labelKey), intent: `ans:${value}` })));
+    };
+
+    const startAbout = async () => {
+        const run = session.current;
+        setPanel(null);
+        goStep('about');
+        run.aboutQ = 0;
+        const saved = await readJson(ABOUT_PREFS_KEY, null);
+        if (run !== session.current) return;
+        if (saved && saved.householdSize && saved.dinnersWanted) {
+            run.profile = { ...saved };
+            const diet = saved.dietary && saved.dietary !== 'none' ? saved.dietary : t('psp_about_diet_none').toLowerCase();
+            say(t('psp_about_remembered', { people: saved.householdSize, diet, dinners: saved.dinnersWanted }));
+            setChips([{ label: t('psp_about_keep_btn'), intent: 'ans:keep' }, { label: t('psp_about_change_btn'), intent: 'ans:change' }]);
+            return;
+        }
+        say(t('psp_about_intro'));
+        askAboutQuestion(run);
+    };
+
+    const finishAbout = async () => {
+        const run = session.current;
+        run.aboutDone = true;
+        try {
+            await AsyncStorage.setItem(ABOUT_PREFS_KEY, JSON.stringify(run.profile));
+        } catch (e) {
+            console.log('[personal-shopper] could not save household answers', e?.message || e);
+        }
+        say(t('psp_about_done'));
+        proceedToStaplesAfterCircular();
+    };
+
+    const handleAboutAnswer = async (text, explicitIntent) => {
+        const run = session.current;
+        const answered = typeof explicitIntent === 'string' && explicitIntent.startsWith('ans:') ? explicitIntent.slice(4) : null;
+
+        if (answered === 'keep') { await finishAbout(); return; }
+        if (answered === 'change') { run.profile = {}; run.aboutQ = 0; askAboutQuestion(run); return; }
+
+        const q = aboutQuestions()[run.aboutQ];
+        if (!q) { await finishAbout(); return; }
+        // A chip carries its value; a typed reply is parsed. Unparseable replies just re-ask.
+        const value = answered != null ? answered : q.parse(text);
+        if (!value) { askAboutQuestion(run); return; }
+        run.profile[q.key] = value;
+        run.aboutQ += 1;
+        if (run.aboutQ >= aboutQuestions().length) await finishAbout();
+        else askAboutQuestion(run);
     };
 
     // ── step 1: staples ──────────────────────────────────────────────────────
@@ -789,6 +884,11 @@ export default function PersonalShopperModal({
         setInput('');
         setChips([]);
         userSays(text);
+
+        if (stepNow === 'about') {
+            await handleAboutAnswer(text, explicitIntent);
+            return;
+        }
 
         if (intent === 'retry') {
             await suggestDinners(run);
