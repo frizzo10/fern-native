@@ -538,10 +538,22 @@ export default function PersonalShopperModal({
             startAbout();
             return;
         }
+        showPlanAndStaples(run);
+    };
+
+    // Fern's own plan outline (not the server's generic opener, which didn't know the
+    // user's dinner count) followed by the pantry check as a tick-list.
+    const showPlanAndStaples = (run) => {
+        const n = Number(run.profile?.dinnersWanted) || 5;
+        const lines = [t('psp_plan_outline_head', { n }), t('psp_plan_outline_sides')];
+        if (run.dealsStore) lines.push(t('psp_plan_outline_deals', { store: run.dealsStore }));
+        lines.push(t('psp_plan_outline_choose'));
         setPanel(null);
         goStep('staples');
-        say(run.startReply || t('psp_staples_prompt'));
-        setChips(stapleChips());
+        say(lines.join('\n'));
+        say(t('psp_staples_prompt'));
+        setChips([{ label: t('psp_staples_yes_btn'), intent: 'yes' }]);
+        setPanel({ type: 'staples', items: STAPLES.map((name) => ({ name, checked: false })) });
     };
 
     const scanFlyer = async (fromCamera) => {
@@ -934,10 +946,7 @@ export default function PersonalShopperModal({
     ];
 
     const startStaples = () => {
-        goStep('staples');
-        setPanel(null);
-        say(t('psp_staples_prompt'));
-        setChips(stapleChips());
+        showPlanAndStaples(session.current);
     };
 
     // Staples are answered first; dinners follow.
@@ -1545,7 +1554,9 @@ export default function PersonalShopperModal({
 
         if (panel.type === 'staples') {
             return (
-                <View style={styles.panelCard}>
+                <View style={styles.prefsCard}>
+                    <Text style={styles.prefsHeading}>{t('psp_staples_heading')}</Text>
+                    <Text style={styles.prefsLabel}>{t('psp_staples_sub')}</Text>
                     {panel.items.map((item, index) => (
                         <TouchableOpacity key={item.name} style={styles.checkRow} activeOpacity={0.8} onPress={() => togglePanelItem(index)}>
                             <Checkbox checked={item.checked} />
