@@ -3,16 +3,18 @@
 // but this still accepts several likely aliases per field (mirrors the
 // defensive style used by normalizeWinePairing / normalizeBoardItem) so a
 // renamed key degrades to an empty string instead of crashing.
+const cleanMoney = (v) => String(v || '').replace(/\$+/g, '$').trim(); // the catalog sometimes sends "$$150 OFF"
+
 export function normalizeCoupon(raw, index = 0) {
     const id = String(raw?.id ?? raw?.couponId ?? raw?.uuid ?? raw?.code ?? `coupon-${index}`);
 
     return {
         id,
         store: String(raw?.store || raw?.storeName || raw?.retailer || raw?.brand || '').trim(),
-        title: String(raw?.title || raw?.name || raw?.offer || raw?.headline || '').trim(),
+        title: cleanMoney(raw?.title || raw?.name || raw?.offer || raw?.headline),
         category: String(raw?.category || raw?.type || 'Other').trim(),
-        discountLabel: String(raw?.discountLabel || raw?.badge || raw?.discount || raw?.savings || raw?.offerLabel || '').trim(),
-        description: String(raw?.description || raw?.details || raw?.subtitle || '').trim(),
+        discountLabel: cleanMoney(raw?.discountLabel || raw?.badge || raw?.discount || raw?.savings || raw?.offerLabel),
+        description: cleanMoney(raw?.description || raw?.details || raw?.subtitle),
         image: raw?.image || raw?.imageUrl || raw?.photo || null,
         expiresAt: String(raw?.expiresAt || raw?.expiry || raw?.validUntil || raw?.expirationDate || '').trim(),
         code: String(raw?.code || raw?.barcode || raw?.upc || id || '').trim(),

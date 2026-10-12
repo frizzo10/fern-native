@@ -198,10 +198,31 @@ export function couponItemName(coupon) {
 
 // Coupons big enough to be worth putting an item on the list for, whether or not the item is
 // already on it. Any category (it's an offer to buy the item, not a match to a recipe ingredient). Biggest first.
-export function tooGoodCoupons(coupons, { excludeIds = [], limit = 4 } = {}) {
+// Things nobody is grocery shopping for (devices, delivery fees, memberships...).
+const NOT_GROCERY_COUPON = /(smart lock|inhome|in-home|device|delivery|pickup|pick-up|membership|walmart\+|subscription|gift card|insurance|download|app only|new customers?|first order|streaming)/i;
+// Only worth showing when something on the list matches them (a baby coupon is noise for everyone else).
+const NICHE_COUPON_CATEGORIES = ['baby & kids', 'pet care', 'health & beauty'];
+
+const storeWords = (name) => String(name || '').toLowerCase().split(/\s[-–—|]\s|#/)[0].replace(/[^a-z0-9\s]/g, ' ').trim();
+
+// Coupons big enough to be worth putting an item on the list for, whether or not the item is
+// already on it. Any category, but only ones this shopper could plausibly use: a retailer coupon must be
+// for one of their saved stores (manufacturer coupons with no store work anywhere), non-grocery offers are
+// dropped, and baby / pet / health & beauty coupons need a matching item on the list. Biggest first.
+export function tooGoodCoupons(coupons, { excludeIds = [], limit = 4, items = [], stores = [] } = {}) {
     const skip = new Set(excludeIds.map(String));
+    const mine = (stores || []).map((st) => storeWords(st?.name || st)).filter(Boolean);
+    const storeOk = (c) => {
+        const cs = storeWords(c.store);
+        if (!cs || !mine.length) return true;
+        return mine.some((m) => m.includes(cs) || cs.includes(m));
+    };
+    const listed = (c) => (items || []).some((it) => couponMatchLevel(it.text, c));
     return (coupons || [])
         .filter((c) => !skip.has(String(c.id)))
+        .filter((c) => !NOT_GROCERY_COUPON.test(`${c.title} ${c.discountLabel}`))
+        .filter(storeOk)
+        .filter((c) => !NICHE_COUPON_CATEGORIES.includes(String(c.category || '').trim().toLowerCase()) || listed(c))
         .map((c) => {
             const value = parseCouponValue(`${c.discountLabel || ''} ${c.title || ''}`);
             const free = /\bfree\b/i.test(`${c.discountLabel || ''} ${c.title || ''}`);

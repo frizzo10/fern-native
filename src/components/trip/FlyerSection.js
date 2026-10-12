@@ -10,7 +10,7 @@ import { loadWeekDeals, replaceWeekDeals, saveWeekDeals } from '../../utils/savi
 // Step 2 of the shopping trip: get this week's flyer into the app. Either reuse the ad other
 // Fern shoppers already scanned for the user's saved stores, or scan a photo of the paper/online flyer.
 // Whatever is read is remembered for the week (fern_week_deals) and shown in "This week's sales".
-export default function FlyerSection({ user, stores, t, weekDeals, onDealsChanged }) {
+export default function FlyerSection({ user, stores, t, weekDeals, onDealsChanged, onScanned }) {
   const [shared, setShared] = useState([]); // [{ store, scannedAt, itemCount, items }]
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState(null); // { store, validDates, count, before }
@@ -38,7 +38,8 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
     })));
     await saveWeekDeals(deals);
     setShared([]);
-    onDealsChanged?.();
+    await onDealsChanged?.();
+    onScanned?.();
   };
 
   const scan = async (fromCamera) => {
@@ -59,7 +60,8 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
       }
       setLast({ store: String(result.store || '').trim(), validDates: String(result.validDates || '').trim(), count: items.length, before });
       setShared([]);
-      onDealsChanged?.();
+      await onDealsChanged?.();
+      onScanned?.();
     } catch (e) {
       console.log('[trip] flyer scan failed', e?.message || e);
       Alert.alert(t('scan_circular_scan_failed_title'), t('scan_circular_scan_failed_desc'));

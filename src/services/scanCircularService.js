@@ -211,7 +211,7 @@ export async function scanCircular({ userId, base64, mimeType, token, zipCode })
     // Circular sheet). Never blocks or fails the scan itself.
     archiveCircularScan({ storeName, items });
     // Also remembered for the week so the Shopping tab can show "This week's sales" (every plan, not just Pro Max).
-    saveWeekDeals(items.map((item) => ({ ...item, store: storeName })));
+    await saveWeekDeals(items.map((item) => ({ ...item, store: storeName })));
 
     return {
         store: storeName,

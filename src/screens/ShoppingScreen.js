@@ -232,8 +232,8 @@ export default function ShoppingScreen({ user }) {
 
   // Big coupons worth adding an item for, even though nothing on the list matches them yet.
   const greatDeals = useMemo(
-    () => tooGoodCoupons(coupons, { excludeIds: listCoupons.map((m) => m.coupon.id) }),
-    [coupons, listCoupons]
+    () => tooGoodCoupons(coupons, { excludeIds: listCoupons.map((m) => m.coupon.id), items, stores: data.userStores }),
+    [coupons, listCoupons, items, data.userStores]
   );
 
   const [addedIds, setAddedIds] = useState([]);
@@ -530,10 +530,10 @@ export default function ShoppingScreen({ user }) {
         </ScrollView>
 
         <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
-          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} />
+          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { setShowSales(true); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
         </View>
 
-        <View style={[styles.checkoutCard, shadow.card]}>
+        <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
           <Text style={styles.checkoutSub}>{weekDeals.length ? t('sale_list_week_sub', { n: weekDeals.length }) : t('sale_list_week_empty')}</Text>
           {weekDeals.length ? (
