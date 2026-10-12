@@ -1312,6 +1312,44 @@ export default function PersonalShopperModal({
         }
     };
 
+    // Persist a changed shopping list (storage, same-tick cache, server) and mirror it into the open panel.
+    const saveMylist = async (mutate) => {
+        try {
+            const shopping = await readJson('rv4_master_shop', []);
+            const next = mutate(shopping);
+            await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(next));
+            const cache = await readJson('fern_sync_cache', {});
+            await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, shopping: next }));
+            await pushChangedFromStorage?.({ shopping: next });
+            setPanel((prev) => (prev?.type === 'mylist'
+                ? { ...prev, items: next.filter((it) => it && it.checked !== true && String(it.text || '').trim()).map((it) => ({ id: it.id, text: String(it.text), recipe: it.recipe || '' })) }
+                : prev));
+        } catch (e) {
+            console.log('[personal-shopper] editing list failed', e?.message || e);
+            Alert.alert(t('save_failed'), t('save_error_desc'));
+        }
+    };
+
+    const removeMylistItem = (id) => saveMylist((list) => list.filter((it) => it?.id !== id));
+
+    const renameMylistItem = (id, text) => {
+        const name = String(text || '').trim();
+        if (!name) return removeMylistItem(id);
+        return saveMylist((list) => list.map((it) => (it?.id === id ? { ...it, text: name } : it)));
+    };
+
+    // Same item twice (case-insensitive): keep the first, drop the rest. Ticked-off items are left alone.
+    const dedupeMylist = () => saveMylist((list) => {
+        const seen = new Set();
+        return list.filter((it) => {
+            if (!it || it.checked === true) return true;
+            const key = String(it.text || '').trim().toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+    });
+
     const continueFromMylist = () => {
         const run = session.current;
         const items = panel?.items || [];
@@ -1800,10 +1838,27 @@ export default function PersonalShopperModal({
             return (
                 <View style={styles.prefsCard}>
                     <Text style={styles.prefsHeading}>{`📝 ${t('psp_mylist_heading')}`}</Text>
+                    <Text style={styles.mylistHint}>{t('psp_mylist_edit_hint')}</Text>
+                    {panel.items.some((a, i) => panel.items.findIndex((b) => b.text.trim().toLowerCase() === a.text.trim().toLowerCase()) !== i) ? (
+                        <TouchableOpacity style={styles.mylistDedupe} activeOpacity={0.85} onPress={dedupeMylist}>
+                            <Text style={styles.mylistDedupeText}>{t('psp_mylist_remove_dupes')}</Text>
+                        </TouchableOpacity>
+                    ) : null}
                     {panel.items.map((item, i) => (
                         <View key={`${item.id}-${i}`} style={styles.mylistRow}>
                             <Text style={styles.mylistDot}>•</Text>
-                            <Text style={styles.checkRowTitle}>{item.text}</Text>
+                            <TextInput
+                                defaultValue={item.text}
+                                style={[styles.checkRowTitle, styles.mylistEdit]}
+                                returnKeyType="done"
+                                onEndEditing={(e) => {
+                                    const v = e.nativeEvent.text;
+                                    if (String(v).trim() !== item.text.trim()) renameMylistItem(item.id, v);
+                                }}
+                            />
+                            <TouchableOpacity style={styles.mylistRemove} activeOpacity={0.7} onPress={() => removeMylistItem(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                <Text style={styles.mylistRemoveText}>✕</Text>
+                            </TouchableOpacity>
                         </View>
                     ))}
                     <View style={styles.addItemRow}>
@@ -2524,6 +2579,12 @@ const styles = StyleSheet.create({
     prefsOptionOn: { backgroundColor: colors.forest },
     prefsOptionTextOn: { color: '#fff' },
     mylistRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },
+    mylistHint: { fontFamily: 'Jost-Regular', fontSize: 12, color: '#7A5C3A', marginBottom: 6 },
+    mylistDedupe: { alignSelf: 'flex-start', borderWidth: 1.5, borderColor: '#E8651A', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 8 },
+    mylistDedupeText: { fontFamily: 'Jost-Bold', fontSize: 12, color: '#E8651A' },
+    mylistEdit: { flex: 1, paddingVertical: 4 },
+    mylistRemove: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+    mylistRemoveText: { fontSize: 18, color: '#B59E86', fontFamily: 'Jost-Bold' },
     mylistDot: { fontSize: 18, color: colors.forest, marginRight: 8 },
     starCard: { borderWidth: 1.5, borderColor: colors.forest, borderRadius: 14, padding: 12, marginBottom: 12, backgroundColor: '#fff' },
     starHead: { flexDirection: 'row', alignItems: 'center' },

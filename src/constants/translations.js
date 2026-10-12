@@ -1813,6 +1813,8 @@ export const translations = {
     sav_earlier_weeks: "Earlier weeks",
     sav_week_of: "Week of {date}",
     sav_none_yet: "Check off sale items and mark coupons used to start your savings total.",
+    psp_mylist_edit_hint: "Tap an item to rename it. ✕ removes it.",
+    psp_mylist_remove_dupes: "Remove duplicates",
   },
   es: {
     // Navigation / Header
@@ -3620,5 +3622,7 @@ export const translations = {
     sav_earlier_weeks: "Semanas anteriores",
     sav_week_of: "Semana del {date}",
     sav_none_yet: "Marca artículos en oferta y cupones usados para empezar tu total de ahorros.",
+    psp_mylist_edit_hint: "Toca un artículo para cambiarlo. ✕ lo quita.",
+    psp_mylist_remove_dupes: "Quitar duplicados",
   }
 };
