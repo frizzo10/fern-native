@@ -18,6 +18,7 @@ import { useSync } from '../hooks/useSync';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import { sendListToInstacart, sendListToKroger, sendListToAlbertsons } from '../services/storeShoppingListService';
+import Confetti from '../components/Confetti';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
 import { normalizeCoupons } from '../utils/couponNormalize';
@@ -166,6 +167,26 @@ export default function ShoppingScreen({ user }) {
     });
     return out;
   }, [items, matches]);
+
+  // Celebrate coupons the user didn't know about, once per coupon.
+  const [celebration, setCelebration] = useState(null); // { n, amount }
+  const celebratedRef = useRef(null); // Set of ids, null until loaded
+  useEffect(() => {
+    AsyncStorage.getItem('fern_coupons_celebrated')
+      .then((raw) => { celebratedRef.current = new Set(JSON.parse(raw || '[]')); })
+      .catch(() => { celebratedRef.current = new Set(); });
+  }, []);
+  useEffect(() => {
+    if (!celebratedRef.current || !listCoupons.length) return;
+    const fresh = listCoupons.filter((m) => !celebratedRef.current.has(String(m.coupon.id)));
+    if (!fresh.length) return;
+    fresh.forEach((m) => celebratedRef.current.add(String(m.coupon.id)));
+    AsyncStorage.setItem('fern_coupons_celebrated', JSON.stringify(Array.from(celebratedRef.current).slice(-300))).catch(() => {});
+    const amount = fresh.reduce((a, m) => a + (m.value?.amount || 0), 0);
+    setCelebration({ n: fresh.length, amount: Math.round(amount * 100) / 100 });
+    const timer = setTimeout(() => setCelebration(null), 4200);
+    return () => clearTimeout(timer);
+  }, [listCoupons]);
 
   const [addedIds, setAddedIds] = useState([]);
   const walletIds = useMemo(() => new Set([...(data.walletCoupons || []).map((c) => String(c?.id)), ...addedIds]), [data.walletCoupons, addedIds]);
@@ -626,6 +647,23 @@ export default function ShoppingScreen({ user }) {
         )}
       </ScrollView>
 
+      {celebration ? (
+        <>
+          <Confetti />
+          <TouchableOpacity style={styles.celebrateWrap} activeOpacity={0.95} onPress={() => setCelebration(null)}>
+            <View style={[styles.celebrateCard, shadow.strong]}>
+              <Text style={styles.celebrateEmoji}>🎉</Text>
+              <Text style={styles.celebrateTitle}>
+                {celebration.amount > 0
+                  ? t('sav_celebrate_title', { amt: fmtMoney(celebration.amount) })
+                  : t('sav_celebrate_title_plain', { n: celebration.n })}
+              </Text>
+              <Text style={styles.celebrateSub}>{t('sav_celebrate_sub')}</Text>
+            </View>
+          </TouchableOpacity>
+        </>
+      ) : null}
+
       <StoreRemainingItemsModal
         visible={Boolean(remainingItemsModal)}
         storeName={remainingItemsModal?.storeName}
@@ -838,6 +876,11 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingVertical: 4,
   },
+  celebrateWrap: { position: 'absolute', left: 0, right: 0, top: '22%', alignItems: 'center', paddingHorizontal: 24 },
+  celebrateCard: { backgroundColor: '#FFFFFF', borderRadius: 20, borderWidth: 2, borderColor: '#E8651A', paddingVertical: 20, paddingHorizontal: 22, alignItems: 'center' },
+  celebrateEmoji: { fontSize: 44 },
+  celebrateTitle: { color: '#1C3A1A', fontSize: 20, lineHeight: 26, textAlign: 'center', fontFamily: 'Jost-Bold', marginTop: 4 },
+  celebrateSub: { color: '#7A5C3A', fontSize: 13, textAlign: 'center', fontFamily: 'Jost-Regular', marginTop: 4 },
   tagSale: {
     color: '#2A6A2A',
     fontSize: 11,

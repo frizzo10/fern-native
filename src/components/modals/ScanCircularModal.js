@@ -13,6 +13,10 @@ import {
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import CircularHistoryView from '../CircularHistoryView';
+import useEntitlement from '../../hooks/useEntitlement';
+import { FEATURE_TIERS } from '../../constants/featureAccess';
+import { usePlansModal } from '../../services/PlansModalContext';
+import { sumSavings, fmtMoney } from '../../utils/savings';
 
 const CATEGORY_EMOJI = [
     [/produce/i, '🥬'],
@@ -142,6 +146,16 @@ export default function ScanCircularModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
+    const { hasAccess } = useEntitlement();
+    const { open: openPlans } = usePlansModal();
+    const showUnlock = !hasAccess(FEATURE_TIERS.personal_shopper);
+    const flyerSavings = sumSavings(result?.items || []);
+    const handleUnlock = () => {
+        onClose();
+        // iOS drops a modal opened while another is still dismissing.
+        setTimeout(() => openPlans(), 450);
+    };
+
     const itemCount = result?.items?.length || 0;
     const savingsLabel = result?.totalSavings != null
         ? `$${result.totalSavings.toFixed(2)} off`
@@ -201,6 +215,20 @@ export default function ScanCircularModal({
                                         <Text style={styles.savingsItemsFound}>{itemsFoundLabel}</Text>
                                     </View>
                                 </View>
+
+                                {showUnlock ? (
+                                    <View style={styles.unlockCard}>
+                                        <Text style={styles.unlockTitle}>
+                                            {flyerSavings.total > 0
+                                                ? t('scan_unlock_title', { amt: `${flyerSavings.est ? '~' : ''}${fmtMoney(flyerSavings.total)}` })
+                                                : t('scan_unlock_title_plain')}
+                                        </Text>
+                                        <Text style={styles.unlockBody}>{t('scan_unlock_body')}</Text>
+                                        <TouchableOpacity style={styles.unlockBtn} activeOpacity={0.88} onPress={handleUnlock}>
+                                            <Text style={styles.unlockBtnText}>{t('scan_unlock_btn')}</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ) : null}
 
                                 <Text style={styles.foundOnSaleLabel}>{t('scan_circular_found_on_sale')}</Text>
 
@@ -604,6 +632,11 @@ const styles = StyleSheet.create({
     },
 
     // Results step
+    unlockCard: { backgroundColor: '#FFF4E3', borderWidth: 1.5, borderColor: '#E8651A', borderRadius: 14, padding: 14, marginBottom: 14 },
+    unlockTitle: { color: '#2B1E13', fontSize: 16, lineHeight: 21, fontFamily: 'Jost-Bold' },
+    unlockBody: { color: '#5A4630', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginTop: 4, marginBottom: 10 },
+    unlockBtn: { backgroundColor: '#E8651A', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+    unlockBtnText: { color: '#FFFFFF', fontSize: 14, fontFamily: 'Jost-Bold' },
     savingsCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',

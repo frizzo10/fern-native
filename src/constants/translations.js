@@ -1819,6 +1819,13 @@ export const translations = {
     sav_for_list_sub: "{n} coupons match things you're buying. Add them to your wallet so you don't forget.",
     sav_add_wallet: "Add to wallet",
     sav_in_wallet: "In wallet ✓",
+    sav_celebrate_title: "We found {amt} in coupons you didn't know about!",
+    sav_celebrate_title_plain: "We found {n} coupons you didn't know about!",
+    sav_celebrate_sub: "They match things on your list.",
+    scan_unlock_title: "Fern found {amt} in savings on this flyer",
+    scan_unlock_title_plain: "Fern can turn these sales into dinners",
+    scan_unlock_body: "Unlock meals built around these sales, coupons matched to your list, and your weekly savings total.",
+    scan_unlock_btn: "Unlock with Pro Max",
   },
   es: {
     // Navigation / Header
@@ -3632,5 +3639,12 @@ export const translations = {
     sav_for_list_sub: "{n} cupones coinciden con lo que vas a comprar. Agrégalos a tu billetera para no olvidarlos.",
     sav_add_wallet: "Agregar a la billetera",
     sav_in_wallet: "En la billetera ✓",
+    sav_celebrate_title: "¡Encontramos {amt} en cupones que no sabías que existían!",
+    sav_celebrate_title_plain: "¡Encontramos {n} cupones que no sabías que existían!",
+    sav_celebrate_sub: "Coinciden con cosas de tu lista.",
+    scan_unlock_title: "Fern encontró {amt} en ahorros en este folleto",
+    scan_unlock_title_plain: "Fern puede convertir estas ofertas en cenas",
+    scan_unlock_body: "Desbloquea comidas basadas en estas ofertas, cupones para tu lista y tu total semanal de ahorros.",
+    scan_unlock_btn: "Desbloquear con Pro Max",
   }
 };
