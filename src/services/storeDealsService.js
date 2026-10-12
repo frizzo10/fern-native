@@ -21,3 +21,22 @@ export async function fetchStoreDeals({ token, stores }) {
         return [];
     }
 }
+
+// The user said the flyer photo they just scanned was the wrong one: ask the backend to
+// remove their most recent scan from the shared data. Best-effort; returns true if removed.
+export async function discardLatestScan({ token }) {
+    if (!token) return false;
+    try {
+        const res = await fetch(STORE_DEALS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+            body: JSON.stringify({ token, discardLatest: true }),
+        });
+        if (!res.ok) return false;
+        const json = await res.json();
+        return Boolean(json?.discarded);
+    } catch (e) {
+        console.log('[store-deals] discard failed', e?.message || e);
+        return false;
+    }
+}

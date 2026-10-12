@@ -29,7 +29,7 @@ import {
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
 import { fetchRecipeImage } from '../../utils/recipeImage';
 import { scanCircular, fetchDealRecipeIdeas } from '../../services/scanCircularService';
-import { fetchStoreDeals } from '../../services/storeDealsService';
+import { discardLatestScan, fetchStoreDeals } from '../../services/storeDealsService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoPickerService';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
 import { buildRollingWeekDateKeys, formatDayLabel, normalizeSlot, parseDateKey } from '../../utils/familyDates';
@@ -104,20 +104,34 @@ function Checkbox({ checked }) {
 
 // ── dinner row: photo, tap-to-preview, and sale items matched against the real ingredients ──
 
-const SALE_STOP = new Set(['fresh', 'crisp', 'sweet', 'honey', 'crowns', 'large', 'small', 'whole', 'boneless', 'skinless', 'family', 'pack', 'value', 'select', 'premium', 'natural', 'farm', 'brand', 'organic', 'frozen', 'ground', 'lean', 'extra', 'with', 'and', 'the', 'each', 'lb', 'oz']);
+const SALE_STOP = new Set(['fresh', 'crisp', 'sweet', 'honey', 'crowns', 'crown', 'large', 'small', 'whole', 'boneless', 'skinless', 'family', 'pack', 'value', 'select', 'premium', 'natural', 'farm', 'brand', 'organic', 'frozen', 'ground', 'lean', 'extra', 'with', 'and', 'the', 'each', 'lb', 'oz']);
 const dinnerThumbCache = {};
 
 function singular(w) { return w.length > 3 ? w.replace(/(ies)$/, 'y').replace(/(es|s)$/, '') : w; }
 
+// Words in front of an ingredient's main noun that don't change what it is.
+const NEUTRAL_PREV = new Set(['or', 'and', 'of', 'oz', 'lb', 'lbs', 'cup', 'cups', 'tbsp', 'tsp', 'can', 'cans', 'large', 'small', 'medium', 'fresh', 'chopped', 'sliced', 'diced', 'cooked', 'crispy', 'thick', 'cut', 'the', 'a', 'with', 'for', 'to', 'into', 'about', 'plus', 'extra', 'finely', 'roughly', 'thinly', 'pieces', 'piece', 'strips', 'whole', 'boneless', 'skinless', 'lean', 'raw', 'ripe', 'frozen']);
+
+// Does this single ingredient line contain this on-sale item? Compares the main noun
+// ("pepper") and refuses when the ingredient's own qualifier ("black") isn't part of the
+// sale item's name, so "Rainbow Bell Peppers" never matches "black pepper".
+function ingredientHasSaleItem(ingredient, deal) {
+    const ing = String(ingredient || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).map(singular);
+    const dealWords = String(deal.name || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean).map(singular);
+    const keyWords = dealWords.filter((w) => w.length > 2 && !SALE_STOP.has(w));
+    if (!keyWords.length || !ing.length) return false;
+    // The sale item's main noun: its last meaningful word (brand words come first).
+    const head = keyWords[keyWords.length - 1];
+    const pos = ing.indexOf(head);
+    if (pos < 0) return false;
+    const prev = pos > 0 ? ing[pos - 1] : '';
+    if (!prev || NEUTRAL_PREV.has(prev) || prev.length < 3) return true;
+    return dealWords.includes(prev);
+}
+
 // Which on-sale items does this ingredient list really contain?
 function matchSaleItems(ingredients, deals) {
-    const text = ` ${(ingredients || []).join(' ').toLowerCase().replace(/[^a-z\s]/g, ' ')} `;
-    if (!text.trim()) return [];
-    return (deals || []).filter((deal) => {
-        const words = String(deal.name || '').toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/)
-            .filter((w) => w.length > 2 && !SALE_STOP.has(w)).map(singular);
-        return words.some((w) => new RegExp(`\\b${w}`).test(text));
-    });
+    return (deals || []).filter((deal) => (ingredients || []).some((ing) => ingredientHasSaleItem(ing, deal)));
 }
 
 function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t }) {
@@ -125,6 +139,7 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
     const [open, setOpen] = useState(false);
     const [detail, setDetail] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [checkFailed, setCheckFailed] = useState(false);
     const [imageUrl, setImageUrl] = useState((match && match.image) || dinnerThumbCache[item.title] || null);
 
     useEffect(() => {
@@ -144,8 +159,26 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
     const ingredients = detail ? detail.ingredients : savedIngredients.filter((i) => !/no ingredients listed/i.test(i));
     const steps = detail ? detail.directions : savedSteps.filter((i) => !/no instructions/i.test(i));
     const known = ingredients.length > 0;
-    const sale = known ? matchSaleItems(ingredients, allDeals) : (item.saleItems || []);
+    const sale = known ? matchSaleItems(ingredients, allDeals) : [];
     const saleNames = new Set(sale.map((x) => x.name));
+
+    // Verify every dinner against its real ingredients as soon as it appears, so the
+    // sale tags are never a guess. Staggered so seven lookups don't hit at once.
+    useEffect(() => {
+        if (known || detail) return undefined;
+        let alive = true;
+        const timer = setTimeout(async () => {
+            try {
+                const d = await fetchMealPlanRecipeDetail({ title: item.title, locale, token });
+                if (alive) setDetail(d);
+            } catch (e) {
+                console.log('[personal-shopper] ingredient check failed', e?.message || e);
+                if (alive) setCheckFailed(true);
+            }
+        }, 300 + index * 500);
+        return () => { alive = false; clearTimeout(timer); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [item.title]);
 
     const toggleOpen = async () => {
         const next = !open;
@@ -184,7 +217,7 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
                                 ))}
                             </View>
                         ) : (
-                            <Text style={styles.noSaleText}>{t('psp_no_sale_items')}</Text>
+                            <Text style={styles.noSaleText}>{known || checkFailed ? t('psp_no_sale_items') : t('psp_checking_sale')}</Text>
                         )}
                         <Text style={styles.previewHint}>{open ? t('psp_hide_recipe') : t('psp_see_recipe')}</Text>
                     </View>
@@ -195,7 +228,7 @@ function DinnerRow({ item, index, onToggle, saved, allDeals, token, locale, t })
                     {loading ? <ActivityIndicator color={colors.forest} /> : null}
                     {ingredients.length ? <Text style={styles.previewHeading}>{t('psp_preview_ingredients')}</Text> : null}
                     {ingredients.map((ing, i) => {
-                        const isSale = sale.some((x) => matchSaleItems([ing], [x]).length);
+                        const isSale = matchSaleItems([ing], sale).length > 0;
                         return <Text key={`${ing}-${i}`} style={[styles.previewLine, isSale ? styles.previewSale : null]}>{isSale ? '🏷 ' : '• '}{ing}</Text>;
                     })}
                     {steps.length ? <Text style={styles.previewHeading}>{t('psp_preview_steps')}</Text> : null}
@@ -538,17 +571,59 @@ export default function PersonalShopperModal({
             return Boolean(x && y) && (x.includes(y) || y.includes(x));
         };
         const otherStores = run.storedDeals.filter((k) => !sameStore(k.store)).flatMap((k) => k.deals);
+        const before = { deals: run.deals, dealsStore: run.dealsStore };
         run.deals = [...scannedDeals, ...otherStores];
         run.dealsStore = otherStores.length ? '' : scannedStore;
 
-        if (!run.deals.length) {
+        if (!items.length) {
+            // Nothing readable: almost certainly the wrong picture. Nothing was saved either.
+            run.deals = before.deals;
+            run.dealsStore = before.dealsStore;
             say(t('psp_circular_none'));
-        } else {
-            say(run.dealsStore
-                ? t('psp_circular_found', { n: run.deals.length, store: run.dealsStore })
-                : t('psp_circular_found_nostore', { n: run.deals.length }));
+            setPanel({ type: 'circular' });
+            return;
         }
+
+        // Let the person check what Fern actually read before planning around it.
+        const savedNames = (Array.isArray(data?.userStores) ? data.userStores : []).map((st) => String(st?.name || '').split(/\s[-–—|]\s|#/)[0].trim().toLowerCase()).filter(Boolean);
+        const storeKnown = !scannedStore || !savedNames.length || savedNames.some((n) => scannedStore.toLowerCase().includes(n) || n.includes(scannedStore.toLowerCase()));
+        const warnings = [];
+        if (!storeKnown) warnings.push(t('psp_scan_warn_store', { store: scannedStore }));
+        if (items.length < 5) warnings.push(t('psp_scan_warn_few', { n: items.length }));
+        say(t('psp_scan_check_intro'));
+        setPanel({
+            type: 'scancheck',
+            store: scannedStore,
+            validDates: String(scan.validDates || '').trim(),
+            count: items.length,
+            sample: ranked.slice(0, 6).map((item) => `${item.name}${item.salePrice ? ` · ${item.salePrice}` : ''}`),
+            warnings,
+            before,
+        });
+    };
+
+    // "Looks right" on the scan check.
+    const acceptScan = () => {
+        const run = session.current;
+        userSays(t('psp_scan_ok_btn'));
+        setPanel(null);
+        say(run.dealsStore
+            ? t('psp_circular_found', { n: run.deals.length, store: run.dealsStore })
+            : t('psp_circular_found_nostore', { n: run.deals.length }));
         proceedToStaplesAfterCircular();
+    };
+
+    // "Wrong photo": undo this scan (including the shared copy) and ask for another.
+    const rejectScan = () => {
+        const run = session.current;
+        if (panel?.before) {
+            run.deals = panel.before.deals;
+            run.dealsStore = panel.before.dealsStore;
+        }
+        userSays(t('psp_scan_wrong_btn'));
+        discardLatestScan({ token });
+        say(t('psp_scan_retake'));
+        setPanel({ type: 'circular' });
     };
 
     const skipFlyer = () => {
@@ -1174,6 +1249,26 @@ export default function PersonalShopperModal({
             );
         }
 
+        if (panel.type === 'scancheck') {
+            return (
+                <View style={styles.panelCard}>
+                    <Text style={styles.panelTitle}>{panel.store || t('psp_scan_unknown_store')}</Text>
+                    <Text style={styles.checkRowSub}>{t('psp_scan_items_found', { n: panel.count })}{panel.validDates ? ` · ${panel.validDates}` : ''}</Text>
+                    <View style={styles.ideasBox}>
+                        {panel.sample.map((line) => <Text key={line} style={styles.previewLine}>• {line}</Text>)}
+                        {panel.count > panel.sample.length ? <Text style={styles.checkRowSub}>{t('psp_scan_and_more', { n: panel.count - panel.sample.length })}</Text> : null}
+                    </View>
+                    {panel.warnings.map((w) => <Text key={w} style={styles.scanWarn}>⚠️ {w}</Text>)}
+                    <TouchableOpacity style={styles.orangeBtn} activeOpacity={0.85} onPress={acceptScan}>
+                        <Text style={styles.orangeBtnText}>{t('psp_scan_ok_btn')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.ghostBtn} activeOpacity={0.85} onPress={rejectScan}>
+                        <Text style={styles.ghostBtnText}>{t('psp_scan_wrong_btn')}</Text>
+                    </TouchableOpacity>
+                </View>
+            );
+        }
+
         if (panel.type === 'dinners') {
             const renderDinner = (item, index) => (
                 <DinnerRow
@@ -1561,6 +1656,7 @@ const styles = StyleSheet.create({
     previewHeading: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 0.8, color: colors.brown, textTransform: 'uppercase', marginTop: 4, marginBottom: 2 },
     previewLine: { fontFamily: 'Jost-Regular', fontSize: 13, color: colors.ink, marginBottom: 2 },
     previewSale: { fontFamily: 'Jost-Bold', color: '#B85A12' },
+    scanWarn: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#B85A12', marginTop: 8 },
     panelTitle: { fontFamily: 'Playfair-Bold', fontSize: 17, color: colors.forest, marginBottom: 6 },
     panelDesc: { fontFamily: 'Jost-Regular', fontSize: 13, lineHeight: 19, color: colors.brown, marginBottom: 10 },
 
