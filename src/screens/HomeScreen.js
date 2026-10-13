@@ -1504,10 +1504,7 @@ export default function HomeScreen({ user, route }) {
   const showAlreadyScanned = async (storeName, storeDeals) => {
     flyerSkipRef.current = false;
     setFlyerScan({ phase: 'already', count: storeDeals.length, store: storeName });
-    await new Promise((r) => setTimeout(r, 3000));
-    if (flyerSkipRef.current) return;
-    setFlyerScan(null);
-    navigation.navigate('Shopping', { flyerScanned: Date.now() });
+    // No auto-jump: the flyer may be an old one, so the shopper picks "use it" or "scan a new one".
   };
 
   const chooseFlyerStore = async (store) => {
@@ -3028,7 +3025,13 @@ export default function HomeScreen({ user, route }) {
               </Text>
               <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 14, textAlign: 'center', marginTop: 14 }}>{t('flyer_already_sub')}</Text>
               <TouchableOpacity
-                style={{ marginTop: 28, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 20, borderWidth: 1, borderColor: '#E6EFE0' }}
+                style={{ marginTop: 28, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 24, backgroundColor: '#DE6F2F' }}
+                onPress={() => { flyerSkipRef.current = true; setFlyerScan(null); navigation.navigate('Shopping', { flyerScanned: Date.now() }); }}
+              >
+                <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 16 }}>{t('flyer_already_use')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ marginTop: 14, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 20, borderWidth: 1, borderColor: '#E6EFE0' }}
                 onPress={() => { flyerSkipRef.current = true; setFlyerScan(null); setTimeout(askFlyerPhoto, 400); }}
               >
                 <Text style={{ color: '#fff', fontFamily: 'Jost-Medium', fontSize: 14 }}>{t('flyer_already_rescan')}</Text>
