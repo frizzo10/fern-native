@@ -25,7 +25,8 @@ export function buildTripSystemPrompt({ store, deals = [], list = [], coupons = 
     onList.length ? `Already on their shopping list: ${onList.join(', ')}.` : 'Their shopping list is empty.',
     'Help them shop: point out the best deals and matching coupons, suggest dinners built around sale items, and help them decide what to buy. Ask one short question at a time. Keep replies to 2-4 sentences. Never invent prices or coupons.',
     'When they agree to buy something, put the plain grocery names (e.g. "Chicken thighs") in add_to_shopping_list and say you are adding it. Otherwise leave add_to_shopping_list empty.',
-    'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1"]}',
+    'When they tell you they got something ("I got the chicken", "the milk is in the cart"), put the matching names from their shopping list in checked_off and confirm briefly. Only tick things they said they have. Otherwise leave it empty.',
+    'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1"],"checked_off":["item2"]}',
   ].filter(Boolean).join('\n\n');
 }
 

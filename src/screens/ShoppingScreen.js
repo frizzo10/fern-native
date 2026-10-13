@@ -238,6 +238,26 @@ export default function ShoppingScreen({ user }) {
     [coupons, listCoupons, items, data.userStores]
   );
 
+  // Fern ticked things off in the chat ("I got the chicken"): match her names to list items and check them.
+  const checkOffByName = async (names) => {
+    const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)).join(' ');
+    let current = [];
+    try { current = JSON.parse((await AsyncStorage.getItem('rv4_master_shop')) || '[]'); } catch (e) { current = []; }
+    if (!Array.isArray(current) || !current.length) current = items;
+    const wanted = names.map(norm).filter(Boolean);
+    let hit = 0;
+    const next = current.map((it) => {
+      if (it.checked) return it;
+      const key = norm(it.text);
+      const match = wanted.some((w) => key === w || key.includes(w) || w.includes(key));
+      if (!match) return it;
+      hit += 1;
+      return { ...it, checked: true };
+    });
+    if (hit) await persistShopping(toUiItems(next));
+    return hit;
+  };
+
   const tripStore = route?.params?.store || data.userStores?.[0]?.name || '';
   const tripPrompt = useMemo(() => buildTripSystemPrompt({
     store: tripStore,
@@ -864,6 +884,11 @@ export default function ShoppingScreen({ user }) {
           title={`🌿 ${t('trip_chat_title')}`}
           systemPrompt={tripPrompt}
           mode={tripChatMode}
+          onAction={(parsed) => {
+            const names = Array.isArray(parsed?.checked_off) ? parsed.checked_off.map((x) => String(x || '').trim()).filter(Boolean) : [];
+            if (names.length) checkOffByName(names).catch(() => {});
+            return null;
+          }}
           autoOpenerPrompt={tripOpenerPrompt(tripStore)}
         />
       )}
