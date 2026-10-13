@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import RecipePhoto from '../RecipePhoto';
 import {
     Image,
     Keyboard,
@@ -149,6 +150,7 @@ export default function LeftoverMagicModal({
 
                                     {recipes.map((recipe, index) => (
                                         <View key={recipe.id || `leftover-card-${index}`} style={styles.recipeCard}>
+                                            <RecipePhoto title={recipe.title} image={recipe.image} style={{ width: '100%', height: 150, borderRadius: 12, marginBottom: 10 }} />
                                             <View style={styles.recipeHeader}>
                                                 <Text style={styles.recipeTitle} numberOfLines={2}>{`${recipe.emoji} ${recipe.title}`}</Text>
                                                 <View style={[styles.difficultyPill, recipe.difficulty === 'Easy'

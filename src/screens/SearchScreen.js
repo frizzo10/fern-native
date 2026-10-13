@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useRecipePhoto } from '../components/RecipePhoto';
 import {
     ActivityIndicator,
     Alert,
@@ -59,14 +60,15 @@ function parseAiRecipeList(rawText) {
 }
 
 function SearchResultCard({ recipe, isSaved, onPress, t }) {
+    const photoUrl = useRecipePhoto(recipe.title, recipe.image);
     return (
         <TouchableOpacity activeOpacity={0.9} onPress={onPress} style={[styles.resultCard, shadow.card]}>
             <View style={styles.resultImageWrap}>
                 <ImageBackground
-                    source={recipe.image ? { uri: recipe.image } : null}
+                    source={photoUrl ? { uri: photoUrl } : null}
                     style={styles.resultImageBackground}
                 >
-                    {!recipe.image ? (
+                    {!photoUrl ? (
                         <Text style={styles.resultEmoji}>{recipe.emoji}</Text>
                     ) : null}
                 </ImageBackground>

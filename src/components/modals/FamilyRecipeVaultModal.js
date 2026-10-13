@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import RecipePhoto from '../RecipePhoto';
 import {
     ActivityIndicator,
     Alert,
@@ -342,7 +343,7 @@ export default function FamilyRecipeVaultModal({ visible, onClose, user, data, p
                                                     onPress={() => openDetailScreen(recipe)}
                                                 >
                                                     <View style={styles.recipeRowIconWrap}>
-                                                        <Text style={styles.recipeRowIcon}>📖</Text>
+                                                        <RecipePhoto title={recipe.title} image={recipe.image} style={{ width: '100%', height: '100%' }} fallback={<Text style={styles.recipeRowIcon}>📖</Text>} />
                                                     </View>
                                                     <View style={styles.recipeRowInfo}>
                                                         <Text style={styles.recipeRowTitle} numberOfLines={1}>{recipe.title}</Text>
@@ -758,6 +759,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 10,
+        overflow: 'hidden',
         backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',

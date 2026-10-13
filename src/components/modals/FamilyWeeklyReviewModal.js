@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import RecipePhoto from '../RecipePhoto';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, radius, shadow } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
@@ -45,7 +46,7 @@ export default function FamilyWeeklyReviewModal({
                                 return (
                                     <View key={meal.id} style={styles.row}>
                                         <View style={styles.rowIconWrap}>
-                                            <Text style={styles.rowIconEmoji}>{meal.emoji}</Text>
+                                            <RecipePhoto title={meal.title} image={meal.image} style={{ width: '100%', height: '100%' }} fallback={<Text style={styles.rowIconEmoji}>{meal.emoji}</Text>} />
                                         </View>
                                         <View style={styles.rowInfo}>
                                             <Text style={styles.rowTitle} numberOfLines={1}>{meal.title}</Text>
@@ -194,6 +195,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 10,
+        overflow: 'hidden',
         backgroundColor: '#F1EEE7',
         alignItems: 'center',
         justifyContent: 'center',

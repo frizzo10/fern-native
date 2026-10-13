@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import RecipePhoto from '../RecipePhoto';
 import {
     ActivityIndicator,
     Animated,
@@ -293,13 +294,16 @@ export default function ScanCircularModal({
                                                 activeOpacity={0.85}
                                                 onPress={() => onChooseIdea(idea)}
                                             >
-                                                {idea.image ? (
-                                                    <Image source={{ uri: idea.image }} style={styles.ideaImage} />
-                                                ) : (
-                                                    <View style={styles.ideaEmojiWrap}>
-                                                        <Text style={styles.ideaEmoji}>{idea.emoji}</Text>
-                                                    </View>
-                                                )}
+                                                <RecipePhoto
+                                                    title={idea.title}
+                                                    image={idea.image}
+                                                    style={styles.ideaImage}
+                                                    fallback={(
+                                                        <View style={styles.ideaEmojiWrap}>
+                                                            <Text style={styles.ideaEmoji}>{idea.emoji}</Text>
+                                                        </View>
+                                                    )}
+                                                />
                                                 <View style={styles.ideaInfo}>
                                                     <Text style={styles.ideaTitle} numberOfLines={2}>{idea.title}</Text>
                                                     <Text style={styles.ideaMeta} numberOfLines={2}>

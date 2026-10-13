@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import RecipePhoto from '../RecipePhoto';
 import {
     ActivityIndicator,
     Image,
@@ -139,9 +140,7 @@ export default function SemiHomemadeModal({
                                     </View>
                                 </View>
 
-                                {result.image ? (
-                                    <Image source={{ uri: result.image }} style={styles.resultImage} />
-                                ) : null}
+                                <RecipePhoto title={result.title} image={result.image} style={styles.resultImage} />
 
                                 {result.ingredients.length ? (
                                     <View style={styles.card}>

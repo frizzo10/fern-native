@@ -1,4 +1,5 @@
 import React from 'react';
+import RecipePhoto from './RecipePhoto';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import useLanguage from '../hooks/useLanguage';
 
@@ -112,11 +113,12 @@ export default function SuggestedRecipesScreen({
                                 onPress={() => onViewRecipe(entry)}
                             >
                                 <View style={styles.recipeThumb}>
-                                    {entry.image ? (
-                                        <Image source={{ uri: entry.image }} style={styles.recipeThumbImage} />
-                                    ) : (
-                                        <Text style={styles.recipeThumbEmoji}>{entry.recipe.emoji}</Text>
-                                    )}
+                                    <RecipePhoto
+                                        title={entry.recipe.title}
+                                        image={entry.image}
+                                        style={styles.recipeThumbImage}
+                                        fallback={<Text style={styles.recipeThumbEmoji}>{entry.recipe.emoji}</Text>}
+                                    />
                                 </View>
 
                                 <View style={styles.recipeInfo}>

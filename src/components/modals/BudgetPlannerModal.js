@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import RecipePhoto from '../RecipePhoto';
 import {
     ActivityIndicator,
     Image,
@@ -38,13 +39,16 @@ export const BUDGET_PLANNER_DIETARY_OPTIONS = [
 function DinnerCard({ dinner, t, onSave, onAdd, onView, isSaved, isSaving }) {
     return (
         <TouchableOpacity style={styles.dinnerCard} activeOpacity={0.85} onPress={() => onView(dinner)}>
-            {dinner.image ? (
-                <Image source={{ uri: dinner.image }} style={styles.dinnerImage} />
-            ) : (
-                <View style={styles.dinnerImagePlaceholder}>
-                    <Text style={styles.dinnerImageEmoji}>{dinner.emoji}</Text>
-                </View>
-            )}
+            <RecipePhoto
+                title={dinner.title}
+                image={dinner.image}
+                style={styles.dinnerImage}
+                fallback={(
+                    <View style={styles.dinnerImagePlaceholder}>
+                        <Text style={styles.dinnerImageEmoji}>{dinner.emoji}</Text>
+                    </View>
+                )}
+            />
 
             <View style={styles.dinnerBody}>
                 <View style={styles.dinnerHeaderRow}>

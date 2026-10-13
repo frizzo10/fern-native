@@ -8,10 +8,10 @@ import { fetchRecipeImage } from '../utils/recipeImage';
 // looked up by title and remembered for the session — the day cards and the
 // detail view share the same lookup, and swapping a meal just looks up the
 // new title.
-const cache = new Map(); // title -> url | null (null = looked up, none found)
+export const cache = new Map(); // title -> url | null (null = looked up, none found)
 const inflight = new Map(); // title -> Promise
 
-function lookup(title, index) {
+export function lookup(title, index) {
     if (cache.has(title)) return Promise.resolve(cache.get(title));
     if (inflight.has(title)) return inflight.get(title);
     const p = fetchRecipeImage(title, undefined, index)

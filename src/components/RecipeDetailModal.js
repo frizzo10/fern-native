@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRecipePhoto } from './RecipePhoto';
 import {
   ActivityIndicator,
   Alert,
@@ -44,6 +45,7 @@ export default function RecipeDetailModal({
   user,
 }) {
   const { t } = useLanguage();
+  const photoUrl = useRecipePhoto(recipe?.title, recipe?.image);
   const [isScaleModalVisible, setIsScaleModalVisible] = useState(false);
   const [isWinePairingVisible, setIsWinePairingVisible] = useState(false);
   const [isPlatingCoachVisible, setIsPlatingCoachVisible] = useState(false);
@@ -209,7 +211,7 @@ export default function RecipeDetailModal({
               >
                 <View style={styles.overlayImageWrap}>
                   <ImageBackground
-                    source={recipe.image ? { uri: recipe.image } : require('../../assets/icon.png')}
+                    source={photoUrl ? { uri: photoUrl } : require('../../assets/icon.png')}
                     style={styles.overlayImage}
                     imageStyle={styles.overlayImageInner}
                   />
@@ -337,7 +339,7 @@ export default function RecipeDetailModal({
 
                   <View style={styles.overlayThumbsRow}>
                     <ImageBackground
-                      source={recipe.image ? { uri: recipe.image } : require('../../assets/icon.png')}
+                      source={photoUrl ? { uri: photoUrl } : require('../../assets/icon.png')}
                       style={styles.overlayThumbImage}
                       imageStyle={styles.overlayThumbImageInner}
                     />

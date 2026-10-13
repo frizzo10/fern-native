@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import RecipePhoto from '../RecipePhoto';
 import {
     Image,
     Keyboard,
@@ -127,9 +128,7 @@ export default function TwentyMinDinnerModal({
 
                                     {recipes.map((recipe, index) => (
                                         <View key={recipe.id || `quick-dinner-card-${index}`} style={styles.recipeCard}>
-                                            {recipe.image ? (
-                                                <Image source={{ uri: recipe.image }} style={styles.recipeImage} />
-                                            ) : null}
+                                            <RecipePhoto title={recipe.title} image={recipe.image} style={styles.recipeImage} />
 
                                             <View style={styles.recipeCardBody}>
                                                 <Text style={styles.recipeTitle}>{recipe.title}</Text>
