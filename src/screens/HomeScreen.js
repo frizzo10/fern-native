@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { loadWeekDeals } from '../utils/savings';
 import {
   Alert,
   Keyboard,
@@ -1450,12 +1451,26 @@ export default function HomeScreen({ user, route }) {
     }
   };
 
-  const handleHomeScanFlyer = () => {
+  const flyerSkipRef = useRef(false);
+  const askFlyerPhoto = () => {
     Alert.alert(t('trip_flyer_title'), undefined, [
       { text: t('trip_flyer_camera'), onPress: () => setTimeout(() => runHomeFlyerScan(true), 400) },
       { text: t('trip_flyer_library'), onPress: () => setTimeout(() => runHomeFlyerScan(false), 400) },
       { text: t('cancel_btn'), style: 'cancel' },
     ]);
+  };
+
+  // If this week's flyer is already scanned, say so, wait 3 seconds, then jump to the sales on Shopping.
+  const handleHomeScanFlyer = async () => {
+    const deals = await loadWeekDeals();
+    if (!deals.length) { askFlyerPhoto(); return; }
+    flyerSkipRef.current = false;
+    const stores = [...new Set(deals.map((d) => String(d.store || '').trim()).filter(Boolean))];
+    setFlyerScan({ phase: 'already', count: deals.length, store: stores.length === 1 ? stores[0] : '' });
+    await new Promise((r) => setTimeout(r, 3000));
+    if (flyerSkipRef.current) return;
+    setFlyerScan(null);
+    navigation.navigate('Shopping', { flyerScanned: Date.now() });
   };
 
   const closeScanCircularModal = () => {
@@ -2921,7 +2936,22 @@ export default function HomeScreen({ user, route }) {
 
       <Modal visible={Boolean(flyerScan)} transparent animationType="fade" onRequestClose={() => {}}>
         <View style={{ flex: 1, backgroundColor: 'rgba(20,45,20,0.92)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
-          {flyerScan?.phase === 'done' ? (
+          {flyerScan?.phase === 'already' ? (
+            <>
+              <Text style={{ fontSize: 64 }}>✅</Text>
+              <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 24, textAlign: 'center', marginTop: 12 }}>{t('flyer_already_title')}</Text>
+              <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 16, textAlign: 'center', marginTop: 8 }}>
+                {flyerScan.store ? t('flyer_scanned_found_store', { n: flyerScan.count, store: flyerScan.store }) : t('flyer_scanned_found', { n: flyerScan.count })}
+              </Text>
+              <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 14, textAlign: 'center', marginTop: 14 }}>{t('flyer_already_sub')}</Text>
+              <TouchableOpacity
+                style={{ marginTop: 28, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 20, borderWidth: 1, borderColor: '#E6EFE0' }}
+                onPress={() => { flyerSkipRef.current = true; setFlyerScan(null); setTimeout(askFlyerPhoto, 400); }}
+              >
+                <Text style={{ color: '#fff', fontFamily: 'Jost-Medium', fontSize: 14 }}>{t('flyer_already_rescan')}</Text>
+              </TouchableOpacity>
+            </>
+          ) : flyerScan?.phase === 'done' ? (
             <>
               <Text style={{ fontSize: 64 }}>✅</Text>
               <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 24, textAlign: 'center', marginTop: 12 }}>{t('flyer_scanned_title')}</Text>
