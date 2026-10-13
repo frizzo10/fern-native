@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { loadWeekDeals } from '../utils/savings';
+import { loadWeekDeals, couponItemName } from '../utils/savings';
 import { dealsForStore, storeAtPosition } from '../utils/flyerStore';
 import * as Location from 'expo-location';
 import {
@@ -2048,7 +2048,23 @@ export default function HomeScreen({ user, route }) {
     const nextWallet = [...walletCouponsLocal, coupon];
     setWalletCouponsLocal(nextWallet);
 
-    persistWalletCoupons(nextWallet)
+    // Adding a coupon also puts its product on the shopping list (once), so it shows up when you shop.
+    const addToList = async () => {
+      try {
+        const name = couponItemName(coupon);
+        if (!name) return;
+        const list = JSON.parse((await AsyncStorage.getItem('rv4_master_shop')) || '[]');
+        if (list.some((it) => String(it.text || '').toLowerCase() === name.toLowerCase())) return;
+        const next = [...list, { id: `deal-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, text: name, recipe: 'Coupon deal', checked: false }];
+        await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(next));
+        const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');
+        await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, shopping: next }));
+      } catch (e) { console.log('[coupons] failed to add item to list', e?.message || e); }
+    };
+
+    addToList()
+      .then(() => persistWalletCoupons(nextWallet))
+      .then(() => pull())
       .catch((e) => console.log('[coupons] failed to save wallet coupon', e?.message || e));
   };
 

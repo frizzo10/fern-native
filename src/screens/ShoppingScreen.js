@@ -522,6 +522,16 @@ export default function ShoppingScreen({ user }) {
     await persistShopping(nextItems);
   };
 
+  // Clear the list: remove only what is ticked off, or everything.
+  const clearList = () => {
+    const buttons = [{ text: t('cancel_btn'), style: 'cancel' }];
+    if (checkedCount > 0 && checkedCount < items.length) {
+      buttons.push({ text: t('clear_checked_btn', { n: checkedCount }), onPress: () => persistShopping(items.filter((i) => !i.checked)) });
+    }
+    buttons.push({ text: t('clear_all_btn'), style: 'destructive', onPress: () => persistShopping([]) });
+    Alert.alert(t('clear_list_title'), t('clear_list_body'), buttons);
+  };
+
   const buildWithFern = async () => {
     const existing = new Set(items.map((item) => item.text.toLowerCase()));
     const additions = FERN_STARTER_ITEMS
@@ -828,6 +838,9 @@ export default function ShoppingScreen({ user }) {
                 ? t('items_remaining_singular', { count: remainingCount })
                 : t('items_remaining_plural', { count: remainingCount })}
             </Text>
+            <TouchableOpacity onPress={clearList} activeOpacity={0.8} style={styles.clearListBtn}>
+              <Text style={styles.clearListText}>{`🗑 ${t('clear_list_btn')}`}</Text>
+            </TouchableOpacity>
             {aisleSections.map((section) => (
               <View key={section.aisle.key} style={styles.recipeSectionWrap}>
                 <View style={styles.recipeSectionHeader}>
@@ -1340,6 +1353,8 @@ const styles = StyleSheet.create({
   savingsWeekName: { color: colors.muted, fontSize: 12, fontFamily: 'Jost-Regular' },
   savingsWeekAmt: { color: '#F3EEE4', fontSize: 12, fontFamily: 'Jost-Bold' },
   savingsNote: { color: colors.muted, fontSize: 11, lineHeight: 15, fontFamily: 'Jost-Regular', marginTop: 10 },
+  clearListBtn: { alignSelf: 'flex-start', marginTop: 8, marginBottom: 4, borderWidth: 1.5, borderColor: '#B23A2A', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
+  clearListText: { color: '#B23A2A', fontSize: 13, fontFamily: 'Jost-Bold' },
   listMeta: {
     color: '#7A5C3A',
     fontSize: 12,
