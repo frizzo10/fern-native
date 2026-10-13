@@ -88,6 +88,7 @@ export default function ChatSheetModal({
   title,
   emptyHintKey = 'chat_sheet_empty_hint',
   onAction,
+  mode, // 'voice' = Fern speaks and the mic re-arms after every reply (hands-free); 'text' = typing only, no speech
 }) {
   const { t, locale } = useLanguage();
   const [messages, setMessages] = useState([]); // [{role: 'user'|'fern', text}]
@@ -98,10 +99,10 @@ export default function ChatSheetModal({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
-  const { speakText, stopSpeaking, isSpeaking } = useFernVoice({
+  const { speakText, stopSpeaking, isSpeaking, isThinking: voiceThinking } = useFernVoice({
     onError: (message) => console.warn('[ChatSheetModal] voice error:', message),
     token: user?.token,
-    enabled: visible,
+    enabled: visible && mode !== 'text',
   });
   const { data, pull, pushAllFromStorage } = useSync(user);
   const shoppingRef = useRef(data.shopping);
@@ -187,6 +188,15 @@ export default function ChatSheetModal({
       setError(true);
     },
   });
+
+  // Hands-free: once Fern has finished a reply (and finished speaking it), listen for the next answer.
+  // Voice-activity detection ends the recording on its own, so the conversation just flows.
+  useEffect(() => {
+    if (mode !== 'voice' || !visible || thinking || voiceThinking || isSpeaking || isListening || error) return undefined;
+    if (messages.length === 0 || messages[messages.length - 1].role !== 'fern') return undefined;
+    const timer = setTimeout(() => { start(); }, 900);
+    return () => clearTimeout(timer);
+  }, [mode, visible, thinking, voiceThinking, isSpeaking, isListening, error, messages, start]);
 
   const micDisabled = isSpeaking && !BARGE_IN_ON_MIC_PRESS;
 

@@ -98,7 +98,8 @@ export default function ShoppingScreen({ user }) {
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
-  const [tripChatOpen, setTripChatOpen] = useState(false);
+  const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
+  const tripChatOpen = tripChatMode === 'voice' || tripChatMode === 'text';
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
   const [catalogError, setCatalogError] = useState('');
 
@@ -546,11 +547,23 @@ export default function ShoppingScreen({ user }) {
         </ScrollView>
 
         <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
-          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { setShowSales(true); if (route?.params?.tripStart) setTripChatOpen(true); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
+          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { setShowSales(true); if (route?.params?.tripStart) setTripChatMode('choose'); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
         </View>
 
-        {(weekDeals.length > 0 || route?.params?.tripStart) && (
-          <TouchableOpacity style={[styles.tripChatCard, shadow.card]} activeOpacity={0.9} onPress={() => setTripChatOpen(true)}>
+        {(weekDeals.length > 0 || route?.params?.tripStart) && (tripChatMode === 'choose' ? (
+          <View style={[styles.tripChatCard, shadow.card, { flexDirection: 'column', alignItems: 'stretch' }]}>
+            <Text style={styles.tripChatTitle}>{t('trip_chat_how')}</Text>
+            <View style={styles.tripChoiceRow}>
+              <TouchableOpacity style={styles.tripChoiceBtn} activeOpacity={0.85} onPress={() => setTripChatMode('voice')}>
+                <Text style={styles.tripChoiceText}>{`🎙 ${t('trip_chat_voice')}`}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.tripChoiceBtn} activeOpacity={0.85} onPress={() => setTripChatMode('text')}>
+                <Text style={styles.tripChoiceText}>{`⌨️ ${t('trip_chat_text')}`}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity style={[styles.tripChatCard, shadow.card]} activeOpacity={0.9} onPress={() => setTripChatMode('choose')}>
             <Text style={styles.tripChatEmoji}>🌿</Text>
             <View style={{ flex: 1 }}>
               <Text style={styles.tripChatTitle}>{t('trip_chat_title')}</Text>
@@ -558,7 +571,7 @@ export default function ShoppingScreen({ user }) {
             </View>
             <Text style={styles.tripChatGo}>›</Text>
           </TouchableOpacity>
-        )}
+        ))}
 
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
@@ -846,10 +859,11 @@ export default function ShoppingScreen({ user }) {
       {tripChatOpen && (
         <ChatSheetModal
           visible
-          onClose={() => { setTripChatOpen(false); pull(); }}
+          onClose={() => { setTripChatMode(null); pull(); }}
           user={user}
           title={`🌿 ${t('trip_chat_title')}`}
           systemPrompt={tripPrompt}
+          mode={tripChatMode}
           autoOpenerPrompt={tripOpenerPrompt(tripStore)}
         />
       )}
@@ -868,6 +882,9 @@ const styles = StyleSheet.create({
   tripChatEmoji: { fontSize: 28 },
   tripChatTitle: { color: colors.onFern, fontSize: 16, fontWeight: '800' },
   tripChatSub: { color: colors.onFern, opacity: 0.85, fontSize: 13, marginTop: 2 },
+  tripChoiceRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
+  tripChoiceBtn: { flex: 1, backgroundColor: colors.paper, borderRadius: radius.full, paddingVertical: 12, alignItems: 'center' },
+  tripChoiceText: { color: colors.forest, fontSize: 15, fontWeight: '800' },
   tripChatGo: { color: colors.onFern, fontSize: 28, fontWeight: '300' },
   tripStrip: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   tripStep: { flex: 1, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', borderWidth: 1, borderColor: '#E4DCD2' },
