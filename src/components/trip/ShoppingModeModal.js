@@ -25,7 +25,7 @@ function Barcode({ value }) {
   );
 }
 
-export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons = [], usedIds, onToggleCouponUsed }) {
+export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed }) {
   const { t } = useLanguage();
   const { speakText, stopSpeaking } = useFernVoice({
     onError: (m) => console.warn('[ShoppingMode] voice error:', m),
@@ -38,6 +38,8 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   const [celebrate, setCelebrate] = useState(null); // { section, next } while a finished section is celebrated
   const [confettiKey, setConfettiKey] = useState(0);
   const celebrateTimer = useRef(null);
+  // Only coupons with a real code can be scanned at the register, so only those are shown.
+  const coupons = useMemo(() => (allCoupons || []).filter((m) => m.coupon && m.coupon.redemption === 'code' && m.coupon.realCode && code128Widths(m.coupon.realCode)), [allCoupons]);
   const [showCoupons, setShowCoupons] = useState(false); // the full-page coupon list for the register
   const [showRecap, setShowRecap] = useState(false); // the "what you bought + coupons for the register" screen
 
@@ -238,7 +240,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
               ))}
               <Text style={[styles.sectionHeader, { marginTop: 22 }]}>{`🎟 ${t('shopmode_register_title')}`}</Text>
               <Text style={styles.status}>
-                {coupons.length ? t('sav_checkout_sub', { n: coupons.length }) : t('sav_checkout_none')}
+                {coupons.length ? t('shopmode_scan_sub', { n: coupons.length }) : t('shopmode_scan_none')}
               </Text>
               {coupons.length ? (
                 <TouchableOpacity style={styles.nextBtn} activeOpacity={0.85} onPress={() => setShowCoupons(true)}>
