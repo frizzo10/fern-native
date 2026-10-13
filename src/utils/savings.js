@@ -237,7 +237,10 @@ export function couponItemName(coupon) {
 // Things nobody is grocery shopping for (devices, delivery fees, memberships...).
 const NOT_GROCERY_COUPON = /(smart lock|inhome|in-home|device|delivery|pickup|pick-up|membership|walmart\+|subscription|gift card|insurance|download|app only|new customers?|first order|streaming)/i;
 // Only worth showing when something on the list matches them (a baby coupon is noise for everyone else).
-const NICHE_COUPON_CATEGORIES = ['baby & kids', 'pet care', 'health & beauty'];
+const NICHE_COUPON_CATEGORIES = ['baby & kids', 'pet care'];
+// Pharmacy / personal-care offers (allergy pills, toothbrushes, eye drops, supplements) aren't grocery shopping at all.
+const NON_SHOPPING_CATEGORIES = ['health & beauty', 'health', 'beauty', 'personal care', 'pharmacy'];
+const PHARMACY_COUPON = /(zyrtec|claritin|allegra|benadryl|flonase|tylenol|advil|motrin|aleve|pepto|tums|nyquil|dayquil|mucinex|sudafed|oral-?b|crest|colgate|toothbrush|floss|mouthwash|probiotic|supplement|vitamin|florastor|refresh\b|eye drops?|lens|contact|razor|gillette|schick|shampoo|conditioner|deodorant|skincare|moisturizer|cosmetic|makeup|sunscreen|allergy|pain relief|cold & flu|cough|first aid|bandage|diaper|prescription)/i;
 
 const storeWords = (name) => String(name || '').toLowerCase().split(/\s[-–—|]\s|#/)[0].replace(/[^a-z0-9\s]/g, ' ').trim();
 
@@ -257,6 +260,8 @@ export function tooGoodCoupons(coupons, { excludeIds = [], limit = 4, items = []
     return (coupons || [])
         .filter((c) => !skip.has(String(c.id)))
         .filter((c) => !NOT_GROCERY_COUPON.test(`${c.title} ${c.discountLabel}`))
+        .filter((c) => !NON_SHOPPING_CATEGORIES.includes(String(c.category || '').trim().toLowerCase()))
+        .filter((c) => !PHARMACY_COUPON.test(`${c.title} ${c.discountLabel}`))
         .filter(storeOk)
         .filter((c) => !NICHE_COUPON_CATEGORIES.includes(String(c.category || '').trim().toLowerCase()) || listed(c))
         .map((c) => {

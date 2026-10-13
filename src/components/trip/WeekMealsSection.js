@@ -6,7 +6,7 @@ import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../../services
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
 import { buildRollingWeekDateKeys, normalizeSlot, parseDateKey } from '../../utils/familyDates';
 import { PANTRY_SKIP, pickStarDeals } from '../../utils/starDeals';
-import { dealSaving, fmtMoney, sumSavings } from '../../utils/savings';
+import { dealSaving, fmtMoney } from '../../utils/savings';
 import MealPlannerImage from '../MealPlannerImage';
 import ListAddPreview from '../ListAddPreview';
 import { planShoppingAdditions } from '../../utils/shoppingListSync';
@@ -168,13 +168,12 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
         if (!key) return;
         const dayMeals = Array.isArray(next[key]) ? next[key] : [];
         next = { ...next, [key]: [...dayMeals, { slot: 'Dinner', title: p.title, emoji: p.emoji || '🍽️', ...((p.sides || []).length ? { sides: p.sides } : {}) }] };
-        lines.push(`${parseDateKey(key).toLocaleDateString(locale === 'es' ? 'es' : 'en-US', { weekday: 'long' })}: ${p.title}${(p.sides || []).length ? ` + ${p.sides.join(', ')}` : ''}`);
+        lines.push({ day: parseDateKey(key).toLocaleDateString(locale === 'es' ? 'es' : 'en-US', { weekday: 'long' }), title: p.title, emoji: p.emoji, sides: p.sides || [], star: p.star?.name || '' });
       });
       await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
       await pushChangedFromStorage?.({ meal_plan: next });
       await onAddToList?.(recipes, { skip });
-      const sv = sumSavings(picks.map((p) => p.star));
-      setSummary({ n: picks.length, lines, saving: sv.total ? `${sv.est ? '~' : ''}${fmtMoney(sv.total)}` : '' });
+      setSummary({ n: picks.length, lines });
       setPending(null);
       setPhase('done');
       onChanged?.();
@@ -282,11 +281,21 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       ) : null}
 
       {phase === 'done' && summary ? (
-        <View style={styles.done}>
+        <View>
           <Text style={styles.doneTitle}>{t('trip_week_done_title', { n: summary.n })}</Text>
-          {summary.lines.map((l) => <Text key={l} style={styles.previewText}>{l}</Text>)}
-          {summary.saving ? <Text style={styles.doneSave}>{t('psp_card_savings', { amt: summary.saving })}</Text> : null}
-          <Text style={styles.sub}>{t('trip_week_done_sub')}</Text>
+          {summary.lines.map((l, i) => (
+            <View key={`${l.day}-${l.title}`} style={styles.idea}>
+              <View style={styles.ideaTop}>
+                <MealPlannerImage title={l.title} index={i} fallback={<Text style={{ fontSize: 26 }}>{l.emoji || '🍽️'}</Text>} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.sub}>{l.day}</Text>
+                  <Text style={styles.ideaTitle}>{l.title}</Text>
+                  <Text style={styles.sub}>{[l.sides.length ? t('trip_week_with', { sides: l.sides.join(', ') }) : '', l.star ? t('trip_week_star_sale', { item: l.star }) : ''].filter(Boolean).join(' · ')}</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+          <Text style={[styles.sub, { marginTop: 8 }]}>{t('trip_week_done_sub')}</Text>
           <TouchableOpacity onPress={() => { setPhase('idle'); setCards([]); setSummary(null); }} activeOpacity={0.8}>
             <Text style={[styles.link, { marginTop: 8 }]}>{t('trip_week_again')}</Text>
           </TouchableOpacity>

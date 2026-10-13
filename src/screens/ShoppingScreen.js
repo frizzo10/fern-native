@@ -615,34 +615,6 @@ export default function ShoppingScreen({ user }) {
           </Text>
         ) : null}
 
-        {greatDeals.length ? (
-          <View style={[styles.greatCard, shadow.card]}>
-            <Text style={styles.checkoutTitle}>{`🔥 ${t('sav_great_title')}`}</Text>
-            <Text style={styles.checkoutSub}>{t('sav_great_sub')}</Text>
-            {greatDeals.map((m) => {
-              const c = m.coupon;
-              const done = walletIds.has(String(c.id));
-              return (
-                <View key={c.id} style={styles.couponRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.couponTitle} numberOfLines={2}>{couponItemName(c)}</Text>
-                    <Text style={styles.greatValue}>{c.discountLabel || c.title}</Text>
-                    {c.store ? <Text style={styles.couponMeta}>{c.store}</Text> : null}
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.usedBtn, done ? styles.usedBtnOn : null]}
-                    onPress={() => addGreatDeal(m)}
-                    disabled={done}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={[styles.usedBtnText, done ? styles.usedBtnTextOn : null]}>{done ? t('sav_great_done') : t('sav_great_btn')}</Text>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-        ) : null}
-
         {listCoupons.length ? (
           <View style={[styles.checkoutCard, shadow.card]}>
             <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_for_list_title')}`}</Text>
@@ -687,6 +659,34 @@ export default function ShoppingScreen({ user }) {
             onChanged={pull}
           />
         </View>
+
+        {greatDeals.length ? (
+          <View style={[styles.greatCard, shadow.card]}>
+            <Text style={styles.checkoutTitle}>{`🔥 ${t('sav_great_title')}`}</Text>
+            <Text style={styles.checkoutSub}>{t('sav_great_sub')}</Text>
+            {greatDeals.map((m) => {
+              const c = m.coupon;
+              const done = walletIds.has(String(c.id));
+              return (
+                <View key={c.id} style={styles.couponRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.couponTitle} numberOfLines={2}>{couponItemName(c)}</Text>
+                    <Text style={styles.greatValue}>{c.discountLabel || c.title}</Text>
+                    {c.store ? <Text style={styles.couponMeta}>{c.store}</Text> : null}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.usedBtn, done ? styles.usedBtnOn : null]}
+                    onPress={() => addGreatDeal(m)}
+                    disabled={done}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={[styles.usedBtnText, done ? styles.usedBtnTextOn : null]}>{done ? t('sav_great_done') : t('sav_great_btn')}</Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
 
         {showCheckout ? (
           <View style={[styles.checkoutCard, shadow.card]}>
@@ -740,43 +740,7 @@ export default function ShoppingScreen({ user }) {
           </TouchableOpacity>
         ) : null}
 
-        <View style={[styles.savingsCard, shadow.card]} onLayout={(e) => { sectionY.current.savings = e.nativeEvent.layout.y; }}>
-          <Text style={styles.savingsTitle}>{t('sav_card_title')}</Text>
-          {savings.allTime.total > 0 ? (
-            <>
-              <Text style={styles.savingsBig}>{`${savings.thisWeek.est ? '~' : ''}${fmtMoney(savings.thisWeek.total)}`}</Text>
-              <Text style={styles.savingsSub}>{t('sav_this_week')}</Text>
-              <View style={styles.savingsSplit}>
-                <View style={styles.savingsCell}>
-                  <Text style={styles.savingsCellNum}>{fmtMoney(savings.thisWeek.circular)}</Text>
-                  <Text style={styles.savingsCellLabel}>{t('sav_flyer')}</Text>
-                </View>
-                <View style={styles.savingsCell}>
-                  <Text style={styles.savingsCellNum}>{fmtMoney(savings.thisWeek.coupon)}</Text>
-                  <Text style={styles.savingsCellLabel}>{t('sav_coupons')}</Text>
-                </View>
-                <View style={styles.savingsCell}>
-                  <Text style={styles.savingsCellNum}>{fmtMoney(savings.allTime.total)}</Text>
-                  <Text style={styles.savingsCellLabel}>{t('sav_all_time')}</Text>
-                </View>
-              </View>
-              {savings.weeks.filter((w) => w.weekKey !== thisWeekKey).slice(0, 4).length ? (
-                <View style={styles.savingsWeeks}>
-                  <Text style={styles.savingsCellLabel}>{t('sav_earlier_weeks')}</Text>
-                  {savings.weeks.filter((w) => w.weekKey !== thisWeekKey).slice(0, 4).map((w) => (
-                    <View key={w.weekKey} style={styles.savingsWeekRow}>
-                      <Text style={styles.savingsWeekName}>{t('sav_week_of', { date: weekLabel(w.weekKey) })}</Text>
-                      <Text style={styles.savingsWeekAmt}>{fmtMoney(w.total)}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : null}
-              <Text style={styles.savingsNote}>{t('sav_est_note')}</Text>
-            </>
-          ) : (
-            <Text style={styles.savingsNote}>{t('sav_none_yet')}</Text>
-          )}
-        </View>
+        <View onLayout={(e) => { sectionY.current.savings = e.nativeEvent.layout.y; }} />
 
         {items.length ? (
           <View style={styles.listWrap}>
