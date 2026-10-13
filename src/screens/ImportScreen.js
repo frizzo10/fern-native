@@ -16,6 +16,7 @@ import useLanguage from '../hooks/useLanguage';
 import { useSync } from '../hooks/useSync';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { fetchRecipeImage } from '../utils/recipeImage';
+import SaveToCookbookModal from '../components/modals/SaveToCookbookModal';
 import { importFromUrl, importFromVideo, importFromCard, importFromText } from '../services/importService';
 
 const C = {
@@ -37,7 +38,8 @@ const lineText = (x) => {
 
 export default function ImportScreen({ user, onBack, onImported }) {
   const { t, locale } = useLanguage();
-  const { pushAllFromStorage, pull } = useSync(user);
+  const { pushAllFromStorage, pull, data } = useSync(user);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   const [mode, setMode] = useState('url'); // 'url' | 'video' | 'text' | 'card'
   const [url, setUrl] = useState('');
@@ -95,7 +97,8 @@ export default function ImportScreen({ user, onBack, onImported }) {
     setCardPhoto(result.photo);
   }
 
-  async function handleSave() {
+  // Which cookbook / cuisine / meal type, like the web app's save dialog.
+  async function handleSave({ bookId, cuisine, mealType } = {}) {
     if (!previewRecipe) return;
     setSaving(true);
     try {
@@ -108,8 +111,9 @@ export default function ImportScreen({ user, onBack, onImported }) {
           title: previewRecipe.title,
           emoji: previewRecipe.emoji || '🍽️',
           image: previewRecipe.image || null,
-          cuisine: previewRecipe.cuisine,
-          mealType: previewRecipe.mealType,
+          cuisine: cuisine || previewRecipe.cuisine,
+          mealType: mealType || previewRecipe.mealType,
+          ...(bookId ? { _bookIds: [bookId] } : {}),
           time: previewRecipe.time,
           difficulty: previewRecipe.difficulty,
           description: previewRecipe.description,
@@ -184,7 +188,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
                 <TouchableOpacity style={s.discardBtn} onPress={() => setPreviewRecipe(null)} disabled={saving}>
                   <Text style={s.discardBtnText}>{t('discard')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.saveBtn} onPress={handleSave} disabled={saving}>
+                <TouchableOpacity style={s.saveBtn} onPress={() => setPickerOpen(true)} disabled={saving}>
                   {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{t('saveToCookbookBtn')}</Text>}
                 </TouchableOpacity>
               </View>
@@ -282,6 +286,16 @@ export default function ImportScreen({ user, onBack, onImported }) {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+      <SaveToCookbookModal
+        visible={pickerOpen && !!previewRecipe}
+        books={data?.books || []}
+        initialCuisine={previewRecipe?.cuisine || ''}
+        initialMealType={previewRecipe?.mealType || ''}
+        isSaving={saving}
+        onCancel={() => setPickerOpen(false)}
+        // iOS drops an Alert shown while a Modal is still closing, so close first, then save.
+        onSave={(choice) => { setPickerOpen(false); setTimeout(() => handleSave(choice), 450); }}
+      />
     </SafeAreaView>
   );
 }
