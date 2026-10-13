@@ -110,6 +110,7 @@ export default function ShoppingScreen({ user }) {
   };
   const [review, setReview] = useState(null);
   useEffect(() => subscribeReview(setReview), []);
+  const [listChat, setListChat] = useState(false); // the leaf button: talk to Fern about the list
   const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
   const tripChatOpen = tripChatMode === 'voice' || tripChatMode === 'text';
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
@@ -162,6 +163,8 @@ export default function ShoppingScreen({ user }) {
       fetchAllCoupons().then((list) => { const n = normalizeCoupons(list); setCatalog(n); setCatalogState(n.length ? 'ok' : 'failed'); setCatalogError(n.length ? '' : 'empty list'); }).catch((e) => { setCatalogState('failed'); setCatalogError(String(e?.message || e)); });
     }, [])
   );
+
+  useEffect(() => { if (route?.params?.listChat) setListChat(true); }, [route?.params?.listChat]);
 
   const reloadDeals = () => loadWeekDeals().then(setWeekDeals);
 
@@ -293,6 +296,30 @@ export default function ShoppingScreen({ user }) {
     if (hit) await persistShopping(toUiItems(next));
     return hit;
   };
+
+  const normName = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)).join(' ');
+  const removeByName = async (names) => {
+    let current = [];
+    try { current = JSON.parse((await AsyncStorage.getItem('rv4_master_shop')) || '[]'); } catch (e) { current = []; }
+    if (!Array.isArray(current) || !current.length) current = items;
+    const wanted = names.map(normName).filter(Boolean);
+    const next = current.filter((it) => {
+      const key = normName(it.text);
+      return !wanted.some((w) => key === w || key.includes(w) || w.includes(key));
+    });
+    if (next.length !== current.length) await persistShopping(toUiItems(next));
+    return current.length - next.length;
+  };
+  const listChatPrompt = useMemo(() => [
+    'You are Fern, helping the user build and edit their shopping list by talking or typing. Keep replies to 1-2 short sentences.',
+    items.length ? `Their list right now: ${items.map((i) => `${String(i.text).slice(0, 40)}${i.checked ? ' (got it)' : ''}`).slice(0, 80).join(', ')}.` : 'Their list is empty.',
+    'When they want to add things, put plain grocery names (e.g. "Olive oil") in add_to_shopping_list and say you are adding them. Do not add something already on the list.',
+    'When they want something removed, put the matching names from their list in remove_from_list. When they say they already got something, put the matching names in checked_off. Otherwise leave these empty.',
+    'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1"],"remove_from_list":["item2"],"checked_off":["item3"]}',
+  ].join('\n\n'),
+  // Built when the chat opens; later list changes shouldn't rewrite a conversation in progress.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [listChat]);
 
   const tripStore = route?.params?.store || data.userStores?.[0]?.name || '';
   const tripPrompt = useMemo(() => buildTripSystemPrompt({
@@ -896,6 +923,24 @@ export default function ShoppingScreen({ user }) {
             return null;
           }}
           autoOpenerPrompt={tripOpenerPrompt(tripStore)}
+        />
+      )}
+      {listChat && (
+        <ChatSheetModal
+          visible
+          onClose={() => { setListChat(false); pull(); }}
+          user={user}
+          title={`🌿 ${t('list_chat_title')}`}
+          systemPrompt={listChatPrompt}
+          autoOpenerPrompt={t('list_chat_opener')}
+          onAction={(parsed) => {
+            const clean = (a) => (Array.isArray(a) ? a.map((x) => String(x || '').trim()).filter(Boolean) : []);
+            const rem = clean(parsed?.remove_from_list);
+            const chk = clean(parsed?.checked_off);
+            if (rem.length) removeByName(rem).catch(() => {});
+            if (chk.length) checkOffByName(chk).catch(() => {});
+            return null;
+          }}
         />
       )}
       {review ? (

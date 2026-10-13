@@ -418,12 +418,14 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         <TouchableOpacity
           style={styles.chatFab}
           activeOpacity={0.85}
-          onPress={() => setIsChatOpen(true)}
+          onPress={() => {
+            // On the Shopping page the leaf talks about the shopping list (add / change / remove); elsewhere it's Ask Fern.
+            if (activeTabName === 'Shopping') navigationRef.current?.navigate('Shopping', { listChat: Date.now() });
+            else setIsChatOpen(true);
+          }}
           accessibilityLabel={t('ask_fern_btn')}
         >
-          {activeTabName === 'Shopping'
-            ? <Text style={styles.chatFabAi}>AI</Text>
-            : <Text style={styles.chatFabText}>🌿</Text>}
+          <Text style={styles.chatFabText}>🌿</Text>
         </TouchableOpacity>
       )}
 
@@ -741,7 +743,6 @@ const styles = StyleSheet.create({
     ...shadow.strong,
   },
   chatFabText: { fontSize: 26 },
-  chatFabAi: { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: 1 },
 
   moreBackdrop: {
     flex: 1,
