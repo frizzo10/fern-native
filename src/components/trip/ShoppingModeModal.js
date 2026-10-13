@@ -25,7 +25,10 @@ function Barcode({ value }) {
   );
 }
 
-export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed, onClearChecked }) {
+// Stores reported to take Coupons.com digital coupons (loaded to the store account). Anything else gets a "check first" note.
+const DIGITAL_OK = /publix|kroger|albertsons|safeway|food lion|meijer|walgreens|dollar general/i;
+
+export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed, onClearChecked, storeName = '' }) {
   const { t } = useLanguage();
   const { speakText, stopSpeaking } = useFernVoice({
     onError: (m) => console.warn('[ShoppingMode] voice error:', m),
@@ -208,7 +211,14 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
                           <TouchableOpacity onPress={() => Linking.openURL(c.url)} activeOpacity={0.8}>
                             <Text style={styles.couponLink}>{t('sav_open_link')}</Text>
                           </TouchableOpacity>
-                        ) : <Text style={styles.couponMeta}>{t('sav_digital')}</Text>}
+                        ) : (
+                          <>
+                            <Text style={styles.couponMeta}>{t('sav_digital')}</Text>
+                            {!storeName || !DIGITAL_OK.test(storeName) ? (
+                              <Text style={styles.couponWarn}>{storeName ? t('shopmode_check_store', { store: storeName }) : t('shopmode_check_any')}</Text>
+                            ) : null}
+                          </>
+                        )}
                       </>
                     )}
                     {m.value && m.value.percent && !m.value.amount ? <Text style={styles.couponMeta}>{t('sav_pct_note')}</Text> : null}
@@ -318,6 +328,7 @@ const styles = StyleSheet.create({
   couponTitle: { fontSize: 16, fontWeight: '800', color: colors.ink },
   couponMeta: { fontSize: 13, color: colors.brown, marginTop: 3 },
   couponCodeBig: { fontSize: 26, fontWeight: '900', color: colors.ink, letterSpacing: 3, textAlign: 'center', marginTop: 10, paddingVertical: 10, backgroundColor: '#fff', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  couponWarn: { fontSize: 13, fontWeight: '700', color: '#B23A2A', marginTop: 6 },
   couponLink: { fontSize: 14, fontWeight: '800', color: colors.bright, marginTop: 6 },
   usedBtn: { alignSelf: 'flex-start', marginTop: 10, borderWidth: 1.5, borderColor: '#2A6A2A', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
   usedBtnOn: { backgroundColor: '#2A6A2A' },

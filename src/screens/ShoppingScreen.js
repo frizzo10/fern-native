@@ -984,6 +984,7 @@ export default function ShoppingScreen({ user }) {
         coupons={checkoutCoupons}
         usedIds={usedIds}
         onToggleCouponUsed={toggleCouponUsed}
+        storeName={tripStore}
         onClearChecked={() => persistShopping(items.filter((i) => !i.checked))}
         onClose={() => { setShopModeOpen(false); pull(); }}
         onSetChecked={async (ids, checked) => {
