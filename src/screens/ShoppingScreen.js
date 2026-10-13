@@ -139,6 +139,21 @@ export default function ShoppingScreen({ user }) {
     setItems(toUiItems(data.shopping));
   }, [data.shopping]);
 
+  // One-time clean-up: older versions ticked items off by themselves when a second recipe needed the same
+  // ingredient. Nothing ticks an item except you now, so clear those leftovers once (ticks you make afterwards stay).
+  const ticksResetRef = useRef(false);
+  useEffect(() => {
+    if (ticksResetRef.current || !items.length) return;
+    ticksResetRef.current = true;
+    (async () => {
+      try {
+        if ((await AsyncStorage.getItem('fern_ticks_reset_v1')) === 'done') return;
+        await AsyncStorage.setItem('fern_ticks_reset_v1', 'done');
+        if (items.some((it) => it.checked)) await persistShopping(items.map((it) => ({ ...it, checked: false })));
+      } catch (e) { /* best effort */ }
+    })();
+  }, [items]);
+
   // This week's flyer deals, the live coupon catalog and the savings ledger (all best effort).
   useFocusEffect(
     useMemo(() => () => {
