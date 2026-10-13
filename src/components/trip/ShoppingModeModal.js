@@ -25,20 +25,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   const sections = useMemo(() => {
     const by = new Map(AISLES.map((a) => [a.key, []]));
-    // The same thing on the list twice (e.g. "Chicken" from two recipes) is one stop: one tap checks off every copy.
-    const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean)
-      .map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)).join(' ');
-    (items || []).forEach((it) => {
-      const bucket = by.get(aisleFor(it.text).key);
-      const key = norm(it.text);
-      const same = key ? bucket.find((g) => g.key === key) : null;
-      if (same) {
-        same.ids.push(it.id);
-        same.checked = same.checked && Boolean(it.checked);
-      } else {
-        bucket.push({ ...it, key, ids: [it.id], checked: Boolean(it.checked) });
-      }
-    });
+    (items || []).forEach((it) => by.get(aisleFor(it.text).key).push(it));
     return AISLES.filter((a) => by.get(a.key).length)
       .map((a) => ({ key: a.key, emoji: a.emoji, name: t(a.labelKey), items: by.get(a.key) }));
   }, [items, t]);
@@ -92,6 +79,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   const got = async (item) => {
     const next = nextAfter(item);
+    await onSetChecked(item.id, true);
     let msg = t('shopmode_checked', { item: item.text });
     if (next) {
       if (next.sectionKey !== item.sectionKey) {
@@ -107,9 +95,6 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
       msg += ` ${t('shopmode_all_done')}`;
     }
     say(msg);
-    // Save last: the celebration/announcement above must show first, otherwise the next section's list flashes
-    // on screen while the save finishes.
-    await onSetChecked(item.ids || [item.id], true);
   };
 
   const skip = (item) => {
@@ -121,7 +106,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   };
 
   const tapRow = (item) => {
-    if (item.checked) { onSetChecked(item.ids || [item.id], false); return; }
+    if (item.checked) { onSetChecked(item.id, false); return; }
     got({ ...item, sectionKey: aisleFor(item.text).key });
   };
 
@@ -180,7 +165,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
                     <View style={[styles.checkbox, it.checked && styles.checkboxChecked]}>
                       {it.checked ? <Text style={styles.checkmark}>✓</Text> : null}
                     </View>
-                    <Text style={[styles.rowText, it.checked && styles.rowTextChecked]} numberOfLines={2}>{it.ids && it.ids.length > 1 ? `${it.text} ×${it.ids.length}` : it.text}</Text>
+                    <Text style={[styles.rowText, it.checked && styles.rowTextChecked]} numberOfLines={2}>{it.text}</Text>
                     {skipped.includes(it.id) && !it.checked ? <Text style={styles.skippedTag}>{t('shopmode_skip')}</Text> : null}
                   </TouchableOpacity>
                 );
