@@ -15,6 +15,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Updates from 'expo-updates';
+import buildStamp from '../buildStamp.json';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { colors, radius, shadow } from '../constants/tokens';
 import { STORE_PRESETS } from '../constants/storePresets';
@@ -2736,6 +2738,17 @@ export default function HomeScreen({ user, route }) {
               </>
             ) : null}
 
+            <TouchableOpacity
+              style={styles.versionTap}
+              activeOpacity={0.6}
+              onPress={() => Alert.alert(
+                `Version ${buildStamp.commit || 'dev'}`,
+                [buildStamp.subject, Updates.createdAt ? `Update published: ${Updates.createdAt.toLocaleString()}` : 'Running the built-in version (no update applied yet)', Updates.updateId ? `Update ID: ${Updates.updateId}` : ''].filter(Boolean).join('\n\n'),
+              )}
+            >
+              <Text style={styles.versionText}>{`v ${buildStamp.commit || 'dev'}`}</Text>
+            </TouchableOpacity>
+
             <View style={styles.bottomSpacer} />
           </>
         )}
@@ -3747,6 +3760,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  versionTap: { alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 16 },
+  versionText: { fontSize: 10, color: '#7a6d60', opacity: 0.45 },
   bottomSpacer: {
     height: 24,
   },

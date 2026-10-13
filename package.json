@@ -38,7 +38,8 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "ota": "node scripts/stamp.js && eas update --branch production --environment production --message \"Fern update\""
   },
   "private": true
 }
