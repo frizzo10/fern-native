@@ -1418,9 +1418,44 @@ export default function HomeScreen({ user, route }) {
   // New Home's "Scan a flyer": Pro Max starts the Personal Shopper agent (scan the flyer,
   // then Fern plans dinners around the sales, fills the week and builds the list) -- the same
   // flow the store-arrival notification opens. Other plans keep the plain flyer scan.
+  // Scan a flyer right here: pick a photo, show Fern "reading" it for at least 3 seconds, say what was found,
+  // then land on the Shopping page with the sales list.
+  const [flyerScan, setFlyerScan] = useState(null); // null | { phase: 'working' } | { phase: 'done', count, store }
+  const runHomeFlyerScan = async (fromCamera) => {
+    const picked = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+    if (picked.permissionDenied) {
+      Alert.alert(t('permission_needed_title'), t('photo_permission_denied_desc'));
+      return;
+    }
+    if (!picked.photo?.base64) return;
+    setFlyerScan({ phase: 'working' });
+    const started = Date.now();
+    try {
+      const result = await scanCircular({ userId: user?.id, base64: picked.photo.base64, mimeType: picked.photo.mimeType, token: user?.token });
+      const items = (result.items || []).filter((i) => i.name);
+      await new Promise((r) => setTimeout(r, Math.max(0, 3000 - (Date.now() - started))));
+      if (!items.length) {
+        setFlyerScan(null);
+        Alert.alert(t('trip_flyer_none'));
+        return;
+      }
+      setFlyerScan({ phase: 'done', count: items.length, store: String(result.store || '').trim() });
+      await new Promise((r) => setTimeout(r, 1800));
+      setFlyerScan(null);
+      navigation.navigate('Shopping', { flyerScanned: Date.now() });
+    } catch (e) {
+      console.log('[home] flyer scan failed', e?.message || e);
+      setFlyerScan(null);
+      Alert.alert(t('scan_circular_scan_failed_title'), t('scan_circular_scan_failed_desc'));
+    }
+  };
+
   const handleHomeScanFlyer = () => {
-    // The whole trip lives on the Shopping screen now (flyer, sales, coupons, a week of dinners).
-    navigation.navigate('Shopping', { tripStart: Date.now() });
+    Alert.alert(t('trip_flyer_title'), undefined, [
+      { text: t('trip_flyer_camera'), onPress: () => setTimeout(() => runHomeFlyerScan(true), 400) },
+      { text: t('trip_flyer_library'), onPress: () => setTimeout(() => runHomeFlyerScan(false), 400) },
+      { text: t('cancel_btn'), style: 'cancel' },
+    ]);
   };
 
   const closeScanCircularModal = () => {
@@ -2882,6 +2917,26 @@ export default function HomeScreen({ user, route }) {
             </View>
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
+      </Modal>
+
+      <Modal visible={Boolean(flyerScan)} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(20,45,20,0.92)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          {flyerScan?.phase === 'done' ? (
+            <>
+              <Text style={{ fontSize: 64 }}>✅</Text>
+              <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 24, textAlign: 'center', marginTop: 12 }}>{t('flyer_scanned_title')}</Text>
+              <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 16, textAlign: 'center', marginTop: 8 }}>
+                {flyerScan.store ? t('flyer_scanned_found_store', { n: flyerScan.count, store: flyerScan.store }) : t('flyer_scanned_found', { n: flyerScan.count })}
+              </Text>
+            </>
+          ) : (
+            <>
+              <ActivityIndicator size="large" color="#E8742A" />
+              <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 22, textAlign: 'center', marginTop: 20 }}>{t('flyer_scanning_title')}</Text>
+              <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 15, textAlign: 'center', marginTop: 8 }}>{t('flyer_scanning_sub')}</Text>
+            </>
+          )}
+        </View>
       </Modal>
 
       <FamilyAddSavedMealModal

@@ -172,6 +172,11 @@ export default function ShoppingScreen({ user }) {
       const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.flyer || 0) - 8), animated: true }), 450);
       return () => clearTimeout(timer);
     }
+    if (route?.params?.flyerScanned) {
+      reloadDeals?.();
+      const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 600);
+      return () => clearTimeout(timer);
+    }
     if (route?.params?.everyday) {
       const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.everyday || 0) - 8), animated: true }), 450);
       return () => clearTimeout(timer);
@@ -183,7 +188,7 @@ export default function ShoppingScreen({ user }) {
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [route?.params?.tripStart, route?.params?.tripDone, route?.params?.everyday]);
+  }, [route?.params?.tripStart, route?.params?.tripDone, route?.params?.everyday, route?.params?.flyerScanned]);
 
   // Add a batch of recipes' ingredients (the week of dinners) to the list in one save.
   // `skip` = names the user un-ticked in the preview.
