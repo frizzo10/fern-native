@@ -25,6 +25,8 @@ import WeekMealsSection from '../components/trip/WeekMealsSection';
 import { addRecipesToShoppingList, buyCount } from '../utils/shoppingListSync';
 import { AISLES, aisleFor } from '../utils/aisles';
 import { toShoppingName } from '../utils/shoppingName';
+import { ListAddPreviewBody } from '../components/ListAddPreview';
+import { subscribeReview } from '../services/reviewBus';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
@@ -98,6 +100,8 @@ export default function ShoppingScreen({ user }) {
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
+  const [review, setReview] = useState(null);
+  useEffect(() => subscribeReview(setReview), []);
   const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
   const tripChatOpen = tripChatMode === 'voice' || tripChatMode === 'text';
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
@@ -892,6 +896,18 @@ export default function ShoppingScreen({ user }) {
           autoOpenerPrompt={tripOpenerPrompt(tripStore)}
         />
       )}
+      {review ? (
+        <View style={styles.reviewScreen}>
+          <View style={styles.reviewBar}>
+            <TouchableOpacity onPress={review.onCancel} disabled={review.busy} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.reviewBack}>{`‹ ${t('list_preview_cancel')}`}</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView contentContainerStyle={styles.reviewContent} showsVerticalScrollIndicator={false}>
+            <ListAddPreviewBody {...review} t={t} flat />
+          </ScrollView>
+        </View>
+      ) : null}
       <StoreRemainingItemsModal
         visible={Boolean(remainingItemsModal)}
         storeName={remainingItemsModal?.storeName}
@@ -903,6 +919,10 @@ export default function ShoppingScreen({ user }) {
 }
 
 const styles = StyleSheet.create({
+  reviewScreen: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#F4F1ED', zIndex: 50 },
+  reviewBar: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 6 },
+  reviewBack: { fontSize: 16, fontWeight: '700', color: colors.forest },
+  reviewContent: { paddingHorizontal: 20, paddingBottom: 40 },
   tripChatCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.forest, borderRadius: radius.lg, padding: 16, marginBottom: 16 },
   tripChatEmoji: { fontSize: 28 },
   tripChatTitle: { color: colors.onFern, fontSize: 16, fontWeight: '800' },

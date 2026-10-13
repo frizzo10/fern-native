@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../constants/tokens';
 import { AISLES } from '../utils/aisles';
+import { showReview, hideReview, hasReviewHost } from '../services/reviewBus';
 
 // The "here's what goes on your list" step, shown inline (not a Modal — iOS drops a Modal presented while
 // another is closing) before anything is written. Items are grouped by store section; an item needed by
@@ -9,7 +10,7 @@ import { AISLES } from '../utils/aisles';
 //   lines     from planShoppingAdditions(): [{ key, text, aisle, meals, count, status }]
 //   onConfirm (skip: Set<string>) => void    lower-cased names the user un-ticked
 //   onCancel  () => void
-export default function ListAddPreview({ lines, t, onConfirm, onCancel, busy, intro }) {
+export function ListAddPreviewBody({ lines, t, onConfirm, onCancel, busy, intro, flat }) {
   const [off, setOff] = useState(() => new Set());
 
   const groups = useMemo(() => {
@@ -31,8 +32,8 @@ export default function ListAddPreview({ lines, t, onConfirm, onCancel, busy, in
   });
 
   return (
-    <View style={styles.wrap}>
-      <Text style={styles.title}>{t('list_preview_title')}</Text>
+    <View style={flat ? styles.flat : styles.wrap}>
+      <Text style={[styles.title, flat ? { fontSize: 22 } : null]}>{t('list_preview_title')}</Text>
       {intro ? <Text style={styles.sub}>{intro}</Text> : null}
       {groups.map(({ aisle, rows }) => (
         <View key={aisle.key} style={styles.group}>
@@ -74,7 +75,30 @@ export default function ListAddPreview({ lines, t, onConfirm, onCancel, busy, in
   );
 }
 
+// What callers render: the review opens as a separate full screen (see ShoppingScreen's overlay) when a host
+// is mounted, so it can never be mistaken for part of the shopping list; otherwise it falls back to inline.
+export default function ListAddPreview(props) {
+  const [hosted] = useState(() => hasReviewHost());
+  const latest = useRef(props);
+  latest.current = props;
+  // Only re-post when what is shown changes (the parent re-renders often; posting every time would loop).
+  const sig = `${props.busy ? 1 : 0}|${props.intro || ''}|${(props.lines || []).map((l) => `${l.key}:${l.status}:${l.count}`).join(',')}`;
+  useEffect(() => {
+    if (!hosted) return;
+    showReview({
+      lines: latest.current.lines,
+      intro: latest.current.intro,
+      busy: latest.current.busy,
+      onConfirm: (skip) => latest.current.onConfirm?.(skip),
+      onCancel: () => latest.current.onCancel?.(),
+    });
+  }, [hosted, sig]);
+  useEffect(() => () => { if (hosted) hideReview(); }, [hosted]);
+  return hosted ? null : <ListAddPreviewBody {...props} />;
+}
+
 const styles = StyleSheet.create({
+  flat: { backgroundColor: 'transparent' },
   wrap: { backgroundColor: '#FBF8F4', borderRadius: 10, padding: 10, marginTop: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: '#E4DCD2' },
   title: { fontSize: 14, fontWeight: '700', color: '#2D1B10' },
   sub: { fontSize: 12, color: '#7a6d60', marginTop: 2 },
