@@ -745,6 +745,37 @@ export default function HomeScreen({ user, route }) {
     }
   };
 
+  // Standing in the store? Save exactly where you are as that store's location, so arrival alerts fire.
+  // (Address-based lookups can land blocks or miles away from the real front door.)
+  const handleFixStoreLocation = (index) => {
+    const store = userStoresLocal[index];
+    if (!store) return;
+    Alert.alert(t('store_here_title'), t('store_here_body', { store: store.name || '' }), [
+      { text: t('cancel_btn'), style: 'cancel' },
+      {
+        text: t('store_here_btn'),
+        onPress: async () => {
+          try {
+            const perm = await Location.requestForegroundPermissionsAsync();
+            if (perm.status !== 'granted') { Alert.alert(t('store_here_fail')); return; }
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            const nextStores = userStoresLocal.map((s, i) => (i === index ? { ...s, lat: pos.coords.latitude, lng: pos.coords.longitude } : s));
+            setUserStoresLocal(nextStores);
+            await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(nextStores));
+            const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');
+            await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, userStores: nextStores }));
+            await pushAllFromStorage();
+            await pull();
+            Alert.alert(t('store_here_done', { store: store.name || '' }));
+          } catch (e) {
+            console.log('[stores] could not save store location', e?.message || e);
+            Alert.alert(t('store_here_fail'));
+          }
+        },
+      },
+    ]);
+  };
+
   const resetAddStoreForm = () => {
     setStoreNameInput('');
     setZipCodeInput('');
@@ -2526,6 +2557,7 @@ export default function HomeScreen({ user, route }) {
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
                 onScan={handleHomeScanFlyer}
                 stores={userStoresLocal}
+                onFixStoreLocation={handleFixStoreLocation}
                 onAddStore={openAddStoreModal}
                 onAskFern={openChat}
                 weekDays={weekDays}

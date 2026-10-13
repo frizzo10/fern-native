@@ -53,6 +53,7 @@ export default function NewHome({
   onOpenLanguage,
   onScan,
   stores,
+  onFixStoreLocation,
   onAddStore,
   onAskFern,
   weekDays,
@@ -160,6 +161,11 @@ export default function NewHome({
             <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={onScan}>
               <Ionicons name="location-outline" size={15} color={SAGE} />
               <Text style={styles.storeLineText} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
+              {onFixStoreLocation ? (
+                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 6 }} onPress={() => onFixStoreLocation(i)} accessibilityRole="button" accessibilityLabel={t('store_here_btn')}>
+                  <Ionicons name="navigate-circle-outline" size={20} color={SAGE} />
+                </TouchableOpacity>
+              ) : null}
               <Ionicons name="chevron-forward" size={14} color={SAGE} />
             </TouchableOpacity>
           ))}
