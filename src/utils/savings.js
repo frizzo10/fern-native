@@ -112,18 +112,54 @@ export function weekLabel(weekKey, locale = 'en') {
 // ── this week's flyer deals, remembered so the Shopping screen can match list items ──
 const WEEK_DEALS_KEY = 'fern_week_deals';
 
+// The same flyer item can arrive twice: once from the user's own scan (store name, emoji) and once
+// from the shared flyer on file (often no store name, no emoji). Two entries are one item when the
+// name matches, the stores don't conflict (a missing store counts as "same") and the prices don't
+// conflict. The fuller entry wins and fills any gaps from the other.
+const dealNameKey = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const dealRichness = (d) => (d?.store ? 2 : 0) + (d?.emoji ? 1 : 0) + (d?.originalPrice ? 1 : 0) + (d?.category ? 1 : 0);
+// "99¢" and "$0.99" are the same price.
+const dealPrice = (p) => {
+    const s = String(p || '');
+    const n = priceNum(s);
+    return n != null && /¢/.test(s) && !/\$/.test(s) ? n / 100 : n;
+};
+
+export function dedupeDeals(list) {
+    const out = [];
+    const byName = new Map();
+    (Array.isArray(list) ? list : []).forEach((d) => {
+        const nk = dealNameKey(d?.name);
+        if (!nk) return;
+        const bucket = byName.get(nk) || [];
+        const hit = bucket.find((e) => {
+            const sameStore = !e.store || !d.store || e.store === d.store;
+            const pe = dealPrice(e.salePrice);
+            const pd = dealPrice(d.salePrice);
+            return sameStore && (pe == null || pd == null || pe === pd);
+        });
+        if (!hit) {
+            bucket.push(d);
+            byName.set(nk, bucket);
+            out.push(d);
+            return;
+        }
+        const keep = dealRichness(d) > dealRichness(hit) ? d : hit;
+        const other = keep === d ? hit : d;
+        const merged = { ...other };
+        Object.keys(keep).forEach((k) => { if (keep[k] != null && keep[k] !== '') merged[k] = keep[k]; });
+        out[out.indexOf(hit)] = merged;
+        bucket[bucket.indexOf(hit)] = merged;
+    });
+    return out;
+}
+
 export async function saveWeekDeals(deals) {
     try {
         const wk = weekKeyFor();
         const raw = JSON.parse((await AsyncStorage.getItem(WEEK_DEALS_KEY)) || 'null');
         const prev = raw && raw.weekKey === wk && Array.isArray(raw.deals) ? raw.deals : [];
-        const seen = new Set();
-        const merged = [...(deals || []), ...prev].filter((d) => {
-            const k = `${String(d?.name || '').toLowerCase()}|${d?.store || ''}`;
-            if (!d?.name || seen.has(k)) return false;
-            seen.add(k);
-            return true;
-        }).slice(0, 400);
+        const merged = dedupeDeals([...(deals || []), ...prev]).slice(0, 400);
         await AsyncStorage.setItem(WEEK_DEALS_KEY, JSON.stringify({ weekKey: wk, deals: merged }));
     } catch (e) { /* best effort */ }
 }

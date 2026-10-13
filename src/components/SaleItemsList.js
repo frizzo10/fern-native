@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
 import { colors, radius } from '../constants/tokens';
-import { dealSaving, fmtMoney } from '../utils/savings';
+import { dealSaving, dedupeDeals, fmtMoney } from '../utils/savings';
+import { dealKind, isFoodDeal, isUnreliableCategory } from '../utils/dealKind';
+import MealPlannerImage from './MealPlannerImage';
 
 // Every item read off the flyer, grouped by aisle, with a one-tap "add to my list".
 // Shared by the Personal Shopper scan check and the Shopping tab.
@@ -47,11 +49,15 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
     const map = new Map();
-    (Array.isArray(deals) ? deals : []).forEach((deal, i) => {
+    // The same item can be saved twice (own scan + shared flyer); show it once.
+    dedupeDeals(deals).forEach((deal, i) => {
       const name = String(deal?.name || '').trim();
       if (!name) return;
-      if (q && !name.toLowerCase().includes(q) && !String(deal?.category || '').toLowerCase().includes(q)) return;
-      const cat = String(deal?.category || '').trim() || t('sale_list_other');
+      // The flyer reader files everything under Meat/Poultry/Seafood/Produce; fix the aisle by what the item is.
+      const kind = dealKind(deal);
+      const stored = String(deal?.category || '').trim();
+      const cat = kind && isUnreliableCategory(stored) ? t(kind.labelKey) : (stored || t('sale_list_other'));
+      if (q && !name.toLowerCase().includes(q) && !cat.toLowerCase().includes(q)) return;
       if (!map.has(cat)) map.set(cat, []);
       map.get(cat).push({ deal, key: `${name}-${deal?.store || ''}-${i}` });
     });
@@ -91,7 +97,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                   </Text>
                   {saving.amount > 0 ? <Text style={styles.save}>{t('psp_save_amt', { amt: `${saving.est ? '~' : ''}${fmtMoney(saving.amount)}` })}</Text> : null}
                 </View>
-                {onAddRecipe ? (
+                {onAddRecipe && isFoodDeal(deal) ? (
                   <TouchableOpacity style={[styles.recipeBtn, open?.key === key ? styles.recipeBtnOn : null]} activeOpacity={0.85} onPress={() => findRecipes(deal, key)}>
                     <Text style={styles.recipeBtnText}>{open?.key === key ? t('sale_list_close') : t('sale_list_recipes')}</Text>
                   </TouchableOpacity>
@@ -115,8 +121,11 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                   {(open.ideas || []).map((idea, i) => (
                     <View key={`${idea.title}-${i}`}>
                       <TouchableOpacity style={styles.ideaRow} activeOpacity={0.85} onPress={() => (open.idea === idea ? setOpen((p) => ({ ...p, idea: null, recipe: null })) : previewIdea(deal, idea))}>
-                        <Text style={styles.ideaTitle}>{`${idea.emoji || '🍽️'} ${idea.title}`}</Text>
-                        <Text style={styles.sub}>{[idea.time, idea.why].filter(Boolean).join(' · ')}</Text>
+                        <MealPlannerImage title={idea.title} index={i} fallback={<Text style={styles.ideaEmoji}>{idea.emoji || '🍽️'}</Text>} />
+                        <View style={styles.ideaText}>
+                          <Text style={styles.ideaTitle}>{idea.title}</Text>
+                          <Text style={styles.sub}>{[idea.time, idea.why].filter(Boolean).join(' · ')}</Text>
+                        </View>
                       </TouchableOpacity>
                       {open.idea === idea ? (
                         <View style={styles.preview}>
@@ -124,6 +133,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                           {open.recipeFailed && !open.recipe ? <Text style={styles.sub}>{t('sale_list_recipes_failed')}</Text> : null}
                           {open.recipe ? (
                             <View>
+                              <MealPlannerImage title={idea.title} index={i} variant="hero" />
                               <Text style={styles.sub}>{[open.recipe.time, open.recipe.difficulty].filter(Boolean).join(' · ')}</Text>
                               {open.recipe.description ? <Text style={styles.previewText}>{open.recipe.description}</Text> : null}
                               {(idea.sides || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_sides', { sides: idea.sides.join(', ') })}</Text> : null}
@@ -175,7 +185,9 @@ const styles = StyleSheet.create({
   recipeBtnOn: { backgroundColor: '#FFF1E6' },
   recipeBtnText: { color: colors?.orange || '#E8742A', fontSize: 12, fontWeight: '700' },
   ideas: { backgroundColor: '#FBF8F4', borderRadius: 10, padding: 10, marginBottom: 6, gap: 6 },
-  ideaRow: { paddingVertical: 4 },
+  ideaRow: { paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  ideaText: { flex: 1 },
+  ideaEmoji: { fontSize: 26 },
   ideaTitle: { fontSize: 14, fontWeight: '700', color: '#2D1B10' },
   preview: { paddingVertical: 6, paddingLeft: 6, borderLeftWidth: 2, borderLeftColor: '#E4DCD2' },
   previewText: { fontSize: 13, color: '#2D1B10', marginTop: 4, lineHeight: 18 },

@@ -7,6 +7,7 @@ import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService'
 import { buildRollingWeekDateKeys, normalizeSlot, parseDateKey } from '../../utils/familyDates';
 import { PANTRY_SKIP, pickStarDeals } from '../../utils/starDeals';
 import { dealSaving, fmtMoney, sumSavings } from '../../utils/savings';
+import MealPlannerImage from '../MealPlannerImage';
 
 async function readJson(key, fallback) {
   try {
@@ -201,7 +202,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
               <View key={c.key} style={styles.star}>
                 <Text style={styles.starName}>{t('trip_week_star_sale', { item: c.deal.name })}</Text>
                 <Text style={styles.sub}>{[c.deal.isBogo ? 'BOGO' : c.deal.salePrice, c.deal.store, sv.amount > 0 ? t('psp_save_amt', { amt: `${sv.est ? '~' : ''}${fmtMoney(sv.amount)}` }) : ''].filter(Boolean).join(' · ')}</Text>
-                {c.loading ? <ActivityIndicator color={colors.orange} style={{ marginVertical: 8 }} /> : c.ideas.map((idea) => {
+                {c.loading ? <ActivityIndicator color={colors.orange} style={{ marginVertical: 8 }} /> : c.ideas.map((idea, ii) => {
                   const pv = previews[idea.id];
                   return (
                     <View key={idea.id} style={styles.idea}>
@@ -209,8 +210,9 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                         <TouchableOpacity style={[styles.check, idea.checked ? styles.checkOn : null]} activeOpacity={0.85} onPress={() => toggle(ci, idea.id)}>
                           <Text style={styles.checkMark}>{idea.checked ? '✓' : ''}</Text>
                         </TouchableOpacity>
+                        <MealPlannerImage title={idea.title} index={ii} fallback={<Text style={{ fontSize: 26 }}>{idea.emoji || '🍽️'}</Text>} />
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.ideaTitle}>{`${idea.emoji || '🍽️'} ${idea.title}`}</Text>
+                          <Text style={styles.ideaTitle}>{idea.title}</Text>
                           <Text style={styles.sub}>{[idea.time, (idea.sides || []).length ? t('trip_week_with', { sides: idea.sides.join(', ') }) : ''].filter(Boolean).join(' · ')}</Text>
                         </View>
                         <TouchableOpacity onPress={() => preview(idea, c.deal.name)} activeOpacity={0.8}>
@@ -221,6 +223,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                       {pv?.failed ? <Text style={styles.err}>{t('sale_list_recipes_failed')}</Text> : null}
                       {pv?.recipe ? (
                         <View style={styles.previewBox}>
+                          <MealPlannerImage title={idea.title} index={ii} variant="hero" />
                           <Text style={styles.sub}>{[pv.recipe.time, pv.recipe.difficulty].filter(Boolean).join(' · ')}</Text>
                           {pv.recipe.description ? <Text style={styles.previewText}>{pv.recipe.description}</Text> : null}
                           {(idea.sides || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_sides', { sides: idea.sides.join(', ') })}</Text> : null}
