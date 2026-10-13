@@ -21,15 +21,28 @@ export function buyCount(item) {
 
 // What an item is called for matching: "Onions" and "onion" are the same thing, so two meals asking for
 // either want the same list line (and a bigger quantity). Only used to compare — the list keeps the original text.
-function nameKey(text) {
-    return normalizeText(text).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).filter((w) => w !== 'plain').map((w) => {
-        // "plain yogurt" and "yogurt" are the same thing to buy (one recipe often says both).
+// Words that don't change what you put in the cart ("ground cumin" / "cumin powder" / "roasted cumin powder").
+const SAME_ITEM_WORDS = new Set(['plain', 'fresh', 'freshly', 'dried', 'raw', 'pure', 'organic']);
+// For these spices the form never changes what you buy (but "ground beef" or "garlic powder" stay distinct).
+const GROUND_SPICES = new Set(['cumin', 'coriander', 'cinnamon', 'nutmeg', 'turmeric', 'paprika', 'cardamom']);
+const SPICE_FORM_WORDS = new Set(['ground', 'powder', 'powdered', 'roasted']);
+
+export function nameKey(text) {
+    let t = normalizeText(text).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    // "juice of 1 lemon" / "zest of a lime" -> "lemon juice" / "lime zest"
+    t = t.replace(/^(juice|zest) of (?:(?:a|an|the|\d+|one|half|1 2)\s+)*(.+)$/, '$2 $1');
+    const raw = t.split(' ').filter(Boolean);
+    const spice = raw.some((w) => GROUND_SPICES.has(w));
+    const words = raw.filter((w) => !SAME_ITEM_WORDS.has(w) && !(spice && SPICE_FORM_WORDS.has(w))).map((w) => {
         if (w.length <= 3) return w;
         if (w.endsWith('ies')) return `${w.slice(0, -3)}y`;
         if (w.endsWith('oes')) return w.slice(0, -2);
         if (w.endsWith('ss') || w.endsWith('us')) return w;
         return w.endsWith('s') ? w.slice(0, -1) : w;
-    }).join(' ');
+    });
+    // Order doesn't matter ("juice lemon" == "lemon juice"). If every word was dropped, keep the originals.
+    const out = (words.length ? words : t.split(' ').filter(Boolean)).sort().join(' ');
+    return out;
 }
 
 // A meal's name as it is stored on the list. Commas would split one meal into two.
