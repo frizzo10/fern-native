@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLanguage from '../hooks/useLanguage';
 import { useSync } from '../hooks/useSync';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
+import { fetchRecipeImage } from '../utils/recipeImage';
 import { importFromUrl, importFromVideo, importFromCard, importFromText } from '../services/importService';
 
 const C = {
@@ -63,6 +64,12 @@ export default function ImportScreen({ user, onBack, onImported }) {
         if (!text.trim()) return Alert.alert(t('import_paste_text'));
         recipe = await importFromText(text.trim(), locale);
       }
+      // Photo for the recipe (the web import does the same): keep one the source gave us,
+      // else look one up by title. Best-effort; a missing photo never blocks the import.
+      if (!recipe.image) {
+        const img = await fetchRecipeImage(`${recipe.title || ''} ${recipe.mealType || ''} food`.trim(), user?.token);
+        if (img) recipe.image = img;
+      }
       setPreviewRecipe(recipe);
     } catch (e) {
       Alert.alert(t('import_failed_title'), e.message);
@@ -93,6 +100,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
           id: `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           title: previewRecipe.title,
           emoji: previewRecipe.emoji || '🍽️',
+          image: previewRecipe.image || null,
           cuisine: previewRecipe.cuisine,
           mealType: previewRecipe.mealType,
           time: previewRecipe.time,
@@ -143,7 +151,11 @@ export default function ImportScreen({ user, onBack, onImported }) {
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
           {previewRecipe ? (
             <View style={s.previewCard}>
-              <Text style={s.previewEmoji}>{previewRecipe.emoji || '🍽️'}</Text>
+              {previewRecipe.image ? (
+                <Image source={{ uri: previewRecipe.image }} style={s.previewImg} />
+              ) : (
+                <Text style={s.previewEmoji}>{previewRecipe.emoji || '🍽️'}</Text>
+              )}
               <Text style={s.previewTitle}>{previewRecipe.title}</Text>
               <Text style={s.previewMeta}>
                 {[previewRecipe.cuisine, previewRecipe.mealType, previewRecipe.time].filter(Boolean).join(' · ')}
@@ -258,6 +270,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
 }
 
 const s = StyleSheet.create({
+  previewImg: { width: '100%', height: 180, borderRadius: 12, marginBottom: 12 },
   safe: { flex: 1, backgroundColor: C.parch },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
