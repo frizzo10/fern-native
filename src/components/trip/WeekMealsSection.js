@@ -37,11 +37,17 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
   const [summary, setSummary] = useState(null);
   const openKeys = useRef([]);
   const prefs = useRef({});
+  const [mood, setMood] = useState('');
+  const [busy, setBusy] = useState('');
 
   const total = cards.reduce((a, c) => a + c.ideas.filter((x) => x.checked).length, 0);
   const noteFor = () => [
     prefs.current.householdSize ? `Cooking for ${prefs.current.householdSize} people.` : '',
     prefs.current.dietary && prefs.current.dietary !== 'none' ? `Dietary needs: ${prefs.current.dietary}.` : '',
+    mood ? `This week they are in the mood for: ${mood}.` : '',
+    busy === 'busy' ? 'It is a very busy week: every dinner must be quick (30 minutes or less) and easy, with minimal cleanup.' : '',
+    busy === 'normal' ? 'A normal week: mostly weeknight-friendly dinners under 45 minutes.' : '',
+    busy === 'relaxed' ? 'A relaxed week: there is time for a couple of dinners that take longer to cook.' : '',
   ].filter(Boolean).join(' ');
 
   const start = async () => {
@@ -200,13 +206,37 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                 <TouchableOpacity style={styles.stepBtn} onPress={() => setWant((n) => Math.min(7, n + 1))}><Text style={styles.stepBtnText}>+</Text></TouchableOpacity>
               </View>
             </View>
-            <TouchableOpacity style={styles.primary} activeOpacity={0.88} onPress={start}>
+            <TouchableOpacity style={styles.primary} activeOpacity={0.88} onPress={() => setPhase('ask')}>
               <Text style={styles.primaryText}>{t('trip_week_plan_btn')}</Text>
             </TouchableOpacity>
           </View>
         ) : <Text style={[styles.sub, { marginTop: 8 }]}>{t('trip_week_need_deals')}</Text>
       ) : null}
       {failed ? <Text style={styles.err}>{failed}</Text> : null}
+
+      {phase === 'ask' ? (
+        <View style={{ marginTop: 10 }}>
+          <Text style={styles.askQ}>{t('trip_ask_mood')}</Text>
+          <View style={styles.chipRow}>
+            {[['trip_mood_comfort', 'comfort food'], ['trip_mood_light', 'something light and fresh'], ['trip_mood_family', 'family favorites'], ['trip_mood_new', 'trying something new']].map(([k, v]) => (
+              <TouchableOpacity key={k} style={[styles.chip, mood === v && styles.chipOn]} onPress={() => setMood(mood === v ? '' : v)}>
+                <Text style={[styles.chipText, mood === v && styles.chipTextOn]}>{t(k)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.askQ}>{t('trip_ask_busy')}</Text>
+          <View style={styles.chipRow}>
+            {[['trip_busy_relaxed', 'relaxed'], ['trip_busy_normal', 'normal'], ['trip_busy_busy', 'busy']].map(([k, v]) => (
+              <TouchableOpacity key={k} style={[styles.chip, busy === v && styles.chipOn]} onPress={() => setBusy(busy === v ? '' : v)}>
+                <Text style={[styles.chipText, busy === v && styles.chipTextOn]}>{t(k)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TouchableOpacity style={styles.primary} activeOpacity={0.88} onPress={start}>
+            <Text style={styles.primaryText}>{t('trip_ask_go')}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       {phase === 'loading' || phase === 'checking' || phase === 'saving' ? (
         <View style={styles.busy}>
@@ -314,6 +344,12 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: colors.orange, borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginTop: 10 },
   primaryText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   busy: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  askQ: { fontSize: 14, fontWeight: '800', color: '#2D1B10', marginTop: 12 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  chip: { borderWidth: 1, borderColor: colors.orange, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
+  chipOn: { backgroundColor: colors.orange },
+  chipText: { color: colors.orange, fontWeight: '700', fontSize: 13 },
+  chipTextOn: { color: '#fff' },
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   stepBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
