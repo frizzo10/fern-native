@@ -39,7 +39,9 @@ export async function importFromCard({ base64, mimeType, locale }) {
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error || 'Could not read the card. Try a clearer photo.');
-  return data.recipe;
+  const recipe = data.recipe || (data.title ? data : null);
+  if (!recipe || !recipe.title) throw new Error('Could not read a recipe from that photo. Try a clearer, closer photo of one page.');
+  return recipe;
 }
 
 // Text paste doesn't have its own dedicated function on the backend -- the
