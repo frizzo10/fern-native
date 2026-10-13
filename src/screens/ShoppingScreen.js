@@ -548,25 +548,13 @@ export default function ShoppingScreen({ user }) {
           <EverydayCard t={t} items={items} onAdd={addEveryday} shoppingDay={shoppingDay} onPickDay={pickShoppingDay} highlight={Boolean(route?.params?.everyday)} />
         </View>
 
-        <Text style={styles.quickLabel}>{t('quick_add_title')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
-          {QUICK_ADD_ITEMS.map((item) => (
-            <TouchableOpacity
-              key={item}
-              style={styles.quickChip}
-              activeOpacity={0.85}
-              onPress={() => addItem(item)}
-            >
-              <Text style={styles.quickChipText}>{item}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
+        {route?.params?.tripStart ? (
+          <>
         <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
           <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { setShowSales(true); if (route?.params?.tripStart) setTripChatMode('choose'); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
         </View>
 
-        {(weekDeals.length > 0 || route?.params?.tripStart) && (tripChatMode === 'choose' ? (
+        {(tripChatMode === 'choose' ? (
           <View style={[styles.tripChatCard, shadow.card, { flexDirection: 'column', alignItems: 'stretch' }]}>
             <Text style={styles.tripChatTitle}>{t('trip_chat_how')}</Text>
             <View style={styles.tripChoiceRow}>
@@ -588,6 +576,8 @@ export default function ShoppingScreen({ user }) {
             <Text style={styles.tripChatGo}>›</Text>
           </TouchableOpacity>
         ))}
+          </>
+        ) : null}
 
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
