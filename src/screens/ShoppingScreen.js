@@ -364,6 +364,20 @@ export default function ShoppingScreen({ user }) {
     });
   }, [items]);
 
+  // "Cook it on <day>": writes the dinner into the Family week.
+  const planDinnerOnDay = async (recipe, dateKey) => {
+    let plan = {};
+    try { plan = JSON.parse((await AsyncStorage.getItem('rv4_meal_plan')) || '{}'); } catch (e) { plan = {}; }
+    const dayMeals = Array.isArray(plan[dateKey]) ? plan[dateKey] : [];
+    const next = { ...plan, [dateKey]: [...dayMeals, { slot: 'Dinner', title: recipe.title, emoji: recipe.emoji || '🍽️' }] };
+    await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
+    try {
+      const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, mealPlan: next }));
+    } catch (e) {}
+    await pushChangedFromStorage({ meal_plan: next });
+  };
+
   const persistShopping = async (nextItems) => {
     const canonical = toSyncPayload(nextItems);
     setItems(canonical);
@@ -594,6 +608,7 @@ export default function ShoppingScreen({ user }) {
               token={user?.token}
               locale={locale}
               shoppingItems={items}
+              onPlanDay={planDinnerOnDay}
               onAddRecipe={async (recipe, deal, opts) => {
                 const r = await addRecipesToShoppingList([recipe], items, { skip: opts?.skip });
                 await persistShopping(r.nextShopping);
@@ -610,10 +625,28 @@ export default function ShoppingScreen({ user }) {
           </Text>
         ) : null}
 
-        {listCoupons.length ? (
-          <View style={[styles.checkoutCard, shadow.card]}>
-            <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_for_list_title')}`}</Text>
-            <Text style={styles.checkoutSub}>{t('sav_for_list_sub', { n: listCoupons.length })}</Text>
+        <View onLayout={(e) => { sectionY.current.coupons = e.nativeEvent.layout.y; }} />
+
+        <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
+          <WeekMealsSection
+            t={t}
+            locale={locale}
+            token={user?.token}
+            weekDeals={weekDeals}
+            onAddToList={addRecipesToList}
+            shoppingItems={items}
+            pushChangedFromStorage={pushChangedFromStorage}
+            onChanged={pull}
+          />
+        </View>
+
+        {greatDeals.length || listCoupons.length ? (
+          <View style={[styles.greatCard, shadow.card]}>
+            <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
+            {listCoupons.length ? (
+              <>
+                <Text style={[styles.checkoutSub, { fontWeight: '700' }]}>{t('sav_for_list_title')}</Text>
+                <Text style={styles.checkoutSub}>{t('sav_for_list_sub', { n: listCoupons.length })}</Text>
             {listCoupons.map((m) => {
               const c = m.coupon;
               const inWallet = walletIds.has(String(c.id));
@@ -637,28 +670,12 @@ export default function ShoppingScreen({ user }) {
                 </View>
               );
             })}
-          </View>
-        ) : null}
-
-        <View onLayout={(e) => { sectionY.current.coupons = e.nativeEvent.layout.y; }} />
-
-        <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
-          <WeekMealsSection
-            t={t}
-            locale={locale}
-            token={user?.token}
-            weekDeals={weekDeals}
-            onAddToList={addRecipesToList}
-            shoppingItems={items}
-            pushChangedFromStorage={pushChangedFromStorage}
-            onChanged={pull}
-          />
-        </View>
-
-        {greatDeals.length ? (
-          <View style={[styles.greatCard, shadow.card]}>
-            <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
-            <Text style={styles.checkoutSub}>{`${t('sav_great_title')} · ${t('sav_great_sub')}`}</Text>
+              </>
+            ) : null}
+            {greatDeals.length ? (
+              <>
+                <Text style={[styles.checkoutSub, { fontWeight: '700', marginTop: listCoupons.length ? 14 : 0 }]}>{`🔥 ${t('sav_great_title')}`}</Text>
+                <Text style={styles.checkoutSub}>{t('sav_great_sub')}</Text>
             {greatDeals.map((m) => {
               const c = m.coupon;
               const done = walletIds.has(String(c.id));
@@ -680,6 +697,8 @@ export default function ShoppingScreen({ user }) {
                 </View>
               );
             })}
+              </>
+            ) : null}
           </View>
         ) : null}
 
@@ -739,6 +758,7 @@ export default function ShoppingScreen({ user }) {
 
         {items.length ? (
           <View style={styles.listWrap}>
+            <Text style={styles.bigListTitle}>{t('shopping_list_title')}</Text>
             <Text style={styles.listMeta}>
               {remainingCount === 1
                 ? t('items_remaining_singular', { count: remainingCount })
@@ -1120,6 +1140,7 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     fontFamily: 'Jost-SemiBold',
   },
+  bigListTitle: { fontSize: 30, lineHeight: 36, color: colors.forest, fontFamily: 'Jost-Bold', letterSpacing: 0.5, marginBottom: 4 },
   listWrap: {
     marginTop: 14,
     paddingVertical: 4,
