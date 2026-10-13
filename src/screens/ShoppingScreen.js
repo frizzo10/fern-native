@@ -32,6 +32,7 @@ import { logPurchase, unlogPurchase, getShoppingDay, saveShoppingDay } from '../
 import * as Location from 'expo-location';
 import { storeAtPosition } from '../utils/flyerStore';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
+import ShoppingModeModal from '../components/trip/ShoppingModeModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
@@ -115,6 +116,8 @@ export default function ShoppingScreen({ user }) {
   const [listChat, setListChat] = useState(false); // the leaf button: talk to Fern about the list
   const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
   const tripChatOpen = tripChatMode === 'voice' || tripChatMode === 'text';
+  const [shopModeOpen, setShopModeOpen] = useState(false);
+  const [shopModeVoice, setShopModeVoice] = useState(false);
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
   const [catalogError, setCatalogError] = useState('');
 
@@ -952,11 +955,29 @@ export default function ShoppingScreen({ user }) {
           onAction={(parsed) => {
             const names = Array.isArray(parsed?.checked_off) ? parsed.checked_off.map((x) => String(x || '').trim()).filter(Boolean) : [];
             if (names.length) checkOffByName(names).catch(() => {});
+            if (parsed?.shopping_mode === true) {
+              // Hand over to the checklist: close the chat first so two modals never overlap.
+              setShopModeVoice(tripChatMode === 'voice');
+              setTripChatMode(null);
+              setTimeout(() => setShopModeOpen(true), 900);
+            }
             return null;
           }}
           autoOpenerPrompt={tripOpenerPrompt(tripStore)}
         />
       )}
+      <ShoppingModeModal
+        visible={shopModeOpen}
+        items={items}
+        user={user}
+        voice={shopModeVoice}
+        onClose={() => { setShopModeOpen(false); pull(); }}
+        onSetChecked={async (id, checked) => {
+          const target = items.find((it) => it.id === id);
+          if (!target || target.checked === checked) return;
+          await toggleItem(id);
+        }}
+      />
       {listChat && (
         <ChatSheetModal
           visible
