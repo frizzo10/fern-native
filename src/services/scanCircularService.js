@@ -129,7 +129,15 @@ function isBogoItem(item) {
     return haystack.includes('bogo') || haystack.includes('buy one');
 }
 
+// "99¢", "$99¢" or "69 ¢" -> "$0.99" (the scan sometimes echoes a cents price with a dollar sign).
+function fixCents(value) {
+    if (value == null) return value;
+    const m = String(value).match(/^\s*\$?\s*(\d+)\s*¢\s*$/);
+    return m ? `$${(parseInt(m[1], 10) / 100).toFixed(2)}` : value;
+}
+
 function normalizeItem(item, index) {
+    item = item ? { ...item, salePrice: fixCents(item.salePrice), originalPrice: fixCents(item.originalPrice) } : item;
     return {
         id: `scan-item-${index}`,
         name: String(item?.name || '').trim(),
@@ -180,7 +188,7 @@ function computeTotalSavings(items) {
 
 export async function scanCircular({ userId, base64, mimeType, token, zipCode }) {
     const zip = zipCode || (await defaultScanZip());
-    const res = await fetch(SCAN_CIRCULAR_URL, {
+    const send = () => fetch(SCAN_CIRCULAR_URL, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -194,6 +202,19 @@ export async function scanCircular({ userId, base64, mimeType, token, zipCode })
             ...(zip ? { zipCode: zip } : {}),
         }),
     });
+
+    // A dropped connection or a gateway timeout can happen after the server already
+    // finished reading the flyer (the server caches the result by photo), so one quiet
+    // retry usually returns instantly instead of showing "couldn't read that circular".
+    let res;
+    try {
+        res = await send();
+        if (res.status >= 502) throw new Error(`Scan Circular API failed (${res.status})`);
+    } catch (firstErr) {
+        console.log('[scan-circular] first try failed, retrying once:', firstErr?.message || firstErr);
+        await new Promise((r) => setTimeout(r, 1500));
+        res = await send();
+    }
 
     if (!res.ok) {
         throw new Error(`Scan Circular API failed (${res.status})`);
