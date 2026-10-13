@@ -22,7 +22,8 @@ export function buyCount(item) {
 // What an item is called for matching: "Onions" and "onion" are the same thing, so two meals asking for
 // either want the same list line (and a bigger quantity). Only used to compare — the list keeps the original text.
 function nameKey(text) {
-    return normalizeText(text).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).map((w) => {
+    return normalizeText(text).toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).filter((w) => w !== 'plain').map((w) => {
+        // "plain yogurt" and "yogurt" are the same thing to buy (one recipe often says both).
         if (w.length <= 3) return w;
         if (w.endsWith('ies')) return `${w.slice(0, -3)}y`;
         if (w.endsWith('oes')) return w.slice(0, -2);
