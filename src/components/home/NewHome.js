@@ -9,6 +9,7 @@ import { formatDayLabel } from '../../utils/familyDates';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/tokens';
 import { fetchRecipeImage } from '../../utils/recipeImage';
+import MealPlannerImage from '../MealPlannerImage';
 
 const FOREST = '#1C3A1A';
 const ORANGE = '#E8651A';
@@ -58,6 +59,8 @@ export default function NewHome({
   onOpenFamily,
   onPlanTonight,
   onFamilyLayout,
+  onOpenMeal,
+  mealOpening,
   onAddForDay,
   tools,
   libraryItems,
@@ -174,7 +177,7 @@ export default function NewHome({
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity activeOpacity={0.9} onPress={tonightTitle ? onOpenFamily : onPlanTonight} style={styles.tonight}>
+      <TouchableOpacity activeOpacity={0.9} onPress={tonightTitle ? () => onOpenMeal?.({ title: tonightTitle, slot: 'Dinner', emoji: tonightEmoji }) : onPlanTonight} style={[styles.tonight, mealOpening ? { opacity: 0.6 } : null]}>
         <View style={styles.photoBox}>
           {photoUrl ? (
             <Image source={{ uri: photoUrl }} style={styles.photo} resizeMode="cover" />
@@ -227,10 +230,20 @@ export default function NewHome({
           <Text style={styles.sheetEmpty}>{t('home_day_nothing')}</Text>
         ) : null}
         {['breakfast', 'lunch', 'dinner'].filter((slot) => selectedDay.meals?.[slot]).map((slot) => (
-          <View key={slot} style={styles.sheetRow}>
-            <Text style={styles.sheetSlot}>{t('meal_planner_slot_' + slot)}</Text>
-            <Text style={styles.sheetItem} numberOfLines={2}>{`${selectedDay.mealEmojis?.[slot] ? selectedDay.mealEmojis[slot] + ' ' : ''}${selectedDay.meals[slot]}`}</Text>
-          </View>
+          <TouchableOpacity
+            key={slot}
+            style={[styles.sheetRow, { alignItems: 'center' }, mealOpening ? { opacity: 0.6 } : null]}
+            activeOpacity={0.8}
+            onPress={() => onOpenMeal?.({ title: selectedDay.meals[slot], slot: slot.charAt(0).toUpperCase() + slot.slice(1), emoji: selectedDay.mealEmojis?.[slot] })}
+          >
+            <View style={{ width: 44, height: 44 }}>
+              <MealPlannerImage title={selectedDay.meals[slot]} variant="thumb" fallback={<Text style={styles.photoEmoji}>{selectedDay.mealEmojis?.[slot] || '🍽️'}</Text>} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.sheetSlot}>{t('meal_planner_slot_' + slot)}</Text>
+              <Text style={styles.sheetItem} numberOfLines={2}>{selectedDay.meals[slot]}</Text>
+            </View>
+          </TouchableOpacity>
         ))}
         {(selectedDay.activities || []).map((a, i) => (
           <View key={`a-${i}`} style={styles.sheetRow}>

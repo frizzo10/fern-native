@@ -36,6 +36,7 @@ import { fetchSuggestedRecipeGroups, fetchQuickSuggestions, buildSuggestionsProm
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
+import { fetchMealPlanRecipeDetail } from '../services/mealPlanRecipeService';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import CharcuterieModal from '../components/modals/CharcuterieModal';
 import WinePairingModal from '../components/modals/WinePairingModal';
@@ -509,6 +510,34 @@ export default function HomeScreen({ user, route }) {
   const budgetPlanner = useAiRecipeCollection({ source: 'budget_planner', data, pushAllFromStorage, pull, t, token: user?.token });
   const semiHomemade = useAiRecipeCollection({ source: 'semi_homemade', data, pushAllFromStorage, pull, t, token: user?.token });
   const suggestedRecipes = useAiRecipeCollection({ source: 'suggested', data, pushAllFromStorage, pull, t, token: user?.token });
+  // A planned meal opened from the Home week strip: shows the recipe preview in place; closing returns to Home.
+  const homeMealRecipes = useAiRecipeCollection({ source: 'family_meal_plan', data, pushAllFromStorage, pull, t, token: user?.token });
+  const [mealOpening, setMealOpening] = useState(false);
+  const handleOpenHomeMeal = async (entry) => {
+    if (!entry?.title || mealOpening) return;
+    setMealOpening(true);
+    try {
+      const detail = await fetchMealPlanRecipeDetail({ title: entry.title, locale, token: user?.token });
+      await homeMealRecipes.viewRecipe({
+        id: `meal-plan-${entry.title}`,
+        title: detail.title || entry.title,
+        cuisine: '',
+        mealType: entry.slot || 'Dinner',
+        time: detail.time,
+        difficulty: 'Medium',
+        emoji: entry.emoji,
+        description: '',
+        servings: detail.servings,
+        ingredients: detail.ingredients,
+        instructions: detail.directions,
+        image: null,
+      });
+    } catch (e) {
+      Alert.alert(t('save_failed'), t('save_error_desc'));
+    } finally {
+      setMealOpening(false);
+    }
+  };
 
   useFocusEffect(
     useMemo(() => () => {
@@ -2103,8 +2132,10 @@ export default function HomeScreen({ user, route }) {
     quickDinner.addIngredientsToShoppingList(recipe);
   };
 
-  const selectedAiRecipe = leftover.selectedRecipe || fridgeChallenge.selectedRecipe || quickDinner.selectedRecipe || scanCircularDeals.selectedRecipe || budgetPlanner.selectedRecipe || suggestedRecipes.selectedRecipe;
-  const activeAiRecipeCollection = leftover.selectedRecipe
+  const selectedAiRecipe = homeMealRecipes.selectedRecipe || leftover.selectedRecipe || fridgeChallenge.selectedRecipe || quickDinner.selectedRecipe || scanCircularDeals.selectedRecipe || budgetPlanner.selectedRecipe || suggestedRecipes.selectedRecipe;
+  const activeAiRecipeCollection = homeMealRecipes.selectedRecipe
+    ? homeMealRecipes
+    : leftover.selectedRecipe
     ? leftover
     : fridgeChallenge.selectedRecipe
       ? fridgeChallenge
@@ -2117,7 +2148,9 @@ export default function HomeScreen({ user, route }) {
             : suggestedRecipes.selectedRecipe
               ? suggestedRecipes
               : null;
-  const closeSelectedAiRecipeDetail = leftover.selectedRecipe
+  const closeSelectedAiRecipeDetail = homeMealRecipes.selectedRecipe
+    ? () => homeMealRecipes.setSelectedRecipe(null)
+    : leftover.selectedRecipe
     ? closeLeftoverRecipeDetail
     : fridgeChallenge.selectedRecipe
       ? closeFridgeChallengeRecipeDetail
@@ -2356,6 +2389,8 @@ export default function HomeScreen({ user, route }) {
                 onAskFern={openChat}
                 weekDays={weekDays}
                 onOpenFamily={() => navigation.navigate('Family')}
+                onOpenMeal={handleOpenHomeMeal}
+                mealOpening={mealOpening}
                 onPlanTonight={() => navigation.navigate('Family')}
                 onFamilyLayout={(e) => { homeSectionY.current.weekPanel = e.nativeEvent.layout.y; }}
                 onAddForDay={handleHomeAddForDay}
