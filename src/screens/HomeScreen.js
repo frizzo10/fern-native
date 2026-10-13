@@ -398,6 +398,50 @@ export default function HomeScreen({ user, route }) {
     setHomeAddMeal(null);
   };
 
+  // A recipe found by voice/typing in the add-a-meal sheet: saved to My Recipes and put on the chosen day.
+  const handleHomeAddFoundRecipe = async (recipe) => {
+    if (!homeAddMeal) return;
+    const { dateKey, slot } = homeAddMeal;
+    try {
+      let saved = [];
+      try { saved = JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]'); } catch (e) { saved = []; }
+      if (!Array.isArray(saved)) saved = [];
+      const titleKey = String(recipe.title || '').trim().toLowerCase();
+      if (!saved.some((item) => String(item?.title || '').trim().toLowerCase() === titleKey)) {
+        saved = [...saved, {
+          id: `find-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          title: recipe.title,
+          emoji: recipe.emoji,
+          cuisine: recipe.category,
+          mealType: recipe.meal,
+          time: recipe.time,
+          difficulty: recipe.difficulty,
+          description: recipe.description,
+          ingredients: recipe.ingredients,
+          instructions: recipe.methodSteps,
+          note: '',
+          photoSearch: recipe.photoSearch || '',
+          _cloudPhotos: [],
+        }];
+        await AsyncStorage.setItem('rv4_saved', JSON.stringify(saved));
+        try {
+          const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');
+          await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: saved }));
+        } catch (e) { /* cache is best effort */ }
+      }
+      const mealPlan = data.mealPlan || {};
+      const dayMeals = mealPlan[dateKey] || [];
+      const nextPlan = { ...mealPlan, [dateKey]: [...dayMeals, { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: null }] };
+      await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(nextPlan));
+      await pushChangedFromStorage({ saved, meal_plan: nextPlan });
+      setHomeAddMeal(null);
+      pull();
+    } catch (e) {
+      console.log('[home] add found recipe failed', e?.message || e);
+      Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
+    }
+  };
+
   const handleHomeAddActivity = (activity) => {
     persistFamilyActivities([...(Array.isArray(data.activities) ? data.activities : []), activity]);
     setHomeAddActivityDateKey(null);
@@ -2845,8 +2889,10 @@ export default function HomeScreen({ user, route }) {
         slotLabel={homeAddMeal?.slotLabel}
         savedRecipes={data.recipes}
         token={user?.token}
+        userId={user?.id}
         onClose={() => setHomeAddMeal(null)}
         onSelect={handleHomeSelectSavedMeal}
+        onAddFound={handleHomeAddFoundRecipe}
       />
 
       <FamilyAddActivityModal
