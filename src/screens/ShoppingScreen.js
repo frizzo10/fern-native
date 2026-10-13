@@ -532,17 +532,6 @@ export default function ShoppingScreen({ user }) {
           </View>
         </View>
 
-        <TouchableOpacity style={[styles.voiceCard, shadow.card]} activeOpacity={0.92}>
-          <View style={styles.voiceIconWrap}>
-            <Text style={styles.voiceIcon}>🎙</Text>
-          </View>
-          <View style={styles.voiceTextWrap}>
-            <Text style={styles.voiceTitle}>{t('voice_card_title')}</Text>
-            <Text style={styles.voiceSub}>{t('voice_card_sub')}</Text>
-          </View>
-          <Text style={styles.voiceTap}>{t('voice_card_tap')}</Text>
-        </TouchableOpacity>
-
         <View style={styles.addRow} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
           <TextInput
             value={draft}

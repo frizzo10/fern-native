@@ -216,6 +216,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   const [syncBannerDismissed, setSyncBannerDismissed] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [activeTabName, setActiveTabName] = useState('');
   // Lets screens (the new Home's "Ask Fern" bar) open this global chat sheet.
   useEffect(() => subscribeOpenChat(() => setIsChatOpen(true)), []);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -420,7 +421,9 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           onPress={() => setIsChatOpen(true)}
           accessibilityLabel={t('ask_fern_btn')}
         >
-          <Text style={styles.chatFabText}>🌿</Text>
+          {activeTabName === 'Shopping'
+            ? <Text style={styles.chatFabAi}>AI</Text>
+            : <Text style={styles.chatFabText}>🌿</Text>}
         </TouchableOpacity>
       )}
 
@@ -432,6 +435,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           // what's on screen once the tab changes, so close it immediately
           // rather than leaving it floating over the new screen.
           tabPress: () => closeTour(),
+          focus: (e) => setActiveTabName(String(e?.target || '').split('-')[0]),
         }}
         screenOptions={{
           headerShown: true,
@@ -737,6 +741,7 @@ const styles = StyleSheet.create({
     ...shadow.strong,
   },
   chatFabText: { fontSize: 26 },
+  chatFabAi: { fontSize: 22, fontWeight: '900', color: '#fff', letterSpacing: 1 },
 
   moreBackdrop: {
     flex: 1,
