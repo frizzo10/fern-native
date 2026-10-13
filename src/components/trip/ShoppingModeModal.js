@@ -3,12 +3,27 @@
 // celebration before the next one appears. "Next section" moves on early: what is left in this section comes back
 // at the end. The same item on the list twice (e.g. "Chicken" from two recipes) is one stop.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, SafeAreaView, Alert, Linking } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, SafeAreaView, Alert, Linking, Image } from 'react-native';
 import { colors, radius } from '../../constants/tokens';
 import { AISLES, aisleFor } from '../../utils/aisles';
 import { useFernVoice } from '../../hooks/useFernVoice';
 import useLanguage from '../../hooks/useLanguage';
 import Confetti from '../Confetti';
+import { code128Widths } from '../../utils/code128';
+
+// A real, scannable Code 128 barcode drawn with plain Views (no library). Bars stretch to the card width.
+function Barcode({ value }) {
+  const widths = useMemo(() => code128Widths(value), [value]);
+  if (!widths) return null;
+  return (
+    <View style={styles.barcodeWrap}>
+      <View style={styles.barcodeRow}>
+        {widths.map((w, i) => <View key={i} style={{ flex: w, backgroundColor: i % 2 === 0 ? '#000' : '#fff' }} />)}
+      </View>
+      <Text style={styles.barcodeText}>{value}</Text>
+    </View>
+  );
+}
 
 export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons = [], usedIds, onToggleCouponUsed }) {
   const { t } = useLanguage();
@@ -23,6 +38,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   const [celebrate, setCelebrate] = useState(null); // { section, next } while a finished section is celebrated
   const [confettiKey, setConfettiKey] = useState(0);
   const celebrateTimer = useRef(null);
+  const [showCoupons, setShowCoupons] = useState(false); // the full-page coupon list for the register
   const [showRecap, setShowRecap] = useState(false); // the "what you bought + coupons for the register" screen
 
   const sections = useMemo(() => {
@@ -71,7 +87,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   // Start fresh each time it opens, and read the first section.
   useEffect(() => {
-    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); stopSpeaking?.(); return; }
+    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); setShowCoupons(false); stopSpeaking?.(); return; }
     if (announced.current || !current) return;
     announced.current = true;
     say(intro(current.sectionKey));
@@ -145,6 +161,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   // Finish: with things checked off, show the recap + coupons first; the second tap closes.
   const finish = () => {
+    if (showCoupons) { setShowCoupons(false); return; }
     if (!recapOn && boughtCount > 0) { stopSpeaking?.(); setShowRecap(true); return; }
     onClose();
   };
@@ -166,6 +183,44 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
               <Text style={styles.celebrateTitle}>{t('shopmode_celebrate', { section: celebrate.section })}</Text>
               {celebrate.next ? <Text style={styles.celebrateSub}>{t('shopmode_next_up', { section: celebrate.next })}</Text> : null}
             </View>
+          ) : showCoupons ? (
+            <View>
+              <Text style={styles.sectionHeader}>{`🎟 ${t('shopmode_register_title')}`}</Text>
+              <Text style={styles.status}>{t('shopmode_coupons_hint')}</Text>
+              {coupons.map((m) => {
+                const c = m.coupon;
+                const used = Boolean(usedIds && usedIds.has(`k:${c.id}`));
+                const hasCode = c.redemption === 'code' && c.realCode;
+                return (
+                  <View key={c.id} style={[styles.couponCard, used && { opacity: 0.55 }]}>
+                    <Text style={styles.couponTitle} numberOfLines={3}>{c.title || c.discountLabel}</Text>
+                    <Text style={styles.couponMeta}>
+                      {[c.discountLabel, c.store, t('sav_for_item', { item: m.itemText })].filter(Boolean).join(' · ')}
+                    </Text>
+                    {m.level === 'possible' ? <Text style={styles.couponMeta}>{t('sav_possible')}</Text> : null}
+                    {hasCode ? <Barcode value={c.realCode} /> : (
+                      <>
+                        {c.image ? <Image source={{ uri: c.image }} style={styles.couponImg} resizeMode="contain" /> : null}
+                        {c.redemption === 'link' && c.url ? (
+                          <TouchableOpacity onPress={() => Linking.openURL(c.url)} activeOpacity={0.8}>
+                            <Text style={styles.couponLink}>{t('sav_open_link')}</Text>
+                          </TouchableOpacity>
+                        ) : <Text style={styles.couponMeta}>{t('sav_digital')}</Text>}
+                      </>
+                    )}
+                    {m.value && m.value.percent && !m.value.amount ? <Text style={styles.couponMeta}>{t('sav_pct_note')}</Text> : null}
+                    {onToggleCouponUsed ? (
+                      <TouchableOpacity style={[styles.usedBtn, used && styles.usedBtnOn]} onPress={() => onToggleCouponUsed(m)} activeOpacity={0.85}>
+                        <Text style={[styles.usedBtnText, used && { color: '#fff' }]}>{used ? t('sav_used') : t('sav_mark_used')}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                );
+              })}
+              <TouchableOpacity style={styles.backBtn} onPress={() => setShowCoupons(false)} activeOpacity={0.8}>
+                <Text style={styles.backBtnText}>{t('shopmode_back_recap')}</Text>
+              </TouchableOpacity>
+            </View>
           ) : recapOn ? (
             <View>
               <View style={styles.recapHead}>
@@ -185,36 +240,11 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
               <Text style={styles.status}>
                 {coupons.length ? t('sav_checkout_sub', { n: coupons.length }) : t('sav_checkout_none')}
               </Text>
-              {coupons.map((m) => {
-                const c = m.coupon;
-                const used = Boolean(usedIds && usedIds.has(`k:${c.id}`));
-                return (
-                  <View key={c.id} style={[styles.couponCard, used && { opacity: 0.6 }]}>
-                    <Text style={styles.couponTitle} numberOfLines={3}>{c.title || c.discountLabel}</Text>
-                    <Text style={styles.couponMeta}>
-                      {[c.discountLabel, c.store, t('sav_for_item', { item: m.itemText })].filter(Boolean).join(' · ')}
-                    </Text>
-                    {m.level === 'possible' ? <Text style={styles.couponMeta}>{t('sav_possible')}</Text> : null}
-                    {c.redemption === 'code' && c.realCode ? (
-                      <Text style={styles.couponCodeBig} selectable>{c.realCode}</Text>
-                    ) : null}
-                    {c.redemption === 'link' && c.url ? (
-                      <TouchableOpacity onPress={() => Linking.openURL(c.url)} activeOpacity={0.8}>
-                        <Text style={styles.couponLink}>{t('sav_open_link')}</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                    {c.redemption !== 'code' && c.redemption !== 'link' ? (
-                      <Text style={styles.couponMeta}>{t('sav_digital')}</Text>
-                    ) : null}
-                    {m.value && m.value.percent && !m.value.amount ? <Text style={styles.couponMeta}>{t('sav_pct_note')}</Text> : null}
-                    {onToggleCouponUsed ? (
-                      <TouchableOpacity style={[styles.usedBtn, used && styles.usedBtnOn]} onPress={() => onToggleCouponUsed(m)} activeOpacity={0.85}>
-                        <Text style={[styles.usedBtnText, used && { color: '#fff' }]}>{used ? t('sav_used') : t('sav_mark_used')}</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </View>
-                );
-              })}
+              {coupons.length ? (
+                <TouchableOpacity style={styles.nextBtn} activeOpacity={0.85} onPress={() => setShowCoupons(true)}>
+                  <Text style={styles.nextBtnText}>{t('shopmode_open_coupons', { n: coupons.length })}</Text>
+                </TouchableOpacity>
+              ) : null}
               {open.length ? (
                 <TouchableOpacity style={styles.backBtn} onPress={() => setShowRecap(false)} activeOpacity={0.8}>
                   <Text style={styles.backBtnText}>{t('shopmode_keep_shopping')}</Text>
@@ -239,7 +269,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
           ) : null}
         </ScrollView>
 
-        {!celebrate && !recapOn && laterOpen ? (
+        {!celebrate && !recapOn && !showCoupons && laterOpen ? (
           <View style={styles.footer}>
             <TouchableOpacity style={styles.nextBtn} activeOpacity={0.85} onPress={moveOn}>
               <Text style={styles.nextBtnText}>{t('shopmode_next_section')}</Text>
@@ -283,6 +313,10 @@ const styles = StyleSheet.create({
   usedBtnText: { color: '#2A6A2A', fontSize: 13, fontWeight: '800' },
   backBtn: { alignItems: 'center', paddingVertical: 18 },
   backBtnText: { color: colors.bright, fontSize: 15, fontWeight: '700' },
+  barcodeWrap: { backgroundColor: '#fff', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, padding: 12, marginTop: 12 },
+  barcodeRow: { flexDirection: 'row', height: 90 },
+  barcodeText: { textAlign: 'center', fontSize: 15, fontWeight: '800', color: '#000', letterSpacing: 2, marginTop: 6 },
+  couponImg: { width: '100%', height: 140, marginTop: 10 },
   footer: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.parch },
   nextBtn: { backgroundColor: colors.orange, paddingVertical: 15, borderRadius: radius.lg, alignItems: 'center' },
   nextBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
