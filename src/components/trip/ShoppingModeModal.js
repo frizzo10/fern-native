@@ -79,7 +79,6 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   const got = async (item) => {
     const next = nextAfter(item);
-    await onSetChecked(item.id, true);
     let msg = t('shopmode_checked', { item: item.text });
     if (next) {
       if (next.sectionKey !== item.sectionKey) {
@@ -95,6 +94,9 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
       msg += ` ${t('shopmode_all_done')}`;
     }
     say(msg);
+    // Save last: the celebration/announcement above must show first, otherwise the next section's list flashes
+    // on screen while the save finishes.
+    await onSetChecked(item.id, true);
   };
 
   const skip = (item) => {
