@@ -320,25 +320,10 @@ export default function ShoppingScreen({ user }) {
 
   // The Shopping button under the list: find out whether the user is at a saved store (GPS), then open Shop with Fern.
   // Not at a store -> Fern stays store-agnostic and asks whether to go straight into shopping mode.
-  const startShopping = async () => {
-    let at = '';
-    try {
-      const perm = await Location.getForegroundPermissionsAsync();
-      if (perm.granted) {
-        const pos = await Promise.race([
-          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-          new Promise((r) => setTimeout(() => r(null), 3000)),
-        ]).catch(() => null) || await Location.getLastKnownPositionAsync().catch(() => null);
-        const here = storeAtPosition((data.userStores || []).filter((s) => s && s.name), pos?.coords);
-        if (here) at = String(here.name);
-      }
-    } catch (e) { /* no location: stay store-agnostic */ }
-    setShopStore(at);
-    Alert.alert(t('trip_chat_how'), undefined, [
-      { text: `🎙 ${t('trip_chat_voice')}`, onPress: () => setTimeout(() => setTripChatMode('voice'), 400) },
-      { text: `⌨️ ${t('trip_chat_text')}`, onPress: () => setTimeout(() => setTripChatMode('text'), 400) },
-      { text: t('cancel_btn'), style: 'cancel' },
-    ]);
+  const startShopping = () => {
+    // Straight into the checklist: no questions first.
+    setShopModeVoice(false);
+    setShopModeOpen(true);
   };
 
   const normName = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)).join(' ');
