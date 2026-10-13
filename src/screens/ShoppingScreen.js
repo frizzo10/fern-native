@@ -548,7 +548,7 @@ export default function ShoppingScreen({ user }) {
           <EverydayCard t={t} items={items} onAdd={addEveryday} shoppingDay={shoppingDay} onPickDay={pickShoppingDay} highlight={Boolean(route?.params?.everyday)} />
         </View>
 
-        {route?.params?.tripStart ? (
+        {false ? (
           <>
         <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
           <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { setShowSales(true); if (route?.params?.tripStart) setTripChatMode('choose'); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
