@@ -22,6 +22,8 @@ import LoginScreen from './src/screens/LoginScreen';
 import FindScreen from './src/screens/FindScreen';
 import { useAuth } from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
+import LocationSetupModal from './src/components/modals/LocationSetupModal';
+import { shouldShowLocationSetup, markLocationSetupShown } from './src/services/locationSetup';
 import { stopStoreGeofencing } from './src/services/storeGeofencing';
 import useEntitlement from './src/hooks/useEntitlement';
 import { FEATURE_TIERS } from './src/constants/featureAccess';
@@ -249,10 +251,25 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
     },
   });
 
-  // Start geofencing once user is logged in
+  // Start geofencing once user is logged in (uses permissions already granted).
   useEffect(() => {
     if (user) startGeofence();
   }, [user]);
+
+  // Ask for location / "Always" / notifications on a short explanation screen: right
+  // after signup or first login, and again (at most once a day) while something is missing.
+  const [showLocationSetup, setShowLocationSetup] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    let alive = true;
+    shouldShowLocationSetup(dateToKey(new Date())).then((show) => { if (alive && show) setShowLocationSetup(true); });
+    return () => { alive = false; };
+  }, [user?.id]);
+  const finishLocationSetup = async () => {
+    setShowLocationSetup(false);
+    await markLocationSetupShown(dateToKey(new Date()));
+    startGeofence(); // pick up whatever was just granted
+  };
 
   // Tapping the "you've arrived" notification (from the background geofence or the
   // foreground check). Pro Max opens Personal Shopper, which starts by scanning the
@@ -405,6 +422,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         visible={isPlansOpen}
         onClose={closePlans}
       />
+
+      <LocationSetupModal visible={showLocationSetup} onDone={finishLocationSetup} />
 
       <TourModal
         visible={!!activeTour}

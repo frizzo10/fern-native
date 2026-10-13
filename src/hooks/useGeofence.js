@@ -81,8 +81,23 @@ export function useGeofence({ stores = [], onArrival }) {
   }, []);
 
   // Start monitoring
-  const start = useCallback(async () => {
-    const granted = await requestPermissions();
+  // By default this only uses permissions the user already gave (they are asked on the
+  // location-setup screen, with an explanation). Pass { prompt: true } to ask here.
+  const start = useCallback(async ({ prompt = false } = {}) => {
+    let granted;
+    if (prompt) {
+      granted = await requestPermissions();
+    } else {
+      const fg = await Location.getForegroundPermissionsAsync();
+      granted = fg.status === 'granted';
+      if (granted) {
+        const bg = await Location.getBackgroundPermissionsAsync();
+        backgroundGrantedRef.current = bg.status === 'granted';
+        setPermissionStatus(backgroundGrantedRef.current ? 'always' : 'whenInUse');
+      } else {
+        setPermissionStatus('denied');
+      }
+    }
     if (!granted) return;
 
     if (backgroundGrantedRef.current) await registerStoreGeofences(storesRef.current);
