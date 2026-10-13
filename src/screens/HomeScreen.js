@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { loadWeekDeals } from '../utils/savings';
+import { dealsForStore, storeAtPosition } from '../utils/flyerStore';
+import * as Location from 'expo-location';
 import {
   Alert,
   Keyboard,
@@ -1460,17 +1462,44 @@ export default function HomeScreen({ user, route }) {
     ]);
   };
 
-  // If this week's flyer is already scanned, say so, wait 3 seconds, then jump to the sales on Shopping.
-  const handleHomeScanFlyer = async () => {
-    const deals = await loadWeekDeals();
-    if (!deals.length) { askFlyerPhoto(); return; }
+  // Scan a flyer: work out which store this is for. At a saved store (GPS) -> that store; otherwise ask which store.
+  // If that store's flyer is already scanned this week, say so, wait 3 seconds, then jump to the sales on Shopping.
+  const showAlreadyScanned = async (storeName, storeDeals) => {
     flyerSkipRef.current = false;
-    const stores = [...new Set(deals.map((d) => String(d.store || '').trim()).filter(Boolean))];
-    setFlyerScan({ phase: 'already', count: deals.length, store: stores.length === 1 ? stores[0] : '' });
+    setFlyerScan({ phase: 'already', count: storeDeals.length, store: storeName });
     await new Promise((r) => setTimeout(r, 3000));
     if (flyerSkipRef.current) return;
     setFlyerScan(null);
     navigation.navigate('Shopping', { flyerScanned: Date.now() });
+  };
+
+  const chooseFlyerStore = async (store) => {
+    const deals = await loadWeekDeals();
+    const mine = dealsForStore(deals, store?.name);
+    if (mine.length) showAlreadyScanned(String(store.name).split(/ - |#/)[0].trim(), mine);
+    else askFlyerPhoto();
+  };
+
+  const handleHomeScanFlyer = async () => {
+    const stores = (userStores || []).filter((s) => s && s.name);
+    if (!stores.length) { askFlyerPhoto(); return; }
+    let here = null;
+    try {
+      const perm = await Location.getForegroundPermissionsAsync();
+      if (perm.granted) {
+        const pos = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          new Promise((r) => setTimeout(() => r(null), 3000)),
+        ]).catch(() => null) || await Location.getLastKnownPositionAsync().catch(() => null);
+        here = storeAtPosition(stores, pos?.coords);
+      }
+    } catch (e) { /* no location: fall through to asking */ }
+    if (here) { chooseFlyerStore(here); return; }
+    // Not at a saved store: ask which one this flyer is for.
+    Alert.alert(t('flyer_which_store'), undefined, [
+      ...stores.slice(0, 8).map((s) => ({ text: s.name, onPress: () => setTimeout(() => chooseFlyerStore(s), 400) })),
+      { text: t('cancel_btn'), style: 'cancel' },
+    ]);
   };
 
   const closeScanCircularModal = () => {
