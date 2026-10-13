@@ -185,9 +185,9 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
   };
 
   return (
-    <View style={[styles.card, shadow.card]}>
-      <Text style={styles.title}>{`📅 ${t('trip_week_title')}`}</Text>
-      <Text style={styles.sub}>{t('trip_week_sub')}</Text>
+    <View style={phase === 'idle' ? styles.bare : [styles.card, shadow.card]}>
+      {phase !== 'idle' ? <Text style={styles.title}>{`📅 ${t('trip_week_title')}`}</Text> : null}
+      {phase !== 'idle' ? <Text style={styles.sub}>{t('trip_week_sub')}</Text> : null}
 
       {phase === 'idle' ? (
         weekDeals.length ? (
@@ -306,6 +306,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
 }
 
 const styles = StyleSheet.create({
+  bare: { marginBottom: 14 },
   card: { backgroundColor: '#fff', borderRadius: radius.lg || 16, padding: 16, marginBottom: 14 },
   title: { fontSize: 16, fontWeight: '800', color: '#2D1B10' },
   sub: { fontSize: 13, color: '#7a6d60', marginTop: 2 },

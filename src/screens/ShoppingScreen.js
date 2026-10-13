@@ -636,8 +636,8 @@ export default function ShoppingScreen({ user }) {
 
         {greatDeals.length ? (
           <View style={[styles.greatCard, shadow.card]}>
-            <Text style={styles.checkoutTitle}>{`🔥 ${t('sav_great_title')}`}</Text>
-            <Text style={styles.checkoutSub}>{t('sav_great_sub')}</Text>
+            <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
+            <Text style={styles.checkoutSub}>{`${t('sav_great_title')} · ${t('sav_great_sub')}`}</Text>
             {greatDeals.map((m) => {
               const c = m.coupon;
               const done = walletIds.has(String(c.id));
