@@ -88,7 +88,7 @@ export default function NewHome({
     return () => { cancelled = true; };
   }, [tonightTitle, user?.token]);
 
-  const visibleStores = (stores || []).slice(0, 3);
+  const visibleStores = (stores || []).slice(0, 5);
 
   return (
     <View>
@@ -142,30 +142,20 @@ export default function NewHome({
         </TouchableOpacity>
 
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
-        <View style={styles.storeRow}>
+        <View style={styles.storeList}>
           {visibleStores.map((s, i) => (
-            <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeChip} activeOpacity={0.85} onPress={onScan}>
-              <Ionicons name="location-outline" size={14} color={SAGE} />
-              <Text style={styles.storeChipText} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
+            <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={onScan}>
+              <Ionicons name="location-outline" size={15} color={SAGE} />
+              <Text style={styles.storeLineText} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
+              <Ionicons name="chevron-forward" size={14} color={SAGE} />
             </TouchableOpacity>
           ))}
-          <TouchableOpacity
-            style={styles.addChip}
-            activeOpacity={0.85}
-            onPress={onAddStore}
-            accessibilityRole="button"
-            accessibilityLabel={t('home_add_store_a11y')}
-          >
-            <Ionicons name="add" size={20} color={SAGE} />
+          <TouchableOpacity style={styles.storeLine} activeOpacity={0.8} onPress={onAddStore} accessibilityRole="button">
+            <Ionicons name="add" size={16} color={SAGE} />
+            <Text style={[styles.storeLineText, { color: SAGE }]} numberOfLines={1}>{t('home_add_store_a11y')}</Text>
           </TouchableOpacity>
         </View>
         {!visibleStores.length ? <Text style={styles.heroHint}>{t('home_no_stores_hint')}</Text> : null}
-
-        <TouchableOpacity style={styles.askBar} activeOpacity={0.9} onPress={onAskFern} accessibilityRole="button">
-          <Ionicons name="leaf-outline" size={18} color="#2D5A27" />
-          <Text style={styles.askPlaceholder}>{t('home_ask_fern_placeholder')}</Text>
-          <View style={styles.micBtn}><Ionicons name="mic-outline" size={20} color={CREAM} /></View>
-        </TouchableOpacity>
       </View>
 
       {/* Family this week */}
@@ -295,6 +285,9 @@ const styles = StyleSheet.create({
   scanBtn: { height: 76, borderRadius: 22, backgroundColor: ORANGE, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
   scanBtnText: { fontFamily: 'Jost-Bold', fontSize: 20, color: '#fff' },
   heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: SAGE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
+  storeList: { marginTop: 2 },
+  storeLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(168,213,162,0.25)' },
+  storeLineText: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 14, color: CREAM },
   storeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   storeChip: { height: 44, maxWidth: 170, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(168,213,162,0.35)', backgroundColor: 'rgba(255,255,255,0.08)', flexDirection: 'row', alignItems: 'center', gap: 7 },
   storeChipText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: CREAM, flexShrink: 1 },
