@@ -28,6 +28,13 @@ const C = {
   border: '#E8E0D0',
 };
 
+// Ingredients/steps can come back as plain strings or as {amount, unit, item} objects.
+const lineText = (x) => {
+  if (x == null) return '';
+  if (typeof x === 'string') return x;
+  return [x.amount, x.unit, x.item || x.name || x.text].filter(Boolean).join(' ');
+};
+
 export default function ImportScreen({ user, onBack, onImported }) {
   const { t, locale } = useLanguage();
   const { pushAllFromStorage, pull } = useSync(user);
@@ -108,7 +115,8 @@ export default function ImportScreen({ user, onBack, onImported }) {
           description: previewRecipe.description,
           ingredients: previewRecipe.ingredients || [],
           instructions: previewRecipe.instructions || [],
-          note: '',
+          servings: previewRecipe.servings || undefined,
+          note: previewRecipe.notes || '',
           sourceUrl: previewRecipe.sourceUrl || '',
           photoSearch: previewRecipe.photoSearch || '',
         },
@@ -163,6 +171,15 @@ export default function ImportScreen({ user, onBack, onImported }) {
               <Text style={s.previewCount}>
                 {(previewRecipe.ingredients || []).length} {t('ingredientsHdr')} · {(previewRecipe.instructions || []).length} {t('instructionsHdr')}
               </Text>
+              <Text style={s.listHdr}>{t('ingredientsHdr')}</Text>
+              {(previewRecipe.ingredients || []).map((ing, i) => (
+                <Text key={`ing-${i}`} style={s.listItem}>• {lineText(ing)}</Text>
+              ))}
+              <Text style={s.listHdr}>{t('instructionsHdr')}</Text>
+              {(previewRecipe.instructions || []).map((step, i) => (
+                <Text key={`step-${i}`} style={s.listItem}>{i + 1}. {lineText(step)}</Text>
+              ))}
+              {previewRecipe.notes ? <Text style={s.listNote}>{previewRecipe.notes}</Text> : null}
               <View style={s.previewActions}>
                 <TouchableOpacity style={s.discardBtn} onPress={() => setPreviewRecipe(null)} disabled={saving}>
                   <Text style={s.discardBtnText}>{t('discard')}</Text>
@@ -314,6 +331,9 @@ const s = StyleSheet.create({
   previewEmoji: { fontSize: 40, marginBottom: 8 },
   previewTitle: { fontSize: 18, fontFamily: 'Playfair-Bold', color: C.ink, textAlign: 'center', marginBottom: 6 },
   previewMeta: { fontSize: 13, color: C.brown, fontFamily: 'Jost-Medium', marginBottom: 4 },
+  listHdr: { alignSelf: 'stretch', fontSize: 12, letterSpacing: 1.2, textTransform: 'uppercase', color: C.forest, fontFamily: 'Jost-Bold', marginTop: 6, marginBottom: 8 },
+  listItem: { alignSelf: 'stretch', fontSize: 15, lineHeight: 22, color: C.ink, fontFamily: 'Jost-Regular', marginBottom: 6 },
+  listNote: { alignSelf: 'stretch', fontSize: 13, lineHeight: 19, color: C.brown, fontFamily: 'Jost-Regular', fontStyle: 'italic', marginTop: 6 },
   previewCount: { fontSize: 12, color: C.brown, fontFamily: 'Jost-Regular', marginBottom: 18 },
   previewActions: { flexDirection: 'row', gap: 12, width: '100%' },
   discardBtn: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
