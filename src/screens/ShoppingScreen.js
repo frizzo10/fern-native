@@ -971,6 +971,9 @@ export default function ShoppingScreen({ user }) {
         items={items}
         user={user}
         voice={shopModeVoice}
+        coupons={checkoutCoupons}
+        usedIds={usedIds}
+        onToggleCouponUsed={toggleCouponUsed}
         onClose={() => { setShopModeOpen(false); pull(); }}
         onSetChecked={async (ids, checked) => {
           const wanted = new Set(Array.isArray(ids) ? ids : [ids]);

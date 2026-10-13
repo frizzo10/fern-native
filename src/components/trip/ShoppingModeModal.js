@@ -3,14 +3,14 @@
 // celebration before the next one appears. "Next section" moves on early: what is left in this section comes back
 // at the end. The same item on the list twice (e.g. "Chicken" from two recipes) is one stop.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, SafeAreaView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView, SafeAreaView, Alert, Linking } from 'react-native';
 import { colors, radius } from '../../constants/tokens';
 import { AISLES, aisleFor } from '../../utils/aisles';
 import { useFernVoice } from '../../hooks/useFernVoice';
 import useLanguage from '../../hooks/useLanguage';
 import Confetti from '../Confetti';
 
-export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice }) {
+export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons = [], usedIds, onToggleCouponUsed }) {
   const { t } = useLanguage();
   const { speakText, stopSpeaking } = useFernVoice({
     onError: (m) => console.warn('[ShoppingMode] voice error:', m),
@@ -23,6 +23,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   const [celebrate, setCelebrate] = useState(null); // { section, next } while a finished section is celebrated
   const [confettiKey, setConfettiKey] = useState(0);
   const celebrateTimer = useRef(null);
+  const [showRecap, setShowRecap] = useState(false); // the "what you bought + coupons for the register" screen
 
   const sections = useMemo(() => {
     const by = new Map(AISLES.map((a) => [a.key, []]));
@@ -70,7 +71,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   // Start fresh each time it opens, and read the first section.
   useEffect(() => {
-    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); stopSpeaking?.(); return; }
+    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); stopSpeaking?.(); return; }
     if (announced.current || !current) return;
     announced.current = true;
     say(intro(current.sectionKey));
@@ -138,13 +139,22 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   const currentSection = current ? sectionOf(current.sectionKey) : null;
   const allDone = flat.length > 0 && !open.length;
+  const bought = sections.map((s) => ({ ...s, items: s.items.filter((i) => i.checked) })).filter((s) => s.items.length);
+  const boughtCount = bought.reduce((n, s) => n + s.items.reduce((m, i) => m + (i.ids ? i.ids.length : 1), 0), 0);
+  const recapOn = showRecap || (allDone && !celebrate);
+
+  // Finish: with things checked off, show the recap + coupons first; the second tap closes.
+  const finish = () => {
+    if (!recapOn && boughtCount > 0) { stopSpeaking?.(); setShowRecap(true); return; }
+    onClose();
+  };
 
   return (
     <Modal visible={Boolean(visible)} animationType="slide" onRequestClose={onClose}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>{`🌿 ${t('shopmode_title')}`}</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={finish} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.close}>{t('shopmode_close')}</Text>
           </TouchableOpacity>
         </View>
@@ -156,11 +166,60 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
               <Text style={styles.celebrateTitle}>{t('shopmode_celebrate', { section: celebrate.section })}</Text>
               {celebrate.next ? <Text style={styles.celebrateSub}>{t('shopmode_next_up', { section: celebrate.next })}</Text> : null}
             </View>
-          ) : allDone ? (
-            <View style={styles.celebrate}>
-              <Text style={styles.celebrateEmoji}>🎉</Text>
-              <Text style={styles.celebrateTitle}>{t('shopmode_done_title')}</Text>
-              <Text style={styles.celebrateSub}>{t('shopmode_all_done')}</Text>
+          ) : recapOn ? (
+            <View>
+              <View style={styles.recapHead}>
+                <Text style={styles.celebrateEmoji}>🎉</Text>
+                <Text style={styles.celebrateTitle}>{t('shopmode_recap_title', { n: boughtCount })}</Text>
+                {!open.length ? <Text style={styles.celebrateSub}>{t('shopmode_all_done')}</Text> : null}
+              </View>
+              {bought.map((sec) => (
+                <View key={sec.key} style={styles.recapSection}>
+                  <Text style={styles.sectionHeader}>{`${sec.emoji} ${sec.name}`}</Text>
+                  <Text style={styles.recapItems}>
+                    {sec.items.map((i) => (i.ids && i.ids.length > 1 ? `${i.text} ×${i.ids.length}` : i.text)).join(' · ')}
+                  </Text>
+                </View>
+              ))}
+              <Text style={[styles.sectionHeader, { marginTop: 22 }]}>{`🎟 ${t('shopmode_register_title')}`}</Text>
+              <Text style={styles.status}>
+                {coupons.length ? t('sav_checkout_sub', { n: coupons.length }) : t('sav_checkout_none')}
+              </Text>
+              {coupons.map((m) => {
+                const c = m.coupon;
+                const used = Boolean(usedIds && usedIds.has(`k:${c.id}`));
+                return (
+                  <View key={c.id} style={[styles.couponCard, used && { opacity: 0.6 }]}>
+                    <Text style={styles.couponTitle} numberOfLines={3}>{c.title || c.discountLabel}</Text>
+                    <Text style={styles.couponMeta}>
+                      {[c.discountLabel, c.store, t('sav_for_item', { item: m.itemText })].filter(Boolean).join(' · ')}
+                    </Text>
+                    {m.level === 'possible' ? <Text style={styles.couponMeta}>{t('sav_possible')}</Text> : null}
+                    {c.redemption === 'code' && c.realCode ? (
+                      <Text style={styles.couponCodeBig} selectable>{c.realCode}</Text>
+                    ) : null}
+                    {c.redemption === 'link' && c.url ? (
+                      <TouchableOpacity onPress={() => Linking.openURL(c.url)} activeOpacity={0.8}>
+                        <Text style={styles.couponLink}>{t('sav_open_link')}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    {c.redemption !== 'code' && c.redemption !== 'link' ? (
+                      <Text style={styles.couponMeta}>{t('sav_digital')}</Text>
+                    ) : null}
+                    {m.value && m.value.percent && !m.value.amount ? <Text style={styles.couponMeta}>{t('sav_pct_note')}</Text> : null}
+                    {onToggleCouponUsed ? (
+                      <TouchableOpacity style={[styles.usedBtn, used && styles.usedBtnOn]} onPress={() => onToggleCouponUsed(m)} activeOpacity={0.85}>
+                        <Text style={[styles.usedBtnText, used && { color: '#fff' }]}>{used ? t('sav_used') : t('sav_mark_used')}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                );
+              })}
+              {open.length ? (
+                <TouchableOpacity style={styles.backBtn} onPress={() => setShowRecap(false)} activeOpacity={0.8}>
+                  <Text style={styles.backBtnText}>{t('shopmode_keep_shopping')}</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : currentSection ? (
             <View>
@@ -180,7 +239,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
           ) : null}
         </ScrollView>
 
-        {!celebrate && !allDone && laterOpen ? (
+        {!celebrate && !recapOn && laterOpen ? (
           <View style={styles.footer}>
             <TouchableOpacity style={styles.nextBtn} activeOpacity={0.85} onPress={moveOn}>
               <Text style={styles.nextBtnText}>{t('shopmode_next_section')}</Text>
@@ -211,6 +270,19 @@ const styles = StyleSheet.create({
   celebrateEmoji: { fontSize: 56 },
   celebrateTitle: { fontSize: 24, fontWeight: '800', color: colors.ink, marginTop: 10, textAlign: 'center' },
   celebrateSub: { fontSize: 16, color: colors.brown, marginTop: 8, textAlign: 'center' },
+  recapHead: { alignItems: 'center', paddingVertical: 14 },
+  recapSection: { marginTop: 14 },
+  recapItems: { fontSize: 16, color: colors.ink, lineHeight: 23, marginTop: 4 },
+  couponCard: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: 14, marginTop: 10 },
+  couponTitle: { fontSize: 16, fontWeight: '800', color: colors.ink },
+  couponMeta: { fontSize: 13, color: colors.brown, marginTop: 3 },
+  couponCodeBig: { fontSize: 26, fontWeight: '900', color: colors.ink, letterSpacing: 3, textAlign: 'center', marginTop: 10, paddingVertical: 10, backgroundColor: '#fff', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, overflow: 'hidden' },
+  couponLink: { fontSize: 14, fontWeight: '800', color: colors.bright, marginTop: 6 },
+  usedBtn: { alignSelf: 'flex-start', marginTop: 10, borderWidth: 1.5, borderColor: '#2A6A2A', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
+  usedBtnOn: { backgroundColor: '#2A6A2A' },
+  usedBtnText: { color: '#2A6A2A', fontSize: 13, fontWeight: '800' },
+  backBtn: { alignItems: 'center', paddingVertical: 18 },
+  backBtnText: { color: colors.bright, fontSize: 15, fontWeight: '700' },
   footer: { paddingHorizontal: 16, paddingVertical: 12, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.parch },
   nextBtn: { backgroundColor: colors.orange, paddingVertical: 15, borderRadius: radius.lg, alignItems: 'center' },
   nextBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
