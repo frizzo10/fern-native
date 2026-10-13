@@ -579,33 +579,7 @@ export default function ShoppingScreen({ user }) {
           </>
         ) : null}
 
-        <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
-          <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
-          <Text style={styles.checkoutSub}>{weekDeals.length ? t('sale_list_week_sub', { n: weekDeals.length }) : t('sale_list_week_empty')}</Text>
-          {weekDeals.length ? (
-            <TouchableOpacity style={styles.usedBtn} activeOpacity={0.85} onPress={() => setShowSales((v) => !v)}>
-              <Text style={styles.usedBtnText}>{showSales ? t('sale_list_week_hide') : t('sale_list_week_show')}</Text>
-            </TouchableOpacity>
-          ) : null}
-          {showSales && weekDeals.length ? (
-            <SaleItemsList
-              deals={weekDeals}
-              t={t}
-              isOnList={(deal) => {
-                const key = toShoppingName(deal.name).toLowerCase();
-                return items.some((it) => String(it.text).toLowerCase() === key);
-              }}
-              onAdd={(deal) => addItem(toShoppingName(deal.name))}
-              token={user?.token}
-              locale={locale}
-              shoppingItems={items}
-              onAddRecipe={async (recipe, deal, opts) => {
-                const r = await addRecipesToShoppingList([recipe], items, { skip: opts?.skip });
-                await persistShopping(r.nextShopping);
-              }}
-            />
-          ) : null}
-        </View>
+        <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} />
 
         {!greatDeals.length && !listCoupons.length ? (
           <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
