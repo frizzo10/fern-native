@@ -2,29 +2,17 @@ import React, { useMemo } from 'react';
 import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
-
-// No barcode-rendering library in this app — this draws a deterministic
-// bar pattern from the coupon code so it reads as "a barcode" without
-// pulling in a native dependency for what is, functionally, a static prop.
-function generateBarcodeWidths(seed) {
-    const str = String(seed || 'coupon');
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
-    }
-
-    const widths = [];
-    for (let i = 0; i < 50; i++) {
-        hash = (hash * 1103515245 + 12345) >>> 0;
-        widths.push(2 + (hash % 5));
-    }
-    return widths;
-}
+import { code128Widths } from '../../utils/code128';
 
 export default function CouponDetailModal({ visible, coupon, isInWallet, onClose, onToggleWallet }) {
     const { t } = useLanguage();
 
-    const barWidths = useMemo(() => generateBarcodeWidths(coupon?.code || coupon?.id), [coupon?.code, coupon?.id]);
+    // Only a coupon that is really redeemed by a typed/scanned code gets a barcode. The
+    // catalog's other codes are offer IDs, not register barcodes, so none is drawn for them.
+    const barWidths = useMemo(
+        () => (coupon?.redemption === 'code' && coupon?.realCode ? code128Widths(coupon.realCode) : null),
+        [coupon?.redemption, coupon?.realCode]
+    );
 
     if (!coupon) return null;
 
@@ -61,7 +49,7 @@ export default function CouponDetailModal({ visible, coupon, isInWallet, onClose
                         {coupon.category ? <Text style={styles.category}>{coupon.category}</Text> : null}
                         {coupon.description ? <Text style={styles.description}>{coupon.description}</Text> : null}
 
-                        <View style={styles.barcodeBox}>
+                        {barWidths ? (<View style={styles.barcodeBox}>
                             <View style={styles.barcodeRow}>
                                 {barWidths.map((w, i) => (
                                     <View
@@ -70,7 +58,7 @@ export default function CouponDetailModal({ visible, coupon, isInWallet, onClose
                                     />
                                 ))}
                             </View>
-                        </View>
+                        </View>) : null}
 
                         {coupon.expiresAt ? (
                             <Text style={styles.expiry}>{t('coupon_detail_expires_label', { date: coupon.expiresAt })}</Text>
