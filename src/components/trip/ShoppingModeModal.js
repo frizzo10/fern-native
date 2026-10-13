@@ -7,6 +7,7 @@ import { colors, radius, shadow } from '../../constants/tokens';
 import { AISLES, aisleFor } from '../../utils/aisles';
 import { useFernVoice } from '../../hooks/useFernVoice';
 import useLanguage from '../../hooks/useLanguage';
+import Confetti from '../Confetti';
 
 export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice }) {
   const { t } = useLanguage();
@@ -18,6 +19,9 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   const [skipped, setSkipped] = useState([]);
   const [status, setStatus] = useState('');
   const announced = useRef(false);
+  const [celebrate, setCelebrate] = useState(null); // { section, next } while a finished section is celebrated
+  const [confettiKey, setConfettiKey] = useState(0);
+  const celebrateTimer = useRef(null);
 
   const sections = useMemo(() => {
     const by = new Map(AISLES.map((a) => [a.key, []]));
@@ -32,6 +36,16 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   const sectionOf = (key) => sections.find((s) => s.key === key);
   const openIn = (key) => open.filter((i) => i.sectionKey === key).length;
 
+  useEffect(() => () => { if (celebrateTimer.current) clearTimeout(celebrateTimer.current); }, []);
+
+  // A short celebration when a section is finished, then the next section's items appear.
+  const celebrateSection = (sectionName, nextName) => {
+    if (celebrateTimer.current) clearTimeout(celebrateTimer.current);
+    setConfettiKey((k) => k + 1);
+    setCelebrate({ section: sectionName, next: nextName || '' });
+    celebrateTimer.current = setTimeout(() => setCelebrate(null), 1900);
+  };
+
   const say = useCallback((text) => {
     setStatus(text);
     if (voice) speakText(text);
@@ -45,7 +59,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   // Start fresh each time it opens, and read the first section + item.
   useEffect(() => {
-    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); stopSpeaking?.(); return; }
+    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); stopSpeaking?.(); return; }
     if (announced.current || !current) return;
     announced.current = true;
     say(intro(current));
@@ -69,6 +83,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     let msg = t('shopmode_checked', { item: item.text });
     if (next) {
       if (next.sectionKey !== item.sectionKey) {
+        celebrateSection(sectionOf(item.sectionKey)?.name || '', sectionOf(next.sectionKey)?.name || '');
         msg += ` ${t('shopmode_section_done', { section: sectionOf(item.sectionKey)?.name || '' })} ${intro(next)}`;
       } else {
         msg += ` ${t('shopmode_ask', { item: next.text })}`;
@@ -76,6 +91,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     } else if (open.some((i) => i.id !== item.id)) {
       msg += ` ${t('shopmode_skipped_back')}`;
     } else {
+      celebrateSection(sectionOf(item.sectionKey)?.name || '', '');
       msg += ` ${t('shopmode_all_done')}`;
     }
     say(msg);
@@ -96,6 +112,8 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   const currentSection = current ? sectionOf(current.sectionKey) : null;
   const allDone = flat.length > 0 && !open.length;
+  // Only the section you are in is shown; the next one appears when this one is finished.
+  const visibleSections = current ? sections.filter((s) => s.key === current.sectionKey) : [];
 
   return (
     <Modal visible={Boolean(visible)} animationType="slide" onRequestClose={onClose}>
@@ -131,7 +149,13 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
         </View>
 
         <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          {sections.map((s) => (
+          {celebrate ? (
+            <View style={styles.celebrate}>
+              <Text style={styles.celebrateEmoji}>🎉</Text>
+              <Text style={styles.celebrateTitle}>{t('shopmode_celebrate', { section: celebrate.section })}</Text>
+              {celebrate.next ? <Text style={styles.celebrateSub}>{t('shopmode_next_up', { section: celebrate.next })}</Text> : null}
+            </View>
+          ) : visibleSections.map((s) => (
             <View key={s.key} style={styles.section}>
               <Text style={styles.sectionHeader}>{`${s.emoji} ${s.name}`}</Text>
               {s.items.map((it) => {
@@ -149,6 +173,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
             </View>
           ))}
         </ScrollView>
+        {celebrate ? <Confetti key={confettiKey} /> : null}
       </SafeAreaView>
     </Modal>
   );
@@ -180,5 +205,9 @@ const styles = StyleSheet.create({
   checkmark: { color: '#fff', fontSize: 14, fontWeight: '900' },
   rowText: { flex: 1, fontSize: 15, color: colors.ink },
   rowTextChecked: { color: colors.muted, textDecorationLine: 'line-through' },
+  celebrate: { alignItems: 'center', justifyContent: 'center', paddingVertical: 50 },
+  celebrateEmoji: { fontSize: 56 },
+  celebrateTitle: { fontSize: 24, fontWeight: '800', color: colors.ink, marginTop: 10, textAlign: 'center' },
+  celebrateSub: { fontSize: 16, color: colors.brown, marginTop: 8, textAlign: 'center' },
   skippedTag: { fontSize: 11, fontWeight: '700', color: colors.brown },
 });
