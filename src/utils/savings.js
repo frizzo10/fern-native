@@ -281,7 +281,9 @@ export function matchListItems(items, deals, coupons) {
     (items || []).forEach((item) => {
         const deal = (deals || []).find((d) => ingredientHasSaleItem(item.text, d)) || null;
         const found = [];
-        (coupons || []).filter(isNonFoodCoupon).forEach((c) => {
+        // An item added straight from a coupon ("Add to list + wallet") always matches that coupon, whatever its category.
+        const fromCoupon = item.recipe === 'Coupon deal';
+        (coupons || []).filter((c) => fromCoupon || isNonFoodCoupon(c)).forEach((c) => {
             const level = couponMatchLevel(item.text, c);
             if (level) found.push({ coupon: c, level, value: parseCouponValue(c.discountLabel || c.title) });
         });
