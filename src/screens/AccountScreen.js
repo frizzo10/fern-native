@@ -10,6 +10,8 @@ import { TOUR_LIST } from '../constants/tourContent';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import UpgradeGateModal from '../components/UpgradeGateModal';
+import ShoppingDayPicker from '../components/ShoppingDayPicker';
+import { getShoppingDay, saveShoppingDay } from '../utils/staples';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { usePlansModal } from '../services/PlansModalContext';
 
@@ -63,6 +65,12 @@ const TOOL_SECTIONS = [
 
 export default function AccountScreen({ visible, onClose, user, signOut, onOpenShopping }) {
     const { t } = useLanguage();
+    const [shoppingDayValue, setShoppingDayValue] = useState(null);
+    useEffect(() => { getShoppingDay().then(setShoppingDayValue); }, []);
+    const pickShoppingDayValue = async (day) => {
+        setShoppingDayValue(day);
+        await saveShoppingDay(day, { title: t('everyday_nudge_title'), body: t('everyday_nudge_body') });
+    };
     const { data } = useSync(user);
     const { startTour } = useTour();
     const { tier, hasAccess } = useEntitlement();
@@ -266,6 +274,12 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             </View>
                             <Text style={styles.profileName}>{profileName}</Text>
                             {profileEmail ? <Text style={styles.profileEmail}>{profileEmail}</Text> : null}
+                        </View>
+
+                        <View style={styles.infoCard}>
+                            <Text style={styles.infoLabel}>{t('shopday_title')}</Text>
+                            <Text style={styles.infoValue}>{t('everyday_day_hint')}</Text>
+                            <ShoppingDayPicker t={t} day={shoppingDayValue} onPick={pickShoppingDayValue} />
                         </View>
 
                         <View style={styles.infoCard}>

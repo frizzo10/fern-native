@@ -559,7 +559,7 @@ export default function ShoppingScreen({ user }) {
         </View>
 
         <View onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
-          <EverydayCard t={t} items={items} onAdd={addEveryday} shoppingDay={shoppingDay} onPickDay={pickShoppingDay} highlight={Boolean(route?.params?.everyday)} />
+          <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
         </View>
 
         {false ? (

@@ -5,11 +5,8 @@ import { EVERYDAY_CHIPS, dueStaples, loadHistory, stapleKey } from '../../utils/
 
 // "Anything you need that isn't a recipe?" — the non-recipe half of the list: your regular restock items
 // (learned from what you tick off) and common household things, each one tap to add.
-const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-
-export default function EverydayCard({ t, items, onAdd, shoppingDay, onPickDay, highlight }) {
+export default function EverydayCard({ t, items, onAdd, highlight }) {
   const [history, setHistory] = useState({});
-  const [pickingDay, setPickingDay] = useState(false);
   useEffect(() => { loadHistory().then(setHistory); }, [items.length]);
 
   const onList = useMemo(() => new Set(items.map((i) => stapleKey(i.text))), [items]);
@@ -45,23 +42,6 @@ export default function EverydayCard({ t, items, onAdd, shoppingDay, onPickDay, 
         </View>
       ) : null}
 
-      <TouchableOpacity onPress={() => setPickingDay((v) => !v)} activeOpacity={0.8} style={{ marginTop: 12 }}>
-        <Text style={styles.dayLink}>
-          {shoppingDay == null ? t('everyday_pick_day') : t('everyday_day_is', { day: t(`day_${DAY_KEYS[shoppingDay]}`) })}
-        </Text>
-      </TouchableOpacity>
-      {pickingDay || shoppingDay == null ? (
-        <>
-          <Text style={styles.sub}>{t('everyday_day_hint')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingTop: 8 }}>
-            {DAY_KEYS.map((k, i) => (
-              <TouchableOpacity key={k} style={[styles.dayChip, shoppingDay === i ? styles.dayChipOn : null]} activeOpacity={0.85} onPress={() => { onPickDay(i); setPickingDay(false); }}>
-                <Text style={[styles.dayChipText, shoppingDay === i ? { color: '#fff' } : null]}>{t(`day_${k}`)}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </>
-      ) : null}
     </View>
   );
 }

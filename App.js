@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { translations } from './src/constants/translations';
 import { getShoppingDay, scheduleEverydayNudge } from './src/utils/staples';
+import ShoppingDayPrompt from './src/components/ShoppingDayPrompt';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -632,7 +633,12 @@ function MainAppContent() {
     );
   }
 
-  return <AppNavigator user={user} signOut={handleSignOut} userStores={syncData.userStores} syncError={syncError} retrySync={retrySync} />;
+  return (
+    <>
+      <AppNavigator user={user} signOut={handleSignOut} userStores={syncData.userStores} syncError={syncError} retrySync={retrySync} />
+      <ShoppingDayPrompt userId={user?.id} />
+    </>
+  );
 }
 
 export default function App() {
