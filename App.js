@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { translations } from './src/constants/translations';
+import { getShoppingDay, scheduleEverydayNudge } from './src/utils/staples';
 import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -257,7 +259,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   useEffect(() => {
     const open = (response, coldStart = false) => {
       const content = response?.notification?.request?.content;
-      if (!content?.data || !['store_arrival', 'store_exit'].includes(content.data.type)) return;
+      if (!content?.data || !['store_arrival', 'store_exit', 'everyday_nudge'].includes(content.data.type)) return;
       const isExit = content.data.type === 'store_exit';
       const id = response.notification.request.identifier;
       if (handledArrivalTaps.has(id)) return;
@@ -277,7 +279,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           return;
         }
         // The whole trip (list, flyer, sales, coupons, a week of dinners) lives on the Shopping screen.
-        nav.navigate('Shopping', isExit ? { tripDone: Date.now() } : { tripStart: Date.now(), store });
+        nav.navigate('Shopping', content.data.type === 'everyday_nudge' ? { everyday: Date.now() } : isExit ? { tripDone: Date.now() } : { tripStart: Date.now(), store });
       };
       go();
     };
@@ -551,6 +553,18 @@ function MainAppContent() {
   useEffect(() => {
     checkForUpdate();
   }, []);
+
+  // Keep the weekly "everyday items" nudge scheduled (replaces itself, so this is safe on every launch).
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      const day = await getShoppingDay();
+      let locale = 'en';
+      try { locale = (await AsyncStorage.getItem('fern_user_locale')) || 'en'; } catch (e) { /* default */ }
+      const dict = translations[locale] || translations.en;
+      scheduleEverydayNudge(day, { title: dict.everyday_nudge_title, body: dict.everyday_nudge_body });
+    })();
+  }, [user?.id]);
 
   // Attach the RevenueCat purchaser to the real backend user id once auth
   // resolves, so purchases (and entitlements already on that account from

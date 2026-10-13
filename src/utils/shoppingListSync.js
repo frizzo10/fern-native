@@ -8,7 +8,7 @@ function normalizeText(value) {
 
 // `recipe` on a list item is a comma-joined list of the meals that need it ("TACOS, STIR FRY"), or one of
 // these labels for things added by hand. How many meals need an item is how many to buy.
-const GENERIC_TAGS = new Set(['MANUAL ADD', 'FERN STARTER', 'COUPON DEAL', 'RECIPE', '']);
+const GENERIC_TAGS = new Set(['MANUAL ADD', 'FERN STARTER', 'COUPON DEAL', 'EVERYDAY', 'RECIPE', '']);
 
 export function recipeTags(recipeField) {
     return normalizeText(recipeField).split(',').map((tag) => tag.trim().toUpperCase()).filter((tag) => !GENERIC_TAGS.has(tag));

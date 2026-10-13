@@ -27,6 +27,8 @@ import { AISLES, aisleFor } from '../utils/aisles';
 import { toShoppingName } from '../utils/shoppingName';
 import { ListAddPreviewBody } from '../components/ListAddPreview';
 import { subscribeReview } from '../services/reviewBus';
+import EverydayCard from '../components/trip/EverydayCard';
+import { logPurchase, unlogPurchase, getShoppingDay, saveShoppingDay } from '../utils/staples';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
@@ -100,6 +102,12 @@ export default function ShoppingScreen({ user }) {
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
+  const [shoppingDay, setShoppingDay] = useState(null);
+  useEffect(() => { getShoppingDay().then(setShoppingDay); }, []);
+  const pickShoppingDay = async (day) => {
+    setShoppingDay(day);
+    await saveShoppingDay(day, { title: t('everyday_nudge_title'), body: t('everyday_nudge_body') });
+  };
   const [review, setReview] = useState(null);
   useEffect(() => subscribeReview(setReview), []);
   const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
@@ -149,6 +157,10 @@ export default function ShoppingScreen({ user }) {
       const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.flyer || 0) - 8), animated: true }), 450);
       return () => clearTimeout(timer);
     }
+    if (route?.params?.everyday) {
+      const timer = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.everyday || 0) - 8), animated: true }), 450);
+      return () => clearTimeout(timer);
+    }
     if (route?.params?.tripDone) {
       setDoneShopping(true);
       loadLedger().then(setLedger);
@@ -156,7 +168,7 @@ export default function ShoppingScreen({ user }) {
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [route?.params?.tripStart, route?.params?.tripDone]);
+  }, [route?.params?.tripStart, route?.params?.tripDone, route?.params?.everyday]);
 
   // Add a batch of recipes' ingredients (the week of dinners) to the list in one save.
   // `skip` = names the user un-ticked in the preview.
@@ -384,7 +396,19 @@ export default function ShoppingScreen({ user }) {
     await persistShopping(nextItems);
   };
 
+  // One tap from the Everyday card: a non-recipe item goes straight on the list.
+  const addEveryday = async (rawText) => {
+    const text = String(rawText || '').trim();
+    if (!text || items.some((it) => it.text.toLowerCase() === text.toLowerCase())) return;
+    await persistShopping([
+      ...items,
+      { id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text, recipe: 'Everyday', checked: false },
+    ]);
+  };
+
   const toggleItem = async (id) => {
+    const target = items.find((item) => item.id === id);
+    if (target) { if (target.checked) unlogPurchase(target.text); else logPurchase(target.text); }
     const nextItems = items.map((item) => (item.id === id ? { ...item, checked: !item.checked } : item));
     await persistShopping(nextItems);
   };
@@ -557,6 +581,10 @@ export default function ShoppingScreen({ user }) {
         </View>
 
         <Text style={styles.quickLabel}>{t('quick_add_title')}</Text>
+        <View onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
+          <EverydayCard t={t} items={items} onAdd={addEveryday} shoppingDay={shoppingDay} onPickDay={pickShoppingDay} highlight={Boolean(route?.params?.everyday)} />
+        </View>
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
           {QUICK_ADD_ITEMS.map((item) => (
             <TouchableOpacity
