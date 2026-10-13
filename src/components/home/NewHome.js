@@ -3,8 +3,8 @@
 //
 // Purely presentational: HomeScreen owns all state, handlers and tier checks and
 // passes them in, so no feature, gate or label logic lives (or can drift) here.
-import React, { useEffect, useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { formatDayLabel } from '../../utils/familyDates';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/tokens';
@@ -78,6 +78,14 @@ export default function NewHome({
 
   // Photo for tonight's dinner, looked up by title like every other recipe photo
   // in the app. Emoji stays as the fallback when there is none.
+  // The scan button pulses gently: it is where every week starts.
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [pulse]);
+
   useEffect(() => {
     let cancelled = false;
     setPhotoUrl(null);
@@ -136,10 +144,15 @@ export default function NewHome({
 
       {/* Scan card */}
       <View style={styles.hero}>
-        <TouchableOpacity style={styles.scanBtn} activeOpacity={0.88} onPress={onScan} accessibilityRole="button">
-          <Ionicons name="camera-outline" size={30} color="#fff" />
-          <Text style={styles.scanBtnText}>{t('home_scan_flyer')}</Text>
-        </TouchableOpacity>
+        <View style={styles.scanWrap}>
+          <Animated.View pointerEvents="none" style={[styles.scanHalo, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }] }]} />
+          <Animated.View style={{ transform: [{ scale: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1] }) }] }}>
+            <TouchableOpacity style={styles.scanBtn} activeOpacity={0.88} onPress={onScan} accessibilityRole="button">
+              <Ionicons name="camera-outline" size={40} color="#fff" />
+              <Text style={styles.scanBtnText}>{t('home_scan_flyer')}</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </View>
 
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <View style={styles.storeList}>
@@ -282,8 +295,10 @@ const styles = StyleSheet.create({
   langText: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: FOREST },
 
   hero: { backgroundColor: FOREST, borderRadius: 28, padding: 18, shadowColor: FOREST, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 6 },
-  scanBtn: { height: 76, borderRadius: 22, backgroundColor: ORANGE, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-  scanBtnText: { fontFamily: 'Jost-Bold', fontSize: 20, color: '#fff' },
+  scanWrap: { alignItems: 'center', justifyContent: 'center', height: 190, marginBottom: 6 },
+  scanHalo: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: ORANGE },
+  scanBtn: { width: 150, height: 150, borderRadius: 75, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 14, borderWidth: 3, borderColor: 'rgba(255,255,255,0.35)' },
+  scanBtnText: { fontFamily: 'Jost-Bold', fontSize: 17, lineHeight: 20, color: '#fff', textAlign: 'center' },
   heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: SAGE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
   storeList: { marginTop: 2 },
   storeLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(168,213,162,0.25)' },
