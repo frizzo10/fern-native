@@ -207,6 +207,20 @@ export default function ShoppingScreen({ user }) {
 
   const goTo = (key) => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current[key] || 0) - 8), animated: true });
 
+  const [shopStore, setShopStore] = useState('');
+  const tripStore = shopStore || route?.params?.store || '';
+  // The store you are shopping at: the chosen/arrival store, else the one store the loaded flyer is from.
+  const couponStoreWords = useMemo(() => {
+    const names = tripStore ? [tripStore] : Array.from(new Set((weekDeals || []).map((d) => d.store).filter(Boolean)));
+    return names.length === 1 ? String(names[0]).toLowerCase().split(/\s+-\s+|#/)[0].replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !['the', 'foods', 'food', 'market', 'store', 'stores'].includes(w)) : [];
+  }, [tripStore, weekDeals]);
+  // A coupon tied to a different store than the one you're at is no use here ("" = any store).
+  const rightStore = (c) => {
+    if (!couponStoreWords.length || !c.store) return true;
+    const cs = String(c.store).toLowerCase();
+    return couponStoreWords.some((w) => cs.includes(w));
+  };
+
   // Wallet coupons first, then the catalog (minus anything already in the wallet and expired ones).
   const coupons = useMemo(() => {
     const now = Date.now();
@@ -215,8 +229,8 @@ export default function ShoppingScreen({ user }) {
     const live = (c) => { const ts = Date.parse(c.expiresAt); return !ts || ts > now; };
     // Only coupons with a real barcode number can be scanned at the register, so nothing else is offered.
     const scannable = (c) => c.redemption === 'code' && Boolean(c.realCode);
-    return [...wallet, ...catalog.filter((c) => !ids.has(c.id))].filter(live).filter(scannable);
-  }, [data.walletCoupons, catalog]);
+    return [...wallet, ...catalog.filter((c) => !ids.has(c.id))].filter(live).filter(scannable).filter(rightStore);
+  }, [data.walletCoupons, catalog, couponStoreWords]);
 
   const matches = useMemo(() => matchListItems(items, weekDeals, coupons), [items, weekDeals, coupons]);
 
@@ -351,8 +365,6 @@ export default function ShoppingScreen({ user }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [listChat]);
 
-  const [shopStore, setShopStore] = useState('');
-  const tripStore = shopStore || route?.params?.store || '';
   const tripPrompt = useMemo(() => buildTripSystemPrompt({
     store: tripStore,
     deals: weekDeals,

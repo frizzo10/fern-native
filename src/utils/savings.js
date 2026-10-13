@@ -235,7 +235,7 @@ export function couponItemName(coupon) {
 // Coupons big enough to be worth putting an item on the list for, whether or not the item is
 // already on it. Any category (it's an offer to buy the item, not a match to a recipe ingredient). Biggest first.
 // Things nobody is grocery shopping for (devices, delivery fees, memberships...).
-const NOT_GROCERY_COUPON = /(smart lock|inhome|in-home|device|delivery|pickup|pick-up|membership|walmart\+|subscription|gift card|insurance|download|app only|new customers?|first order|streaming)/i;
+const NOT_GROCERY_COUPON = /(smart lock|inhome|in-home|device|delivery|pickup|pick-up|membership|walmart\+|subscription|gift card|insurance|download|app only|new customers?|first order|streaming|e-?mail sign.?up|sign.?up|next order)/i;
 // Only worth showing when something on the list matches them (a baby coupon is noise for everyone else).
 const NICHE_COUPON_CATEGORIES = ['baby & kids', 'pet care'];
 // Pharmacy / personal-care offers (allergy pills, toothbrushes, eye drops, supplements) aren't grocery shopping at all.
