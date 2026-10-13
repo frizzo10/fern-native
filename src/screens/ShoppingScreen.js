@@ -498,57 +498,6 @@ export default function ShoppingScreen({ user }) {
           </View>
         </View>
 
-        <View style={styles.tripStrip}>
-          {[['addRow', '📝', 'trip_step_list'], ['flyer', '📰', 'trip_step_sales'], ['coupons', '🎟', 'trip_step_coupons'], ['meals', '📅', 'trip_step_meals']].map(([key, icon, label], i) => (
-            <TouchableOpacity key={key} style={styles.tripStep} activeOpacity={0.85} onPress={() => goTo(key)}>
-              <Text style={styles.tripStepNum}>{`${i + 1}`}</Text>
-              <Text style={styles.tripStepLabel} numberOfLines={1}>{`${icon} ${t(label)}`}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        <Text style={styles.sendToStoreLabel}>{t('send_to_store_label')}</Text>
-        <View style={styles.storeRow}>
-          <TouchableOpacity
-            style={[styles.storeBtn, styles.instacartBtn]}
-            activeOpacity={0.88}
-            onPress={() => handleSendToStore('instacart')}
-            disabled={Boolean(sendingToStore)}
-          >
-            {sendingToStore === 'instacart' ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.storeBtnText}>{`🥕 ${t('instacart_btn_label')}`}</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.storeBtn, styles.krogerBtn]}
-            activeOpacity={0.88}
-            onPress={() => handleSendToStore('kroger')}
-            disabled={Boolean(sendingToStore)}
-          >
-            {sendingToStore === 'kroger' ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.storeBtnText}>{`🛒 ${t('kroger_btn_label')}`}</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.storeBtn, styles.safewayBtn]}
-            activeOpacity={0.88}
-            onPress={() => handleSendToStore('safeway')}
-            disabled={Boolean(sendingToStore)}
-          >
-            {sendingToStore === 'safeway' ? (
-              <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-              <Text style={styles.storeBtnText}>{t('safeway_btn_label')}</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
         <TouchableOpacity style={[styles.voiceCard, shadow.card]} activeOpacity={0.92}>
           <View style={styles.voiceIconWrap}>
             <Text style={styles.voiceIcon}>🎙</Text>
@@ -580,11 +529,11 @@ export default function ShoppingScreen({ user }) {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.quickLabel}>{t('quick_add_title')}</Text>
         <View onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
           <EverydayCard t={t} items={items} onAdd={addEveryday} shoppingDay={shoppingDay} onPickDay={pickShoppingDay} highlight={Boolean(route?.params?.everyday)} />
         </View>
 
+        <Text style={styles.quickLabel}>{t('quick_add_title')}</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickRow}>
           {QUICK_ADD_ITEMS.map((item) => (
             <TouchableOpacity
@@ -889,6 +838,53 @@ export default function ShoppingScreen({ user }) {
             </TouchableOpacity>
           </View>
         )}
+
+        {items.length ? (
+          <View style={{ marginTop: 8 }}>
+        <Text style={styles.sendToStoreLabel}>{t('send_to_store_label')}</Text>
+        <View style={styles.storeRow}>
+          <TouchableOpacity
+            style={[styles.storeBtn, styles.instacartBtn]}
+            activeOpacity={0.88}
+            onPress={() => handleSendToStore('instacart')}
+            disabled={Boolean(sendingToStore)}
+          >
+            {sendingToStore === 'instacart' ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.storeBtnText}>{`🥕 ${t('instacart_btn_label')}`}</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.storeBtn, styles.krogerBtn]}
+            activeOpacity={0.88}
+            onPress={() => handleSendToStore('kroger')}
+            disabled={Boolean(sendingToStore)}
+          >
+            {sendingToStore === 'kroger' ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.storeBtnText}>{`🛒 ${t('kroger_btn_label')}`}</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.storeBtn, styles.safewayBtn]}
+            activeOpacity={0.88}
+            onPress={() => handleSendToStore('safeway')}
+            disabled={Boolean(sendingToStore)}
+          >
+            {sendingToStore === 'safeway' ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.storeBtnText}>{t('safeway_btn_label')}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+          </View>
+        ) : null}
       </ScrollView>
 
       {celebration ? (
