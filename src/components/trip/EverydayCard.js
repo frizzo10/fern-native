@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../constants/tokens';
-import { EVERYDAY_CHIPS, dueStaples, loadHistory, stapleKey } from '../../utils/staples';
+import { EVERYDAY_CHIPS, EVERYDAY_VISIBLE, dueStaples, loadHistory, stapleKey } from '../../utils/staples';
 
 // "Anything you need that isn't a recipe?" — the non-recipe half of the list: your regular restock items
 // (learned from what you tick off) and common household things, each one tap to add.
@@ -12,7 +12,7 @@ export default function EverydayCard({ t, items, onAdd, highlight }) {
   const onList = useMemo(() => new Set(items.map((i) => stapleKey(i.text))), [items]);
   const due = useMemo(() => dueStaples(history, items.map((i) => i.text)), [history, items]);
   const dueKeys = new Set(due.map((d) => d.key));
-  const chips = EVERYDAY_CHIPS.filter((c) => !onList.has(stapleKey(c.text)) && !dueKeys.has(stapleKey(c.text)));
+  const chips = EVERYDAY_CHIPS.filter((c) => !onList.has(stapleKey(c.text)) && !dueKeys.has(stapleKey(c.text))).slice(0, EVERYDAY_VISIBLE);
 
   return (
     <View style={[styles.card, highlight ? styles.cardHi : null]}>

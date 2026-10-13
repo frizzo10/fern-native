@@ -37,7 +37,38 @@ export const EVERYDAY_CHIPS = [
   { text: 'Zip bags', emoji: '📦' },
   { text: 'Coffee', emoji: '☕' },
   { text: 'Pet food', emoji: '🐾' },
+  { text: 'Milk', emoji: '🥛' },
+  { text: 'Eggs', emoji: '🥚' },
+  { text: 'Bread', emoji: '🍞' },
+  { text: 'Butter', emoji: '🧈' },
+  { text: 'Olive oil', emoji: '🫒' },
+  { text: 'Cooking spray', emoji: '🧴' },
+  { text: 'Sugar', emoji: '🍚' },
+  { text: 'Flour', emoji: '🌾' },
+  { text: 'Salt and pepper', emoji: '🧂' },
+  { text: 'Cereal', emoji: '🥣' },
+  { text: 'Orange juice', emoji: '🧃' },
+  { text: 'Bananas', emoji: '🍌' },
+  { text: 'Hand soap', emoji: '🧼' },
+  { text: 'Tissues', emoji: '🤧' },
+  { text: 'Sponges', emoji: '🧽' },
+  { text: 'Dishwasher pods', emoji: '🧼' },
+  { text: 'All-purpose cleaner', emoji: '🧴' },
+  { text: 'Light bulbs', emoji: '💡' },
+  { text: 'Batteries', emoji: '🔋' },
+  { text: 'Sandwich bags', emoji: '📦' },
+  { text: 'Body wash', emoji: '🧴' },
+  { text: 'Razors', emoji: '🪒' },
+  { text: 'Toothbrushes', emoji: '🪥' },
+  { text: 'Pet treats', emoji: '🦴' },
+  { text: 'Cat litter', emoji: '🐈' },
+  { text: 'Snacks for the kids', emoji: '🍿' },
+  { text: 'Sparkling water', emoji: '🫧' },
+  { text: 'Frozen vegetables', emoji: '🥦' },
 ];
+
+// How many suggestions show at once; each one you add is replaced by the next from the pool.
+export const EVERYDAY_VISIBLE = 10;
 
 async function readJson(key, fallback) {
   try {
