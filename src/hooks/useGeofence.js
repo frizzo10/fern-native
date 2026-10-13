@@ -8,6 +8,8 @@ import {
   notifyArrival,
   registerStoreGeofences,
   storeKey,
+  storeLat,
+  storeLon,
 } from '../services/storeGeofencing';
 
 // useGeofence — store-arrival detection.
@@ -64,8 +66,10 @@ export function useGeofence({ stores = [], onArrival }) {
       const { latitude: userLat, longitude: userLon } = pos.coords;
 
       for (const store of stores) {
-        if (!store.lat || !store.lon) continue;
-        const dist = getDistanceMeters(userLat, userLon, store.lat, store.lon);
+        const sLat = storeLat(store);
+        const sLon = storeLon(store);
+        if (sLat === null || sLon === null) continue;
+        const dist = getDistanceMeters(userLat, userLon, sLat, sLon);
         if (dist > GEOFENCE_RADIUS_M) continue;
         if (!(await claimArrival(storeKey(store)))) continue;
         onArrivalRef.current?.(store, Math.round(dist));
@@ -103,7 +107,7 @@ export function useGeofence({ stores = [], onArrival }) {
   // Stores usually finish syncing after monitoring has started, and the user can add
   // or remove stores later — re-register the OS geofences and check right away
   // instead of waiting for the next 2-minute tick.
-  const storesKey = (stores || []).map((s) => `${s.name}:${s.lat}:${s.lon}`).join('|');
+  const storesKey = (stores || []).map((s) => `${s.name}:${s.lat}:${s.lon ?? s.lng}`).join('|');
   useEffect(() => {
     if (!isMonitoring) return;
     if (backgroundGrantedRef.current) registerStoreGeofences(storesRef.current);

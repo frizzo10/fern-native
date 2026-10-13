@@ -44,6 +44,16 @@ const TRIP_KEY = 'fern_trip_started';     // device-only, { store, at } written 
 let TaskManager = null;
 try { TaskManager = require('expo-task-manager'); } catch (e) { TaskManager = null; }
 
+// Stores saved on this phone have `lng`; ones from the web app may have `lon`. Accept either.
+export function storeLon(s) {
+  const v = Number(s && (s.lon ?? s.lng));
+  return Number.isFinite(v) ? v : null;
+}
+export function storeLat(s) {
+  const v = Number(s && s.lat);
+  return Number.isFinite(v) ? v : null;
+}
+
 export function getDistanceMeters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -55,7 +65,7 @@ export function getDistanceMeters(lat1, lon1, lat2, lon2) {
 
 // Stable id for a store. It is both the geofence region identifier and the cooldown key.
 export function storeKey(store) {
-  return `${store.name}_${Math.round(store.lat * 100)}`;
+  return `${store.name}_${Math.round(Number(store.lat) * 100)}`;
 }
 
 // Recover the display name from a region identifier made by storeKey().
@@ -161,9 +171,9 @@ export function isBackgroundGeofencingAvailable() {
 // Turn the user's saved stores into OS regions: skip ones without coordinates,
 // nearest first when we have the user's position, capped at MAX_REGIONS.
 export function buildRegions(stores, position) {
-  const usable = (stores || []).filter((s) => s && s.name && typeof s.lat === 'number' && typeof s.lon === 'number');
+  const usable = (stores || []).filter((s) => s && s.name && storeLat(s) !== null && storeLon(s) !== null);
   const ranked = position
-    ? usable.map((s) => ({ s, d: getDistanceMeters(position.latitude, position.longitude, s.lat, s.lon) })).sort((a, b) => a.d - b.d).map((x) => x.s)
+    ? usable.map((s) => ({ s, d: getDistanceMeters(position.latitude, position.longitude, storeLat(s), storeLon(s)) })).sort((a, b) => a.d - b.d).map((x) => x.s)
     : usable;
   const seen = new Set();
   const regions = [];
@@ -171,7 +181,7 @@ export function buildRegions(stores, position) {
     const id = storeKey(s);
     if (seen.has(id)) continue;
     seen.add(id);
-    regions.push({ identifier: id, latitude: s.lat, longitude: s.lon, radius: GEOFENCE_RADIUS_M, notifyOnEnter: true, notifyOnExit: true });
+    regions.push({ identifier: id, latitude: storeLat(s), longitude: storeLon(s), radius: GEOFENCE_RADIUS_M, notifyOnEnter: true, notifyOnExit: true });
     if (regions.length >= MAX_REGIONS) break;
   }
   return regions;
