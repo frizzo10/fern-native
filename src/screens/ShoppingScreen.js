@@ -227,9 +227,7 @@ export default function ShoppingScreen({ user }) {
     const wallet = normalizeCoupons(data.walletCoupons).map((c) => ({ ...c, inWallet: true }));
     const ids = new Set(wallet.map((c) => c.id));
     const live = (c) => { const ts = Date.parse(c.expiresAt); return !ts || ts > now; };
-    // Only coupons with a real barcode number can be scanned at the register, so nothing else is offered.
-    const scannable = (c) => Boolean(c.realCode);
-    return [...wallet, ...catalog.filter((c) => !ids.has(c.id))].filter(live).filter(scannable).filter(rightStore);
+    return [...wallet, ...catalog.filter((c) => !ids.has(c.id))].filter(live).filter(rightStore);
   }, [data.walletCoupons, catalog, couponStoreWords]);
 
   const matches = useMemo(() => matchListItems(items, weekDeals, coupons), [items, weekDeals, coupons]);

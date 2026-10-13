@@ -38,8 +38,9 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   const [celebrate, setCelebrate] = useState(null); // { section, next } while a finished section is celebrated
   const [confettiKey, setConfettiKey] = useState(0);
   const celebrateTimer = useRef(null);
-  // Only coupons with a real code can be scanned at the register, so only those are shown.
-  const coupons = useMemo(() => (allCoupons || []).filter((m) => m.coupon && m.coupon.realCode && code128Widths(m.coupon.realCode)), [allCoupons]);
+  // Digital coupons (the catalog's "code" is only an offer id, not a register barcode) come off with the phone number / loyalty card.
+  // Only coupons whose redemption is a real code get a barcode.
+  const coupons = useMemo(() => (allCoupons || []).filter((m) => m && m.coupon), [allCoupons]);
   const [showCoupons, setShowCoupons] = useState(false); // the full-page coupon list for the register
   const [showRecap, setShowRecap] = useState(false); // the "what you bought + coupons for the register" screen
 
@@ -192,7 +193,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
               {coupons.map((m) => {
                 const c = m.coupon;
                 const used = Boolean(usedIds && usedIds.has(`k:${c.id}`));
-                const hasCode = Boolean(c.realCode);
+                const hasCode = c.redemption === 'code' && Boolean(c.realCode) && Boolean(code128Widths(c.realCode));
                 return (
                   <View key={c.id} style={[styles.couponCard, used && { opacity: 0.55 }]}>
                     <Text style={styles.couponTitle} numberOfLines={3}>{c.title || c.discountLabel}</Text>
