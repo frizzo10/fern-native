@@ -29,6 +29,8 @@ import { ListAddPreviewBody } from '../components/ListAddPreview';
 import { subscribeReview } from '../services/reviewBus';
 import EverydayCard from '../components/trip/EverydayCard';
 import { logPurchase, unlogPurchase, getShoppingDay, saveShoppingDay } from '../utils/staples';
+import * as Location from 'expo-location';
+import { storeAtPosition } from '../utils/flyerStore';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
@@ -297,6 +299,29 @@ export default function ShoppingScreen({ user }) {
     return hit;
   };
 
+  // The Shopping button under the list: find out whether the user is at a saved store (GPS), then open Shop with Fern.
+  // Not at a store -> Fern stays store-agnostic and asks whether to go straight into shopping mode.
+  const startShopping = async () => {
+    let at = '';
+    try {
+      const perm = await Location.getForegroundPermissionsAsync();
+      if (perm.granted) {
+        const pos = await Promise.race([
+          Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+          new Promise((r) => setTimeout(() => r(null), 3000)),
+        ]).catch(() => null) || await Location.getLastKnownPositionAsync().catch(() => null);
+        const here = storeAtPosition((data.userStores || []).filter((s) => s && s.name), pos?.coords);
+        if (here) at = String(here.name);
+      }
+    } catch (e) { /* no location: stay store-agnostic */ }
+    setShopStore(at);
+    Alert.alert(t('trip_chat_how'), undefined, [
+      { text: `🎙 ${t('trip_chat_voice')}`, onPress: () => setTimeout(() => setTripChatMode('voice'), 400) },
+      { text: `⌨️ ${t('trip_chat_text')}`, onPress: () => setTimeout(() => setTripChatMode('text'), 400) },
+      { text: t('cancel_btn'), style: 'cancel' },
+    ]);
+  };
+
   const normName = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean).map((w) => (w.length > 3 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w)).join(' ');
   const removeByName = async (names) => {
     let current = [];
@@ -321,7 +346,8 @@ export default function ShoppingScreen({ user }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   [listChat]);
 
-  const tripStore = route?.params?.store || data.userStores?.[0]?.name || '';
+  const [shopStore, setShopStore] = useState('');
+  const tripStore = shopStore || route?.params?.store || '';
   const tripPrompt = useMemo(() => buildTripSystemPrompt({
     store: tripStore,
     deals: weekDeals,
@@ -845,6 +871,12 @@ export default function ShoppingScreen({ user }) {
         )}
 
         {items.length ? (
+          <TouchableOpacity style={[styles.shopBtn, shadow.strong]} activeOpacity={0.9} onPress={startShopping}>
+            <Text style={styles.shopBtnText}>{`🛒 ${t('shop_start_btn')}`}</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {items.length ? (
           <View style={{ marginTop: 8 }}>
         <Text style={styles.sendToStoreLabel}>{t('send_to_store_label')}</Text>
         <View style={styles.storeRow}>
@@ -1205,6 +1237,8 @@ const styles = StyleSheet.create({
   },
   greatCard: { backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 2, borderColor: '#E8651A', padding: 14, marginBottom: 14 },
   greatValue: { color: '#C25A12', fontSize: 15, fontFamily: 'Jost-Bold', marginTop: 2 },
+  shopBtn: { backgroundColor: colors.orange, borderRadius: 999, paddingVertical: 16, alignItems: 'center', marginTop: 4, marginBottom: 12 },
+  shopBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   doneBtn: {
     backgroundColor: colors.forest,
     borderRadius: 14,
