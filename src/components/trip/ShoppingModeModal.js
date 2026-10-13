@@ -25,7 +25,7 @@ function Barcode({ value }) {
   );
 }
 
-export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed }) {
+export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed, onClearChecked }) {
   const { t } = useLanguage();
   const { speakText, stopSpeaking } = useFernVoice({
     onError: (m) => console.warn('[ShoppingMode] voice error:', m),
@@ -39,7 +39,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   const [confettiKey, setConfettiKey] = useState(0);
   const celebrateTimer = useRef(null);
   // Only coupons with a real code can be scanned at the register, so only those are shown.
-  const coupons = useMemo(() => (allCoupons || []).filter((m) => m.coupon && m.coupon.redemption === 'code' && m.coupon.realCode && code128Widths(m.coupon.realCode)), [allCoupons]);
+  const coupons = useMemo(() => (allCoupons || []).filter((m) => m.coupon && m.coupon.realCode && code128Widths(m.coupon.realCode)), [allCoupons]);
   const [showCoupons, setShowCoupons] = useState(false); // the full-page coupon list for the register
   const [showRecap, setShowRecap] = useState(false); // the "what you bought + coupons for the register" screen
 
@@ -192,7 +192,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
               {coupons.map((m) => {
                 const c = m.coupon;
                 const used = Boolean(usedIds && usedIds.has(`k:${c.id}`));
-                const hasCode = c.redemption === 'code' && c.realCode;
+                const hasCode = Boolean(c.realCode);
                 return (
                   <View key={c.id} style={[styles.couponCard, used && { opacity: 0.55 }]}>
                     <Text style={styles.couponTitle} numberOfLines={3}>{c.title || c.discountLabel}</Text>
@@ -245,6 +245,14 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
               {coupons.length ? (
                 <TouchableOpacity style={styles.nextBtn} activeOpacity={0.85} onPress={() => setShowCoupons(true)}>
                   <Text style={styles.nextBtnText}>{t('shopmode_open_coupons', { n: coupons.length })}</Text>
+                </TouchableOpacity>
+              ) : null}
+              {onClearChecked && boughtCount > 0 ? (
+                <TouchableOpacity style={styles.clearBtn} activeOpacity={0.85} onPress={() => Alert.alert(t('clear_list_title'), t('shopmode_clear_body'), [
+                  { text: t('cancel_btn'), style: 'cancel' },
+                  { text: t('shopmode_clear_yes'), style: 'destructive', onPress: async () => { await onClearChecked(); onClose(); } },
+                ])}>
+                  <Text style={styles.clearBtnText}>{`🗑 ${t('shopmode_clear_btn')}`}</Text>
                 </TouchableOpacity>
               ) : null}
               {open.length ? (
@@ -313,6 +321,8 @@ const styles = StyleSheet.create({
   usedBtn: { alignSelf: 'flex-start', marginTop: 10, borderWidth: 1.5, borderColor: '#2A6A2A', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
   usedBtnOn: { backgroundColor: '#2A6A2A' },
   usedBtnText: { color: '#2A6A2A', fontSize: 13, fontWeight: '800' },
+  clearBtn: { alignItems: 'center', marginTop: 22, paddingVertical: 14, borderRadius: radius.lg, borderWidth: 1.5, borderColor: '#B23A2A' },
+  clearBtnText: { color: '#B23A2A', fontSize: 16, fontWeight: '800' },
   backBtn: { alignItems: 'center', paddingVertical: 18 },
   backBtnText: { color: colors.bright, fontSize: 15, fontWeight: '700' },
   barcodeWrap: { backgroundColor: '#fff', borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, padding: 12, marginTop: 12 },
