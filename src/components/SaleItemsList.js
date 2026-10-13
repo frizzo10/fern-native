@@ -5,6 +5,8 @@ import { colors, radius } from '../constants/tokens';
 import { dealSaving, dedupeDeals, fmtMoney } from '../utils/savings';
 import { dealKind, isFoodDeal, isUnreliableCategory } from '../utils/dealKind';
 import MealPlannerImage from './MealPlannerImage';
+import ListAddPreview from './ListAddPreview';
+import { planShoppingAdditions } from '../utils/shoppingListSync';
 
 // Every item read off the flyer, grouped by aisle, with a one-tap "add to my list".
 // Shared by the Personal Shopper scan check and the Shopping tab.
@@ -13,7 +15,7 @@ import MealPlannerImage from './MealPlannerImage';
 //   onAdd     (deal) => void
 //   token, locale, onAddRecipe(recipe, deal) — when given, each row gets a "Recipes" button:
 //   3 dinner ideas for that item, a full preview on tap, and "Add ingredients to my list".
-export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe }) {
+export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, shoppingItems }) {
   const [query, setQuery] = useState('');
   const [added, setAdded] = useState({});
   const [open, setOpen] = useState(null); // { key, loading, ideas, failed, idea, recipe, recipeLoading, done }
@@ -30,7 +32,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
   };
 
   const previewIdea = async (deal, idea) => {
-    setOpen((p) => (p ? { ...p, idea, recipe: null, recipeLoading: true, done: false } : p));
+    setOpen((p) => (p ? { ...p, idea, recipe: null, recipeLoading: true, done: false, reviewing: false, saving: false } : p));
     try {
       const recipe = await fetchFullRecipeForDealIdea({ idea, itemName: deal.name, locale, token });
       setOpen((p) => (p?.idea === idea ? { ...p, recipe, recipeLoading: false } : p));
@@ -39,11 +41,22 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
     }
   };
 
-  const addRecipe = async (deal) => {
+  // The recipe with its sides, as it would go on the list.
+  const recipeForList = () => {
+    const sides = Array.isArray(open?.idea?.sides) ? open.idea.sides : [];
+    return { ...open.recipe, ingredients: [...(open.recipe.ingredients || []), ...sides] };
+  };
+
+  // Nothing is written until the preview is confirmed.
+  const addRecipe = async (deal, skip) => {
     if (!open?.recipe) return;
-    const sides = Array.isArray(open.idea?.sides) ? open.idea.sides : [];
-    await onAddRecipe?.({ ...open.recipe, ingredients: [...(open.recipe.ingredients || []), ...sides] }, deal);
-    setOpen((p) => (p ? { ...p, done: true } : p));
+    setOpen((p) => (p ? { ...p, saving: true } : p));
+    try {
+      await onAddRecipe?.(recipeForList(), deal, { skip });
+      setOpen((p) => (p ? { ...p, done: true, saving: false, reviewing: false } : p));
+    } catch (e) {
+      setOpen((p) => (p ? { ...p, saving: false } : p));
+    }
   };
 
   const groups = useMemo(() => {
@@ -140,9 +153,19 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                               {(open.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                               {(open.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                               {(open.recipe.instructions || []).map((step, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${step}`}</Text>)}
-                              <TouchableOpacity style={[styles.btn, { alignSelf: 'flex-start', marginTop: 8 }, open.done ? styles.btnOn : null]} disabled={open.done} activeOpacity={0.85} onPress={() => addRecipe(deal)}>
-                                <Text style={[styles.btnText, open.done ? styles.btnTextOn : null]}>{open.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
-                              </TouchableOpacity>
+                              {open.reviewing && !open.done ? (
+                                <ListAddPreview
+                                  lines={planShoppingAdditions([recipeForList()], shoppingItems)}
+                                  t={t}
+                                  busy={Boolean(open.saving)}
+                                  onConfirm={(skip) => addRecipe(deal, skip)}
+                                  onCancel={() => setOpen((p) => (p ? { ...p, reviewing: false } : p))}
+                                />
+                              ) : (
+                                <TouchableOpacity style={[styles.btn, { alignSelf: 'flex-start', marginTop: 8 }, open.done ? styles.btnOn : null]} disabled={open.done} activeOpacity={0.85} onPress={() => setOpen((p) => (p ? { ...p, reviewing: true } : p))}>
+                                  <Text style={[styles.btnText, open.done ? styles.btnTextOn : null]}>{open.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
+                                </TouchableOpacity>
+                              )}
                             </View>
                           ) : null}
                         </View>

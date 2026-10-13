@@ -22,7 +22,8 @@ import Confetti from '../components/Confetti';
 import SaleItemsList from '../components/SaleItemsList';
 import FlyerSection from '../components/trip/FlyerSection';
 import WeekMealsSection from '../components/trip/WeekMealsSection';
-import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
+import { addRecipesToShoppingList, buyCount } from '../utils/shoppingListSync';
+import { AISLES, aisleFor } from '../utils/aisles';
 import { toShoppingName } from '../utils/shoppingName';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
@@ -150,13 +151,10 @@ export default function ShoppingScreen({ user }) {
   }, [route?.params?.tripStart, route?.params?.tripDone]);
 
   // Add a batch of recipes' ingredients (the week of dinners) to the list in one save.
-  const addRecipesToList = async (recipes) => {
-    let next = items;
-    for (const recipe of recipes) {
-      const r = await addRecipeIngredientsToShoppingList(recipe, next);
-      next = r.nextShopping;
-    }
-    await persistShopping(next);
+  // `skip` = names the user un-ticked in the preview.
+  const addRecipesToList = async (recipes, opts) => {
+    const r = await addRecipesToShoppingList(recipes, items, { skip: opts?.skip });
+    await persistShopping(r.nextShopping);
   };
 
   const goTo = (key) => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current[key] || 0) - 8), animated: true });
@@ -281,20 +279,24 @@ export default function ShoppingScreen({ user }) {
   };
 
   const remainingCount = useMemo(() => items.filter((item) => !item.checked).length, [items]);
-  const recipeSections = useMemo(() => {
-    const byRecipe = new Map();
+  // The list grouped by store section, in the order you walk the store.
+  const aisleSections = useMemo(() => {
+    const byAisle = new Map();
     items.forEach((item) => {
-      const recipe = String(item.recipe || 'Manual Add').trim() || 'Manual Add';
-      if (!byRecipe.has(recipe)) byRecipe.set(recipe, []);
-      byRecipe.get(recipe).push(item);
+      const aisle = aisleFor(item.text);
+      if (!byAisle.has(aisle.key)) byAisle.set(aisle.key, []);
+      byAisle.get(aisle.key).push(item);
     });
 
-    return Array.from(byRecipe.entries()).map(([recipe, sectionItems]) => ({
-      recipe,
-      items: sectionItems,
-      total: sectionItems.length,
-      checkedCount: sectionItems.filter((item) => item.checked).length,
-    }));
+    return AISLES.filter((a) => byAisle.has(a.key)).map((aisle) => {
+      const sectionItems = byAisle.get(aisle.key);
+      return {
+        aisle,
+        items: sectionItems,
+        total: sectionItems.length,
+        checkedCount: sectionItems.filter((item) => item.checked).length,
+      };
+    });
   }, [items]);
 
   const persistShopping = async (nextItems) => {
@@ -374,10 +376,11 @@ export default function ShoppingScreen({ user }) {
   };
 
   const shareList = async () => {
-    const lines = items.map((item) => {
-      const recipeSuffix = item.recipe ? ` (${item.recipe})` : '';
-      return `${item.checked ? '✓' : '•'} ${item.text}${recipeSuffix}`;
-    });
+    // Grouped by store section, with how many to buy when more than one meal needs it.
+    const lines = aisleSections.flatMap((section) => [
+      `\n${t(section.aisle.labelKey).toUpperCase()}`,
+      ...section.items.map((item) => `${item.checked ? '✓' : '•'} ${item.text}${buyCount(item) > 1 ? ` ×${buyCount(item)}` : ''}`),
+    ]);
     const message = lines.length ? `${t('share_list_header')}\n\n${lines.join('\n')}` : t('share_list_empty');
     try {
       await Share.share({ message });
@@ -552,8 +555,9 @@ export default function ShoppingScreen({ user }) {
               onAdd={(deal) => addItem(toShoppingName(deal.name))}
               token={user?.token}
               locale={locale}
-              onAddRecipe={async (recipe) => {
-                const r = await addRecipeIngredientsToShoppingList(recipe, items);
+              shoppingItems={items}
+              onAddRecipe={async (recipe, deal, opts) => {
+                const r = await addRecipesToShoppingList([recipe], items, { skip: opts?.skip });
                 await persistShopping(r.nextShopping);
               }}
             />
@@ -635,6 +639,7 @@ export default function ShoppingScreen({ user }) {
             token={user?.token}
             weekDeals={weekDeals}
             onAddToList={addRecipesToList}
+            shoppingItems={items}
             pushChangedFromStorage={pushChangedFromStorage}
             onChanged={pull}
           />
@@ -737,10 +742,10 @@ export default function ShoppingScreen({ user }) {
                 ? t('items_remaining_singular', { count: remainingCount })
                 : t('items_remaining_plural', { count: remainingCount })}
             </Text>
-            {recipeSections.map((section) => (
-              <View key={section.recipe} style={styles.recipeSectionWrap}>
+            {aisleSections.map((section) => (
+              <View key={section.aisle.key} style={styles.recipeSectionWrap}>
                 <View style={styles.recipeSectionHeader}>
-                  <Text style={styles.recipeSectionTitle}>{section.recipe.toUpperCase()}</Text>
+                  <Text style={styles.recipeSectionTitle}>{`${section.aisle.emoji} ${t(section.aisle.labelKey)}`.toUpperCase()}</Text>
                   <Text style={[styles.recipeSectionCount, section.checkedCount === section.total ? styles.recipeSectionCountDone : null]}>
                     {section.checkedCount}/{section.total}
                   </Text>
@@ -756,8 +761,8 @@ export default function ShoppingScreen({ user }) {
                       <Text style={styles.checkBtnText}>{item.checked ? '✓' : ''}</Text>
                     </TouchableOpacity>
                     <View style={styles.listTextWrap}>
-                      <Text style={[styles.listText, item.checked ? styles.listTextDone : null]}>{item.text}</Text>
-                      <Text style={styles.listRecipeLabel}>{section.recipe}</Text>
+                      <Text style={[styles.listText, item.checked ? styles.listTextDone : null]}>{buyCount(item) > 1 ? `${item.text}  ×${buyCount(item)}` : item.text}</Text>
+                      <Text style={styles.listRecipeLabel}>{item.recipe}</Text>
                       {matches[item.id]?.deal ? (() => {
                         const sv = dealSaving(matches[item.id].deal);
                         return (

@@ -8,6 +8,8 @@ import { buildRollingWeekDateKeys, normalizeSlot, parseDateKey } from '../../uti
 import { PANTRY_SKIP, pickStarDeals } from '../../utils/starDeals';
 import { dealSaving, fmtMoney, sumSavings } from '../../utils/savings';
 import MealPlannerImage from '../MealPlannerImage';
+import ListAddPreview from '../ListAddPreview';
+import { planShoppingAdditions } from '../../utils/shoppingListSync';
 
 async function readJson(key, fallback) {
   try {
@@ -24,8 +26,9 @@ async function readJson(key, fallback) {
 // every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
-export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged }) {
-  const [phase, setPhase] = useState('idle'); // idle | loading | ready | saving | done
+export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems }) {
+  const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
+  const [pending, setPending] = useState(null); // { picks, recipes } waiting on the list preview
   const [want, setWant] = useState(5);
   const [cards, setCards] = useState([]); // [{ key, deal, ideas: [{id,title,time,emoji,why,sides,checked}], loading }]
   const [maxOpen, setMaxOpen] = useState(5);
@@ -128,8 +131,31 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     }
   };
 
-  const confirm = async () => {
+  // Step 1: work out every ingredient and show what will go on the list. Nothing is written yet.
+  const review = async () => {
     const picks = cards.flatMap((c) => c.ideas.filter((x) => x.checked).map((x) => ({ ...x, star: c.deal })));
+    if (!picks.length) return;
+    setFailed('');
+    setPhase('checking');
+    try {
+      const details = await Promise.all(picks.map((p) => fetchMealPlanRecipeDetail({ title: p.title, locale, token }).catch(() => null)));
+      const recipes = picks.map((p, i) => {
+        const ings = (details[i]?.ingredients || []).filter((ing) => !PANTRY_SKIP.test(String(ing)));
+        return { title: p.title, ingredients: [...(ings.length ? ings : [p.star.name]), ...(p.sides || [])] };
+      });
+      setPending({ picks, recipes });
+      setPhase('review');
+    } catch (e) {
+      console.log('[trip] review week failed', e?.message || e);
+      setFailed(t('save_error_desc'));
+      setPhase('ready');
+    }
+  };
+
+  // Step 2: after the preview is confirmed, write the dinners and the list. `skip` = names un-ticked in the preview.
+  const confirm = async (skip) => {
+    const picks = pending?.picks || [];
+    const recipes = pending?.recipes || [];
     if (!picks.length) return;
     setPhase('saving');
     try {
@@ -146,20 +172,16 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       });
       await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
       await pushChangedFromStorage?.({ meal_plan: next });
-      const details = await Promise.all(picks.map((p) => fetchMealPlanRecipeDetail({ title: p.title, locale, token }).catch(() => null)));
-      const recipes = picks.map((p, i) => {
-        const ings = (details[i]?.ingredients || []).filter((ing) => !PANTRY_SKIP.test(String(ing)));
-        return { title: p.title, ingredients: [...(ings.length ? ings : [p.star.name]), ...(p.sides || [])] };
-      });
-      await onAddToList?.(recipes);
+      await onAddToList?.(recipes, { skip });
       const sv = sumSavings(picks.map((p) => p.star));
       setSummary({ n: picks.length, lines, saving: sv.total ? `${sv.est ? '~' : ''}${fmtMoney(sv.total)}` : '' });
+      setPending(null);
       setPhase('done');
       onChanged?.();
     } catch (e) {
       console.log('[trip] confirm week failed', e?.message || e);
       setFailed(t('save_error_desc'));
-      setPhase('ready');
+      setPhase('review');
     }
   };
 
@@ -187,11 +209,21 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       ) : null}
       {failed ? <Text style={styles.err}>{failed}</Text> : null}
 
-      {phase === 'loading' || phase === 'saving' ? (
+      {phase === 'loading' || phase === 'checking' || phase === 'saving' ? (
         <View style={styles.busy}>
           <ActivityIndicator color={colors.orange} />
-          <Text style={styles.sub}>{phase === 'loading' ? t('trip_week_working') : t('trip_week_saving')}</Text>
+          <Text style={styles.sub}>{phase === 'saving' ? t('trip_week_saving') : phase === 'checking' ? t('trip_week_checking') : t('trip_week_working')}</Text>
         </View>
+      ) : null}
+
+      {phase === 'review' && pending ? (
+        <ListAddPreview
+          lines={planShoppingAdditions(pending.recipes, shoppingItems)}
+          t={t}
+          intro={t('trip_review_intro', { n: pending.picks.length })}
+          onConfirm={confirm}
+          onCancel={() => { setPending(null); setPhase('ready'); }}
+        />
       ) : null}
 
       {phase === 'ready' ? (
@@ -243,7 +275,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
             );
           })}
           <Text style={styles.count}>{t('trip_week_picked', { n: total, max: maxOpen })}</Text>
-          <TouchableOpacity style={[styles.primary, !total ? { opacity: 0.5 } : null]} disabled={!total} activeOpacity={0.88} onPress={confirm}>
+          <TouchableOpacity style={[styles.primary, !total ? { opacity: 0.5 } : null]} disabled={!total} activeOpacity={0.88} onPress={review}>
             <Text style={styles.primaryText}>{t('trip_week_confirm', { n: total })}</Text>
           </TouchableOpacity>
         </View>
