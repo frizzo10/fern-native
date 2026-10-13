@@ -972,10 +972,12 @@ export default function ShoppingScreen({ user }) {
         user={user}
         voice={shopModeVoice}
         onClose={() => { setShopModeOpen(false); pull(); }}
-        onSetChecked={async (id, checked) => {
-          const target = items.find((it) => it.id === id);
-          if (!target || target.checked === checked) return;
-          await toggleItem(id);
+        onSetChecked={async (ids, checked) => {
+          const wanted = new Set(Array.isArray(ids) ? ids : [ids]);
+          const changing = items.filter((it) => wanted.has(it.id) && it.checked !== checked);
+          if (!changing.length) return;
+          changing.forEach((it) => { if (checked) logPurchase(it.text); else unlogPurchase(it.text); });
+          await persistShopping(items.map((it) => (wanted.has(it.id) ? { ...it, checked } : it)));
         }}
       />
       {listChat && (
