@@ -25,6 +25,8 @@ import WeekMealsSection from '../components/trip/WeekMealsSection';
 import { addRecipesToShoppingList, buyCount } from '../utils/shoppingListSync';
 import { AISLES, aisleFor } from '../utils/aisles';
 import { toShoppingName } from '../utils/shoppingName';
+import ChatSheetModal from '../components/modals/ChatSheetModal';
+import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
 import { normalizeCoupons } from '../utils/couponNormalize';
@@ -96,6 +98,7 @@ export default function ShoppingScreen({ user }) {
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
+  const [tripChatOpen, setTripChatOpen] = useState(false);
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
   const [catalogError, setCatalogError] = useState('');
 
@@ -233,6 +236,16 @@ export default function ShoppingScreen({ user }) {
     () => tooGoodCoupons(coupons, { excludeIds: listCoupons.map((m) => m.coupon.id), items, stores: data.userStores }),
     [coupons, listCoupons, items, data.userStores]
   );
+
+  const tripStore = route?.params?.store || data.userStores?.[0]?.name || '';
+  const tripPrompt = useMemo(() => buildTripSystemPrompt({
+    store: tripStore,
+    deals: weekDeals,
+    list: items,
+    coupons: [...listCoupons.map((m) => m.coupon), ...greatDeals.map((m) => m.coupon)],
+  // Built when the chat opens; later list changes shouldn't rewrite a conversation in progress.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [tripChatOpen]);
 
   const [addedIds, setAddedIds] = useState([]);
   const walletIds = useMemo(() => new Set([...(data.walletCoupons || []).map((c) => String(c?.id)), ...addedIds]), [data.walletCoupons, addedIds]);
@@ -533,8 +546,19 @@ export default function ShoppingScreen({ user }) {
         </ScrollView>
 
         <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
-          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { setShowSales(true); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
+          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { setShowSales(true); if (route?.params?.tripStart) setTripChatOpen(true); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
         </View>
+
+        {(weekDeals.length > 0 || route?.params?.tripStart) && (
+          <TouchableOpacity style={[styles.tripChatCard, shadow.card]} activeOpacity={0.9} onPress={() => setTripChatOpen(true)}>
+            <Text style={styles.tripChatEmoji}>🌿</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.tripChatTitle}>{t('trip_chat_title')}</Text>
+              <Text style={styles.tripChatSub}>{t('trip_chat_sub')}</Text>
+            </View>
+            <Text style={styles.tripChatGo}>›</Text>
+          </TouchableOpacity>
+        )}
 
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
@@ -819,6 +843,16 @@ export default function ShoppingScreen({ user }) {
         </>
       ) : null}
 
+      {tripChatOpen && (
+        <ChatSheetModal
+          visible
+          onClose={() => { setTripChatOpen(false); pull(); }}
+          user={user}
+          title={`🌿 ${t('trip_chat_title')}`}
+          systemPrompt={tripPrompt}
+          autoOpenerPrompt={tripOpenerPrompt(tripStore)}
+        />
+      )}
       <StoreRemainingItemsModal
         visible={Boolean(remainingItemsModal)}
         storeName={remainingItemsModal?.storeName}
@@ -830,6 +864,11 @@ export default function ShoppingScreen({ user }) {
 }
 
 const styles = StyleSheet.create({
+  tripChatCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.forest, borderRadius: radius.lg, padding: 16, marginBottom: 16 },
+  tripChatEmoji: { fontSize: 28 },
+  tripChatTitle: { color: colors.onFern, fontSize: 16, fontWeight: '800' },
+  tripChatSub: { color: colors.onFern, opacity: 0.85, fontSize: 13, marginTop: 2 },
+  tripChatGo: { color: colors.onFern, fontSize: 28, fontWeight: '300' },
   tripStrip: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   tripStep: { flex: 1, backgroundColor: '#fff', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 6, alignItems: 'center', borderWidth: 1, borderColor: '#E4DCD2' },
   tripStepNum: { fontSize: 11, fontWeight: '800', color: colors.orange },
