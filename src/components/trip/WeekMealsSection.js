@@ -223,6 +223,9 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                         <View style={styles.previewBox}>
                           <Text style={styles.sub}>{[pv.recipe.time, pv.recipe.difficulty].filter(Boolean).join(' · ')}</Text>
                           {pv.recipe.description ? <Text style={styles.previewText}>{pv.recipe.description}</Text> : null}
+                          {(idea.sides || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_sides', { sides: idea.sides.join(', ') })}</Text> : null}
+                          {(pv.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
+                          {(pv.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                           {(pv.recipe.instructions || []).map((s, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${s}`}</Text>)}
                         </View>
                       ) : null}

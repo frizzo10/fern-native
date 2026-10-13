@@ -39,7 +39,8 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
 
   const addRecipe = async (deal) => {
     if (!open?.recipe) return;
-    await onAddRecipe?.(open.recipe, deal);
+    const sides = Array.isArray(open.idea?.sides) ? open.idea.sides : [];
+    await onAddRecipe?.({ ...open.recipe, ingredients: [...(open.recipe.ingredients || []), ...sides] }, deal);
     setOpen((p) => (p ? { ...p, done: true } : p));
   };
 
@@ -125,6 +126,9 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                             <View>
                               <Text style={styles.sub}>{[open.recipe.time, open.recipe.difficulty].filter(Boolean).join(' · ')}</Text>
                               {open.recipe.description ? <Text style={styles.previewText}>{open.recipe.description}</Text> : null}
+                              {(idea.sides || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_sides', { sides: idea.sides.join(', ') })}</Text> : null}
+                              {(open.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
+                              {(open.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                               {(open.recipe.instructions || []).map((step, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${step}`}</Text>)}
                               <TouchableOpacity style={[styles.btn, { alignSelf: 'flex-start', marginTop: 8 }, open.done ? styles.btnOn : null]} disabled={open.done} activeOpacity={0.85} onPress={() => addRecipe(deal)}>
                                 <Text style={[styles.btnText, open.done ? styles.btnTextOn : null]}>{open.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
