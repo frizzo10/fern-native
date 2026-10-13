@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { loadWeekDeals, couponItemName } from '../utils/savings';
+import { claimArrival, storeKey, notifyArrival } from '../services/storeGeofencing';
 import { dealsForStore, storeAtPosition } from '../utils/flyerStore';
 import * as Location from 'expo-location';
 import {
@@ -766,6 +767,11 @@ export default function HomeScreen({ user, route }) {
             await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, userStores: nextStores }));
             await pushAllFromStorage();
             await pull();
+            // You are standing in it right now: send the arrival notification straight away so you can see it works.
+            try {
+              const fixed = nextStores[index];
+              if (await claimArrival(storeKey(fixed))) await notifyArrival(fixed.name);
+            } catch (e) { /* the notification is a bonus */ }
             Alert.alert(t('store_here_done', { store: store.name || '' }));
           } catch (e) {
             console.log('[stores] could not save store location', e?.message || e);
