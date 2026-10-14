@@ -23,6 +23,7 @@ import { useFernVoice } from '../../hooks/useFernVoice';
 import { useSync } from '../../hooks/useSync';
 import useLanguage from '../../hooks/useLanguage';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
+import { spokenSummary } from '../../utils/spokenSummary';
 
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 // Was free-text conversation only — Fern would happily reply "I've added
@@ -151,7 +152,7 @@ export default function ChatSheetModal({
         : [];
 
       setMessages(prev => [...prev, { role: 'fern', text: reply }]);
-      speakText(reply);
+      speakText(spokenSummary(reply));
 
       if (itemsToAdd.length) {
         const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(
