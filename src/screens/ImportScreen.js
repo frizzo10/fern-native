@@ -17,6 +17,10 @@ import { useSync } from '../hooks/useSync';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { fetchRecipeImage } from '../utils/recipeImage';
 import SaveToCookbookModal from '../components/modals/SaveToCookbookModal';
+import UpgradeGateModal from '../components/UpgradeGateModal';
+import useEntitlement from '../hooks/useEntitlement';
+import { TIERS } from '../constants/tiers';
+import { recipeLimitReached } from '../utils/freeLimits';
 import { importFromUrl, importFromVideo, importFromCard, importFromText } from '../services/importService';
 
 const C = {
@@ -40,6 +44,12 @@ export default function ImportScreen({ user, onBack, onImported }) {
   const { t, locale } = useLanguage();
   const { pushAllFromStorage, pull, data } = useSync(user);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const { hasAccess } = useEntitlement();
+  const [limitGate, setLimitGate] = useState(false);
+  async function openSavePicker() {
+    if (!hasAccess(TIERS.PRO) && (await recipeLimitReached())) { setLimitGate(true); return; }
+    setPickerOpen(true);
+  }
 
   const [mode, setMode] = useState('url'); // 'url' | 'video' | 'text' | 'card'
   const [url, setUrl] = useState('');
@@ -188,7 +198,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
                 <TouchableOpacity style={s.discardBtn} onPress={() => setPreviewRecipe(null)} disabled={saving}>
                   <Text style={s.discardBtnText}>{t('discard')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.saveBtn} onPress={() => setPickerOpen(true)} disabled={saving}>
+                <TouchableOpacity style={s.saveBtn} onPress={openSavePicker} disabled={saving}>
                   {saving ? <ActivityIndicator color="#fff" /> : <Text style={s.saveBtnText}>{t('saveToCookbookBtn')}</Text>}
                 </TouchableOpacity>
               </View>
@@ -295,6 +305,13 @@ export default function ImportScreen({ user, onBack, onImported }) {
         onCancel={() => setPickerOpen(false)}
         // iOS drops an Alert shown while a Modal is still closing, so close first, then save.
         onSave={(choice) => { setPickerOpen(false); setTimeout(() => handleSave(choice), 450); }}
+      />
+      <UpgradeGateModal
+        visible={limitGate}
+        onClose={() => setLimitGate(false)}
+        tier={TIERS.PRO}
+        title={t('recipe_limit_title')}
+        desc={t('recipe_limit_desc')}
       />
     </SafeAreaView>
   );

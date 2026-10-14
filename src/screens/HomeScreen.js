@@ -85,6 +85,7 @@ import useEntitlement from '../hooks/useEntitlement';
 import { usePlansModal } from '../services/PlansModalContext';
 import { TIERS } from '../constants/tiers';
 import { FEATURE_TIERS } from '../constants/featureAccess';
+import { FREE_RECIPE_LIMIT } from '../utils/freeLimits';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
 const DISMISSED_SUGGESTIONS_KEY = 'fern_dismissed_suggestions';
@@ -411,7 +412,8 @@ export default function HomeScreen({ user, route }) {
       try { saved = JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]'); } catch (e) { saved = []; }
       if (!Array.isArray(saved)) saved = [];
       const titleKey = String(recipe.title || '').trim().toLowerCase();
-      if (!saved.some((item) => String(item?.title || '').trim().toLowerCase() === titleKey)) {
+      const freeFull = !hasAccess(TIERS.PRO) && saved.length >= FREE_RECIPE_LIMIT;
+      if (!freeFull && !saved.some((item) => String(item?.title || '').trim().toLowerCase() === titleKey)) {
         saved = [...saved, {
           id: `find-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           title: recipe.title,

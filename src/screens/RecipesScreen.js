@@ -33,6 +33,10 @@ import ShareLinkModal from '../components/modals/ShareLinkModal';
 import { createCookbookShareLink } from '../services/shareService';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
+import useEntitlement from '../hooks/useEntitlement';
+import { TIERS } from '../constants/tiers';
+import UpgradeGateModal from '../components/UpgradeGateModal';
+import { cookbookCount, FREE_COOKBOOK_LIMIT } from '../utils/freeLimits';
 
 function resolveCoverUri(cover) {
   if (!cover || typeof cover !== 'string') return null;
@@ -196,6 +200,12 @@ export default function RecipesScreen({ user }) {
   const [recipesLocal, setRecipesLocal] = useState([]);
   const [booksLocal, setBooksLocal] = useState([]);
   const [isNewCookbookVisible, setIsNewCookbookVisible] = useState(false);
+  const { hasAccess } = useEntitlement();
+  const [cookbookGate, setCookbookGate] = useState(false);
+  const openNewCookbook = async () => {
+    if (!hasAccess(TIERS.PRO) && (await cookbookCount()) >= FREE_COOKBOOK_LIMIT) { setCookbookGate(true); return; }
+    setIsNewCookbookVisible(true);
+  };
   const [isCreatingCookbook, setIsCreatingCookbook] = useState(false);
   const [isEditCookbookVisible, setIsEditCookbookVisible] = useState(false);
   const [isSavingCookbookEdit, setIsSavingCookbookEdit] = useState(false);
@@ -1102,7 +1112,7 @@ export default function RecipesScreen({ user }) {
                 <TouchableOpacity
                   style={styles.newBookBtn}
                   activeOpacity={0.85}
-                  onPress={() => setIsNewCookbookVisible(true)}
+                  onPress={openNewCookbook}
                 >
                   <Text style={styles.newBookBtnText}>{t('new_cookbook_btn')}</Text>
                 </TouchableOpacity>
@@ -1193,6 +1203,14 @@ export default function RecipesScreen({ user }) {
         onClose={() => setIsNewCookbookVisible(false)}
         onCreate={handleCreateCookbook}
         isCreating={isCreatingCookbook}
+      />
+
+      <UpgradeGateModal
+        visible={cookbookGate}
+        onClose={() => setCookbookGate(false)}
+        tier={TIERS.PRO}
+        title={t('cookbook_limit_title')}
+        desc={t('cookbook_limit_desc')}
       />
 
       <NewCookbookModal

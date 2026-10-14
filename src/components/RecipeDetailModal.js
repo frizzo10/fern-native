@@ -26,6 +26,10 @@ import RecipePlatingCoachModal from './modals/RecipePlatingCoachModal';
 import CookModeModal from './modals/CookModeModal';
 import SaveToCookbookModal from './modals/SaveToCookbookModal';
 import IngredientSubstitutionModal from './modals/IngredientSubstitutionModal';
+import UpgradeGateModal from './UpgradeGateModal';
+import useEntitlement from '../hooks/useEntitlement';
+import { TIERS } from '../constants/tiers';
+import { recipeLimitReached } from '../utils/freeLimits';
 
 export default function RecipeDetailModal({
   recipe,
@@ -88,8 +92,23 @@ export default function RecipeDetailModal({
     }
   };
 
-  const handleOpenSaveToCookbook = () => {
+  // Free plan: a recipe that isn't saved yet can't be added once the box holds 20.
+  const { hasAccess } = useEntitlement();
+  const [limitGate, setLimitGate] = useState(false);
+  const blockedByLimit = async () => {
+    if (isAlreadySaved || hasAccess(TIERS.PRO)) return false;
+    if (!(await recipeLimitReached())) return false;
+    setLimitGate(true);
+    return true;
+  };
+  const guardedSaveNote = async () => {
+    if (await blockedByLimit()) return;
+    onSaveNote?.();
+  };
+
+  const handleOpenSaveToCookbook = async () => {
     if (!onSaveToCookbook) return;
+    if (await blockedByLimit()) return;
     setIsSaveToCookbookVisible(true);
   };
 
@@ -478,7 +497,7 @@ export default function RecipeDetailModal({
                   <TouchableOpacity
                     style={[styles.overlaySaveNoteBtn, isSaving ? styles.disabledBtn : null]}
                     activeOpacity={0.85}
-                    onPress={onSaveNote}
+                    onPress={guardedSaveNote}
                     disabled={isSaving}
                   >
                     <Text style={styles.overlaySaveNoteBtnText}>{t('save_note_caps_btn')}</Text>
@@ -496,7 +515,7 @@ export default function RecipeDetailModal({
                       ]}
                       // A recipe that isn't saved yet asks which cookbook first (like the web
                       // app); an already-saved one keeps updating its note in place.
-                      onPress={!isAlreadySaved && onSaveToCookbook ? handleOpenSaveToCookbook : onSaveNote}
+                      onPress={!isAlreadySaved && onSaveToCookbook ? handleOpenSaveToCookbook : guardedSaveNote}
                       onLongPress={onSaveToCookbook ? handleOpenSaveToCookbook : undefined}
                       disabled={isSaving}
                     >
@@ -608,6 +627,14 @@ export default function RecipeDetailModal({
           isSaving={isSavingToCookbook}
           onCancel={() => setIsSaveToCookbookVisible(false)}
           onSave={handleConfirmSaveToCookbook}
+        />
+
+        <UpgradeGateModal
+          visible={limitGate}
+          onClose={() => setLimitGate(false)}
+          tier={TIERS.PRO}
+          title={t('recipe_limit_title')}
+          desc={t('recipe_limit_desc')}
         />
       </View>
     </Modal>
