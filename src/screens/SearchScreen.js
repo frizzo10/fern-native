@@ -466,6 +466,7 @@ export default function SearchScreen({ user }) {
             return;
         }
 
+        setSearchText('');
         await performSearch(query);
     };
 
