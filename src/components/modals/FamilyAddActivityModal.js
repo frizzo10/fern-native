@@ -27,28 +27,37 @@ const QUICK_PICK_ACTIVITIES = [
 ];
 
 const HOUR_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-const MINUTE_OPTIONS = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+const MINUTE_OPTIONS = ['00', '15', '30', '45'];
 const AMPM_OPTIONS = ['AM', 'PM'];
 
-function cycleValue(options, current, dir) {
-    const idx = options.indexOf(current);
-    const next = (idx + dir + options.length) % options.length;
-    return options[next];
+// Big tap-target chip. Tapping the selected one again clears it (when onClear is given).
+function Chip({ label, selected, onPress, wide }) {
+    return (
+        <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={onPress}
+            style={[styles.pickChip, wide ? styles.pickChipWide : null, selected ? styles.pickChipActive : null]}
+        >
+            <Text style={[styles.pickChipText, selected ? styles.pickChipTextActive : null]}>{label}</Text>
+        </TouchableOpacity>
+    );
 }
 
-function StepperField({ value, placeholder, onUp, onDown }) {
+function TimePicker({ hour, minute, ampm, onHour, onMinute, onAmPm }) {
     return (
-        <View style={styles.stepperBox}>
-            <Text style={[styles.stepperValue, !value ? styles.stepperPlaceholder : null]} numberOfLines={1}>
-                {value || placeholder}
-            </Text>
-            <View style={styles.stepperArrows}>
-                <TouchableOpacity activeOpacity={0.6} onPress={onUp} hitSlop={{ top: 4, bottom: 1, left: 6, right: 6 }}>
-                    <Text style={styles.stepperArrow}>▲</Text>
-                </TouchableOpacity>
-                <TouchableOpacity activeOpacity={0.6} onPress={onDown} hitSlop={{ top: 1, bottom: 4, left: 6, right: 6 }}>
-                    <Text style={styles.stepperArrow}>▼</Text>
-                </TouchableOpacity>
+        <View style={styles.timeBlock}>
+            <View style={styles.chipGrid}>
+                {HOUR_OPTIONS.map((h) => (
+                    <Chip key={h} label={h} selected={hour === h} onPress={() => onHour(hour === h ? '' : h)} />
+                ))}
+            </View>
+            <View style={styles.chipGrid}>
+                {MINUTE_OPTIONS.map((m) => (
+                    <Chip key={m} label={`:${m}`} selected={minute === m} onPress={() => onMinute(m)} />
+                ))}
+                {AMPM_OPTIONS.map((a) => (
+                    <Chip key={a} label={a} wide selected={ampm === a} onPress={() => onAmPm(a)} />
+                ))}
             </View>
         </View>
     );
@@ -112,8 +121,6 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
         });
     };
 
-    const selectedDayLabel = (dayOptions || [])[dayIndex]?.label || '';
-
     return (
         <Modal transparent animationType="slide" visible={visible} onRequestClose={onClose}>
             <View style={styles.backdrop}>
@@ -154,65 +161,32 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
                             style={styles.nameInput}
                         />
 
-                        <View style={styles.fieldsRow}>
-                            <View style={styles.dayFieldWrap}>
-                                <Text style={styles.fieldLabel}>{t('family_activity_day_label')}</Text>
-                                <StepperField
-                                    value={selectedDayLabel}
-                                    placeholder="—"
-                                    onUp={() => setDayIndex((i) => (i + 1) % Math.max(1, (dayOptions || []).length))}
-                                    onDown={() => setDayIndex((i) => (i - 1 + (dayOptions || []).length) % Math.max(1, (dayOptions || []).length))}
-                                />
-                            </View>
-
-                            <View style={styles.timeFieldWrap}>
-                                <Text style={styles.fieldLabel}>{t('family_activity_start_label')}</Text>
-                                <View style={styles.timeRow}>
-                                    <StepperField
-                                        value={startHour}
-                                        placeholder="H"
-                                        onUp={() => setStartHour((v) => cycleValue(HOUR_OPTIONS, v, 1))}
-                                        onDown={() => setStartHour((v) => cycleValue(HOUR_OPTIONS, v, -1))}
-                                    />
-                                    <StepperField
-                                        value={startMinute}
-                                        placeholder="MM"
-                                        onUp={() => setStartMinute((v) => cycleValue(MINUTE_OPTIONS, v, 1))}
-                                        onDown={() => setStartMinute((v) => cycleValue(MINUTE_OPTIONS, v, -1))}
-                                    />
-                                </View>
-                                <StepperField
-                                    value={startAmPm}
-                                    placeholder="PM"
-                                    onUp={() => setStartAmPm((v) => cycleValue(AMPM_OPTIONS, v, 1))}
-                                    onDown={() => setStartAmPm((v) => cycleValue(AMPM_OPTIONS, v, -1))}
-                                />
-                            </View>
-
-                            <View style={styles.timeFieldWrap}>
-                                <Text style={styles.fieldLabel}>{t('family_activity_end_label')}</Text>
-                                <View style={styles.timeRow}>
-                                    <StepperField
-                                        value={endHour}
-                                        placeholder="H"
-                                        onUp={() => setEndHour((v) => cycleValue(HOUR_OPTIONS, v, 1))}
-                                        onDown={() => setEndHour((v) => cycleValue(HOUR_OPTIONS, v, -1))}
-                                    />
-                                    <StepperField
-                                        value={endMinute}
-                                        placeholder="MM"
-                                        onUp={() => setEndMinute((v) => cycleValue(MINUTE_OPTIONS, v, 1))}
-                                        onDown={() => setEndMinute((v) => cycleValue(MINUTE_OPTIONS, v, -1))}
-                                    />
-                                </View>
-                                <StepperField
-                                    value={endAmPm}
-                                    placeholder="PM"
-                                    onUp={() => setEndAmPm((v) => cycleValue(AMPM_OPTIONS, v, 1))}
-                                    onDown={() => setEndAmPm((v) => cycleValue(AMPM_OPTIONS, v, -1))}
-                                />
-                            </View>
+                        <Text style={styles.sectionLabel}>{t('family_activity_day_label')}</Text>
+                        <View style={styles.chipGrid}>
+                            {(dayOptions || []).map((d, i) => (
+                                <Chip key={d.dateKey} label={d.label} wide selected={dayIndex === i} onPress={() => setDayIndex(i)} />
+                            ))}
                         </View>
+
+                        <Text style={styles.sectionLabel}>{t('family_activity_start_label')}</Text>
+                        <TimePicker
+                            hour={startHour}
+                            minute={startMinute}
+                            ampm={startAmPm}
+                            onHour={(h) => { setStartHour(h); if (h && !startMinute) setStartMinute('00'); }}
+                            onMinute={(m) => { setStartMinute(m); if (!startHour) setStartHour('12'); }}
+                            onAmPm={setStartAmPm}
+                        />
+
+                        <Text style={styles.sectionLabel}>{t('family_activity_end_label')}</Text>
+                        <TimePicker
+                            hour={endHour}
+                            minute={endMinute}
+                            ampm={endAmPm}
+                            onHour={(h) => { setEndHour(h); if (h && !endMinute) setEndMinute('00'); }}
+                            onMinute={(m) => { setEndMinute(m); if (!endHour) setEndHour('12'); }}
+                            onAmPm={setEndAmPm}
+                        />
 
                         <View style={styles.actionsRow}>
                             <TouchableOpacity style={styles.cancelBtn} activeOpacity={0.85} onPress={onClose}>
@@ -317,56 +291,41 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
-    fieldsRow: {
-        marginTop: 18,
+    chipGrid: {
+        marginTop: 10,
         flexDirection: 'row',
-        gap: 10,
+        flexWrap: 'wrap',
+        gap: 8,
     },
-    dayFieldWrap: {
-        flex: 1,
+    timeBlock: {
+        marginTop: 2,
     },
-    timeFieldWrap: {
-        flex: 1,
-        gap: 6,
-    },
-    timeRow: {
-        flexDirection: 'row',
-        gap: 6,
-    },
-    fieldLabel: {
-        marginBottom: 6,
-        color: '#8C7A5F',
-        fontFamily: 'Jost-Bold',
-        fontSize: 10,
-        letterSpacing: 0.6,
-    },
-    stepperBox: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        borderRadius: 10,
+    pickChip: {
+        minWidth: 52,
+        height: 48,
+        borderRadius: 14,
         borderWidth: 1,
         borderColor: '#D9CFBF',
         backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
         paddingHorizontal: 10,
-        paddingVertical: 10,
     },
-    stepperValue: {
+    pickChipWide: {
+        minWidth: 64,
+        paddingHorizontal: 14,
+    },
+    pickChipActive: {
+        borderColor: colors.forest,
+        backgroundColor: colors.forest,
+    },
+    pickChipText: {
         color: '#2A1A11',
         fontFamily: 'Jost-Medium',
-        fontSize: 14,
+        fontSize: 16,
     },
-    stepperPlaceholder: {
-        color: '#B0A08A',
-    },
-    stepperArrows: {
-        marginLeft: 6,
-    },
-    stepperArrow: {
-        color: '#8C7A5F',
-        fontSize: 9,
-        lineHeight: 11,
+    pickChipTextActive: {
+        color: '#F1F7F1',
     },
     actionsRow: {
         marginTop: 26,
