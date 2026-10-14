@@ -2561,6 +2561,7 @@ export default function HomeScreen({ user, route }) {
                 onOpenAccount={openAccount}
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
                 onScan={handleHomeScanFlyer}
+                onStorePress={chooseFlyerStore}
                 stores={userStoresLocal}
                 onFixStoreLocation={handleFixStoreLocation}
                 onAddStore={openAddStoreModal}

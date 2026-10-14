@@ -53,6 +53,7 @@ export default function NewHome({
   onOpenLanguage,
   onScan,
   stores,
+  onStorePress,
   onFixStoreLocation,
   onAddStore,
   onAskFern,
@@ -158,7 +159,7 @@ export default function NewHome({
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <View style={styles.storeList}>
           {visibleStores.map((s, i) => (
-            <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={onScan}>
+            <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={() => (onStorePress ? onStorePress(s) : onScan())}>
               <Ionicons name="location-outline" size={15} color={SAGE} />
               <Text style={styles.storeLineText} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
               {onFixStoreLocation ? (
