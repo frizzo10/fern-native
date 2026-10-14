@@ -775,6 +775,16 @@ export default function RecipesScreen({ user }) {
     });
   }, [recipes, query]);
 
+  // Total + per-meal-type counts for the summary line above the grid (all saved recipes).
+  const mealTypeCounts = useMemo(() => {
+    const counts = {};
+    recipes.forEach((recipe) => {
+      const key = String(recipe.meal || '').trim() || 'Dinner';
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [recipes]);
+
   const books = useMemo(() => {
     const list = Array.isArray(booksLocal) ? booksLocal : [];
     // Cookbook cover photos are synced separately from the books themselves
@@ -934,6 +944,23 @@ export default function RecipesScreen({ user }) {
                 />
               </View>
             ) : null}
+          </View>
+        ) : null}
+
+        {tab === 'recipes' && !selectedBook && recipes.length ? (
+          <View style={styles.countWrap}>
+            <Text style={styles.countTotal}>
+              {query.trim()
+                ? t('recipes_count_filtered', { shown: filteredRecipes.length, total: recipes.length })
+                : t(recipes.length === 1 ? 'recipes_count_one' : 'recipes_count_many', { count: recipes.length })}
+            </Text>
+            <View style={styles.countChips}>
+              {mealTypeCounts.map(([type, n]) => (
+                <View key={type} style={styles.countChip}>
+                  <Text style={styles.countChipText}>{type} {n}</Text>
+                </View>
+              ))}
+            </View>
           </View>
         ) : null}
 
@@ -1304,6 +1331,34 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Jost-Medium',
     padding: 2,
+  },
+  countWrap: {
+    marginTop: 14,
+  },
+  countTotal: {
+    color: colors.ink,
+    fontSize: 14,
+    fontFamily: 'Jost-SemiBold',
+  },
+  countChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+  countChip: {
+    borderWidth: 1,
+    borderColor: '#D9C9AF',
+    backgroundColor: '#FFFDF8',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginRight: 6,
+    marginBottom: 6,
+  },
+  countChipText: {
+    color: '#7A5C3A',
+    fontSize: 12,
+    fontFamily: 'Jost-Medium',
   },
   grid: {
     marginTop: 18,
