@@ -34,7 +34,10 @@ export default function LocationSetupModal({ visible, onDone }) {
   };
 
   const complete = isSetupComplete(status);
-  const needsSettings = asked && !complete;
+  // iOS shows the "Always" question only once. If "While Using" is already granted but Always
+  // isn't (e.g. from an earlier day), asking again does nothing, so go straight to Settings.
+  const alwaysOnlyInSettings = needsAlways && status.foreground && !status.always;
+  const needsSettings = (asked && !complete) || (alwaysOnlyInSettings && !complete);
 
   const rows = [
     { ok: status.foreground, label: t('loc_setup_row_loc') },

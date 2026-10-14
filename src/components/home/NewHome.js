@@ -66,6 +66,7 @@ export default function NewHome({
   onAddForDay,
   tools,
   libraryItems,
+  notice,
 }) {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -143,6 +144,8 @@ export default function NewHome({
           ))}
         </View>
       ) : null}
+
+      {notice || null}
 
       {/* Scan card */}
       <View style={styles.hero}>

@@ -85,6 +85,7 @@ import useEntitlement from '../hooks/useEntitlement';
 import { usePlansModal } from '../services/PlansModalContext';
 import { TIERS } from '../constants/tiers';
 import { FEATURE_TIERS } from '../constants/featureAccess';
+import AlwaysLocationReminder from '../components/home/AlwaysLocationReminder';
 import { FREE_RECIPE_LIMIT } from '../utils/freeLimits';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
@@ -2575,6 +2576,7 @@ export default function HomeScreen({ user, route }) {
                 onAddForDay={handleHomeAddForDay}
                 tools={newHomeTools}
                 libraryItems={newHomeLibrary}
+                notice={<AlwaysLocationReminder />}
               />
             ) : (
               <>
