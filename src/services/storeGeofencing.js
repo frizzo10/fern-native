@@ -116,6 +116,8 @@ async function arrivalBody() {
 }
 
 export async function notifyArrival(name) {
+  // Store alerts are a Pro Max feature; everyone else is left alone.
+  if (!(await hasProMax())) return;
   try { await AsyncStorage.setItem(TRIP_KEY, JSON.stringify({ store: name, at: Date.now() })); } catch (e) { /* best effort */ }
   await Notifications.scheduleNotificationAsync({
     content: {
@@ -130,6 +132,7 @@ export async function notifyArrival(name) {
 // Leaving the store: tell the shopper what this trip saved them (ticked-off sale items + coupons
 // marked used, both from the savings ledger since they arrived). Nothing saved = no notification.
 export async function notifyDeparture(name) {
+  if (!(await hasProMax())) return;
   const trip = await readJson(TRIP_KEY, null);
   const since = trip && typeof trip.at === 'number' && Date.now() - trip.at < 12 * 60 * 60 * 1000 ? trip.at : Date.now() - 6 * 60 * 60 * 1000;
   const sum = summarizeSince(await loadLedger(), since);
