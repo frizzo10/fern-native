@@ -237,7 +237,7 @@ Three separate functions, one per retailer, all called from `src/services/storeS
 
 ### `geocode` — `GET /.netlify/functions/geocode?q=<storeName>&zip=<zip>[&token=<token>]`
 
-One of two **GET** endpoints (the other is `fetch-coupons`, below), no body. Response: `{ lat, lon, address, source }`, validated and returned as `{ lat, lon, lng: lon, address, source }` (or `null` on failure). Caller: `src/services/storeLookupService.js`'s `findStoreLocationByZip`, used by `HomeScreen.js`'s store-management UI.
+One of two **GET** endpoints (the other is `fetch-coupons`, below), no body. Response: `{ lat, lon, address, source }`, validated and returned as `{ lat, lon, lng: lon, address, source }` (or `null` on failure). Caller: `src/services/storeLookupService.js`'s `findStoreLocationByZip`, used by `HomeScreen.js`'s store-management UI. **The function only searches `q` (it ignores `zip` when a Google key is set), so the client puts the ZIP inside `q`**: `"<name> grocery store near <zip>"` (same as the web app), retrying `"<name> <zip>"` if that finds nothing.
 
 ### `fetch-coupons` — `GET /.netlify/functions/fetch-coupons`
 
