@@ -55,6 +55,7 @@ export default function NewHome({
   stores,
   onStorePress,
   onFixStoreLocation,
+  onRemoveStore,
   onAddStore,
   onAskFern,
   weekDays,
@@ -168,6 +169,11 @@ export default function NewHome({
               {onFixStoreLocation ? (
                 <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 6 }} onPress={() => onFixStoreLocation(i)} accessibilityRole="button" accessibilityLabel={t('store_here_btn')}>
                   <Ionicons name="navigate-circle-outline" size={20} color={SAGE} />
+                </TouchableOpacity>
+              ) : null}
+              {onRemoveStore ? (
+                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} onPress={() => onRemoveStore(i)} accessibilityRole="button" accessibilityLabel={t('store_remove_a11y')}>
+                  <Ionicons name="close-circle-outline" size={20} color={SAGE} />
                 </TouchableOpacity>
               ) : null}
               <Ionicons name="chevron-forward" size={14} color={SAGE} />

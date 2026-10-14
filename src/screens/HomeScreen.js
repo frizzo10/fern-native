@@ -749,6 +749,16 @@ export default function HomeScreen({ user, route }) {
     }
   };
 
+  // New Home: ask before removing (the ✕ is small and easy to hit by accident).
+  const confirmDeleteStore = (index) => {
+    const store = userStoresLocal[index];
+    if (!store) return;
+    Alert.alert(t('store_remove_title'), t('store_remove_body', { store: store.name || t('store_fallback_label') }), [
+      { text: t('cancel_btn'), style: 'cancel' },
+      { text: t('store_remove_btn'), style: 'destructive', onPress: () => handleDeleteStore(index) },
+    ]);
+  };
+
   // Standing in the store? Save exactly where you are as that store's location, so arrival alerts fire.
   // (Address-based lookups can land blocks or miles away from the real front door.)
   const handleFixStoreLocation = (index) => {
@@ -2565,6 +2575,7 @@ export default function HomeScreen({ user, route }) {
                 onStorePress={chooseFlyerStore}
                 stores={userStoresLocal}
                 onFixStoreLocation={handleFixStoreLocation}
+                onRemoveStore={confirmDeleteStore}
                 onAddStore={openAddStoreModal}
                 onAskFern={openChat}
                 weekDays={weekDays}
