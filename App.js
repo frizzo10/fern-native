@@ -299,8 +299,11 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           else if (navReady) nav.navigate('Shopping'); // plan never resolved: safe default
           return;
         }
-        // The whole trip (list, flyer, sales, coupons, a week of dinners) lives on the Shopping screen.
-        nav.navigate('Shopping', content.data.type === 'everyday_nudge' ? { everyday: Date.now() } : isExit ? { tripDone: Date.now() } : { tripStart: Date.now(), store });
+        // Arrival: Home starts that store's flyer scan (same as tapping the store on Home). Leaving a store lands on the
+        // Shopping savings card, and the everyday nudge on Shopping's Everyday card.
+        if (content.data.type === 'everyday_nudge') nav.navigate('Shopping', { everyday: Date.now() });
+        else if (isExit) nav.navigate('Shopping', { tripDone: Date.now() });
+        else nav.navigate('Home', { scanFlyerStore: store, scanFlyerAt: Date.now() });
       };
       go();
     };

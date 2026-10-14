@@ -1527,6 +1527,21 @@ export default function HomeScreen({ user, route }) {
     else askFlyerPhoto();
   };
 
+  // Store-arrival notification tap: App.js navigates here with the store's name -> start that store's flyer scan,
+  // exactly like tapping the store on Home (this week's flyer if already scanned, else the photo prompt).
+  const lastArrivalScanRef = useRef(null);
+  useEffect(() => {
+    const at = route?.params?.scanFlyerAt;
+    if (!at || lastArrivalScanRef.current === at) return;
+    const stores = (userStores || []).filter((s) => s && s.name);
+    if (!stores.length) return; // stores still loading; this effect re-runs when they arrive
+    lastArrivalScanRef.current = at;
+    const wanted = String(route?.params?.scanFlyerStore || '').trim().toLowerCase();
+    const store = stores.find((s) => String(s.name).trim().toLowerCase() === wanted) || { name: route?.params?.scanFlyerStore || '' };
+    navigation.setParams({ scanFlyerStore: undefined, scanFlyerAt: undefined });
+    setTimeout(() => chooseFlyerStore(store), 500);
+  }, [route?.params?.scanFlyerAt, userStores]);
+
   const handleHomeScanFlyer = async () => {
     const stores = (userStores || []).filter((s) => s && s.name);
     if (!stores.length) { askFlyerPhoto(); return; }
