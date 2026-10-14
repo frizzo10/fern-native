@@ -119,6 +119,12 @@ export default function RecipeDetailModal({
   const guardedSaveNote = async () => {
     if (await blockedByLimit()) return;
     onSaveNote?.();
+    // An already-saved recipe isn't added a second time -- Save only updates its
+    // note, and some screens then close this viewer. Say so, or it looks like the
+    // recipe just vanished. Delayed because iOS drops an Alert shown mid-dismiss.
+    if (isAlreadySaved) {
+      setTimeout(() => Alert.alert(t('already_saved_title'), t('already_saved_note_updated')), 600);
+    }
   };
 
   const handleOpenSaveToCookbook = async () => {

@@ -906,6 +906,8 @@ export const translations = {
 
     // Recipe Detail Modal — extra actions
     already_saved_indicator: "✓ Already in your recipe box",
+    already_saved_title: "Already saved",
+    already_saved_note_updated: "This recipe is already in your recipe box, so it wasn't added again. Your note was updated.",
     action_scale: "↕ Scale",
     text_smaller_a11y: "Make recipe text smaller",
     text_larger_a11y: "Make recipe text larger",
@@ -2969,6 +2971,8 @@ export const translations = {
 
     // Recipe Detail Modal — acciones extra
     already_saved_indicator: "✓ Ya está en tu recetario",
+    already_saved_title: "Ya guardada",
+    already_saved_note_updated: "Esta receta ya está en tu recetario, así que no se agregó otra vez. Se actualizó tu nota.",
     action_scale: "↕ Escalar",
     text_smaller_a11y: "Hacer el texto de la receta más pequeño",
     text_larger_a11y: "Hacer el texto de la receta más grande",
