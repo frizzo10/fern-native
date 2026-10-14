@@ -17,13 +17,39 @@ import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Modal,
   ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../../constants/tokens';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
 import { useContinuousMic } from '../../hooks/useContinuousMic';
 import { useFernVoice } from '../../hooks/useFernVoice';
 import { useSync } from '../../hooks/useSync';
 import useLanguage from '../../hooks/useLanguage';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
 import { spokenSummary } from '../../utils/spokenSummary';
+
+// Free plan: a small number of Ask Fern questions per local day (device-only counter). Pro and up
+// are unlimited. The auto-opener (silent) turn never counts.
+const FREE_CHAT_KEY = 'fern_free_chat_count';
+const FREE_CHAT_PER_DAY = 5;
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+async function freeChatUsedToday() {
+  try {
+    const raw = await AsyncStorage.getItem(FREE_CHAT_KEY);
+    const rec = raw ? JSON.parse(raw) : null;
+    return rec && rec.day === todayKey() ? Number(rec.count) || 0 : 0;
+  } catch (e) { return 0; }
+}
+async function bumpFreeChat() {
+  try {
+    const used = await freeChatUsedToday();
+    await AsyncStorage.setItem(FREE_CHAT_KEY, JSON.stringify({ day: todayKey(), count: used + 1 }));
+  } catch (e) { /* best effort */ }
+}
 
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 // Was free-text conversation only — Fern would happily reply "I've added
@@ -92,6 +118,10 @@ export default function ChatSheetModal({
   mode, // 'voice' = Fern speaks and the mic re-arms after every reply (hands-free); 'text' = typing only, no speech
 }) {
   const { t, locale } = useLanguage();
+  const { hasAccess } = useEntitlement();
+  const isFreeRef = useRef(false);
+  isFreeRef.current = !hasAccess(TIERS.PRO);
+  const [limitGate, setLimitGate] = useState(false);
   const [messages, setMessages] = useState([]); // [{role: 'user'|'fern', text}]
   const [inputText, setInputText] = useState('');
   const [thinking, setThinking] = useState(false);
@@ -111,6 +141,10 @@ export default function ChatSheetModal({
 
   const askFern = useCallback(async (text, { silent = false } = {}) => {
     if (!text || !text.trim()) return;
+    if (!silent && isFreeRef.current) {
+      if ((await freeChatUsedToday()) >= FREE_CHAT_PER_DAY) { setLimitGate(true); return; }
+      await bumpFreeChat();
+    }
     const userMsg = { role: 'user', text: text.trim() };
     // Full history, not just the latest message — the actual gap in
     // HomeScreen's inline Ask Fern (and in useContinuousMic's own
@@ -299,6 +333,7 @@ export default function ChatSheetModal({
         </View>
         {isListening && <Text style={styles.listeningHint}>{t('mic_listening')}</Text>}
       </KeyboardAvoidingView>
+      <UpgradeGateModal visible={limitGate} onClose={() => setLimitGate(false)} tier={TIERS.PRO} title={t('chat_limit_title')} desc={t('chat_limit_desc')} />
     </Modal>
   );
 }
