@@ -92,11 +92,11 @@ export function sumSavings(deals) {
 }
 
 // ── weeks ───────────────────────────────────────────────────────────────────
-// Weeks start on Monday and are keyed by that Monday's LOCAL date (never toISOString —
+// Ad weeks start on Wednesday (grocers change the circular then), keyed by that Wednesday's LOCAL date (never toISOString —
 // that shifts to UTC and gives tomorrow's date on evenings west of UTC).
 export function weekKeyFor(date = new Date()) {
     const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const back = (d.getDay() + 6) % 7;
+    const back = (d.getDay() + 4) % 7; // ad weeks start Wednesday
     d.setDate(d.getDate() - back);
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
