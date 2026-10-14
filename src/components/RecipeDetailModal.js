@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRecipePhoto } from './RecipePhoto';
 import {
   ActivityIndicator,
@@ -50,6 +51,20 @@ export default function RecipeDetailModal({
 }) {
   const { t } = useLanguage();
   const photoUrl = useRecipePhoto(recipe?.title, recipe?.image);
+  // Reader text size for ingredients + method (A-/A+ buttons). Device-only, remembered.
+  const [textLevel, setTextLevel] = useState(0);
+  useEffect(() => {
+    AsyncStorage.getItem(TEXT_LEVEL_KEY).then((v) => {
+      const n = parseInt(v, 10);
+      if (n >= 0 && n < TEXT_SCALES.length) setTextLevel(n);
+    }).catch(() => {});
+  }, []);
+  const changeTextLevel = (delta) => {
+    const next = Math.max(0, Math.min(TEXT_SCALES.length - 1, textLevel + delta));
+    setTextLevel(next);
+    AsyncStorage.setItem(TEXT_LEVEL_KEY, String(next)).catch(() => {});
+  };
+  const textScale = TEXT_SCALES[textLevel];
   const [isScaleModalVisible, setIsScaleModalVisible] = useState(false);
   const [isWinePairingVisible, setIsWinePairingVisible] = useState(false);
   const [isPlatingCoachVisible, setIsPlatingCoachVisible] = useState(false);
@@ -376,6 +391,25 @@ export default function RecipeDetailModal({
                     </TouchableOpacity>
                   </View>
 
+                  <View style={styles.textSizeRow}>
+                    <TouchableOpacity
+                      style={[styles.textSizeBtn, textLevel === 0 ? styles.textSizeBtnOff : null]}
+                      onPress={() => changeTextLevel(-1)}
+                      disabled={textLevel === 0}
+                      accessibilityLabel={t('text_smaller_a11y')}
+                    >
+                      <Text style={styles.textSizeBtnTextSmall}>A</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.textSizeBtn, textLevel === TEXT_SCALES.length - 1 ? styles.textSizeBtnOff : null]}
+                      onPress={() => changeTextLevel(1)}
+                      disabled={textLevel === TEXT_SCALES.length - 1}
+                      accessibilityLabel={t('text_larger_a11y')}
+                    >
+                      <Text style={styles.textSizeBtnTextBig}>A</Text>
+                    </TouchableOpacity>
+                  </View>
+
                   <Text style={styles.overlaySectionTitle}>{t('ingredients_title')} <Text style={styles.overlayServings}>• {recipe.servings} {t('servings_label')}</Text></Text>
 
                   <View style={styles.overlayTopActionsRow}>
@@ -423,7 +457,7 @@ export default function RecipeDetailModal({
                       {recipe.ingredients.map((ingredient, idx) => (
                         <View key={`${recipe.id}-ing-${idx}`} style={styles.overlayIngredientItem}>
                           <TouchableOpacity activeOpacity={0.6} onPress={() => setSubstitutionIngredient(ingredient)}>
-                            <Text style={styles.overlayIngredientText}>- {ingredient}</Text>
+                            <Text style={[styles.overlayIngredientText, { fontSize: 12 * textScale, lineHeight: 16 * textScale }]}>- {ingredient}</Text>
                           </TouchableOpacity>
                         </View>
                       ))}
@@ -450,7 +484,7 @@ export default function RecipeDetailModal({
                     recipe.methodSteps.map((step, idx) => (
                       <View key={`${recipe.id}-step-${idx}`} style={styles.overlayStepRow}>
                         <View style={styles.overlayStepNum}><Text style={styles.overlayStepNumText}>{idx + 1}</Text></View>
-                        <Text style={styles.overlayStepText}>{step}</Text>
+                        <Text style={[styles.overlayStepText, { fontSize: 12 * textScale, lineHeight: 18 * textScale }]}>{step}</Text>
                       </View>
                     ))
                   )}
@@ -640,6 +674,9 @@ export default function RecipeDetailModal({
     </Modal>
   );
 }
+
+const TEXT_LEVEL_KEY = 'fern_recipe_text_level';
+const TEXT_SCALES = [1, 1.3, 1.6, 2];
 
 const styles = StyleSheet.create({
   overlayBackdrop: {
@@ -917,6 +954,35 @@ const styles = StyleSheet.create({
   },
   overlayIngredientsList: {
     gap: 8,
+  },
+  textSizeRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginBottom: 6,
+  },
+  textSizeBtn: {
+    marginLeft: 8,
+    minWidth: 44,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#D9C9AF',
+    backgroundColor: '#FFFDF8',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  textSizeBtnOff: {
+    opacity: 0.35,
+  },
+  textSizeBtnTextSmall: {
+    color: '#1C512A',
+    fontSize: 13,
+    fontFamily: 'Jost-Bold',
+  },
+  textSizeBtnTextBig: {
+    color: '#1C512A',
+    fontSize: 22,
+    fontFamily: 'Jost-Bold',
   },
   overlayIngredientItem: {
     borderBottomWidth: 1,

@@ -907,6 +907,8 @@ export const translations = {
     // Recipe Detail Modal — extra actions
     already_saved_indicator: "✓ Already in your recipe box",
     action_scale: "↕ Scale",
+    text_smaller_a11y: "Make recipe text smaller",
+    text_larger_a11y: "Make recipe text larger",
     action_pair: "🍷 Pair",
     action_plate: "🎨 Plate",
     action_cook: "🎙 Cook",
@@ -2968,6 +2970,8 @@ export const translations = {
     // Recipe Detail Modal — acciones extra
     already_saved_indicator: "✓ Ya está en tu recetario",
     action_scale: "↕ Escalar",
+    text_smaller_a11y: "Hacer el texto de la receta más pequeño",
+    text_larger_a11y: "Hacer el texto de la receta más grande",
     action_pair: "🍷 Maridar",
     action_plate: "🎨 Emplatar",
     action_cook: "🎙 Cocinar",

@@ -99,7 +99,7 @@ Nearly every premium feature is a controlled modal component in `src/components/
 - `LanguageModal` (ungated) — EN/ES picker, backs `LanguageContext`.
 - `HelpModal` (ungated), `ChatSheetModal` (ungated) — mounted globally by `App.js`, not per-screen.
 
-**Shared infra components** (`src/components/`, not `modals/`): `RecipeDetailModal` (generic recipe viewer/editor reused across screens/modals), `UpgradeGateModal` (the paywall stand-in every gated modal renders), `TourModal` (onboarding bubble UI, global), `EventPlannerQuestionFlow`/`EventPlannerQuestionTypes` (the event planner's wizard engine).
+**Shared infra components** (`src/components/`, not `modals/`): `RecipeDetailModal` (generic recipe viewer/editor reused across screens/modals) — has small/large "A" buttons above the ingredients that scale the ingredient and method text through 4 levels (1×–2×), remembered in device-only `fern_recipe_text_level`, `UpgradeGateModal` (the paywall stand-in every gated modal renders), `TourModal` (onboarding bubble UI, global), `EventPlannerQuestionFlow`/`EventPlannerQuestionTypes` (the event planner's wizard engine).
 
 ## Translations (EN/ES)
 
