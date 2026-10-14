@@ -650,9 +650,13 @@ export default function ShoppingScreen({ user }) {
           </>
         ) : null}
 
+        {/* "This week's sales" only shows once a flyer has been scanned; the empty-state box is gone.
+            The bare anchor keeps the step strip's "Sales" scroll target working either way. */}
+        {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
+        {weekDeals.length ? (
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
-          <Text style={styles.checkoutSub}>{weekDeals.length ? t('sale_list_week_sub', { n: weekDeals.length }) : t('sale_list_week_empty')}</Text>
+          <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
           {weekDeals.length ? (
             <SaleItemsList
               deals={weekDeals}
@@ -673,6 +677,7 @@ export default function ShoppingScreen({ user }) {
             />
           ) : null}
         </View>
+        ) : null}
 
         {!greatDeals.length && !listCoupons.length ? (
           <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
