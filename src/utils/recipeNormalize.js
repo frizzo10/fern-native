@@ -105,7 +105,7 @@ export function normalizeRecipe(item, index) {
   const title = pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, 'Untitled recipe');
   const emoji = sanitizeEmoji(pickFirst(item?.emoji, item?.icon, item?.symbol, '🍽'));
   const category = pickFirst(item?.cuisine, item?.category, item?.type, item?.mealType, 'Dinner');
-  const meal = pickFirst(item?.slot, item?.meal, item?.course, 'Dinner');
+  const meal = pickFirst(item?.slot, item?.meal, item?.mealType, item?.course, 'Dinner');
   const time = pickFirst(item?.time, item?.minutes ? `${item.minutes} min` : null, item?.duration, '');
   const difficulty = pickFirst(item?.difficulty, item?.skillLevel, item?.level, 'Easy');
   const image = pickFirst(
