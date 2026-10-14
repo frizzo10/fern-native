@@ -10,6 +10,28 @@ import { dealSaving, fmtMoney } from '../../utils/savings';
 import MealPlannerImage from '../MealPlannerImage';
 import ListAddPreview from '../ListAddPreview';
 import { planShoppingAdditions } from '../../utils/shoppingListSync';
+import useEntitlement from '../../hooks/useEntitlement';
+import { TIERS } from '../../constants/tiers';
+import UpgradeGateModal from '../UpgradeGateModal';
+
+// Free plan: one week of dinners built from the sales per calendar month (device-only counter).
+// Counted when the dinners are actually added to the week, not when they are only previewed.
+const FREE_PLAN_KEY = 'fern_free_week_plans';
+const FREE_PLANS_PER_MONTH = 1;
+function monthKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+async function freePlansUsed() {
+  const rec = await readJson(FREE_PLAN_KEY, {});
+  return rec && rec.month === monthKey() ? Number(rec.count) || 0 : 0;
+}
+async function markFreePlanUsed() {
+  try {
+    const used = await freePlansUsed();
+    await AsyncStorage.setItem(FREE_PLAN_KEY, JSON.stringify({ month: monthKey(), count: used + 1 }));
+  } catch (e) { /* best effort */ }
+}
 
 async function readJson(key, fallback) {
   try {
@@ -27,6 +49,8 @@ async function readJson(key, fallback) {
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
 export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems }) {
+  const { hasAccess } = useEntitlement();
+  const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
   const [pending, setPending] = useState(null); // { picks, recipes } waiting on the list preview
   const [want, setWant] = useState(5);
@@ -193,6 +217,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
       await pushChangedFromStorage?.({ meal_plan: next });
       await onAddToList?.(recipes, { skip });
+      if (!hasAccess(TIERS.PRO)) await markFreePlanUsed();
       setSummary({ n: picks.length, lines });
       setPending(null);
       setPhase('done');
@@ -206,6 +231,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
 
   return (
     <View style={phase === 'idle' ? styles.bare : [styles.card, shadow.card]}>
+      <UpgradeGateModal visible={gate} onClose={() => setGate(false)} tier={TIERS.PRO} title={t('trip_limit_title')} desc={t('trip_limit_desc')} />
       {phase !== 'idle' ? <Text style={styles.title}>{`📅 ${t('trip_week_title')}`}</Text> : null}
       {phase !== 'idle' ? <Text style={styles.sub}>{t('trip_week_sub')}</Text> : null}
 
@@ -220,7 +246,10 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                 <TouchableOpacity style={styles.stepBtn} onPress={() => setWant((n) => Math.min(7, n + 1))}><Text style={styles.stepBtnText}>+</Text></TouchableOpacity>
               </View>
             </View>
-            <TouchableOpacity style={styles.primary} activeOpacity={0.88} onPress={() => setPhase('ask')}>
+            <TouchableOpacity style={styles.primary} activeOpacity={0.88} onPress={async () => {
+              if (!hasAccess(TIERS.PRO) && (await freePlansUsed()) >= FREE_PLANS_PER_MONTH) { setGate(true); return; }
+              setPhase('ask');
+            }}>
               <Text style={styles.primaryText}>{t('trip_week_plan_btn')}</Text>
             </TouchableOpacity>
           </View>
