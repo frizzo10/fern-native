@@ -36,6 +36,7 @@ Supabase is used in two different, inconsistent ways:
 **Voice pipeline.** There are two parallel hooks for the same Groq-backed voice loop:
 - `useContinuousMic` — always-listening hands-free mode with voice-activity detection (silence threshold `SILENCE_DB`/`SILENCE_MS` in the hook, auto-stops after `MAX_RECORDING_MS`), records via `expo-audio`, uploads to Groq Whisper directly from the client (`EXPO_PUBLIC_GROQ_KEY`), then round-trips through `ai` and `fern-speak` for a spoken reply, and re-arms itself after playback finishes. Gated at the `fern_voice_enabled` AsyncStorage flag (set from `AccountScreen`).
 - Ask Fern chat replies are spoken via `src/utils/spokenSummary.js` (first sentence or two, max ~220 chars; the full reply is still shown on screen) because Azure speech is billed per character.
+- **Spoken replies are Pro and up** (they cost per character): `useFernVoice` and `useContinuousMic` check `hasAccess(TIERS.PRO)`, so Free users get text only (no `fern-speak` calls, and `useContinuousMic` skips its own AI+speak round trip; mic transcription itself is still available). `TourModal` passes `allowFree: true` so the intro tour is still read aloud to everyone.
 - `useFernVoice` — a simpler one-shot "speak this text" / "get a reply, optionally speak it" hook used by individual screens (no recording/VAD).
 
 Both write synthesized speech to a local mp3 in `FileSystem.cacheDirectory` (manual base64 decode, since `expo-file-system/legacy` is used) and play it with `expo-audio`'s `useAudioPlayer`.

@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import * as FileSystem from 'expo-file-system/legacy';
 import { registerFernAudioStop } from '../utils/fernAudioBus';
+import useEntitlement from './useEntitlement';
+import { TIERS } from '../constants/tiers';
 const GROQ_URL = 'https://api.groq.com/openai/v1/audio/transcriptions';
 const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
@@ -17,6 +19,9 @@ function isFernVoiceEnabledValue(raw) {
 
 
 export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true, locale = 'en', token } = {}) {
+  // Spoken replies are a Pro feature (they cost per character); Free still gets the transcript.
+  const { hasAccess } = useEntitlement();
+  const speakReplies = autoSpeakReply && hasAccess(TIERS.PRO);
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -223,7 +228,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
       if (transcript) {
         onTranscript?.(transcript);
 
-        if (autoSpeakReply) {
+        if (speakReplies) {
           await processFernReply(transcript);
         }
       }
@@ -235,7 +240,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
 
     }
 
-  }, [onTranscript, autoSpeakReply, processFernReply]);
+  }, [onTranscript, speakReplies, processFernReply]);
 
   const start = useCallback(async () => {
     try {

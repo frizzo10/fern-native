@@ -33,6 +33,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLanguage from '../hooks/useLanguage';
 
+import useEntitlement from './useEntitlement';
+import { TIERS } from '../constants/tiers';
+
 const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
 const FERN_VOICE_ENABLED_KEY = 'fern_voice_enabled';
@@ -45,15 +48,19 @@ function isFernVoiceEnabledValue(raw) {
     return !['0', 'false', 'off', 'disabled'].includes(normalized);
 }
 
-export function useFernVoice({ onError, token, enabled = true } = {}) {
+export function useFernVoice({ onError, token, enabled = true, allowFree = false } = {}) {
     const { t, locale } = useLanguage();
+    // Spoken replies cost money per character, so they are a Pro feature. The intro tour passes
+    // allowFree so every new user still hears it.
+    const { hasAccess } = useEntitlement();
+    const allowed = enabled && (allowFree || hasAccess(TIERS.PRO));
     const [audioUri, setAudioUri] = useState(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
     const [lastReply, setLastReply] = useState('');
 
     const isMountedRef = useRef(true);
-    const enabledRef = useRef(enabled);
+    const enabledRef = useRef(allowed);
     const lastPlayedUriRef = useRef(null);
     const player = useAudioPlayer(audioUri ? { uri: audioUri } : null);
 
@@ -64,8 +71,8 @@ export function useFernVoice({ onError, token, enabled = true } = {}) {
     }, []);
 
     useEffect(() => {
-        enabledRef.current = enabled;
-        if (!enabled) {
+        enabledRef.current = allowed;
+        if (!allowed) {
             lastPlayedUriRef.current = null;
             setAudioUri(null);
             if (isMountedRef.current) {
@@ -79,10 +86,10 @@ export function useFernVoice({ onError, token, enabled = true } = {}) {
                 // Ignore cleanup errors while the sheet is closing.
             }
         }
-    }, [enabled, player]);
+    }, [allowed, player]);
 
     useEffect(() => {
-        if (!enabled || !audioUri || !player) return;
+        if (!allowed || !audioUri || !player) return;
 
         // Guard against replaying the same file when player identity changes on re-render.
         if (lastPlayedUriRef.current === audioUri) return;
@@ -100,7 +107,7 @@ export function useFernVoice({ onError, token, enabled = true } = {}) {
             }
             onError?.(error?.message ?? 'Unable to play audio');
         }
-    }, [enabled, audioUri, player, onError]);
+    }, [allowed, audioUri, player, onError]);
 
     useEffect(() => {
         if (!player) return;

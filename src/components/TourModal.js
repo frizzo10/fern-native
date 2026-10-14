@@ -8,7 +8,7 @@ import { useFernVoice } from '../hooks/useFernVoice';
 
 export default function TourModal({ visible, tour, storageKey, onClose, token, stepIndex, setStepIndex }) {
   const { t } = useLanguage();
-  const { speakText, stopSpeaking } = useFernVoice({ token, enabled: visible });
+  const { speakText, stopSpeaking } = useFernVoice({ token, enabled: visible, allowFree: true });
 
   const step = tour?.steps?.[stepIndex];
   const isLast = tour ? stepIndex === tour.steps.length - 1 : false;
