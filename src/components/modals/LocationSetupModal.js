@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Linking, ActivityIndicator, AppState } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useLanguage from '../../hooks/useLanguage';
-import { getLocationSetupStatus, isSetupComplete, requestLocationSetup } from '../../services/locationSetup';
+import { getLocationSetupStatus, isSetupComplete, needsAlways, requestLocationSetup } from '../../services/locationSetup';
 
 const C = { forest: '#1C3A1A', orange: '#E8651A', parch: '#FDFAF6', ink: '#1A0E05', brown: '#8C7A5F', border: '#E8E0D0', green: '#2E7D32' };
 
@@ -38,7 +38,7 @@ export default function LocationSetupModal({ visible, onDone }) {
 
   const rows = [
     { ok: status.foreground, label: t('loc_setup_row_loc') },
-    { ok: status.always, label: t('loc_setup_row_always') },
+    ...(needsAlways ? [{ ok: status.always, label: t('loc_setup_row_always') }] : []),
     { ok: status.notifications, label: t('loc_setup_row_notif') },
   ];
 
@@ -58,7 +58,7 @@ export default function LocationSetupModal({ visible, onDone }) {
               </View>
             ))}
           </View>
-          <Text style={s.hint}>{t('loc_setup_always_hint')}</Text>
+          {needsAlways ? <Text style={s.hint}>{t('loc_setup_always_hint')}</Text> : null}
         </View>
 
         <View style={s.footer}>

@@ -2,6 +2,7 @@
 // location (while using), "Always" location (so Fern is woken when the app is closed), and
 // notifications. The OS only lets the user grant these (no app can pre-set them), so this
 // is asked once, with an explanation, instead of three unexplained pop-ups at launch.
+import { Platform } from 'react-native';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -16,14 +17,16 @@ export async function getLocationSetupStatus() {
   return out;
 }
 
-export const isSetupComplete = (s) => s.foreground && s.always && s.notifications;
+// Android builds ship without background location (no "Always" step there), so only iOS needs it.
+export const needsAlways = Platform.OS !== 'android';
+export const isSetupComplete = (s) => s.foreground && (s.always || !needsAlways) && s.notifications;
 
 // Runs the prompts in order. iOS only asks for "Always" after "While Using" was granted,
 // and only shows it once; after that the user has to use Settings.
 export async function requestLocationSetup() {
   let fg = false;
   try { fg = (await Location.requestForegroundPermissionsAsync()).status === 'granted'; } catch (e) { /* ignore */ }
-  if (fg) { try { await Location.requestBackgroundPermissionsAsync(); } catch (e) { /* ignore */ } }
+  if (fg && needsAlways) { try { await Location.requestBackgroundPermissionsAsync(); } catch (e) { /* ignore */ } }
   try { await Notifications.requestPermissionsAsync(); } catch (e) { /* ignore */ }
   return getLocationSetupStatus();
 }
