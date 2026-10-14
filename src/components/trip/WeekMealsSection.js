@@ -33,6 +33,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
   const [cards, setCards] = useState([]); // [{ key, deal, ideas: [{id,title,time,emoji,why,sides,checked}], loading }]
   const [maxOpen, setMaxOpen] = useState(5);
   const [previews, setPreviews] = useState({});
+  const [sidePreviews, setSidePreviews] = useState({}); // `${idea.id}::${side}` -> { loading | failed | recipe }
   const [failed, setFailed] = useState('');
   const [summary, setSummary] = useState(null);
   const openKeys = useRef([]);
@@ -101,6 +102,19 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       setPreviews((p) => ({ ...p, [idea.id]: { recipe } }));
     } catch (e) {
       setPreviews((p) => ({ ...p, [idea.id]: { failed: true } }));
+    }
+  };
+
+  // Tap a side dish to see its recipe (tap again to hide).
+  const previewSide = async (idea, side) => {
+    const key = `${idea.id}::${side}`;
+    if (sidePreviews[key]) { setSidePreviews((p) => ({ ...p, [key]: undefined })); return; }
+    setSidePreviews((p) => ({ ...p, [key]: { loading: true } }));
+    try {
+      const recipe = await fetchMealPlanRecipeDetail({ title: side, locale, token });
+      setSidePreviews((p) => ({ ...p, [key]: { recipe } }));
+    } catch (e) {
+      setSidePreviews((p) => ({ ...p, [key]: { failed: true } }));
     }
   };
 
@@ -287,7 +301,27 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                           <MealPlannerImage title={idea.title} index={ii} variant="hero" />
                           <Text style={styles.sub}>{[pv.recipe.time, pv.recipe.difficulty].filter(Boolean).join(' · ')}</Text>
                           {pv.recipe.description ? <Text style={styles.previewText}>{pv.recipe.description}</Text> : null}
-                          {(idea.sides || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_sides', { sides: idea.sides.join(', ') })}</Text> : null}
+                          {(idea.sides || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_sides_label')}</Text> : null}
+                          {(idea.sides || []).map((side, si) => {
+                            const sp = sidePreviews[`${idea.id}::${side}`];
+                            return (
+                              <View key={`side-${si}`}>
+                                <TouchableOpacity onPress={() => previewSide(idea, side)} activeOpacity={0.8}>
+                                  <Text style={[styles.link, { marginTop: 4, textDecorationLine: 'underline' }]}>{`${sp ? '▾' : '▸'} ${side}`}</Text>
+                                </TouchableOpacity>
+                                {sp?.loading ? <ActivityIndicator color={colors.orange} style={{ marginTop: 4, alignSelf: 'flex-start' }} /> : null}
+                                {sp?.failed ? <Text style={styles.err}>{t('sale_list_recipes_failed')}</Text> : null}
+                                {sp?.recipe ? (
+                                  <View style={styles.previewBox}>
+                                    <Text style={styles.sub}>{[sp.recipe.time, sp.recipe.servings ? t('trip_side_servings', { n: sp.recipe.servings }) : ''].filter(Boolean).join(' · ')}</Text>
+                                    {(sp.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
+                                    {(sp.recipe.ingredients || []).map((ing, n) => <Text key={`si${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
+                                    {(sp.recipe.directions || []).map((st, n) => <Text key={`sd${n}`} style={styles.previewText}>{`${n + 1}. ${st}`}</Text>)}
+                                  </View>
+                                ) : null}
+                              </View>
+                            );
+                          })}
                           {(pv.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                           {(pv.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                           {(pv.recipe.instructions || []).map((s, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${s}`}</Text>)}
