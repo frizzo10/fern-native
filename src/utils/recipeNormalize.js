@@ -39,8 +39,22 @@ export function toList(value) {
   return [];
 }
 
+// The AI sometimes returns the whole method as ONE string ("1. Wash... 2. Boil... 3. ...").
+// Break that into separate steps and drop the leading "N." (the step circle already shows it).
+function splitNumberedSteps(text) {
+  const str = String(text || '').trim();
+  if (!str) return [];
+  if (/^\s*1[.)]\s/.test(str) && /\s2[.)]\s/.test(str)) {
+    const parts = str.split(/(?:^|\s)\d{1,2}[.)]\s+(?=\S)/).map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 1) return parts;
+  }
+  return [str.replace(/^\d{1,2}[.)]\s+/, '')];
+}
+
 export function toSteps(value) {
-  if (Array.isArray(value)) return toList(value);
+  if (Array.isArray(value)) {
+    return toList(value).flatMap((item) => (typeof item === 'string' ? splitNumberedSteps(item) : [item]));
+  }
   if (typeof value !== 'string') return [];
   const lines = value
     .split(/\n+/)
