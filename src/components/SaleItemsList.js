@@ -22,6 +22,8 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
   const [added, setAdded] = useState({});
   const [open, setOpen] = useState(null); // { key, loading, ideas, failed, idea, recipe, recipeLoading, done }
   const [sidePreviews, setSidePreviews] = useState({}); // `${idea.title}::${side}` -> { loading | failed | recipe }
+  const [sideAdds, setSideAdds] = useState({}); // `${idea.title}::${side}` -> { reviewing, saving, done }
+  const setSideAdd = (k, patch) => setSideAdds((p) => ({ ...p, [k]: { ...(p[k] || {}), ...patch } }));
   const [meal, setMeal] = useState('Dinner'); // which meal "Cook it on" puts the dish in
 
   // Tap a side to see how to make it (same lookup the Shopping week-of-dinners cards use).
@@ -173,6 +175,30 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                                         <Text style={styles.sub}>{[sp.recipe.time, sp.recipe.servings ? t('trip_side_servings', { n: sp.recipe.servings }) : ''].filter(Boolean).join(' · ')}</Text>
                                         {(sp.recipe.ingredients || []).map((ing, n) => <Text key={`si${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                                         {(sp.recipe.directions || []).map((st, n) => <Text key={`sd${n}`} style={styles.previewText}>{`${n + 1}. ${st}`}</Text>)}
+                                        {(() => {
+                                          const sk = `${idea.title}::${side}`;
+                                          const sa = sideAdds[sk] || {};
+                                          const sideList = { title: side, ingredients: sp.recipe.ingredients || [] };
+                                          return sa.reviewing && !sa.done ? (
+                                            <ListAddPreview
+                                              lines={planShoppingAdditions([sideList], shoppingItems)}
+                                              t={t}
+                                              busy={Boolean(sa.saving)}
+                                              onConfirm={async (skip) => {
+                                                setSideAdd(sk, { saving: true });
+                                                try {
+                                                  await onAddRecipe?.(sideList, deal, { skip });
+                                                  setSideAdd(sk, { done: true, saving: false, reviewing: false });
+                                                } catch (e) { setSideAdd(sk, { saving: false }); }
+                                              }}
+                                              onCancel={() => setSideAdd(sk, { reviewing: false })}
+                                            />
+                                          ) : (
+                                            <TouchableOpacity style={[styles.btn, { alignSelf: 'flex-start', marginTop: 8 }, sa.done ? styles.btnOn : null]} disabled={Boolean(sa.done)} activeOpacity={0.85} onPress={() => setSideAdd(sk, { reviewing: true })}>
+                                              <Text style={[styles.btnText, sa.done ? styles.btnTextOn : null]}>{sa.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
+                                            </TouchableOpacity>
+                                          );
+                                        })()}
                                       </View>
                                     ) : null}
                                   </View>

@@ -356,6 +356,30 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                                     {(sp.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                                     {(sp.recipe.ingredients || []).map((ing, n) => <Text key={`si${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                                     {(sp.recipe.directions || []).map((st, n) => <Text key={`sd${n}`} style={styles.previewText}>{`${n + 1}. ${st}`}</Text>)}
+                                    {(() => {
+                                      const sk = `side:${idea.id}::${side}`;
+                                      const sa = extras[sk] || {};
+                                      const sideList = { title: side, ingredients: sp.recipe.ingredients || [] };
+                                      return sa.reviewing && !sa.done ? (
+                                        <ListAddPreview
+                                          lines={planShoppingAdditions([sideList], shoppingItems)}
+                                          t={t}
+                                          busy={Boolean(sa.saving)}
+                                          onConfirm={async (skip) => {
+                                            setExtra(sk, { saving: true });
+                                            try {
+                                              await onAddToList?.([sideList], { skip });
+                                              setExtra(sk, { done: true, saving: false, reviewing: false });
+                                            } catch (e) { setExtra(sk, { saving: false }); }
+                                          }}
+                                          onCancel={() => setExtra(sk, { reviewing: false })}
+                                        />
+                                      ) : (
+                                        <TouchableOpacity style={[styles.addBtn, sa.done ? styles.addBtnOn : null]} disabled={Boolean(sa.done)} activeOpacity={0.85} onPress={() => setExtra(sk, { reviewing: true })}>
+                                          <Text style={[styles.addBtnText, sa.done ? { color: '#2F7D4F' } : null]}>{sa.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
+                                        </TouchableOpacity>
+                                      );
+                                    })()}
                                   </View>
                                 ) : null}
                               </View>
