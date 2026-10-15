@@ -127,6 +127,18 @@ export default function ShoppingScreen({ user }) {
   // "Fern guides your week": null = normal screen, else 'list' | 'meals' | 'ready'.
   const [guideStep, setGuideStep] = useState(null);
   const [guideStore, setGuideStore] = useState('');
+  // Opened from the Home "Shopping list" card: show only the list (title, add row, list),
+  // not the flyer/sales/coupons/dinners trip. Any trip entry (scan a flyer, arrival, etc.) turns it off.
+  const [listOnly, setListOnly] = useState(false);
+  useEffect(() => {
+    if (!route?.params?.listOnly) return;
+    setGuideStep(null);
+    setListOnly(true);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [route?.params?.listOnly]);
+  useEffect(() => {
+    if (route?.params?.guide || route?.params?.tripStart || route?.params?.tripDone || route?.params?.everyday || route?.params?.flyerScanned) setListOnly(false);
+  }, [route?.params?.guide, route?.params?.tripStart, route?.params?.tripDone, route?.params?.everyday, route?.params?.flyerScanned]);
   const [shopModeVoice, setShopModeVoice] = useState(false);
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
   const [catalogError, setCatalogError] = useState('');
@@ -663,7 +675,7 @@ export default function ShoppingScreen({ user }) {
 
         {(!guideStep || guideStep === 'list') ? (
         <>
-        {!guideStep ? (
+        {!guideStep && !listOnly ? (
         <FernGreetingCard
           alwaysSpeak={guideStep === 'list'}
           hideSuggestions={guideStep === 'list'}
@@ -703,7 +715,7 @@ export default function ShoppingScreen({ user }) {
         </>
         ) : null}
 
-        {(!guideStep || guideStep === 'list') ? (
+        {(!guideStep || guideStep === 'list') && !listOnly ? (
         <View onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
           <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
         </View>
@@ -749,7 +761,7 @@ export default function ShoppingScreen({ user }) {
         {/* "This week's sales" only shows once a flyer has been scanned; the empty-state box is gone.
             The bare anchor keeps the step strip's "Sales" scroll target working either way. */}
         {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
-        {weekDeals.length > 0 && (!guideStep || guideStep === 'list') ? (
+        {weekDeals.length > 0 && (!guideStep || guideStep === 'list') && !listOnly ? (
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
           <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
@@ -775,7 +787,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {!greatDeals.length && !listCoupons.length && guideStep !== 'meals' ? (
+        {!greatDeals.length && !listCoupons.length && guideStep !== 'meals' && !listOnly ? (
           <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
             {catalogState === 'loading' ? t('sav_status_loading')
               : coupons.length ? t('sav_status_none', { n: coupons.length })
@@ -785,7 +797,7 @@ export default function ShoppingScreen({ user }) {
 
         <View onLayout={(e) => { sectionY.current.coupons = e.nativeEvent.layout.y; }} />
 
-        {(!guideStep || guideStep === 'meals' || guideStep === 'list') ? (
+        {(!guideStep || guideStep === 'meals' || guideStep === 'list') && !listOnly ? (
         <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
           <WeekMealsSection
             autoStart={guideStep === 'list'}
@@ -802,7 +814,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {(greatDeals.length > 0 || listCoupons.length > 0) && guideStep !== 'meals' ? (
+        {(greatDeals.length > 0 || listCoupons.length > 0) && guideStep !== 'meals' && !listOnly ? (
           <View style={[styles.greatCard, shadow.card]}>
             <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
             {listCoupons.length ? (

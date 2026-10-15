@@ -2846,7 +2846,7 @@ export default function HomeScreen({ user, route }) {
             <View style={[styles.panelCard, shadow.card]}>
               <View style={styles.panelHeaderRow}>
                 <Text style={styles.panelTitle}>{t('shopping_list_title')}</Text>
-                <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Shopping')}>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('Shopping', { listOnly: Date.now() })}>
                   <Text style={styles.panelLink}>{t('view_link')}</Text>
                 </TouchableOpacity>
               </View>
