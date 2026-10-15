@@ -936,7 +936,7 @@ export default function ShoppingScreen({ user }) {
         <>
         {items.length ? (
           <View style={styles.listWrap}>
-            <Text style={styles.bigListTitle}>{t('shopping_list_title')}</Text>
+            {guideStep ? <Text style={styles.bigListTitle}>{t('shopping_list_title')}</Text> : null}
             <Text style={styles.listMeta}>
               {remainingCount === 1
                 ? t('items_remaining_singular', { count: remainingCount })
