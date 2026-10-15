@@ -132,17 +132,6 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                     <Text style={styles.recipeBtnText}>{open?.key === key ? t('sale_list_close') : t('sale_list_recipes')}</Text>
                   </TouchableOpacity>
                 ) : null}
-                <TouchableOpacity
-                  style={[styles.btn, done ? styles.btnOn : null]}
-                  activeOpacity={0.85}
-                  disabled={done}
-                  onPress={() => {
-                    setAdded((prev) => ({ ...prev, [key]: true }));
-                    onAdd?.(deal);
-                  }}
-                >
-                  <Text style={[styles.btnText, done ? styles.btnTextOn : null]}>{done ? t('sale_list_on_list') : t('sale_list_add')}</Text>
-                </TouchableOpacity>
               </View>
               {isOpen ? (
                 <View style={styles.ideas}>

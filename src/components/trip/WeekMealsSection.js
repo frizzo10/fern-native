@@ -48,7 +48,7 @@ async function readJson(key, fallback) {
 // every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
-export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, autoStart = false }) {
+export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false }) {
   const { hasAccess } = useEntitlement();
   const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
@@ -64,6 +64,8 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
   const prefs = useRef({});
   const [mood, setMood] = useState('');
   const [busy, setBusy] = useState('');
+  const [extras, setExtras] = useState({}); // idea.id -> { meal, planned, reviewing, saving, done } for the per-recipe controls
+  const setExtra = (id, patch) => setExtras((p) => ({ ...p, [id]: { ...(p[id] || {}), ...patch } }));
 
   const total = cards.reduce((a, c) => a + c.ideas.filter((x) => x.checked).length, 0);
   const noteFor = () => [
@@ -362,6 +364,65 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                           {(pv.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                           {(pv.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                           {(pv.recipe.instructions || []).map((s, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${s}`}</Text>)}
+                          {(() => {
+                            const ex = extras[idea.id] || {};
+                            const meal = ex.meal || 'Dinner';
+                            const forList = { title: pv.recipe.title || idea.title, ingredients: [...(pv.recipe.ingredients || []), ...(idea.sides || [])] };
+                            return (
+                              <View>
+                                {onPlanDay ? (
+                                  <View style={{ marginTop: 10 }}>
+                                    <Text style={[styles.previewText, { fontWeight: '700' }]}>{ex.planned ? t('sale_list_planned_on', { day: ex.planned }) : t('sale_list_cook_on')}</Text>
+                                    {ex.planned ? null : (
+                                      <View style={styles.dayRow}>
+                                        {[['Breakfast', 'meal_planner_slot_breakfast'], ['Lunch', 'meal_planner_slot_lunch'], ['Dinner', 'meal_planner_slot_dinner']].map(([slot, k]) => (
+                                          <TouchableOpacity key={slot} style={[styles.dayChip, meal === slot ? styles.mealChipOn : null]} activeOpacity={0.85} onPress={() => setExtra(idea.id, { meal: slot })}>
+                                            <Text style={[styles.dayChipText, meal === slot ? { color: '#fff' } : null]}>{t(k)}</Text>
+                                          </TouchableOpacity>
+                                        ))}
+                                      </View>
+                                    )}
+                                    {ex.planned ? null : (
+                                      <View style={styles.dayRow}>
+                                        {buildRollingWeekDateKeys().map((dk) => {
+                                          const label = parseDateKey(dk).toLocaleDateString(locale === 'es' ? 'es' : 'en-US', { weekday: 'short', day: 'numeric' });
+                                          return (
+                                            <TouchableOpacity key={dk} style={styles.dayChip} activeOpacity={0.85} onPress={async () => {
+                                              try {
+                                                await onPlanDay({ title: pv.recipe.title || idea.title, emoji: idea.emoji, slot: meal, sides: idea.sides || [] }, dk);
+                                                setExtra(idea.id, { planned: `${label} · ${t(`meal_planner_slot_${meal.toLowerCase()}`)}` });
+                                              } catch (e) {}
+                                            }}>
+                                              <Text style={styles.dayChipText}>{label}</Text>
+                                            </TouchableOpacity>
+                                          );
+                                        })}
+                                      </View>
+                                    )}
+                                  </View>
+                                ) : null}
+                                {ex.reviewing && !ex.done ? (
+                                  <ListAddPreview
+                                    lines={planShoppingAdditions([forList], shoppingItems)}
+                                    t={t}
+                                    busy={Boolean(ex.saving)}
+                                    onConfirm={async (skip) => {
+                                      setExtra(idea.id, { saving: true });
+                                      try {
+                                        await onAddToList?.([forList], { skip });
+                                        setExtra(idea.id, { done: true, saving: false, reviewing: false });
+                                      } catch (e) { setExtra(idea.id, { saving: false }); }
+                                    }}
+                                    onCancel={() => setExtra(idea.id, { reviewing: false })}
+                                  />
+                                ) : (
+                                  <TouchableOpacity style={[styles.addBtn, ex.done ? styles.addBtnOn : null]} disabled={Boolean(ex.done)} activeOpacity={0.85} onPress={() => setExtra(idea.id, { reviewing: true })}>
+                                    <Text style={[styles.addBtnText, ex.done ? { color: '#2F7D4F' } : null]}>{ex.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            );
+                          })()}
                         </View>
                       ) : null}
                     </View>
@@ -437,6 +498,13 @@ const styles = StyleSheet.create({
   link: { color: colors.orange, fontSize: 13, fontWeight: '700' },
   previewBox: { marginTop: 6, marginLeft: 34, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#E4DCD2' },
   previewText: { fontSize: 13, color: '#2D1B10', marginTop: 3, lineHeight: 18 },
+  dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
+  dayChip: { borderWidth: 1, borderColor: '#E4DCD2', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  mealChipOn: { backgroundColor: '#2D1B10', borderColor: '#2D1B10' },
+  dayChipText: { fontSize: 13, color: '#2D1B10', fontWeight: '700' },
+  addBtn: { alignSelf: 'flex-start', marginTop: 8, backgroundColor: colors.orange, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  addBtnOn: { backgroundColor: '#E6F1EA' },
+  addBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   swapRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
   count: { fontSize: 13, color: '#7a6d60', textAlign: 'center', marginTop: 14 },
   done: { marginTop: 10, backgroundColor: '#E6F1EA', borderRadius: 12, padding: 12 },

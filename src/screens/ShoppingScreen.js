@@ -794,6 +794,7 @@ export default function ShoppingScreen({ user }) {
             token={user?.token}
             weekDeals={weekDeals}
             onAddToList={addRecipesToList}
+            onPlanDay={planDinnerOnDay}
             shoppingItems={items}
             pushChangedFromStorage={pushChangedFromStorage}
             onChanged={pull}
