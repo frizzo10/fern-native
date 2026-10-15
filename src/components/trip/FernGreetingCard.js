@@ -22,7 +22,7 @@ function dayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function FernGreetingCard({ t, locale, token, items, weekDeals, recipes, mealPlan, onAddItems, onPlan, onScan }) {
+export default function FernGreetingCard({ t, locale, token, items, weekDeals, recipes, mealPlan, onAddItems, onPlan, onScan, alwaysSpeak = false }) {
   const [state, setState] = useState('loading'); // loading | ready | hidden
   const [result, setResult] = useState(null);
   const [doneIdx, setDoneIdx] = useState([]);
@@ -32,7 +32,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
     token,
     enabled: true,
   });
-  const inFlight = useRef(false);
+  const reqId = useRef(0);
   const itemsRef = useRef(items);
   itemsRef.current = items;
 
@@ -44,8 +44,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
   const sig = `${dayKey()}|${(weekDeals || []).length}|${emptyDinners}`;
 
   const load = useCallback(async (force) => {
-    if (inFlight.current) return;
-    inFlight.current = true;
+    const myReq = ++reqId.current;
     try {
       if (!force) {
         try {
@@ -65,15 +64,14 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
         locale,
         token,
       });
+      if (myReq !== reqId.current) return; // a newer request (flyer finished loading) supersedes this one
       if (!out) { setState('hidden'); return; }
       setResult(out);
       setDoneIdx([]);
       setState('ready');
       try { await AsyncStorage.setItem(CACHE_KEY, JSON.stringify({ sig, result: out })); } catch (e) { /* best effort */ }
     } catch (e) {
-      setState('hidden');
-    } finally {
-      inFlight.current = false;
+      if (myReq === reqId.current) setState('hidden');
     }
   }, [sig, weekDeals, recipes, emptyDinners, locale, token]);
 
@@ -87,7 +85,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
     let cancelled = false;
     (async () => {
       try {
-        if ((await AsyncStorage.getItem(SPOKEN_KEY)) === sig) return;
+        if (!alwaysSpeak && (await AsyncStorage.getItem(SPOKEN_KEY)) === sig) return;
         if (cancelled) return;
         await AsyncStorage.setItem(SPOKEN_KEY, sig);
         speakText(spokenText);

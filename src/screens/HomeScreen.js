@@ -1495,7 +1495,7 @@ export default function HomeScreen({ user, route }) {
       setFlyerScan({ phase: 'done', count: items.length, store: String(result.store || '').trim() });
       await new Promise((r) => setTimeout(r, 1800));
       setFlyerScan(null);
-      navigation.navigate('Shopping', { flyerScanned: Date.now() });
+      navigation.navigate('Shopping', { guide: Date.now(), guideStore: String(result.store || '').trim() });
     } catch (e) {
       console.log('[home] flyer scan failed', e?.message || e);
       setFlyerScan(null);

@@ -122,7 +122,7 @@ export default function ShoppingScreen({ user }) {
   const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
   const tripChatOpen = tripChatMode === 'voice' || tripChatMode === 'text';
   const [shopModeOpen, setShopModeOpen] = useState(false);
-  // "Fern guides your week": null = normal screen, else 'flyer' | 'meals' | 'coupons' | 'done'.
+  // "Fern guides your week": null = normal screen, else 'list' | 'meals' | 'ready'.
   const [guideStep, setGuideStep] = useState(null);
   const [guideStore, setGuideStore] = useState('');
   const [shopModeVoice, setShopModeVoice] = useState(false);
@@ -181,7 +181,7 @@ export default function ShoppingScreen({ user }) {
   useEffect(() => {
     if (!route?.params?.guide) return;
     setGuideStore(String(route.params.guideStore || ''));
-    setGuideStep('flyer');
+    setGuideStep('list');
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   }, [route?.params?.guide]);
 
@@ -605,26 +605,24 @@ export default function ShoppingScreen({ user }) {
     }
   };
 
-  const GUIDE_STEPS = ['flyer', 'meals', 'coupons', 'done'];
+  const GUIDE_STEPS = ['list', 'meals', 'ready'];
   const guideIdx = guideStep ? GUIDE_STEPS.indexOf(guideStep) : -1;
   const couponCount = greatDeals.length + listCoupons.length;
   const guideTitle = guideStep ? t(`guide_title_${guideStep}`) : '';
-  const guideLine = !guideStep ? '' : guideStep === 'flyer'
-    ? (weekDeals.length ? t('guide_say_flyer_done', { n: weekDeals.length })
-      : guideStore ? t('guide_say_flyer_store', { store: guideStore.split(/ - | #/)[0] }) : t('guide_say_flyer'))
+  // 'list': the AI greeting card (FernGreetingCard) does the talking, so the bar itself stays quiet.
+  const guideLine = !guideStep || guideStep === 'list' ? ''
     : guideStep === 'meals' ? t('guide_say_meals')
-    : guideStep === 'coupons' ? (couponCount ? t('guide_say_coupons', { n: couponCount }) : t('guide_say_coupons_none'))
-    : t('guide_say_done', { n: items.filter((i) => !i.checked).length });
+    : t('guide_say_ready', { n: items.filter((i) => !i.checked).length });
   const guideNext = () => {
-    if (guideIdx >= GUIDE_STEPS.length - 1) { setGuideStep(null); return; }
+    if (guideIdx >= GUIDE_STEPS.length - 1) { setGuideStep(null); startShopping(); return; }
     setGuideStep(GUIDE_STEPS[guideIdx + 1]);
     scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
   const guideBack = () => {
     if (guideIdx > 0) { setGuideStep(GUIDE_STEPS[guideIdx - 1]); scrollRef.current?.scrollTo({ y: 0, animated: false }); }
   };
-  const guideNextLabel = guideStep === 'done' ? t('guide_finish')
-    : guideStep === 'flyer' && !weekDeals.length ? t('guide_skip')
+  const guideNextLabel = guideStep === 'ready' ? t('guide_ready_btn')
+    : guideStep === 'list' ? t('guide_next_meals')
     : t('guide_next');
 
   return (
@@ -658,9 +656,10 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {!guideStep ? (
+        {(!guideStep || guideStep === 'list') ? (
         <>
         <FernGreetingCard
+          alwaysSpeak={guideStep === 'list'}
           t={t}
           locale={locale}
           token={user?.token}
@@ -693,14 +692,16 @@ export default function ShoppingScreen({ user }) {
           </TouchableOpacity>
         </View>
 
-        <View onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
-          <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
-        </View>
-
         </>
         ) : null}
 
-        {guideStep === 'flyer' && !weekDeals.length ? (
+        {!guideStep ? (
+        <View onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
+          <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
+        </View>
+        ) : null}
+
+        {guideStep === 'list' && !weekDeals.length ? (
           <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
             <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
           </View>
@@ -740,7 +741,7 @@ export default function ShoppingScreen({ user }) {
         {/* "This week's sales" only shows once a flyer has been scanned; the empty-state box is gone.
             The bare anchor keeps the step strip's "Sales" scroll target working either way. */}
         {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
-        {weekDeals.length > 0 && (!guideStep || guideStep === 'flyer') ? (
+        {weekDeals.length > 0 && (!guideStep || guideStep === 'list') ? (
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
           <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
@@ -766,7 +767,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {!greatDeals.length && !listCoupons.length && (!guideStep || guideStep === 'coupons') ? (
+        {!greatDeals.length && !listCoupons.length && (!guideStep || guideStep === 'ready') ? (
           <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
             {catalogState === 'loading' ? t('sav_status_loading')
               : coupons.length ? t('sav_status_none', { n: coupons.length })
@@ -791,7 +792,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {(greatDeals.length > 0 || listCoupons.length > 0) && (!guideStep || guideStep === 'coupons') ? (
+        {(greatDeals.length > 0 || listCoupons.length > 0) && (!guideStep || guideStep === 'ready') ? (
           <View style={[styles.greatCard, shadow.card]}>
             <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
             {listCoupons.length ? (
@@ -909,7 +910,7 @@ export default function ShoppingScreen({ user }) {
 
         <View onLayout={(e) => { sectionY.current.savings = e.nativeEvent.layout.y; }} />
 
-        {(!guideStep || guideStep === 'done') ? (
+        {(!guideStep || guideStep === 'list' || guideStep === 'ready') ? (
         <>
         {items.length ? (
           <View style={styles.listWrap}>
