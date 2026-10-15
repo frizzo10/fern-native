@@ -775,7 +775,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {!greatDeals.length && !listCoupons.length && (!guideStep || guideStep === 'ready') ? (
+        {!greatDeals.length && !listCoupons.length && guideStep !== 'meals' ? (
           <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
             {catalogState === 'loading' ? t('sav_status_loading')
               : coupons.length ? t('sav_status_none', { n: coupons.length })
@@ -802,7 +802,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {(greatDeals.length > 0 || listCoupons.length > 0) && (!guideStep || guideStep === 'ready') ? (
+        {(greatDeals.length > 0 || listCoupons.length > 0) && guideStep !== 'meals' ? (
           <View style={[styles.greatCard, shadow.card]}>
             <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
             {listCoupons.length ? (
