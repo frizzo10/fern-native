@@ -37,6 +37,8 @@ import { storeAtPosition } from '../utils/flyerStore';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import ShoppingModeModal from '../components/trip/ShoppingModeModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
+import { buildPlanSystemPrompt, planOpenerPrompt } from '../utils/planChat';
+import { buildRollingWeekDateKeys as planWeekKeys } from '../utils/familyDates';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
 import { normalizeCoupons } from '../utils/couponNormalize';
@@ -125,6 +127,7 @@ export default function ShoppingScreen({ user }) {
   // "Fern guides your week": null = normal screen, else 'list' | 'meals' | 'ready'.
   const [guideStep, setGuideStep] = useState(null);
   const [guideStore, setGuideStore] = useState('');
+  const [planChat, setPlanChat] = useState(null); // null | { deals, store } — Fern's spoken planning conversation after a circular loads
   const [shopModeVoice, setShopModeVoice] = useState(false);
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
   const [catalogError, setCatalogError] = useState('');
@@ -183,6 +186,9 @@ export default function ShoppingScreen({ user }) {
     setGuideStore(String(route.params.guideStore || ''));
     setGuideStep('list');
     scrollRef.current?.scrollTo({ y: 0, animated: false });
+    // The flyer is digitized: Fern starts talking right away.
+    const store = String(route.params.guideStore || '');
+    loadWeekDeals().then((list) => { setWeekDeals(list); setPlanChat({ deals: pickStarDeals(list, 12), store }); }).catch(() => setPlanChat({ deals: [], store }));
   }, [route?.params?.guide]);
 
   const reloadDeals = () => loadWeekDeals().then(setWeekDeals);
@@ -1099,6 +1105,29 @@ export default function ShoppingScreen({ user }) {
           await persistShopping(items.map((it) => (wanted.has(it.id) ? { ...it, checked } : it)));
         }}
       />
+      {planChat && (
+        <ChatSheetModal
+          visible
+          onClose={() => { setPlanChat(null); pull(); }}
+          user={user}
+          title={`🌿 ${t('plan_chat_title')}`}
+          mode="voice"
+          systemPrompt={buildPlanSystemPrompt({ store: planChat.store, deals: planChat.deals, list: items, savedTitles: (data.recipes || []).map((r) => r?.title).filter(Boolean), mealPlan: data.mealPlan || {} })}
+          autoOpenerPrompt={planOpenerPrompt(planChat.store)}
+          onAction={(parsed) => {
+            const meals = Array.isArray(parsed?.add_meals) ? parsed.add_meals : [];
+            const keys = planWeekKeys();
+            (async () => {
+              for (const m of meals) {
+                const title = String(m?.title || '').trim();
+                const dateKey = keys[Math.max(0, Math.min(keys.length - 1, Number(m?.day_offset) || 0))];
+                if (title && dateKey) await planDinnerOnDay({ title, slot: m?.slot || 'Dinner', emoji: m?.emoji || '🍽️' }, dateKey);
+              }
+            })().catch(() => {});
+            return null;
+          }}
+        />
+      )}
       {listChat && (
         <ChatSheetModal
           visible
