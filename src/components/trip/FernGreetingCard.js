@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useIsFocused } from '@react-navigation/native';
 import { colors } from '../../constants/tokens';
+import { useFernVoice } from '../../hooks/useFernVoice';
+import { spokenSummary } from '../../utils/spokenSummary';
 import { fetchShoppingGreeting } from '../../services/shoppingGreetingService';
 import { buildRollingWeekDateKeys } from '../../utils/familyDates';
 import { toShoppingName } from '../../utils/shoppingName';
@@ -12,6 +15,7 @@ import { pickStarDeals } from '../../utils/starDeals';
 // One call per day (cache key `fern_shop_greeting`, device-only) unless the flyer or the number of
 // empty dinners changes or the user taps refresh. Any failure just hides the card.
 const CACHE_KEY = 'fern_shop_greeting';
+const SPOKEN_KEY = 'fern_shop_greeting_spoken'; // the sig we already read aloud, so it autoplays once a day
 
 function dayKey() {
   const d = new Date();
@@ -22,6 +26,12 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
   const [state, setState] = useState('loading'); // loading | ready | hidden
   const [result, setResult] = useState(null);
   const [doneIdx, setDoneIdx] = useState([]);
+  const focused = useIsFocused();
+  const { speakText, stopSpeaking, isSpeaking } = useFernVoice({
+    onError: (m) => console.warn('[FernGreetingCard] voice error:', m),
+    token,
+    enabled: true,
+  });
   const inFlight = useRef(false);
   const itemsRef = useRef(items);
   itemsRef.current = items;
@@ -69,6 +79,24 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
 
   useEffect(() => { load(false); }, [sig]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fern says the opening out loud: once a day automatically (while Shopping is on screen and
+  // voice is on in Account), and any time via the speaker button. Stops when you leave the screen.
+  const spokenText = result ? spokenSummary(`${result.greeting || ''} ${result.suggestions?.[0]?.text || ''}`) : '';
+  useEffect(() => {
+    if (state !== 'ready' || !focused || !spokenText) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        if ((await AsyncStorage.getItem(SPOKEN_KEY)) === sig) return;
+        if (cancelled) return;
+        await AsyncStorage.setItem(SPOKEN_KEY, sig);
+        speakText(spokenText);
+      } catch (e) { /* best effort */ }
+    })();
+    return () => { cancelled = true; };
+  }, [state, focused, spokenText, sig]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!focused) stopSpeaking(); }, [focused]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (state === 'hidden') return null;
 
   const onList = new Set(items.map((i) => String(i.text).toLowerCase()));
@@ -78,9 +106,16 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
     <View style={styles.card}>
       <View style={styles.head}>
         <Text style={styles.title}>{`🌿 ${t('greet_title')}`}</Text>
-        <TouchableOpacity onPress={() => load(true)} disabled={state === 'loading'} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Text style={styles.refresh}>{t('greet_refresh')}</Text>
-        </TouchableOpacity>
+        <View style={styles.headRight}>
+          {state === 'ready' && spokenText ? (
+            <TouchableOpacity onPress={() => (isSpeaking ? stopSpeaking() : speakText(spokenText))} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.refresh}>{isSpeaking ? '⏹' : '🔊'}</Text>
+            </TouchableOpacity>
+          ) : null}
+          <TouchableOpacity onPress={() => load(true)} disabled={state === 'loading'} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Text style={styles.refresh}>{t('greet_refresh')}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
       {state === 'loading' ? (
         <View style={styles.loadRow}>
@@ -126,6 +161,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
 const styles = StyleSheet.create({
   card: { backgroundColor: '#FFF8EF', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.orange },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
   title: { fontSize: 16, fontWeight: '800', color: '#2D1B10' },
   refresh: { fontSize: 13, fontWeight: '700', color: colors.forest },
   greeting: { fontSize: 15, color: '#2D1B10', lineHeight: 21, marginTop: 8 },
