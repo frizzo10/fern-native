@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../../constants/tokens';
@@ -48,7 +48,7 @@ async function readJson(key, fallback) {
 // every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
-export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems }) {
+export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, autoStart = false }) {
   const { hasAccess } = useEntitlement();
   const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
@@ -75,6 +75,14 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     busy === 'relaxed' ? 'A relaxed week: there is time for a couple of dinners that take longer to cook.' : '',
   ].filter(Boolean).join(' ');
 
+  // Opened for a freshly loaded flyer: build dinner ideas for the three best-value items without a tap.
+  const autoStarted = useRef(false);
+  useEffect(() => {
+    if (!autoStart || autoStarted.current || phase !== 'idle' || !(weekDeals || []).length) return;
+    autoStarted.current = true;
+    start();
+  }, [autoStart, weekDeals]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const start = async () => {
     setFailed('');
     setPhase('loading');
@@ -86,7 +94,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       setMaxOpen(open.length);
       if (!open.length) { setFailed(t('trip_week_no_open')); setPhase('idle'); return; }
       const n = Math.max(1, Math.min(open.length, want));
-      const starCount = Math.min(4, Math.max(2, Math.ceil(n / 2)));
+      const starCount = autoStart ? 3 : Math.min(4, Math.max(2, Math.ceil(n / 2)));
       const stars = pickStarDeals(weekDeals, starCount, '');
       if (!stars.length) { setFailed(t('trip_week_failed')); setPhase('idle'); return; }
       const exclude = Object.values(mealPlan).flat().map((e) => String(e?.title || '')).filter(Boolean);
