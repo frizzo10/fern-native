@@ -22,6 +22,7 @@ import Confetti from '../components/Confetti';
 import SaleItemsList from '../components/SaleItemsList';
 import FlyerSection from '../components/trip/FlyerSection';
 import WeekMealsSection from '../components/trip/WeekMealsSection';
+import CouponPreviewModal from '../components/trip/CouponPreviewModal';
 import { addRecipesToShoppingList, buyCount } from '../utils/shoppingListSync';
 import { AISLES, aisleFor } from '../utils/aisles';
 import { toShoppingName } from '../utils/shoppingName';
@@ -98,6 +99,7 @@ export default function ShoppingScreen({ user }) {
   const [saving, setSaving] = useState(false);
   const [sendingToStore, setSendingToStore] = useState(null);
   const [remainingItemsModal, setRemainingItemsModal] = useState(null);
+  const [couponPreview, setCouponPreview] = useState(null); // { coupon, itemText?, level?, kind: 'list' | 'great', match? }
   const scrollRef = useRef(null);
   const sectionY = useRef({});
   const [weekDeals, setWeekDeals] = useState([]);
@@ -714,13 +716,14 @@ export default function ShoppingScreen({ user }) {
               const inWallet = walletIds.has(String(c.id));
               return (
                 <View key={c.id} style={styles.couponRow}>
-                  <View style={{ flex: 1 }}>
+                  <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.7} onPress={() => setCouponPreview({ coupon: c, itemText: m.itemText, level: m.level, kind: 'list' })}>
                     <Text style={styles.couponTitle} numberOfLines={2}>{c.title || c.discountLabel}</Text>
                     <Text style={styles.couponMeta}>
                       {[c.discountLabel, c.store, t('sav_for_item', { item: m.itemText })].filter(Boolean).join(' · ')}
                     </Text>
                     {m.level === 'possible' ? <Text style={styles.couponPossible}>{t('sav_possible')}</Text> : null}
-                  </View>
+                    <Text style={styles.couponLink}>{t('sav_preview')}</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.usedBtn, inWallet ? styles.usedBtnOn : null]}
                     onPress={() => addToWallet(c)}
@@ -743,11 +746,12 @@ export default function ShoppingScreen({ user }) {
               const done = walletIds.has(String(c.id));
               return (
                 <View key={c.id} style={styles.couponRow}>
-                  <View style={{ flex: 1 }}>
+                  <TouchableOpacity style={{ flex: 1 }} activeOpacity={0.7} onPress={() => setCouponPreview({ coupon: c, kind: 'great', match: m })}>
                     <Text style={styles.couponTitle} numberOfLines={2}>{couponItemName(c)}</Text>
                     <Text style={styles.greatValue}>{c.discountLabel || c.title}</Text>
                     {c.store ? <Text style={styles.couponMeta}>{c.store}</Text> : null}
-                  </View>
+                    <Text style={styles.couponLink}>{t('sav_preview')}</Text>
+                  </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.usedBtn, done ? styles.usedBtnOn : null]}
                     onPress={() => addGreatDeal(m)}
@@ -1030,6 +1034,22 @@ export default function ShoppingScreen({ user }) {
           </ScrollView>
         </View>
       ) : null}
+      <CouponPreviewModal
+        preview={couponPreview}
+        t={t}
+        locale={locale}
+        done={couponPreview ? walletIds.has(String(couponPreview.coupon.id)) : false}
+        confirmLabel={couponPreview?.kind === 'great' ? t('sav_great_btn') : t('sav_add_wallet')}
+        doneLabel={couponPreview?.kind === 'great' ? t('sav_great_done') : t('sav_in_wallet')}
+        onClose={() => setCouponPreview(null)}
+        onConfirm={async () => {
+          const p = couponPreview;
+          if (!p) return;
+          if (p.kind === 'great') await addGreatDeal(p.match);
+          else await addToWallet(p.coupon);
+        }}
+      />
+
       <StoreRemainingItemsModal
         visible={Boolean(remainingItemsModal)}
         storeName={remainingItemsModal?.storeName}
