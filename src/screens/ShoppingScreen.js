@@ -700,7 +700,7 @@ export default function ShoppingScreen({ user }) {
         </>
         ) : null}
 
-        {guideStep === 'flyer' ? (
+        {guideStep === 'flyer' && !weekDeals.length ? (
           <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
             <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
           </View>
@@ -740,7 +740,7 @@ export default function ShoppingScreen({ user }) {
         {/* "This week's sales" only shows once a flyer has been scanned; the empty-state box is gone.
             The bare anchor keeps the step strip's "Sales" scroll target working either way. */}
         {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
-        {weekDeals.length && (!guideStep || guideStep === 'flyer') ? (
+        {weekDeals.length > 0 && (!guideStep || guideStep === 'flyer') ? (
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
           <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
@@ -791,7 +791,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {(greatDeals.length || listCoupons.length) && (!guideStep || guideStep === 'coupons') ? (
+        {(greatDeals.length > 0 || listCoupons.length > 0) && (!guideStep || guideStep === 'coupons') ? (
           <View style={[styles.greatCard, shadow.card]}>
             <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
             {listCoupons.length ? (
