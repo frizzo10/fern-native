@@ -660,6 +660,7 @@ export default function ShoppingScreen({ user }) {
         <>
         <FernGreetingCard
           alwaysSpeak={guideStep === 'list'}
+          hideSuggestions={guideStep === 'list'}
           t={t}
           locale={locale}
           token={user?.token}
@@ -695,7 +696,7 @@ export default function ShoppingScreen({ user }) {
         </>
         ) : null}
 
-        {!guideStep ? (
+        {(!guideStep || guideStep === 'list') ? (
         <View onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
           <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
         </View>

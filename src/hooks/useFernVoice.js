@@ -28,7 +28,7 @@
 
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAudioPlayer } from 'expo-audio';
+import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLanguage from '../hooks/useLanguage';
@@ -173,6 +173,13 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
             await FileSystem.writeAsStringAsync(nextAudioUri, base64Audio, {
                 encoding: FileSystem.EncodingType.Base64,
             });
+
+            // iOS mutes expo-audio on the silent switch and after mic use unless the audio mode says otherwise.
+            try {
+                await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false });
+            } catch (modeError) {
+                onError?.(`audio mode: ${modeError?.message ?? modeError}`);
+            }
 
             if (isMountedRef.current && enabledRef.current) {
                 lastPlayedUriRef.current = null;

@@ -22,13 +22,14 @@ function dayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function FernGreetingCard({ t, locale, token, items, weekDeals, recipes, mealPlan, onAddItems, onPlan, onScan, alwaysSpeak = false }) {
+export default function FernGreetingCard({ t, locale, token, items, weekDeals, recipes, mealPlan, onAddItems, onPlan, onScan, alwaysSpeak = false, hideSuggestions = false }) {
   const [state, setState] = useState('loading'); // loading | ready | hidden
   const [result, setResult] = useState(null);
   const [doneIdx, setDoneIdx] = useState([]);
+  const [voiceErr, setVoiceErr] = useState('');
   const focused = useIsFocused();
   const { speakText, stopSpeaking, isSpeaking } = useFernVoice({
-    onError: (m) => console.warn('[FernGreetingCard] voice error:', m),
+    onError: (m) => { console.warn('[FernGreetingCard] voice error:', m); setVoiceErr(String(m || 'unknown')); },
     token,
     enabled: true,
   });
@@ -106,7 +107,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
         <Text style={styles.title}>{`🌿 ${t('greet_title')}`}</Text>
         <View style={styles.headRight}>
           {state === 'ready' && spokenText ? (
-            <TouchableOpacity onPress={() => (isSpeaking ? stopSpeaking() : speakText(spokenText))} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <TouchableOpacity onPress={() => { setVoiceErr(''); if (isSpeaking) stopSpeaking(); else speakText(spokenText); }} activeOpacity={0.7} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Text style={styles.refresh}>{isSpeaking ? '⏹' : '🔊'}</Text>
             </TouchableOpacity>
           ) : null}
@@ -123,7 +124,8 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
       ) : (
         <>
           {result?.greeting ? <Text style={styles.greeting}>{result.greeting}</Text> : null}
-          {(result?.suggestions || []).map((s, idx) => {
+          {voiceErr ? <Text style={styles.voiceErr}>{`Fern's voice problem: ${voiceErr}`}</Text> : null}
+          {(hideSuggestions ? [] : (result?.suggestions || [])).map((s, idx) => {
             const toAdd = needed(s);
             const done = doneIdx.includes(idx);
             return (
@@ -163,6 +165,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '800', color: '#2D1B10' },
   refresh: { fontSize: 13, fontWeight: '700', color: colors.forest },
   greeting: { fontSize: 15, color: '#2D1B10', lineHeight: 21, marginTop: 8 },
+  voiceErr: { fontSize: 12, color: '#B3261E', marginTop: 8 },
   loadRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
   loadText: { fontSize: 14, color: '#7a6d60' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EADFD0' },
