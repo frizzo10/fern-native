@@ -38,6 +38,7 @@ import ChatSheetModal from '../components/modals/ChatSheetModal';
 import ShoppingModeModal from '../components/trip/ShoppingModeModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
 import { buildPlanSystemPrompt, planOpenerPrompt } from '../utils/planChat';
+import { pickStarDeals } from '../utils/starDeals';
 import { buildRollingWeekDateKeys as planWeekKeys } from '../utils/familyDates';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
