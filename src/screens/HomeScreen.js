@@ -2587,6 +2587,7 @@ export default function HomeScreen({ user, route }) {
                 onOpenAccount={openAccount}
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
                 onScan={handleHomeScanFlyer}
+                onGuide={() => navigation.navigate('Shopping', { guide: Date.now() })}
                 onStorePress={chooseFlyerStore}
                 stores={userStoresLocal}
                 onFixStoreLocation={handleFixStoreLocation}

@@ -52,6 +52,7 @@ export default function NewHome({
   onOpenAccount,
   onOpenLanguage,
   onScan,
+  onGuide,
   stores,
   onStorePress,
   onFixStoreLocation,
@@ -160,6 +161,11 @@ export default function NewHome({
           </Animated.View>
         </View>
 
+        {onGuide ? (
+          <TouchableOpacity style={styles.guideBtn} activeOpacity={0.88} onPress={onGuide} accessibilityRole="button">
+            <Text style={styles.guideBtnText}>{`🌿 ${t('guide_home_btn')}`}</Text>
+          </TouchableOpacity>
+        ) : null}
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <View style={styles.storeList}>
           {visibleStores.map((s, i) => (
@@ -315,6 +321,8 @@ const styles = StyleSheet.create({
   scanHalo: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: ORANGE },
   scanBtn: { width: 150, height: 150, borderRadius: 75, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 14, borderWidth: 3, borderColor: 'rgba(255,255,255,0.35)' },
   scanBtnText: { fontFamily: 'Jost-Bold', fontSize: 17, lineHeight: 20, color: '#fff', textAlign: 'center' },
+  guideBtn: { marginTop: 16, height: 50, borderRadius: 25, backgroundColor: CREAM, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
+  guideBtnText: { fontFamily: 'Jost-Bold', fontSize: 16, color: FOREST },
   heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: SAGE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
   storeList: { marginTop: 2 },
   storeLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(168,213,162,0.25)' },

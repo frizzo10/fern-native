@@ -303,7 +303,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         // Shopping savings card, and the everyday nudge on Shopping's Everyday card.
         if (content.data.type === 'everyday_nudge') nav.navigate('Shopping', { everyday: Date.now() });
         else if (isExit) nav.navigate('Shopping', { tripDone: Date.now() });
-        else nav.navigate('Home', { scanFlyerStore: store, scanFlyerAt: Date.now() });
+        else nav.navigate('Shopping', { guide: Date.now(), guideStore: store }); // arrival: Fern starts guiding the trip
       };
       go();
     };
@@ -363,7 +363,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           store={arrivedStore}
           onShop={() => {
             setArrivedStore(null);
-            navigationRef.current?.navigate('Shopping');
+            navigationRef.current?.navigate('Shopping', { guide: Date.now(), guideStore: String(arrivedStore?.name || arrivedStore || '') });
           }}
           onDismiss={() => setArrivedStore(null)}
         />
