@@ -639,6 +639,7 @@ export default function FamilyScreen({ user }) {
                 onChangeNoteText={mealPlanRecipes.setNoteText}
                 isSaving={mealPlanRecipes.isSaving}
                 onSaveNote={() => mealPlanRecipes.persistSelectedNote(() => { })}
+                onSaveCopy={() => mealPlanRecipes.saveSelectedCopy()}
                 isAlreadySaved={isSelectedMealRecipeSaved}
                 showSavedIndicator
                 onDeleteRecipe={isSelectedMealRecipeSaved ? () => mealPlanRecipes.handleDeleteSelected(() => mealPlanRecipes.setSelectedRecipe(null)) : undefined}

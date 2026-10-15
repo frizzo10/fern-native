@@ -39,6 +39,7 @@ export default function RecipeDetailModal({
   onChangeNoteText,
   isSaving,
   onSaveNote,
+  onSaveCopy,
   isAlreadySaved = true,
   showSavedIndicator = false,
   onDeleteRecipe,
@@ -118,13 +119,26 @@ export default function RecipeDetailModal({
   };
   const guardedSaveNote = async () => {
     if (await blockedByLimit()) return;
-    onSaveNote?.();
-    // An already-saved recipe isn't added a second time -- Save only updates its
-    // note, and some screens then close this viewer. Say so, or it looks like the
-    // recipe just vanished. Delayed because iOS drops an Alert shown mid-dismiss.
-    if (isAlreadySaved) {
+    if (!isAlreadySaved) { onSaveNote?.(); return; }
+    // Already saved: Save never silently adds a duplicate. Ask what to do (a copy is
+    // only offered where the screen supplies onSaveCopy), otherwise just explain.
+    const updateNote = () => {
+      onSaveNote?.();
+      // Delayed because iOS drops an Alert shown while a modal is still dismissing.
       setTimeout(() => Alert.alert(t('already_saved_title'), t('already_saved_note_updated')), 600);
-    }
+    };
+    if (!onSaveCopy) { updateNote(); return; }
+    Alert.alert(t('already_saved_title'), t('already_saved_ask_copy'), [
+      {
+        text: t('save_second_copy_btn'),
+        onPress: async () => {
+          const ok = await onSaveCopy();
+          if (ok) setTimeout(() => Alert.alert(t('copy_saved_title'), t('copy_saved_desc')), 400);
+        },
+      },
+      { text: t('update_note_only_btn'), onPress: updateNote },
+      { text: t('cancel_btn'), style: 'cancel' },
+    ]);
   };
 
   const handleOpenSaveToCookbook = async () => {

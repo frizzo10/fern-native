@@ -122,6 +122,27 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         }
     };
 
+    // "Save a second copy" from the already-saved popup: always appends a new entry,
+    // titled "<title> (copy)" so title-matching (saved checks, note edits) still
+    // treats the original and the copy as two different recipes.
+    const saveSelectedCopy = async () => {
+        if (!selectedRecipe) return false;
+        setIsSaving(true);
+        try {
+            await saveToLibrary(
+                { ...selectedRecipe, title: `${selectedRecipe.title} ${t('recipe_copy_suffix')}` },
+                noteText.trim(),
+            );
+            return true;
+        } catch (e) {
+            console.log(`[${source}] save recipe copy failed`, e?.message || e);
+            Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
+            return false;
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const persistSelectedNote = async (onDone) => {
         if (!selectedRecipe) return;
 
@@ -317,6 +338,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         saveToLibrary,
         handleSaveFromCard,
         persistSelectedNote,
+        saveSelectedCopy,
         saveSelectedToCookbook,
         handleDeleteSelected,
         handleAddToShoppingList,

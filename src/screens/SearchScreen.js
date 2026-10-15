@@ -493,6 +493,45 @@ export default function SearchScreen({ user }) {
         await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: nextSaved }));
     };
 
+    // "Save a second copy" from the already-saved popup (see RecipeDetailModal).
+    const persistSelectedRecipeCopy = async () => {
+        if (!selectedRecipe) return false;
+        setIsSavingRecipe(true);
+        try {
+            const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+            const baseSaved = Array.isArray(storedSaved) ? storedSaved : (Array.isArray(data.recipes) ? data.recipes : []);
+            const updatedSaved = [
+                ...baseSaved,
+                {
+                    id: `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: `${selectedRecipe.title} ${t('recipe_copy_suffix')}`,
+                    emoji: selectedRecipe.emoji,
+                    cuisine: selectedRecipe.category,
+                    mealType: selectedRecipe.meal,
+                    time: selectedRecipe.time,
+                    difficulty: selectedRecipe.difficulty,
+                    description: selectedRecipe.description,
+                    ingredients: selectedRecipe.ingredients,
+                    instructions: selectedRecipe.methodSteps,
+                    note: noteText.trim(),
+                    photoSearch: selectedRecipe.photoSearch || '',
+                    _cloudPhotos: selectedRecipe.image ? [selectedRecipe.image] : [],
+                },
+            ];
+            await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
+            await syncRecipeCache(updatedSaved);
+            await pushAllFromStorage();
+            await pull();
+            return true;
+        } catch (e) {
+            console.warn('[ai-search] save recipe copy failed', e);
+            Alert.alert(t('save_failed'), t('save_recipe_failed_desc'));
+            return false;
+        } finally {
+            setIsSavingRecipe(false);
+        }
+    };
+
     const persistSelectedRecipeNote = async () => {
         if (!selectedRecipe) return;
 
@@ -1272,6 +1311,7 @@ export default function SearchScreen({ user }) {
                     onChangeNoteText={setNoteText}
                     isSaving={isSavingRecipe}
                     onSaveNote={persistSelectedRecipeNote}
+                    onSaveCopy={persistSelectedRecipeCopy}
                     isAlreadySaved={selectedIsSaved}
                     showSavedIndicator
                     onDeleteRecipe={selectedIsSaved ? handleDeleteSelectedRecipe : undefined}

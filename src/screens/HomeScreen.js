@@ -3408,6 +3408,7 @@ export default function HomeScreen({ user, route }) {
         onChangeNoteText={activeAiRecipeCollection?.setNoteText ?? (() => { })}
         isSaving={activeAiRecipeCollection?.isSaving ?? false}
         onSaveNote={() => activeAiRecipeCollection?.persistSelectedNote(closeSelectedAiRecipeDetail)}
+        onSaveCopy={() => activeAiRecipeCollection?.saveSelectedCopy()}
         isAlreadySaved={selectedAiRecipe ? Boolean(activeAiRecipeCollection?.isRecipeSaved(selectedAiRecipe)) : false}
         showSavedIndicator
         onDeleteRecipe={selectedAiRecipe && activeAiRecipeCollection?.isRecipeSaved(selectedAiRecipe) ? () => activeAiRecipeCollection.handleDeleteSelected(closeSelectedAiRecipeDetail) : undefined}
