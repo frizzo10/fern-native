@@ -627,7 +627,7 @@ export default function ShoppingScreen({ user }) {
 
   return (
     <View style={styles.container}>
-      {guideStep ? (
+      {guideStep && guideStep !== 'list' ? (
         <GuideBar
           t={t}
           token={user?.token}
@@ -658,6 +658,7 @@ export default function ShoppingScreen({ user }) {
 
         {(!guideStep || guideStep === 'list') ? (
         <>
+        {!guideStep ? (
         <FernGreetingCard
           alwaysSpeak={guideStep === 'list'}
           hideSuggestions={guideStep === 'list'}
@@ -672,6 +673,7 @@ export default function ShoppingScreen({ user }) {
           onPlan={() => goTo('meals')}
           onScan={() => navigation.navigate('Home')}
         />
+        ) : null}
 
         <View style={styles.addRow} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
           <TextInput
