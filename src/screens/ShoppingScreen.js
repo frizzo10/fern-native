@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useFocusEffect, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
@@ -29,6 +29,7 @@ import { toShoppingName } from '../utils/shoppingName';
 import { ListAddPreviewBody } from '../components/ListAddPreview';
 import { subscribeReview } from '../services/reviewBus';
 import EverydayCard from '../components/trip/EverydayCard';
+import FernGreetingCard from '../components/trip/FernGreetingCard';
 import { logPurchase, unlogPurchase, getShoppingDay, saveShoppingDay } from '../utils/staples';
 import * as Location from 'expo-location';
 import { storeAtPosition } from '../utils/flyerStore';
@@ -94,6 +95,7 @@ export default function ShoppingScreen({ user }) {
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const route = useRoute();
+  const navigation = useNavigation();
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -485,6 +487,17 @@ export default function ShoppingScreen({ user }) {
     await persistShopping(nextItems);
   };
 
+  // Fern's opening suggestions: add several suggested items at once (only after the user taps).
+  const addSuggested = async (texts) => {
+    const have = new Set(items.map((it) => it.text.toLowerCase()));
+    const fresh = (texts || []).map((x) => String(x || '').trim()).filter((x) => x && !have.has(x.toLowerCase()));
+    if (!fresh.length) return;
+    await persistShopping([
+      ...items,
+      ...fresh.map((text) => ({ id: `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text, recipe: 'Fern suggestion', checked: false })),
+    ]);
+  };
+
   // One tap from the Everyday card: a non-recipe item goes straight on the list.
   const addEveryday = async (rawText) => {
     const text = String(rawText || '').trim();
@@ -596,6 +609,19 @@ export default function ShoppingScreen({ user }) {
             </TouchableOpacity>
           </View>
         </View>
+
+        <FernGreetingCard
+          t={t}
+          locale={locale}
+          token={user?.token}
+          items={items}
+          weekDeals={weekDeals}
+          recipes={data.recipes}
+          mealPlan={data.mealPlan}
+          onAddItems={addSuggested}
+          onPlan={() => goTo('meals')}
+          onScan={() => navigation.navigate('Home')}
+        />
 
         <View style={styles.addRow} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
           <TextInput
