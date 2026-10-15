@@ -334,7 +334,7 @@ export default function ShoppingScreen({ user }) {
   // Not at a store -> Fern stays store-agnostic and asks whether to go straight into shopping mode.
   const startShopping = () => {
     // Straight into the checklist: no questions first.
-    setShopModeVoice(false);
+    setShopModeVoice(true);
     setShopModeOpen(true);
   };
 

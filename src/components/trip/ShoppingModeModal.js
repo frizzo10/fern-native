@@ -96,7 +96,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); setShowCoupons(false); stopSpeaking?.(); return; }
     if (announced.current || !current) return;
     announced.current = true;
-    say(intro(current.sectionKey));
+    say(`${t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length })} ${intro(current.sectionKey)}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, current?.id]);
 

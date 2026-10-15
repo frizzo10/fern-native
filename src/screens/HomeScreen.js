@@ -3058,7 +3058,7 @@ export default function HomeScreen({ user, route }) {
               <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 14, textAlign: 'center', marginTop: 14 }}>{t('flyer_already_sub')}</Text>
               <TouchableOpacity
                 style={{ marginTop: 28, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 24, backgroundColor: '#DE6F2F' }}
-                onPress={() => { flyerSkipRef.current = true; setFlyerScan(null); navigation.navigate('Shopping', { flyerScanned: Date.now() }); }}
+                onPress={() => { flyerSkipRef.current = true; setFlyerScan(null); navigation.navigate('Shopping', { guide: Date.now(), guideStore: flyerScan.store || '' }); }}
               >
                 <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 16 }}>{t('flyer_already_use')}</Text>
               </TouchableOpacity>
