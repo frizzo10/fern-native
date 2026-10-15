@@ -4,6 +4,7 @@ import { colors, radius, shadow } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
+import { LAUNCH_ALL_FREE } from '../constants/launch';
 import { TOUR_LIST } from '../constants/tourContent';
 import { useTour } from '../services/TourContext';
 import { useRevenueCat } from '../services/RevenueCatContext';
@@ -27,17 +28,17 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
     const [purchasing, setPurchasing] = useState(false);
     const [restoring, setRestoring] = useState(false);
 
-    const bannerEyebrowKey = tier === TIERS.PRO_MAX
+    const bannerEyebrowKey = LAUNCH_ALL_FREE ? 'plans_banner_launch_eyebrow' : tier === TIERS.PRO_MAX
         ? 'plans_banner_pro_max_eyebrow'
         : tier === TIERS.PRO
             ? 'plans_banner_pro_eyebrow'
             : 'plans_banner_free_eyebrow';
-    const bannerTitleKey = tier === TIERS.PRO_MAX
+    const bannerTitleKey = LAUNCH_ALL_FREE ? 'plans_banner_launch_title' : tier === TIERS.PRO_MAX
         ? 'plans_banner_pro_max_title'
         : tier === TIERS.PRO
             ? 'plans_banner_pro_title'
             : 'plans_banner_free_title';
-    const bannerSubtitleKey = tier === TIERS.PRO_MAX
+    const bannerSubtitleKey = LAUNCH_ALL_FREE ? 'plans_banner_launch_subtitle' : tier === TIERS.PRO_MAX
         ? 'plans_banner_pro_max_subtitle'
         : tier === TIERS.PRO
             ? 'plans_banner_pro_subtitle'
@@ -131,7 +132,7 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
                         {renderSection(PRO_FEATURES, TIERS.PRO)}
                         {renderSection(PRO_MAX_FEATURES, TIERS.PRO_MAX)}
 
-                        {tier !== TIERS.FREE && (
+                        {tier !== TIERS.FREE && !LAUNCH_ALL_FREE && (
                             <TouchableOpacity
                                 style={styles.manageBtn}
                                 activeOpacity={0.85}

@@ -12,6 +12,7 @@ import { TIERS } from '../constants/tiers';
 import UpgradeGateModal from '../components/UpgradeGateModal';
 import ShoppingDayPicker from '../components/ShoppingDayPicker';
 import { getShoppingDay, saveShoppingDay } from '../utils/staples';
+import { LAUNCH_ALL_FREE } from '../constants/launch';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { usePlansModal } from '../services/PlansModalContext';
 
@@ -206,6 +207,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
     };
 
     const handleManageSubscription = () => {
+        if (LAUNCH_ALL_FREE) return; // launch period: nothing to manage
         if (tier === TIERS.FREE) {
             onClose();
             openPlans();

@@ -1,4 +1,5 @@
-import { tierMeetsRequirement } from '../constants/tiers';
+import { TIERS, tierMeetsRequirement } from '../constants/tiers';
+import { LAUNCH_ALL_FREE } from '../constants/launch';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { higherTier, useGrantedTier } from '../services/grantStore';
 
@@ -14,7 +15,9 @@ export default function useEntitlement() {
   // what they were granted. RevenueCat remains the source of truth for
   // purchases; App.js still pushes the raw RevenueCat tier to the server.
   const grantedTier = useGrantedTier();
-  const tier = grantedTier ? higherTier(storeTier, grantedTier) : storeTier;
+  const earnedTier = grantedTier ? higherTier(storeTier, grantedTier) : storeTier;
+  // Launch period: everyone is treated as Pro Max (see constants/launch.js).
+  const tier = LAUNCH_ALL_FREE ? TIERS.PRO_MAX : earnedTier;
 
   const hasAccess = (requiredTier) => tierMeetsRequirement(tier, requiredTier);
 

@@ -25,6 +25,8 @@ import { fmtMoney, loadLedger, summarizeSince } from '../utils/savings';
 
 export const GEOFENCE_TASK = 'fern-store-geofence';
 export const GEOFENCE_RADIUS_M = 300;      // ~1000 ft; wider than the web app's 150 m so the alert lands as you pull in (iOS reports entry late)
+import { LAUNCH_ALL_FREE } from '../constants/launch';
+
 export const COOLDOWN_MS = 30 * 60 * 1000; // per-store, shared by both layers
 // iOS monitors at most 20 regions per app; Android allows more, but one limit keeps
 // behaviour identical on both. Nearest stores win when the user has more than this.
@@ -98,6 +100,7 @@ export async function claimArrival(key, now = Date.now()) {
 // so its notification says that instead of "open your shopping list". Read from the
 // device-only copies because the background task has no React tree.
 async function hasProMax() {
+  if (LAUNCH_ALL_FREE) return true; // launch period: everyone gets store alerts
   const tiers = [];
   try { tiers.push(JSON.parse(await AsyncStorage.getItem(TIER_KEY))); } catch (e) { /* none */ }
   try {

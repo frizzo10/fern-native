@@ -15,7 +15,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Modal,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../../constants/tokens';
@@ -27,12 +27,15 @@ import { useFernVoice } from '../../hooks/useFernVoice';
 import { useSync } from '../../hooks/useSync';
 import useLanguage from '../../hooks/useLanguage';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
+import { LAUNCH_ALL_FREE } from '../../constants/launch';
 import { spokenSummary } from '../../utils/spokenSummary';
 
 // Free plan: a small number of Ask Fern questions per local day (device-only counter). Pro and up
 // are unlimited. The auto-opener (silent) turn never counts.
 const FREE_CHAT_KEY = 'fern_free_chat_count';
 const FREE_CHAT_PER_DAY = 5;
+// Launch period (constants/launch.js): everyone is Pro Max, but chat is capped per day to keep AI cost bounded.
+const LAUNCH_CHAT_PER_DAY = 25;
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -141,7 +144,13 @@ export default function ChatSheetModal({
 
   const askFern = useCallback(async (text, { silent = false } = {}) => {
     if (!text || !text.trim()) return;
-    if (!silent && isFreeRef.current) {
+    if (!silent && LAUNCH_ALL_FREE) {
+      if ((await freeChatUsedToday()) >= LAUNCH_CHAT_PER_DAY) {
+        Alert.alert(t('launch_chat_limit_title'), t('launch_chat_limit_desc'));
+        return;
+      }
+      await bumpFreeChat();
+    } else if (!silent && isFreeRef.current) {
       if ((await freeChatUsedToday()) >= FREE_CHAT_PER_DAY) { setLimitGate(true); return; }
       await bumpFreeChat();
     }
