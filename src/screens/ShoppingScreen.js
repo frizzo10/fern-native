@@ -427,7 +427,7 @@ export default function ShoppingScreen({ user }) {
     let plan = {};
     try { plan = JSON.parse((await AsyncStorage.getItem('rv4_meal_plan')) || '{}'); } catch (e) { plan = {}; }
     const dayMeals = Array.isArray(plan[dateKey]) ? plan[dateKey] : [];
-    const next = { ...plan, [dateKey]: [...dayMeals, { slot: 'Dinner', title: recipe.title, emoji: recipe.emoji || '🍽️' }] };
+    const next = { ...plan, [dateKey]: [...dayMeals, { slot: recipe.slot || 'Dinner', title: recipe.title, emoji: recipe.emoji || '🍽️', ...((recipe.sides || []).length ? { sides: recipe.sides } : {}) }] };
     await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
     try {
       const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');

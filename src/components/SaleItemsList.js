@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
+import { fetchMealPlanRecipeDetail } from '../services/mealPlanRecipeService';
 import { colors, radius } from '../constants/tokens';
 import { dealSaving, dedupeDeals, fmtMoney } from '../utils/savings';
 import { dealKind, isFoodDeal, isUnreliableCategory } from '../utils/dealKind';
@@ -20,6 +21,21 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
   const [query, setQuery] = useState('');
   const [added, setAdded] = useState({});
   const [open, setOpen] = useState(null); // { key, loading, ideas, failed, idea, recipe, recipeLoading, done }
+  const [sidePreviews, setSidePreviews] = useState({}); // `${idea.title}::${side}` -> { loading | failed | recipe }
+  const [meal, setMeal] = useState('Dinner'); // which meal "Cook it on" puts the dish in
+
+  // Tap a side to see how to make it (same lookup the Shopping week-of-dinners cards use).
+  const previewSide = async (idea, side) => {
+    const key = `${idea.title}::${side}`;
+    if (sidePreviews[key]) { setSidePreviews((p) => ({ ...p, [key]: undefined })); return; }
+    setSidePreviews((p) => ({ ...p, [key]: { loading: true } }));
+    try {
+      const recipe = await fetchMealPlanRecipeDetail({ title: side, locale, token });
+      setSidePreviews((p) => ({ ...p, [key]: { recipe } }));
+    } catch (e) {
+      setSidePreviews((p) => ({ ...p, [key]: { failed: true } }));
+    }
+  };
 
   const findRecipes = async (deal, key) => {
     if (open?.key === key) { setOpen(null); return; }
@@ -153,7 +169,26 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                               <MealPlannerImage title={idea.title} index={i} variant="hero" />
                               <Text style={styles.sub}>{[open.recipe.time, open.recipe.difficulty].filter(Boolean).join(' · ')}</Text>
                               {open.recipe.description ? <Text style={styles.previewText}>{open.recipe.description}</Text> : null}
-                              {(idea.sides || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_sides', { sides: idea.sides.join(', ') })}</Text> : null}
+                              {(idea.sides || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_sides_label')}</Text> : null}
+                              {(idea.sides || []).map((side, si) => {
+                                const sp = sidePreviews[`${idea.title}::${side}`];
+                                return (
+                                  <View key={`side-${si}`}>
+                                    <TouchableOpacity onPress={() => previewSide(idea, side)} activeOpacity={0.8}>
+                                      <Text style={[styles.previewText, { marginTop: 4, textDecorationLine: 'underline', color: colors?.orange || '#E8742A' }]}>{`${sp ? '▾' : '▸'} ${side}`}</Text>
+                                    </TouchableOpacity>
+                                    {sp?.loading ? <ActivityIndicator color={colors?.orange || '#E8742A'} style={{ marginTop: 4, alignSelf: 'flex-start' }} /> : null}
+                                    {sp?.failed ? <Text style={styles.sub}>{t('sale_list_recipes_failed')}</Text> : null}
+                                    {sp?.recipe ? (
+                                      <View style={{ marginLeft: 8 }}>
+                                        <Text style={styles.sub}>{[sp.recipe.time, sp.recipe.servings ? t('trip_side_servings', { n: sp.recipe.servings }) : ''].filter(Boolean).join(' · ')}</Text>
+                                        {(sp.recipe.ingredients || []).map((ing, n) => <Text key={`si${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
+                                        {(sp.recipe.directions || []).map((st, n) => <Text key={`sd${n}`} style={styles.previewText}>{`${n + 1}. ${st}`}</Text>)}
+                                      </View>
+                                    ) : null}
+                                  </View>
+                                );
+                              })}
                               {(open.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                               {(open.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                               {(open.recipe.instructions || []).map((step, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${step}`}</Text>)}
@@ -162,13 +197,22 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                                   <Text style={[styles.previewText, { fontWeight: '700' }]}>{open.plannedDay ? t('sale_list_planned_on', { day: open.plannedDay.label }) : t('sale_list_cook_on')}</Text>
                                   {open.plannedDay ? null : (
                                     <View style={styles.dayRow}>
+                                      {[['Breakfast', 'meal_planner_slot_breakfast'], ['Lunch', 'meal_planner_slot_lunch'], ['Dinner', 'meal_planner_slot_dinner']].map(([slot, key]) => (
+                                        <TouchableOpacity key={slot} style={[styles.dayChip, meal === slot ? styles.mealChipOn : null]} activeOpacity={0.85} onPress={() => setMeal(slot)}>
+                                          <Text style={[styles.dayChipText, meal === slot ? { color: '#fff' } : null]}>{t(key)}</Text>
+                                        </TouchableOpacity>
+                                      ))}
+                                    </View>
+                                  )}
+                                  {open.plannedDay ? null : (
+                                    <View style={styles.dayRow}>
                                       {buildRollingWeekDateKeys().map((dk) => {
                                         const label = parseDateKey(dk).toLocaleDateString(locale === 'es' ? 'es' : 'en-US', { weekday: 'short', day: 'numeric' });
                                         return (
                                           <TouchableOpacity key={dk} style={styles.dayChip} activeOpacity={0.85} onPress={async () => {
                                             try {
-                                              await onPlanDay({ title: open.recipe.title || idea.title, emoji: idea.emoji }, dk);
-                                              setOpen((p) => (p ? { ...p, plannedDay: { dk, label } } : p));
+                                              await onPlanDay({ title: open.recipe.title || idea.title, emoji: idea.emoji, slot: meal, sides: idea.sides || [] }, dk);
+                                              setOpen((p) => (p ? { ...p, plannedDay: { dk, label: `${label} · ${t(`meal_planner_slot_${meal.toLowerCase()}`)}` } } : p));
                                             } catch (e) {}
                                           }}>
                                             <Text style={styles.dayChipText}>{label}</Text>
@@ -243,6 +287,7 @@ const styles = StyleSheet.create({
   hideLink: { color: colors?.orange || '#E8742A', fontSize: 13, fontWeight: '700', paddingVertical: 4 },
   dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
   dayChip: { borderWidth: 1, borderColor: '#E4DCD2', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  mealChipOn: { backgroundColor: '#2D1B10', borderColor: '#2D1B10' },
   dayChipText: { fontSize: 13, color: '#2D1B10', fontWeight: '700' },
   btnOn: { backgroundColor: '#E6F1EA' },
   btnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
