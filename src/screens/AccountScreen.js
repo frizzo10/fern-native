@@ -173,6 +173,29 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
 
     const comingSoon = (title) => Alert.alert(title, t('coming_soon'));
 
+    // Start over as a brand-new user: Fern's welcome, the circular walkthrough, the tours and this week's scanned circular.
+    const handleReplayFern = () => {
+        Alert.alert(t('replay_fern_title'), t('replay_fern_desc'), [
+            { text: t('cancel_btn'), style: 'cancel' },
+            {
+                text: t('replay_fern_btn'),
+                style: 'destructive',
+                onPress: async () => {
+                    try {
+                        await AsyncStorage.multiRemove([
+                            'fern_shop_walkthrough_heard', 'fern_agent_intro_count', 'fern_shop_greeting', 'fern_shop_greeting_spoken',
+                            'fern_coupons_celebrated', 'fern_week_deals', ...TOUR_LIST.map((tour) => tour.storageKey),
+                        ]);
+                        setSeenTours({});
+                        Alert.alert(t('replay_fern_done'));
+                    } catch (e) {
+                        Alert.alert(t('save_error_title'), t('save_error_desc'));
+                    }
+                },
+            },
+        ]);
+    };
+
     const handleSignOut = () => {
         onClose();
         signOut?.();
@@ -408,6 +431,10 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             <Text style={styles.restoreLinkBtnText}>
                                 {restoring ? t('account_restore_purchases') + '…' : t('account_restore_purchases')}
                             </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.restoreLinkBtn} activeOpacity={0.8} onPress={handleReplayFern}>
+                            <Text style={styles.restoreLinkBtnText}>{`🔁 ${t('replay_fern_btn')}`}</Text>
                         </TouchableOpacity>
 
                         <TouchableOpacity
