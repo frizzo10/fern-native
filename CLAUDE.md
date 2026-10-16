@@ -179,3 +179,5 @@ All UI copy goes through a single i18n module, not per-screen strings:
 **Spotlight is not darkened by the tour scrim (2026-10-16).** `TourModal` skips its bottom `LinearGradient` scrim while a `target` spotlight rect is showing (the scrim sat over the cutout and made the highlighted tab bar too dark to read); the four dim rectangles around the cutout do the dimming instead. JS-only.
 
 **Home tour scan step shortened, explains location (2026-10-16).** `tour_home_scan` (EN+ES) is now two short sentences: Fern turns a paper flyer into a digital circular (patent-pending process), and we ask for location so that when you arrive at a store Fern can open its circular for you (store-arrival detection, see geofencing above). JS-only.
+
+**Scan step no longer promises the circular is ready (2026-10-16).** `tour_home_scan` (EN+ES) now says that on arrival Fern pulls up the store's circular *if it has been scanned* (by anyone — flyers are shared via `store-deals`), or helps you scan it. JS-only.
