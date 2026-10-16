@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
 import { fetchMealPlanRecipeDetail } from '../services/mealPlanRecipeService';
@@ -17,7 +17,7 @@ import { buildRollingWeekDateKeys, parseDateKey } from '../utils/familyDates';
 //   onAdd     (deal) => void
 //   token, locale, onAddRecipe(recipe, deal) — when given, each row gets a "Recipes" button:
 //   3 dinner ideas for that item, a full preview on tap, and "Add ingredients to my list".
-export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, onPlanDay, shoppingItems }) {
+export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, onPlanDay, shoppingItems, openRequest }) {
   const [query, setQuery] = useState('');
   const [added, setAdded] = useState({});
   const [open, setOpen] = useState(null); // { key, loading, ideas, failed, idea, recipe, recipeLoading, done }
@@ -77,6 +77,27 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
       setOpen((p) => (p ? { ...p, saving: false } : p));
     }
   };
+
+  // Fern, in the circular chat: "find a recipe for the Wagyu beef". Narrow the list to that item and open its recipes.
+  useEffect(() => {
+    const wanted = String(openRequest?.name || '').trim();
+    if (!wanted) return;
+    const norm = (x) => String(x || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
+    const list = dedupeDeals(deals);
+    const w = norm(wanted);
+    let best = -1;
+    let bestScore = 0;
+    list.forEach((d, i) => {
+      const n = norm(d?.name);
+      const score = n.join(' ') === w.join(' ') ? 1000 : n.filter((x) => w.includes(x)).length;
+      if (score > bestScore) { best = i; bestScore = score; }
+    });
+    if (best < 0) return;
+    const deal = list[best];
+    setQuery(String(deal.name || '').trim());
+    findRecipes(deal, `${String(deal?.name || '').trim()}-${deal?.store || ''}-${best}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest?.nonce]);
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();

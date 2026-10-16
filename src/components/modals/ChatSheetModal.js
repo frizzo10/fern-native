@@ -118,6 +118,7 @@ export default function ChatSheetModal({
   title,
   emptyHintKey = 'chat_sheet_empty_hint',
   onAction,
+  onSpeechDone, // (parsed) => void, called once Fern has finished speaking a reply whose action asked to close the card / open something
   compact = false, // true = a bottom card that leaves the page above it visible, instead of a full-screen sheet
   mode, // 'voice' = Fern speaks and the mic re-arms after every reply (hands-free); 'text' = typing only, no speech
 }) {
@@ -133,6 +134,7 @@ export default function ChatSheetModal({
   // Fern's voice reply is on its way (being fetched) or playing: the mic must not open until it has finished.
   const [speechPending, setSpeechPending] = useState(false);
   const heardSpeech = useRef(false);
+  const finishAction = useRef(null); // the parsed reply to hand to onSpeechDone when her voice ends
   const emptyHeard = useRef(0); // consecutive recordings that came back with no words
   const scrollRef = useRef(null);
   const messagesRef = useRef(messages);
@@ -146,6 +148,14 @@ export default function ChatSheetModal({
   const { data, pull, pushAllFromStorage } = useSync(user);
   const shoppingRef = useRef(data.shopping);
   shoppingRef.current = data.shopping;
+
+  const onSpeechDoneRef = useRef(onSpeechDone);
+  onSpeechDoneRef.current = onSpeechDone;
+  const runFinishAction = () => {
+    const p = finishAction.current;
+    finishAction.current = null;
+    if (p) onSpeechDoneRef.current?.(p);
+  };
 
   const askFern = useCallback(async (text, { silent = false } = {}) => {
     if (!text || !text.trim()) return;
@@ -206,7 +216,7 @@ export default function ChatSheetModal({
         heardSpeech.current = false;
         setSpeechPending(true);
         setTimeout(() => setSpeechPending(false), 25000); // safety: never leave the mic closed for good
-        speakText(spokenSummary(reply)).then((uri) => { if (!uri) setSpeechPending(false); }).catch(() => setSpeechPending(false));
+        speakText(spokenSummary(reply)).then((uri) => { if (!uri) { setSpeechPending(false); runFinishAction(); } }).catch(() => { setSpeechPending(false); runFinishAction(); });
       } else {
         speakText(spokenSummary(reply));
       }
@@ -228,13 +238,18 @@ export default function ChatSheetModal({
         const confirmText = onAction(parsed);
         if (confirmText) setMessages(prev => [...prev, { role: 'fern', text: confirmText }]);
       }
+      if (onSpeechDone && (parsed?.close_chat === true || String(parsed?.show_recipes_for || '').trim())) {
+        finishAction.current = parsed;
+        // No voice to wait for (text mode): act right away.
+        if (mode !== 'voice') { const p = finishAction.current; finishAction.current = null; onSpeechDone(p); }
+      }
     } catch (e) {
       console.warn('[ChatSheetModal] Ask Fern failed:', e.message);
       setError(true);
     } finally {
       setThinking(false);
     }
-  }, [locale, user, speakText, pull, pushAllFromStorage, t, systemPrompt, onAction, mode]);
+  }, [locale, user, speakText, pull, pushAllFromStorage, t, systemPrompt, onAction, onSpeechDone, mode]);
 
   const { isListening, start, stop } = useContinuousMic({
     locale,
@@ -256,6 +271,7 @@ export default function ChatSheetModal({
   // Voice-activity detection ends the recording on its own, so the conversation just flows.
   useEffect(() => {
     if (mode !== 'voice' || !visible || thinking || voiceThinking || isSpeaking || speechPending || isListening || error) return undefined;
+    if (finishAction.current) return undefined; // she is about to close / open something: don't reopen the mic
     if (emptyHeard.current >= 3) return undefined; // heard nothing three times in a row: stop re-opening the mic, the person can tap it
     if (messages.length === 0 || messages[messages.length - 1].role !== 'fern') return undefined;
     const timer = setTimeout(() => { start(); }, 900);
@@ -265,8 +281,8 @@ export default function ChatSheetModal({
   // Playback of Fern's reply finished: the mic may open now.
   useEffect(() => {
     if (isSpeaking) { heardSpeech.current = true; return; }
-    if (heardSpeech.current) { heardSpeech.current = false; setSpeechPending(false); }
-  }, [isSpeaking]);
+    if (heardSpeech.current) { heardSpeech.current = false; setSpeechPending(false); runFinishAction(); }
+  }, [isSpeaking]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const micDisabled = isSpeaking && !BARGE_IN_ON_MIC_PRESS;
 

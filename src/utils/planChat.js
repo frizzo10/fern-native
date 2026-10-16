@@ -55,10 +55,16 @@ export function buildGuideQAPrompt({ store, deals = [], list = [], savedTitles =
     savedTitles.length ? `Recipes they have saved: ${savedTitles.slice(0, 25).map((t) => clip(t, 40)).join('; ')}.` : '',
     'The page has: an add bar at the top for anything they want, an everyday-items box, the digitized circular where each sale item opens recipes with sides, the picked coupons, and the shopping list at the bottom. Digital coupons only work if clipped to the store loyalty account first; Walmart does not accept digital coupons.',
     'Your very first message must end with the exact question: "Do you have any questions?" After that, answer their questions plainly using only the facts above. If they ask you to add something to their shopping list, put plain grocery names (like "Ground beef") in add_to_shopping_list and just say you are adding it. Otherwise leave it empty.',
-    'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1"]}',
+    'If they ask to see or find a recipe or dinner ideas for something on sale, put that sale item\'s name EXACTLY as written in the circular list above in show_recipes_for and say you are opening it. If what they ask for is not in the circular, leave show_recipes_for empty and tell them it is not in this week\'s circular. If they say they are done (that\'s all, thanks, close this), set close_chat to true and say a short goodbye. Otherwise leave show_recipes_for empty and close_chat false.',
+    'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1"],"show_recipes_for":"","close_chat":false}',
   ].filter(Boolean).join('\n\n');
 }
 
 export function guideQAOpenerPrompt() {
   return 'You just walked me through my digitized circular. In ONE short spoken sentence, tell me something specific from this week\'s sale items (how many there are and the single best deal), then ask me: "Do you have any questions?" Do not repeat the page tour. Your reply MUST end with that question.';
+}
+
+// Reopened from the button on the circular card: no intro again, just pick the conversation back up.
+export function guideQAReopenPrompt() {
+  return 'I am back. In ONE short spoken sentence, welcome me back and ask what else I would like to know about the circular, the coupons, my list, or what to cook.';
 }

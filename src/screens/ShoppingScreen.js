@@ -39,7 +39,7 @@ import { storeAtPosition } from '../utils/flyerStore';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import ShoppingModeModal from '../components/trip/ShoppingModeModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
-import { buildGuideQAPrompt, guideQAOpenerPrompt } from '../utils/planChat';
+import { buildGuideQAPrompt, guideQAOpenerPrompt, guideQAReopenPrompt } from '../utils/planChat';
 import { useFernVoice } from '../hooks/useFernVoice';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
@@ -129,6 +129,8 @@ export default function ShoppingScreen({ user }) {
   useEffect(() => subscribeReview(setReview), []);
   const [qaArmed, setQaArmed] = useState(false); // Fern's scripted walkthrough is playing; ask "any questions?" when it ends
   const [qaOpen, setQaOpen] = useState(false);
+  const [qaReopened, setQaReopened] = useState(false); // opened from the button, not right after the walkthrough
+  const [recipeRequest, setRecipeRequest] = useState(null); // { name, nonce }: open this sale item's recipes in the circular list
   const qaHeard = useRef(false);
   const qaStage = useRef('intro'); // 'intro' walkthrough -> 'why' dinners explained -> 'qa' any questions
   const [whyGo, setWhyGo] = useState(false); // the walkthrough ended: scroll to the dinners and explain them
@@ -213,6 +215,7 @@ export default function ShoppingScreen({ user }) {
     // The flyer is digitized: Fern says one line (put your everyday items on the list), then stays quiet.
     loadWeekDeals().then(setWeekDeals).catch(() => {});
     setQaOpen(false);
+    setQaReopened(false);
     setQaArmed(false);
     setWhyGo(false);
     setMealCards(null);
@@ -857,9 +860,13 @@ export default function ShoppingScreen({ user }) {
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
           <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
+          <TouchableOpacity style={styles.askCircularBtn} activeOpacity={0.88} onPress={() => { setQaReopened(true); setQaOpen(true); }}>
+            <Text style={styles.askCircularText}>{`🌿 ${t('guide_qa_ask_btn')}`}</Text>
+          </TouchableOpacity>
           {weekDeals.length ? (
             <SaleItemsList
               deals={weekDeals}
+              openRequest={recipeRequest}
               t={t}
               isOnList={(deal) => {
                 const key = toShoppingName(deal.name).toLowerCase();
@@ -1227,7 +1234,19 @@ export default function ShoppingScreen({ user }) {
             savedTitles: (data.recipes || []).map((r) => r.title),
             coupons: [...greatDeals.map((m) => m.coupon), ...listCoupons.map((m) => m.coupon)],
           })}
-          autoOpenerPrompt={guideQAOpenerPrompt()}
+          autoOpenerPrompt={qaReopened ? guideQAReopenPrompt() : guideQAOpenerPrompt()}
+          onSpeechDone={(parsed) => {
+            // She has finished saying "opening the Wagyu recipes" / "goodbye": now close the card.
+            setQaOpen(false);
+            pull();
+            const item = String(parsed?.show_recipes_for || '').trim();
+            if (item) {
+              setTimeout(() => {
+                goTo('sales');
+                setRecipeRequest({ name: item, nonce: Date.now() });
+              }, 450);
+            }
+          }}
         />
       )}
       {listChat && (
@@ -1556,6 +1575,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   couponTitle: { color: '#2B1E13', fontSize: 14, lineHeight: 19, fontFamily: 'Jost-SemiBold' },
+  askCircularBtn: { alignSelf: 'flex-start', backgroundColor: '#2A6A2A', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14, marginTop: 8, marginBottom: 6 },
+  askCircularText: { color: '#F7F5F0', fontSize: 14, fontFamily: 'Jost-Bold' },
   couponMeta: { color: '#7A5C3A', fontSize: 11, lineHeight: 15, fontFamily: 'Jost-Regular', marginTop: 2 },
   couponPossible: { color: '#C25A12', fontSize: 11, fontFamily: 'Jost-Bold', marginTop: 2 },
   couponCode: { color: '#2B1E13', fontSize: 13, fontFamily: 'Jost-Bold', marginTop: 3, letterSpacing: 1 },
