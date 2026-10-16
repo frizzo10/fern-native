@@ -135,6 +135,8 @@ export default function ShoppingScreen({ user }) {
   };
   const [review, setReview] = useState(null);
   useEffect(() => subscribeReview(setReview), []);
+  const [guideSpeechGo, setGuideSpeechGo] = useState(0); // a guide arrival wants Fern to speak; held until any open tour is closed
+  const [introBusy, setIntroBusy] = useState(false); // Fern's arrival speech / walkthrough is still going; the celebration waits
   const [qaArmed, setQaArmed] = useState(false); // Fern's scripted walkthrough is playing; ask "any questions?" when it ends
   const [qaOpen, setQaOpen] = useState(false);
   const [qaReopened, setQaReopened] = useState(false); // opened from the button, not right after the walkthrough
@@ -166,8 +168,11 @@ export default function ShoppingScreen({ user }) {
   const [catalogState, setCatalogState] = useState('loading'); // loading | ok | failed
   const [catalogError, setCatalogError] = useState('');
 
+  // One voice and one overlay at a time on a first visit: the Shopping tour goes first, then Fern's spoken walkthrough,
+  // then the coupon celebration. `tourChecked` flips once the tour has either opened or been skipped (already seen).
+  const [tourChecked, setTourChecked] = useState(false);
   useEffect(() => {
-    maybeAutoStart('shopping');
+    Promise.resolve(maybeAutoStart('shopping')).catch(() => {}).then(() => setTourChecked(true));
   }, []);
 
   // "shopping" tour step -> scroll target: step 1 is the list itself (top),
@@ -241,23 +246,45 @@ export default function ShoppingScreen({ user }) {
     setMealCards(null);
     qaStage.current = 'intro';
     qaHeard.current = false;
+    // Fern's speech itself starts in the effect below, once any open tour has closed (so two voices never overlap).
+    setIntroBusy(true);
+    setGuideSpeechGo(Date.now());
+    const safety = setTimeout(() => setIntroBusy(false), 120000); // never hold the celebration forever
+    return () => clearTimeout(safety);
+  }, [route?.params?.guide]);
+
+  useEffect(() => {
+    if (!guideSpeechGo || !tourChecked || activeTourKey) return;
+    setGuideSpeechGo(0);
     // First time ever: the full spoken walkthrough, then (when it finishes playing) one AI sentence and "any questions?".
     // Every time after that: skip the tour and go straight to the AI sentence and "any questions?".
     const greeting = route?.params?.greet
       ? t('arrival_greet_say', { store: String(route.params.guideStore || '').split(/ - |#/)[0].trim() || t('arrival_greet_store_fallback') })
       : '';
+    let leafMarked = false;
     AsyncStorage.getItem(WALKTHROUGH_KEY).catch(() => null).then((heard) => {
       // Arriving at a store: she greets you and says she's here to help (then stays quiet; the leaf reaches her).
-      if (heard && greeting) { speakText(greeting).catch(() => {}); return null; }
+      if (heard && greeting) {
+        return speakText(greeting).catch(() => {}).then(() => { setTimeout(() => setIntroBusy(false), 1500); return null; });
+      }
       if (heard) { setQaOpen(true); return null; }
+      // The walkthrough already ends with "tap the green leaf", so the app-level leaf welcome would say the same thing on top of it.
+      leafMarked = true;
+      AsyncStorage.setItem('fern_leaf_welcome_heard', 'done').catch(() => {});
       return speakText(greeting ? `${greeting} ${t('guide_say_everyday')}` : t('guide_say_everyday')).then((uri) => {
         if (uri) {
           setQaArmed(true);
           AsyncStorage.setItem(WALKTHROUGH_KEY, 'done').catch(() => {});
+        } else {
+          AsyncStorage.removeItem('fern_leaf_welcome_heard').catch(() => {});
+          setIntroBusy(false);
         }
       });
-    }).catch(() => {});
-  }, [route?.params?.guide]);
+    }).catch(() => { if (leafMarked) AsyncStorage.removeItem('fern_leaf_welcome_heard').catch(() => {}); setIntroBusy(false); });
+  }, [guideSpeechGo, tourChecked, activeTourKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The walkthrough is over once the "any questions?" card is up.
+  useEffect(() => { if (qaOpen) setIntroBusy(false); }, [qaOpen]);
 
   useEffect(() => {
     if (!qaArmed) return;
@@ -429,17 +456,22 @@ export default function ShoppingScreen({ user }) {
       .then((raw) => { celebratedRef.current = new Set(JSON.parse(raw || '[]')); })
       .catch(() => { celebratedRef.current = new Set(); });
   }, []);
+  // Never on top of a tour, Fern talking, or the "any questions?" card: it waits its turn, then pops up on its own.
+  const holdCelebration = !tourChecked || !!activeTourKey || guideSpeechGo !== 0 || introBusy || qaOpen || isSpeaking;
   useEffect(() => {
-    if (!celebratedRef.current || !listCoupons.length) return;
+    if (holdCelebration || !celebratedRef.current || !listCoupons.length) return;
     const fresh = listCoupons.filter((m) => !celebratedRef.current.has(String(m.coupon.id)));
     if (!fresh.length) return;
     fresh.forEach((m) => celebratedRef.current.add(String(m.coupon.id)));
     AsyncStorage.setItem('fern_coupons_celebrated', JSON.stringify(Array.from(celebratedRef.current).slice(-300))).catch(() => {});
     const amount = fresh.reduce((a, m) => a + (m.value?.amount || 0), 0);
     setCelebration({ n: fresh.length, amount: Math.round(amount * 100) / 100 });
+  }, [listCoupons, holdCelebration]);
+  useEffect(() => {
+    if (!celebration) return undefined;
     const timer = setTimeout(() => setCelebration(null), 4200);
     return () => clearTimeout(timer);
-  }, [listCoupons]);
+  }, [celebration]);
 
   // Big coupons worth adding an item for, even though nothing on the list matches them yet.
   const greatDeals = useMemo(
@@ -855,6 +887,7 @@ export default function ShoppingScreen({ user }) {
         <>
         {!guideStep && !listOnly ? (
         <FernGreetingCard
+          hold={!tourChecked || !!activeTourKey}
           alwaysSpeak={guideStep === 'list'}
           hideSuggestions={guideStep === 'list'}
           t={t}

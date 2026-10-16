@@ -22,7 +22,7 @@ function dayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function FernGreetingCard({ t, locale, token, items, weekDeals, recipes, mealPlan, onAddItems, onPlan, onScan, alwaysSpeak = false, hideSuggestions = false }) {
+export default function FernGreetingCard({ t, locale, token, items, weekDeals, recipes, mealPlan, onAddItems, onPlan, onScan, alwaysSpeak = false, hideSuggestions = false, hold = false }) {
   const [state, setState] = useState('loading'); // loading | ready | hidden
   const [result, setResult] = useState(null);
   const [doneIdx, setDoneIdx] = useState([]);
@@ -82,7 +82,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
   // voice is on in Account), and any time via the speaker button. Stops when you leave the screen.
   const spokenText = result ? spokenSummary(`${result.greeting || ''} ${result.suggestions?.[0]?.text || ''}`) : '';
   useEffect(() => {
-    if (state !== 'ready' || !focused || !spokenText) return;
+    if (hold || state !== 'ready' || !focused || !spokenText) return;
     let cancelled = false;
     (async () => {
       try {
@@ -93,7 +93,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
       } catch (e) { /* best effort */ }
     })();
     return () => { cancelled = true; };
-  }, [state, focused, spokenText, sig]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hold, state, focused, spokenText, sig]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!focused) stopSpeaking(); }, [focused]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state === 'hidden') return null;
