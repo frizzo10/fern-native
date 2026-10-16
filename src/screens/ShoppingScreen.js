@@ -39,6 +39,7 @@ import { storeAtPosition } from '../utils/flyerStore';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import ShoppingModeModal from '../components/trip/ShoppingModeModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
+import { buildGuideQAPrompt, guideQAOpenerPrompt } from '../utils/planChat';
 import { useFernVoice } from '../hooks/useFernVoice';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
@@ -96,7 +97,7 @@ function toSyncPayload(list) {
 
 export default function ShoppingScreen({ user }) {
   const { t, locale } = useLanguage();
-  const { speakText } = useFernVoice({ onError: (m) => console.warn('[Shopping] voice error:', m), token: user?.token, enabled: true });
+  const { speakText, isSpeaking } = useFernVoice({ onError: (m) => console.warn('[Shopping] voice error:', m), token: user?.token, enabled: true });
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const route = useRoute();
@@ -122,6 +123,9 @@ export default function ShoppingScreen({ user }) {
   };
   const [review, setReview] = useState(null);
   useEffect(() => subscribeReview(setReview), []);
+  const [qaArmed, setQaArmed] = useState(false); // Fern's scripted walkthrough is playing; ask "any questions?" when it ends
+  const [qaOpen, setQaOpen] = useState(false);
+  const qaHeard = useRef(false);
   const [listChat, setListChat] = useState(false); // the leaf button: talk to Fern about the list
   const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
   const tripChatOpen = tripChatMode === 'voice' || tripChatMode === 'text';
@@ -201,8 +205,22 @@ export default function ShoppingScreen({ user }) {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
     // The flyer is digitized: Fern says one line (put your everyday items on the list), then stays quiet.
     loadWeekDeals().then(setWeekDeals).catch(() => {});
-    speakText(t('guide_say_everyday'));
+    setQaOpen(false);
+    setQaArmed(false);
+    qaHeard.current = false;
+    // When the walkthrough finishes playing, Fern follows up with one AI sentence and "any questions?" (below).
+    speakText(t('guide_say_everyday')).then((uri) => { if (uri) setQaArmed(true); }).catch(() => {});
   }, [route?.params?.guide]);
+
+  useEffect(() => {
+    if (!qaArmed) return;
+    if (isSpeaking) { qaHeard.current = true; return; }
+    if (qaHeard.current) {
+      qaHeard.current = false;
+      setQaArmed(false);
+      setQaOpen(true);
+    }
+  }, [qaArmed, isSpeaking]);
 
   const reloadDeals = () => loadWeekDeals().then(setWeekDeals);
 
@@ -1135,6 +1153,24 @@ export default function ShoppingScreen({ user }) {
           await persistShopping(items.map((it) => (wanted.has(it.id) ? { ...it, checked } : it)));
         }}
       />
+      {qaOpen && (
+        <ChatSheetModal
+          visible
+          compact
+          mode="voice"
+          onClose={() => { setQaOpen(false); pull(); }}
+          user={user}
+          title={`🌿 ${t('guide_qa_title')}`}
+          systemPrompt={buildGuideQAPrompt({
+            store: guideStore,
+            deals: weekDeals,
+            list: items,
+            savedTitles: (data.recipes || []).map((r) => r.title),
+            coupons: [...greatDeals.map((m) => m.coupon), ...listCoupons.map((m) => m.coupon)],
+          })}
+          autoOpenerPrompt={guideQAOpenerPrompt()}
+        />
+      )}
       {listChat && (
         <ChatSheetModal
           visible

@@ -37,3 +37,28 @@ export function buildPlanSystemPrompt({ store, deals = [], list = [], savedTitle
 export function planOpenerPrompt(store) {
   return `I just loaded this week's flyer${store ? ` for ${clip(store, 50)}` : ''}. Greet me in one short sentence, tell me the one or two best things on sale, and ask what I'd like to put on my shopping list first.`;
 }
+
+// Right after Fern's scripted walkthrough of the digitized circular (ShoppingScreen guide mode) she asks if there are
+// any questions and answers them out loud. She only knows what is passed in here, so she can't invent deals.
+export function buildGuideQAPrompt({ store, deals = [], list = [], savedTitles = [], coupons = [] }) {
+  const unchecked = list.filter((i) => !i.checked).map((i) => clip(i.text, 40)).slice(0, 60);
+  const couponLine = (c) => {
+    const digital = c.redemption !== 'code' && c.redemption !== 'link';
+    return `- ${clip(c.title || c.discountLabel, 70)}${c.discountLabel ? ` (${clip(c.discountLabel, 24)})` : ''}${c.store ? ` at ${clip(c.store, 30)}` : ''}${digital ? ' [digital: must be clipped in the store app or website first]' : ''}`;
+  };
+  return [
+    'You are Fern, a warm, natural-sounding AI helping someone shop from this week\'s grocery circular. You are SPEAKING out loud: short, plain sentences, no lists, no emoji, 2-3 sentences per reply.',
+    store ? `Their store: ${clip(store, 50)}.` : '',
+    deals.length ? `Digitized circular, ${deals.length} sale items (talk ONLY about these; never invent items or prices). The first 60:\n${deals.slice(0, 60).map(dealLine).join('\n')}` : 'No circular items are loaded, so do not claim anything is on sale.',
+    coupons.length ? `Coupons Fern picked as great values (they may not match the recipes):\n${coupons.slice(0, 12).map(couponLine).join('\n')}` : 'No coupons were picked.',
+    unchecked.length ? `On their shopping list now: ${unchecked.join(', ')}.` : 'Their shopping list is empty.',
+    savedTitles.length ? `Recipes they have saved: ${savedTitles.slice(0, 25).map((t) => clip(t, 40)).join('; ')}.` : '',
+    'The page has: an add bar at the top for anything they want, an everyday-items box, the digitized circular where each sale item opens recipes with sides, the picked coupons, and the shopping list at the bottom. Digital coupons only work if clipped to the store loyalty account first; Walmart does not accept digital coupons.',
+    'Answer their questions plainly using only the facts above. If they ask you to add something to their shopping list, put plain grocery names (like "Ground beef") in add_to_shopping_list and just say you are adding it. Otherwise leave it empty.',
+    'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1"]}',
+  ].filter(Boolean).join('\n\n');
+}
+
+export function guideQAOpenerPrompt() {
+  return 'You just walked me through my digitized circular. In ONE short spoken sentence, tell me something specific from this week\'s sale items (how many there are and the single best deal), then ask me: "Do you have any questions?" Do not repeat the page tour.';
+}

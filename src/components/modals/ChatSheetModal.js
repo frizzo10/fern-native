@@ -118,6 +118,7 @@ export default function ChatSheetModal({
   title,
   emptyHintKey = 'chat_sheet_empty_hint',
   onAction,
+  compact = false, // true = a bottom card that leaves the page above it visible, instead of a full-screen sheet
   mode, // 'voice' = Fern speaks and the mic re-arms after every reply (hands-free); 'text' = typing only, no speech
 }) {
   const { t, locale } = useLanguage();
@@ -286,9 +287,10 @@ export default function ChatSheetModal({
   }, [isListening, stop, stopSpeaking, onClose]);
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <View style={styles.header}>
+    <Modal visible={visible} animationType="slide" transparent={compact} onRequestClose={handleClose}>
+      <View style={compact ? styles.compactBackdrop : styles.fullBackdrop}>
+      <KeyboardAvoidingView style={compact ? styles.compactSheet : styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={[styles.header, compact ? styles.headerCompact : null]}>
           <Text style={styles.headerTitle}>{title || `🌿 ${t('ask_fern_btn')}`}</Text>
           <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
             <Text style={styles.closeX}>✕</Text>
@@ -342,6 +344,7 @@ export default function ChatSheetModal({
         </View>
         {isListening && <Text style={styles.listeningHint}>{t('mic_listening')}</Text>}
       </KeyboardAvoidingView>
+      </View>
       <UpgradeGateModal visible={limitGate} onClose={() => setLimitGate(false)} tier={TIERS.PRO} title={t('chat_limit_title')} desc={t('chat_limit_desc')} />
     </Modal>
   );
@@ -349,6 +352,10 @@ export default function ChatSheetModal({
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.parch },
+  fullBackdrop: { flex: 1 },
+  compactBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.25)' },
+  compactSheet: { height: '48%', backgroundColor: colors.parch, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
+  headerCompact: { paddingTop: 16 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16,
