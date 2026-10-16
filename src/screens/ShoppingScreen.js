@@ -24,7 +24,7 @@ import SaleItemsList from '../components/SaleItemsList';
 import FlyerSection from '../components/trip/FlyerSection';
 import WeekMealsSection from '../components/trip/WeekMealsSection';
 import CouponPreviewModal from '../components/trip/CouponPreviewModal';
-import { isDigitalCoupon } from '../components/trip/DigitalCouponHowTo';
+import { isDigitalCoupon, isWalmartCoupon } from '../components/trip/DigitalCouponHowTo';
 import { addRecipesToShoppingList, buyCount } from '../utils/shoppingListSync';
 import { AISLES, aisleFor } from '../utils/aisles';
 import { toShoppingName } from '../utils/shoppingName';
@@ -876,7 +876,7 @@ export default function ShoppingScreen({ user }) {
                     <Text style={styles.couponTitle} numberOfLines={2}>{couponItemName(c)}</Text>
                     <Text style={styles.greatValue}>{c.discountLabel || c.title}</Text>
                     {c.store ? <Text style={styles.couponMeta}>{c.store}</Text> : null}
-                    {isDigitalCoupon(c) ? <Text style={styles.couponPossible}>{t('coupon_howto_short')}</Text> : null}
+                    {isDigitalCoupon(c) ? <Text style={styles.couponPossible}>{t(isWalmartCoupon(c) ? 'coupon_howto_walmart_short' : 'coupon_howto_short')}</Text> : null}
                     <Text style={styles.couponLink}>{t('sav_preview')}</Text>
                   </TouchableOpacity>
                   <TouchableOpacity

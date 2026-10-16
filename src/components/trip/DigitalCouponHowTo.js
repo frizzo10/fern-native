@@ -8,8 +8,20 @@ export function isDigitalCoupon(c) {
   return Boolean(c) && c.redemption !== 'code' && c.redemption !== 'link';
 }
 
+export function isWalmartCoupon(c) {
+  return isDigitalCoupon(c) && /walmart/i.test(String(c.store || ''));
+}
+
 export default function DigitalCouponHowTo({ coupon, t }) {
   if (!isDigitalCoupon(coupon)) return null;
+  if (isWalmartCoupon(coupon)) {
+    return (
+      <View style={styles.box}>
+        <Text style={styles.title}>{`⚠️ ${t('coupon_howto_walmart_title')}`}</Text>
+        <Text style={styles.step}>{t('coupon_howto_walmart_body')}</Text>
+      </View>
+    );
+  }
   const store = coupon.store ? coupon.store : t('coupon_howto_your_store');
   return (
     <View style={styles.box}>
