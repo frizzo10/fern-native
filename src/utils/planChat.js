@@ -68,3 +68,16 @@ export function guideQAOpenerPrompt() {
 export function guideQAReopenPrompt() {
   return 'I am back. In ONE short spoken sentence, welcome me back and ask what else I would like to know about the circular, the coupons, my list, or what to cook.';
 }
+
+// Page-specific part of the agent prompt for the chat card that opens after the circular walkthrough
+// (the general rules, facts and actions come from services/fernAgent.js).
+export function buildGuideQAExtra({ store, coupons = [] }) {
+  const couponLine = (c) => `- ${clip(c.title || c.discountLabel, 70)}${c.discountLabel ? ` (${clip(c.discountLabel, 24)})` : ''}${c.store ? ` at ${clip(c.store, 30)}` : ''}`;
+  return [
+    'WHERE YOU ARE: the person just heard Fern walk through their digitized circular on the Shopping page. The page has an add bar, an everyday-items box, the circular (each sale item opens recipes with sides), picked coupons and the shopping list.',
+    store ? `Their store: ${clip(store, 50)}.` : '',
+    coupons.length ? `Coupons Fern highlighted on this page as great values (they may not match the recipes):\n${coupons.slice(0, 12).map(couponLine).join('\n')}` : '',
+    'Your very first message in this chat must end with the exact question: "Do you have any questions?"',
+    'When they ask to see or find a recipe or dinner ideas for something on sale, use the show_recipes action and say you are opening it.',
+  ].filter(Boolean).join('\n\n');
+}

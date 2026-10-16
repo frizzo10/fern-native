@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { subscribeAgentChange } from '../services/fernAgent';
 import { ActivityIndicator, Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
@@ -26,6 +27,9 @@ const MONTH_ABBREVIATIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'A
 export default function FamilyScreen({ user }) {
     const { t, locale } = useLanguage();
     const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
+  const agentPullRef = React.useRef(pull);
+  agentPullRef.current = pull;
+  React.useEffect(() => subscribeAgentChange(() => { agentPullRef.current?.(); }), []);
     const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
     const { hasAccess } = useEntitlement();
     const mealPlanRecipes = useAiRecipeCollection({ source: 'family_meal_plan', data, pushAllFromStorage, pull, t, token: user?.token });

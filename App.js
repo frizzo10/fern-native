@@ -403,6 +403,15 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         visible={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         user={user}
+        onSpeechDone={(p) => {
+          // Fern finished talking and asked to open something / close the card.
+          setIsChatOpen(false);
+          const item = String(p?.show_recipes_for || '').trim();
+          setTimeout(() => {
+            if (item) navigationRef.current?.navigate('Shopping', { recipesFor: item, recipesNonce: Date.now() });
+            else if (p?.go_to) navigationRef.current?.navigate(p.go_to);
+          }, 350);
+        }}
       />
 
       <HelpModal
@@ -448,9 +457,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           style={styles.chatFab}
           activeOpacity={0.85}
           onPress={() => {
-            // On the Shopping page the leaf talks about the shopping list (add / change / remove); elsewhere it's Ask Fern.
-            if (activeTabName === 'Shopping') navigationRef.current?.navigate('Shopping', { listChat: Date.now() });
-            else setIsChatOpen(true);
+            // One Fern everywhere: the same food agent on every screen (she knows the page's data too).
+            setIsChatOpen(true);
           }}
           accessibilityLabel={t('ask_fern_btn')}
         >

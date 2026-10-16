@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { subscribeAgentChange } from '../services/fernAgent';
 import { loadWeekDeals, couponItemName } from '../utils/savings';
 import { claimArrival, storeKey, notifyArrival } from '../services/storeGeofencing';
 import { dealsForStore, storeAtPosition } from '../utils/flyerStore';
@@ -315,6 +316,9 @@ export default function HomeScreen({ user, route }) {
   const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState([]);
   const [quickSuggestions, setQuickSuggestions] = useState([]);
   const { data, loading, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
+  const agentPullRef = React.useRef(pull);
+  agentPullRef.current = pull;
+  React.useEffect(() => subscribeAgentChange(() => { agentPullRef.current?.(); }), []);
 
   // Weekly Review: once every ~7 days, the first time Home mounts after
   // that gap, surface fresh meal/activity suggestions (moved here from

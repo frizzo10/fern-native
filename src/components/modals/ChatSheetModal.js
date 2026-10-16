@@ -29,6 +29,7 @@ import useLanguage from '../../hooks/useLanguage';
 import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync';
 import { LAUNCH_ALL_FREE } from '../../constants/launch';
 import { spokenSummary } from '../../utils/spokenSummary';
+import { buildAgentContext, buildAgentPrompt, executeAgentActions, emitAgentChange } from '../../services/fernAgent';
 
 // Free plan: a small number of Ask Fern questions per local day (device-only counter). Pro and up
 // are unlimited. The auto-opener (silent) turn never counts.
@@ -113,7 +114,9 @@ function Bubble({ role, text }) {
 // same convention the shopping-list confirmation below already uses).
 export default function ChatSheetModal({
   visible, onClose, user,
-  systemPrompt = DEFAULT_SYSTEM_PROMPT,
+  systemPrompt: customSystemPrompt,
+  agent, // true = Fern the food agent (knows the list, recipes, week, circular, coupons and acts on them). Default: on unless a custom systemPrompt is given
+  agentExtra = '', // page-specific instructions appended to the agent prompt
   autoOpenerPrompt = DEFAULT_AUTO_OPENER_PROMPT,
   title,
   emptyHintKey = 'chat_sheet_empty_hint',
@@ -123,6 +126,8 @@ export default function ChatSheetModal({
   mode, // 'voice' = Fern speaks and the mic re-arms after every reply (hands-free); 'text' = typing only, no speech
 }) {
   const { t, locale } = useLanguage();
+  const agentOn = agent ?? !customSystemPrompt;
+  const systemPrompt = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
   const { hasAccess } = useEntitlement();
   const isFreeRef = useRef(false);
   isFreeRef.current = !hasAccess(TIERS.PRO);
@@ -145,7 +150,7 @@ export default function ChatSheetModal({
     token: user?.token,
     enabled: visible && mode !== 'text',
   });
-  const { data, pull, pushAllFromStorage } = useSync(user);
+  const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
   const shoppingRef = useRef(data.shopping);
   shoppingRef.current = data.shopping;
 
@@ -185,11 +190,15 @@ export default function ChatSheetModal({
     setThinking(true);
 
     try {
+      // The agent sees fresh state on every turn (list, recipes, week, circular, coupons), so what she says is current.
+      const system = agentOn
+        ? buildAgentPrompt(await buildAgentContext(), { extra: agentExtra, voice: mode === 'voice' })
+        : systemPrompt;
       const res = await fetch(AI_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system: systemPrompt,
+          system,
           messages: requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
           locale,
           userId: user?.id,
@@ -228,17 +237,31 @@ export default function ChatSheetModal({
         );
         await pushAllFromStorage();
         await pull();
+        emitAgentChange();
         if (addedCount > 0 || checkedCount > 0) {
           const confirmText = t('chat_shopping_list_confirm', { items: itemsToAdd.join(', ') });
           setMessages(prev => [...prev, { role: 'fern', text: confirmText }]);
         }
       }
 
+      if (agentOn && Array.isArray(parsed?.actions) && parsed.actions.length) {
+        const done = await executeAgentActions(parsed.actions, { pushChangedFromStorage, token: user?.token, canSaveUnlimited: !isFreeRef.current });
+        if (done.lines.length) {
+          setMessages(prev => [...prev, { role: 'fern', text: done.lines.join('\n') }]);
+          await pull();
+          emitAgentChange();
+        }
+        // Hand the "open / go / close" part to the caller once her voice has finished.
+        parsed.show_recipes_for = done.showRecipesFor || parsed.show_recipes_for || '';
+        parsed.go_to = done.goTo || '';
+        if (done.close) parsed.close_chat = true;
+      }
+
       if (onAction) {
         const confirmText = onAction(parsed);
         if (confirmText) setMessages(prev => [...prev, { role: 'fern', text: confirmText }]);
       }
-      if (onSpeechDone && (parsed?.close_chat === true || String(parsed?.show_recipes_for || '').trim())) {
+      if (onSpeechDone && (parsed?.close_chat === true || String(parsed?.show_recipes_for || '').trim() || String(parsed?.go_to || '').trim())) {
         finishAction.current = parsed;
         // No voice to wait for (text mode): act right away.
         if (mode !== 'voice') { const p = finishAction.current; finishAction.current = null; onSpeechDone(p); }
@@ -249,7 +272,7 @@ export default function ChatSheetModal({
     } finally {
       setThinking(false);
     }
-  }, [locale, user, speakText, pull, pushAllFromStorage, t, systemPrompt, onAction, onSpeechDone, mode]);
+  }, [locale, user, speakText, pull, pushAllFromStorage, pushChangedFromStorage, t, systemPrompt, agentOn, agentExtra, onAction, onSpeechDone, mode]);
 
   const { isListening, start, stop } = useContinuousMic({
     locale,

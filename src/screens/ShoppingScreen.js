@@ -39,8 +39,9 @@ import { storeAtPosition } from '../utils/flyerStore';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import ShoppingModeModal from '../components/trip/ShoppingModeModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
-import { buildGuideQAPrompt, guideQAOpenerPrompt, guideQAReopenPrompt } from '../utils/planChat';
+import { buildGuideQAExtra, guideQAOpenerPrompt, guideQAReopenPrompt } from '../utils/planChat';
 import { useFernVoice } from '../hooks/useFernVoice';
+import { subscribeAgentChange } from '../services/fernAgent';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import { recipeLimitReached } from '../utils/freeLimits';
@@ -212,6 +213,18 @@ export default function ShoppingScreen({ user }) {
   );
 
   useEffect(() => { if (route?.params?.listChat) setListChat(true); }, [route?.params?.listChat]);
+  // Fern (the global chat) asked to open a sale item's recipes: scroll to the circular and pin them.
+  useEffect(() => {
+    const item = route?.params?.recipesFor;
+    if (!item) return;
+    navigation.setParams({ recipesFor: undefined });
+    setTimeout(() => { goTo('sales'); setRecipeRequest({ name: String(item), nonce: Date.now() }); }, 600);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route?.params?.recipesFor, route?.params?.recipesNonce]);
+  // Something Fern changed (list, recipes, week) from the chat: re-read it.
+  const pullRef = useRef(pull);
+  pullRef.current = pull;
+  useEffect(() => subscribeAgentChange(() => { pullRef.current?.(); }), []);
   useEffect(() => {
     if (!route?.params?.guide) return;
     setGuideStore(String(route.params.guideStore || ''));
@@ -1282,11 +1295,9 @@ export default function ShoppingScreen({ user }) {
           onClose={() => { setQaOpen(false); pull(); }}
           user={user}
           title={`🌿 ${t('guide_qa_title')}`}
-          systemPrompt={buildGuideQAPrompt({
+          agent
+          agentExtra={buildGuideQAExtra({
             store: guideStore,
-            deals: weekDeals,
-            list: items,
-            savedTitles: (data.recipes || []).map((r) => r.title),
             coupons: [...greatDeals.map((m) => m.coupon), ...listCoupons.map((m) => m.coupon)],
           })}
           autoOpenerPrompt={qaReopened ? guideQAReopenPrompt() : guideQAOpenerPrompt()}
@@ -1295,6 +1306,7 @@ export default function ShoppingScreen({ user }) {
             setQaOpen(false);
             pull();
             const item = String(parsed?.show_recipes_for || '').trim();
+            if (parsed?.go_to && parsed.go_to !== 'Shopping') { navigation.navigate(parsed.go_to); return; }
             if (item) {
               setTimeout(() => {
                 goTo('sales');
