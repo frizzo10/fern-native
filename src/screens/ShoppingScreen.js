@@ -247,6 +247,7 @@ export default function ShoppingScreen({ user }) {
     qaStage.current = 'intro';
     qaHeard.current = false;
     // Fern's speech itself starts in the effect below, once any open tour has closed (so two voices never overlap).
+    setShowSales(true); // tapping a scanned circular takes you to it, open
     setIntroBusy(true);
     setGuideSpeechGo(Date.now());
     const safety = setTimeout(() => setIntroBusy(false), 120000); // never hold the celebration forever
@@ -267,8 +268,8 @@ export default function ShoppingScreen({ user }) {
       if (heard && greeting) {
         return speakText(greeting).catch(() => {}).then(() => { setTimeout(() => setIntroBusy(false), 1500); return null; });
       }
-      if (heard) { setQaOpen(true); return null; }
-      // The walkthrough already ends with "tap the green leaf", so the app-level leaf welcome would say the same thing on top of it.
+      if (heard) { setIntroBusy(false); return null; } // no card from the bottom: you just land on the circular
+      // The leaf is explained in the Home tour, so the app-level leaf welcome shouldn't talk on top of this walkthrough.
       leafMarked = true;
       AsyncStorage.setItem('fern_leaf_welcome_heard', 'done').catch(() => {});
       return speakText(greeting ? `${greeting} ${t('guide_say_everyday')}` : t('guide_say_everyday')).then((uri) => {
@@ -292,7 +293,7 @@ export default function ShoppingScreen({ user }) {
     if (qaHeard.current) {
       qaHeard.current = false;
       setQaArmed(false);
-      if (qaStage.current === 'intro') { qaStage.current = 'why'; setWhyGo(true); } else setQaOpen(true);
+      if (qaStage.current === 'intro') { qaStage.current = 'why'; setWhyGo(true); } else setIntroBusy(false);
     }
   }, [qaArmed, isSpeaking]);
 
@@ -302,7 +303,7 @@ export default function ShoppingScreen({ user }) {
     if (!whyGo) return undefined;
     if (!mealCards) {
       // Dinner ideas still loading (or failed): wait a bit, then skip straight to questions.
-      const timer = setTimeout(() => { setWhyGo(false); qaStage.current = 'qa'; setQaOpen(true); }, 15000);
+      const timer = setTimeout(() => { setWhyGo(false); qaStage.current = 'qa'; setIntroBusy(false); }, 15000);
       return () => clearTimeout(timer);
     }
     setWhyGo(false);
@@ -311,8 +312,8 @@ export default function ShoppingScreen({ user }) {
     const timer = setTimeout(() => {
       speakText(line).then((uri) => {
         qaStage.current = 'qa';
-        if (uri) setQaArmed(true); else setQaOpen(true);
-      }).catch(() => { qaStage.current = 'qa'; setQaOpen(true); });
+        if (uri) setQaArmed(true); else setIntroBusy(false);
+      }).catch(() => { qaStage.current = 'qa'; setIntroBusy(false); });
     }, 700);
     return () => clearTimeout(timer);
   }, [whyGo, mealCards]); // eslint-disable-line react-hooks/exhaustive-deps
