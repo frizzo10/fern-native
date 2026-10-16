@@ -48,7 +48,7 @@ async function readJson(key, fallback) {
 // every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
-export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false }) {
+export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, onReady }) {
   const { hasAccess } = useEntitlement();
   const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
@@ -76,6 +76,11 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     busy === 'normal' ? 'A normal week: mostly weeknight-friendly dinners under 45 minutes.' : '',
     busy === 'relaxed' ? 'A relaxed week: there is time for a couple of dinners that take longer to cook.' : '',
   ].filter(Boolean).join(' ');
+
+  // Tells the screen when the dinner ideas are on the page, so Fern can scroll here and say why she picked them.
+  useEffect(() => {
+    if (phase === 'ready' && cards.length) onReady?.(cards);
+  }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Opened for a freshly loaded flyer: build dinner ideas for the three best-value items without a tap.
   const autoStarted = useRef(false);

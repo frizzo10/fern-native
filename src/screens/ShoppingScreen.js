@@ -47,6 +47,7 @@ import { normalizeCoupons } from '../utils/couponNormalize';
 import {
   dealSaving,
   fmtMoney,
+  priceNum,
   loadLedger,
   loadWeekDeals,
   matchListItems,
@@ -129,6 +130,9 @@ export default function ShoppingScreen({ user }) {
   const [qaArmed, setQaArmed] = useState(false); // Fern's scripted walkthrough is playing; ask "any questions?" when it ends
   const [qaOpen, setQaOpen] = useState(false);
   const qaHeard = useRef(false);
+  const qaStage = useRef('intro'); // 'intro' walkthrough -> 'why' dinners explained -> 'qa' any questions
+  const [whyGo, setWhyGo] = useState(false); // the walkthrough ended: scroll to the dinners and explain them
+  const [mealCards, setMealCards] = useState(null); // the dinner ideas WeekMealsSection built, with the sale item behind each
   const [listChat, setListChat] = useState(false); // the leaf button: talk to Fern about the list
   const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
   const tripChatOpen = tripChatMode === 'voice' || tripChatMode === 'text';
@@ -210,6 +214,9 @@ export default function ShoppingScreen({ user }) {
     loadWeekDeals().then(setWeekDeals).catch(() => {});
     setQaOpen(false);
     setQaArmed(false);
+    setWhyGo(false);
+    setMealCards(null);
+    qaStage.current = 'intro';
     qaHeard.current = false;
     // First time ever: the full spoken walkthrough, then (when it finishes playing) one AI sentence and "any questions?".
     // Every time after that: skip the tour and go straight to the AI sentence and "any questions?".
@@ -230,9 +237,48 @@ export default function ShoppingScreen({ user }) {
     if (qaHeard.current) {
       qaHeard.current = false;
       setQaArmed(false);
-      setQaOpen(true);
+      if (qaStage.current === 'intro') { qaStage.current = 'why'; setWhyGo(true); } else setQaOpen(true);
     }
   }, [qaArmed, isSpeaking]);
+
+  // Second part of the first-time walkthrough: scroll down to the dinners and say why each dish was picked
+  // (the sale item behind it and the reason the AI gave for the dish). Then on to "any questions?".
+  useEffect(() => {
+    if (!whyGo) return undefined;
+    if (!mealCards) {
+      // Dinner ideas still loading (or failed): wait a bit, then skip straight to questions.
+      const timer = setTimeout(() => { setWhyGo(false); qaStage.current = 'qa'; setQaOpen(true); }, 15000);
+      return () => clearTimeout(timer);
+    }
+    setWhyGo(false);
+    goTo('meals');
+    const line = buildWhyLine(mealCards);
+    const timer = setTimeout(() => {
+      speakText(line).then((uri) => {
+        qaStage.current = 'qa';
+        if (uri) setQaArmed(true); else setQaOpen(true);
+      }).catch(() => { qaStage.current = 'qa'; setQaOpen(true); });
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [whyGo, mealCards]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const buildWhyLine = (cards) => {
+    const parts = [t('guide_why_intro')];
+    cards.slice(0, 3).forEach((c) => {
+      const idea = c.ideas.find((x) => x.checked) || c.ideas[0];
+      if (!idea) return;
+      const p = priceNum(c.deal?.salePrice);
+      const price = Number.isFinite(p) && p > 0 ? fmtMoney(p) : '';
+      let line = price
+        ? t('guide_why_card', { item: c.deal.name, price, dish: idea.title })
+        : t('guide_why_card_noprice', { item: c.deal.name, dish: idea.title });
+      const why = String(idea.why || '').trim().replace(/[.!?]+$/, '');
+      if (why) line += ` ${why}.`;
+      parts.push(line);
+    });
+    parts.push(t('guide_why_outro'));
+    return parts.join(' ');
+  };
 
   const reloadDeals = () => loadWeekDeals().then(setWeekDeals);
 
@@ -847,6 +893,7 @@ export default function ShoppingScreen({ user }) {
         <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
           <WeekMealsSection
             autoStart={guideStep === 'list'}
+            onReady={setMealCards}
             t={t}
             locale={locale}
             token={user?.token}
