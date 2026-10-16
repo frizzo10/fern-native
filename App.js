@@ -10,6 +10,7 @@ import { Image, Text, View, StyleSheet, TouchableOpacity, Animated, Modal, Press
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
+import ErrorBoundary from './src/components/ErrorBoundary';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -717,7 +718,9 @@ export default function App() {
           <AccountModalProvider>
             <PlansModalProvider>
               <TourProvider>
-                <MainAppContent />
+                <ErrorBoundary>
+                  <MainAppContent />
+                </ErrorBoundary>
               </TourProvider>
             </PlansModalProvider>
           </AccountModalProvider>
