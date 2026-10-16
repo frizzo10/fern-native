@@ -311,6 +311,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           else if (navReady) nav.navigate('Shopping'); // plan never resolved: safe default
           return;
         }
+        closeTour(); // a Home tour that opened underneath must not sit on top of the screen the tap opens
         // Arrival: Home starts that store's flyer scan (same as tapping the store on Home). Leaving a store lands on the
         // Shopping savings card, and the everyday nudge on Shopping's Everyday card.
         if (content.data.type === 'everyday_nudge') nav.navigate('Shopping', { everyday: Date.now() });

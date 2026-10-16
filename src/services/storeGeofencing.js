@@ -86,7 +86,13 @@ async function readJson(key, fallback) {
 
 // True (and records the time) if this store hasn't notified within the cooldown.
 // Shared by the background task and the foreground poll.
+// Synchronous in-memory guard: the OS geofence event, the foreground GPS poll and Home can all claim the same arrival
+// within milliseconds, and the storage read-then-write below is not atomic (that sent the arrival notification twice).
+const recentClaims = {};
+const CLAIM_GUARD_MS = 15000;
 export async function claimArrival(key, now = Date.now()) {
+  if (typeof recentClaims[key] === 'number' && now - recentClaims[key] < CLAIM_GUARD_MS) return false;
+  recentClaims[key] = now;
   const last = await readJson(COOLDOWN_KEY, {});
   if (last && typeof last[key] === 'number' && now - last[key] <= COOLDOWN_MS) return false;
   const next = { ...(last || {}), [key]: now };
