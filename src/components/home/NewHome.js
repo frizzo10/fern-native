@@ -155,7 +155,7 @@ export default function NewHome({
         <View style={styles.scanWrap}>
           <Animated.View pointerEvents="none" style={[styles.scanHalo, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }] }]} />
           <Animated.View style={{ transform: [{ scale: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1] }) }] }}>
-            <TouchableOpacity style={styles.scanBtn} activeOpacity={0.88} onPress={onScan} accessibilityRole="button">
+            <TouchableOpacity ref={tourTargetRef('scan')} collapsable={false} style={styles.scanBtn} activeOpacity={0.88} onPress={onScan} accessibilityRole="button">
               <Ionicons name="camera-outline" size={40} color="#fff" />
               <Text style={styles.scanBtnText}>{t('home_scan_flyer')}</Text>
             </TouchableOpacity>

@@ -16,6 +16,7 @@ export const TOURS = {
     steps: [
       // `target` = name registered with tourTargetRef/setTourStaticRect (src/services/tourTargets.js); TourModal dims the rest and rings it.
       { textKey: 'tour_home_step1', target: 'week' },
+      { textKey: 'tour_home_scan', target: 'scan' }, // the flyer scanner: paper ad -> digital circular (patent pending)
       { textKey: 'tour_home_step2', pointer: 'leaf' }, // TourModal shows the real leaf button's spot
       { textKey: 'tour_home_step3', target: 'tabs' },
       { textKey: 'tour_home_step4', target: 'profile' },

@@ -84,7 +84,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
               pointerEvents="none"
               style={[
                 styles.spot,
-                { left: rect.x - PAD, top: rect.y - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2, borderRadius: Math.min(rect.width, rect.height) <= 60 ? 999 : 18 },
+                { left: rect.x - PAD, top: rect.y - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2, borderRadius: Math.abs(rect.width - rect.height) < 8 ? 999 : 18 },
                 { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] }) },
               ]}
             />
