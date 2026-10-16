@@ -345,9 +345,9 @@ export default function ChatSheetModal({
       (async () => {
         let n = 0;
         try { n = Number(await AsyncStorage.getItem(AGENT_INTRO_KEY)) || 0; } catch (e) { /* ignore */ }
-        if (n < 2) {
+        if (n < 3) {
           try { await AsyncStorage.setItem(AGENT_INTRO_KEY, String(n + 1)); } catch (e) { /* ignore */ }
-          const k = n === 0 ? 'agent_intro_1' : 'agent_intro_2';
+          const k = n === 0 ? 'agent_intro_1' : 'agent_intro_2';  // opens 1 and 2 get the full welcome, the 3rd a short reminder
           setMessages([{ role: 'fern', text: t(`${k}_text`) }]);
           if (mode !== 'text') {
             heardSpeech.current = false;

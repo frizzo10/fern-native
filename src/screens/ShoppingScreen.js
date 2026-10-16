@@ -125,6 +125,8 @@ export default function ShoppingScreen({ user }) {
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
+  // The very first time a circular is on screen it is open so the person sees what's in it; after that it stays a closed accordion.
+  const circularSeenChecked = useRef(false);
   const [shoppingDay, setShoppingDay] = useState(null);
   useEffect(() => { getShoppingDay().then(setShoppingDay); }, []);
   const pickShoppingDay = async (day) => {
@@ -300,6 +302,20 @@ export default function ShoppingScreen({ user }) {
     parts.push(t('guide_why_outro'));
     return parts.join(' ');
   };
+
+  useEffect(() => {
+    if (!weekDeals.length || circularSeenChecked.current) return;
+    circularSeenChecked.current = true;
+    (async () => {
+      try {
+        const seen = await AsyncStorage.getItem('fern_circular_seen');
+        if (!seen) {
+          setShowSales(true);
+          await AsyncStorage.setItem('fern_circular_seen', 'done');
+        }
+      } catch (e) { /* ignore */ }
+    })();
+  }, [weekDeals.length]);
 
   const reloadDeals = () => loadWeekDeals().then(setWeekDeals);
 
@@ -927,9 +943,6 @@ export default function ShoppingScreen({ user }) {
                 <View>
                   <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
                   <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
-                  <TouchableOpacity style={styles.askCircularBtn} activeOpacity={0.88} onPress={() => { setQaReopened(true); setQaOpen(true); }}>
-                    <Text style={styles.askCircularText}>{`🌿 ${t('guide_qa_ask_btn')}`}</Text>
-                  </TouchableOpacity>
                 </View>
               )}              deals={weekDeals}
               collapsed={!showSales}
