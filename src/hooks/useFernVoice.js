@@ -158,13 +158,22 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
         stopSpeaking();
 
         try {
-            const response = await fetch(GROQ_SPEAK, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ text: cleanText, locale, token }),
-            });
+            // A stalled connection (weak signal in a store) must not hang the caller forever: give up after 25 s.
+            const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const abortTimer = controller ? setTimeout(() => controller.abort(), 25000) : null;
+            let response;
+            try {
+                response = await fetch(GROQ_SPEAK, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: cleanText, locale, token }),
+                    ...(controller ? { signal: controller.signal } : {}),
+                });
+            } finally {
+                if (abortTimer) clearTimeout(abortTimer);
+            }
 
             if (!response.ok) {
                 throw new Error(`Speech request failed: ${response.status}`);

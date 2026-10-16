@@ -108,7 +108,8 @@ const GUIDE_SPEECH_DELAY_MS = 3000; // how long the person gets to read the Shop
 
 export default function ShoppingScreen({ user }) {
   const { t, locale } = useLanguage();
-  const { speakText, isSpeaking } = useFernVoice({ onError: (m) => console.warn('[Shopping] voice error:', m), token: user?.token, enabled: true });
+  const [voiceErr, setVoiceErr] = useState('');
+  const { speakText, isSpeaking } = useFernVoice({ onError: (m) => { console.warn('[Shopping] voice error:', m); setVoiceErr(String(m || '').slice(0, 120)); }, token: user?.token, enabled: true });
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const { hasAccess } = useEntitlement();
@@ -288,10 +289,13 @@ export default function ShoppingScreen({ user }) {
     const done = new Promise((resolve) => {
       w = { heard: false, resolve };
       walkWaitRef.current = w;
-      setTimeout(() => { if (walkWaitRef.current === w) { walkWaitRef.current = null; resolve(); } }, 25000);
     });
-    const uri = await speakText(text).catch(() => null);
+    setVoiceErr('');
+    // Never wait on one line forever (a stalled request used to leave "Fern is about to talk…" up with no sound).
+    const uri = await Promise.race([speakText(text).catch(() => null), new Promise((r) => setTimeout(() => r(null), 30000))]);
     if (!uri) { if (walkWaitRef.current === w) walkWaitRef.current = null; return false; }
+    // 40 s safety for the audio itself, counted from when the line was ready (not from the request).
+    setTimeout(() => { if (walkWaitRef.current === w) { walkWaitRef.current = null; w.resolve(); } }, 40000);
     await done;
     return true;
   };
@@ -952,6 +956,7 @@ export default function ShoppingScreen({ user }) {
       {(isSpeaking || introBusy) ? (
         <View style={styles.fernSpeakPill} pointerEvents="none">
           <Text style={styles.fernSpeakText}>{isSpeaking ? t('fern_talking') : t('fern_talk_soon')}</Text>
+          {voiceErr && !isSpeaking ? <Text style={[styles.fernSpeakText, { fontSize: 11, fontWeight: '500', marginTop: 2 }]}>{`Voice problem: ${voiceErr}`}</Text> : null}
         </View>
       ) : null}
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
