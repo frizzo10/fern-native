@@ -5,7 +5,13 @@ import useLanguage from '../../hooks/useLanguage';
 import { code128Widths } from '../../utils/code128';
 
 export default function CouponDetailModal({ visible, coupon, isInWallet, onClose, onToggleWallet }) {
-    const { t } = useLanguage();
+    const { t, locale } = useLanguage();
+
+    // The catalog's expiry is a raw ISO timestamp; show it as a readable date.
+    const expiryDate = coupon?.expiresAt ? new Date(coupon.expiresAt) : null;
+    const expiryText = expiryDate && !Number.isNaN(expiryDate.getTime())
+        ? expiryDate.toLocaleDateString(locale === 'es' ? 'es' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : coupon?.expiresAt;
 
     // Only a coupon that is really redeemed by a typed/scanned code gets a barcode. The
     // catalog's other codes are offer IDs, not register barcodes, so none is drawn for them.
@@ -61,7 +67,7 @@ export default function CouponDetailModal({ visible, coupon, isInWallet, onClose
                         </View>) : null}
 
                         {coupon.expiresAt ? (
-                            <Text style={styles.expiry}>{t('coupon_detail_expires_label', { date: coupon.expiresAt })}</Text>
+                            <Text style={styles.expiry}>{t('coupon_detail_expires_label', { date: expiryText })}</Text>
                         ) : null}
 
                         <TouchableOpacity
