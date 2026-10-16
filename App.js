@@ -268,21 +268,9 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   // Ask for location / "Always" / notifications on a short explanation screen: right
   // after signup or first login, and again (at most once a day) while something is missing.
   const [showLocationSetup, setShowLocationSetup] = useState(false);
-  // First time ever: Fern speaks up on her own (without anyone touching the leaf), says what she can do and that the leaf is how to reach her.
+  // Fern's spoken greeting on store arrival (app open). The old unprompted first-run welcome (`leaf_welcome_say`) was removed
+  // 2026-10-16: it repeated the Home tour and talked over whatever the person tapped next. The tour explains the leaf.
   const { speakText: speakWelcome } = useFernVoice({ token: user?.token, allowFree: true, enabled: true });
-  useEffect(() => {
-    if (!user?.token || showLocationSetup || activeTour) return undefined;
-    let cancelled = false;
-    const timer = setTimeout(async () => {
-      try {
-        const heard = await AsyncStorage.getItem('fern_leaf_welcome_heard');
-        if (heard || cancelled) return;
-        const uri = await speakWelcome(t('leaf_welcome_say'));
-        if (uri) await AsyncStorage.setItem('fern_leaf_welcome_heard', 'done');
-      } catch (e) { /* ignore */ }
-    }, 2500);
-    return () => { cancelled = true; clearTimeout(timer); };
-  }, [user?.token, showLocationSetup, !!activeTour]);
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
