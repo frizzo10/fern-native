@@ -534,9 +534,6 @@ export default function ShoppingScreen({ user }) {
       .catch(() => { celebratedRef.current = new Set(); });
   }, []);
   // Never on top of a tour, Fern talking, or the "any questions?" card: it waits its turn, then pops up on its own.
-  hasDealsRef.current = weekDeals.length > 0;
-  hasCouponsRef.current = greatDeals.length > 0 || listCoupons.length > 0;
-  hasListRef.current = items.length > 0;
   const holdCelebration = !tourChecked || !!activeTourKey || guideSpeechGo !== 0 || introBusy || qaOpen || isSpeaking;
   useEffect(() => {
     if (holdCelebration || !celebratedRef.current || !listCoupons.length) return;
@@ -558,6 +555,10 @@ export default function ShoppingScreen({ user }) {
     () => tooGoodCoupons(coupons, { excludeIds: listCoupons.map((m) => m.coupon.id), items, stores: data.userStores }),
     [coupons, listCoupons, items, data.userStores]
   );
+  // (Must come after greatDeals: reading it earlier is undefined at render time.)
+  hasDealsRef.current = weekDeals.length > 0;
+  hasCouponsRef.current = greatDeals.length > 0 || listCoupons.length > 0;
+  hasListRef.current = items.length > 0;
 
   // Fern ticked things off in the chat ("I got the chicken"): match her names to list items and check them.
   const checkOffByName = async (names) => {
