@@ -24,7 +24,7 @@ import { translations } from '../constants/translations';
 import { fmtMoney, loadLedger, summarizeSince } from '../utils/savings';
 
 export const GEOFENCE_TASK = 'fern-store-geofence';
-export const GEOFENCE_RADIUS_M = 300;      // ~1000 ft; wider than the web app's 150 m so the alert lands as you pull in (iOS reports entry late)
+export const GEOFENCE_RADIUS_M = 200;      // ~650 ft; 300 m fired from a neighbouring store's lot (Harris Teeter / Publix), so it was tightened on 2026-10-16
 import { LAUNCH_ALL_FREE } from '../constants/launch';
 
 export const COOLDOWN_MS = 30 * 60 * 1000; // per-store, shared by both layers

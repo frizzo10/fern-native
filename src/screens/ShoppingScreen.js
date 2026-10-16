@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { chainKey, dealsForStore } from '../utils/flyerStore';
 import {
   ActivityIndicator,
   Alert,
@@ -121,7 +122,17 @@ export default function ShoppingScreen({ user }) {
   const [couponPreview, setCouponPreview] = useState(null); // { coupon, itemText?, level?, kind: 'list' | 'great', match? }
   const scrollRef = useRef(null);
   const sectionY = useRef({});
-  const [weekDeals, setWeekDeals] = useState([]);
+  const [allWeekDeals, setWeekDeals] = useState([]);
+  // Arriving at / choosing a store: show only THAT store's flyer, never another store's (Publix must not show Lowes' circular).
+  const guideStoreName = String(route?.params?.guideStore || '').trim();
+  const weekDeals = useMemo(
+    () => (guideStoreName && chainKey(guideStoreName) ? dealsForStore(allWeekDeals, guideStoreName) : allWeekDeals),
+    [allWeekDeals, guideStoreName]
+  );
+  const guideStores = useMemo(
+    () => (guideStoreName ? (data.userStores || []).filter((st) => chainKey(st?.name) && chainKey(st.name) === chainKey(guideStoreName)) : (data.userStores || [])),
+    [data.userStores, guideStoreName]
+  );
   const [catalog, setCatalog] = useState([]);
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
@@ -139,6 +150,7 @@ export default function ShoppingScreen({ user }) {
   const [spot, setSpot] = useState(null); // which section Fern is talking about right now (scrolled to and outlined)
   const walkWaitRef = useRef(null);
   const hasCouponsRef = useRef(false);
+  const hasDealsRef = useRef(false);
   const hasListRef = useRef(false);
   const hl = (key) => (spot === key ? styles.spotBox : null);
   const guideTimerRef = useRef(null); // pending "Fern starts talking in a few seconds"
@@ -288,7 +300,7 @@ export default function ShoppingScreen({ user }) {
     const segs = [
       { key: 'addRow', text: t('guide_seg_add') },
       { key: 'everyday', text: t('guide_seg_everyday') },
-      { key: 'sales', text: t('guide_seg_sales') },
+      { key: 'sales', text: t('guide_seg_sales'), when: () => hasDealsRef.current },
       { key: 'couponCard', text: t('guide_seg_coupons'), when: () => hasCouponsRef.current },
       { key: 'list', text: t('guide_seg_list'), when: () => hasListRef.current },
     ];
@@ -522,6 +534,7 @@ export default function ShoppingScreen({ user }) {
       .catch(() => { celebratedRef.current = new Set(); });
   }, []);
   // Never on top of a tour, Fern talking, or the "any questions?" card: it waits its turn, then pops up on its own.
+  hasDealsRef.current = weekDeals.length > 0;
   hasCouponsRef.current = greatDeals.length > 0 || listCoupons.length > 0;
   hasListRef.current = items.length > 0;
   const holdCelebration = !tourChecked || !!activeTourKey || guideSpeechGo !== 0 || introBusy || qaOpen || isSpeaking;
@@ -1006,7 +1019,7 @@ export default function ShoppingScreen({ user }) {
 
         {guideStep === 'list' && !weekDeals.length ? (
           <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
-            <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
+            <FlyerSection user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
           </View>
         ) : null}
 
