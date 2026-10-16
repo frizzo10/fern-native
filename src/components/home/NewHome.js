@@ -102,7 +102,7 @@ export default function NewHome({
     return () => { cancelled = true; };
   }, [tonightTitle, user?.token]);
 
-  const visibleStores = (stores || []).slice(0, 5);
+  const visibleStores = stores || []; // every saved store (the page scrolls); it used to stop at 5
 
   return (
     <View>
