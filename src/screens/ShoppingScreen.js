@@ -136,6 +136,11 @@ export default function ShoppingScreen({ user }) {
   };
   const [review, setReview] = useState(null);
   useEffect(() => subscribeReview(setReview), []);
+  const [spot, setSpot] = useState(null); // which section Fern is talking about right now (scrolled to and outlined)
+  const walkWaitRef = useRef(null);
+  const hasCouponsRef = useRef(false);
+  const hasListRef = useRef(false);
+  const hl = (key) => (spot === key ? styles.spotBox : null);
   const guideTimerRef = useRef(null); // pending "Fern starts talking in a few seconds"
   useEffect(() => () => clearTimeout(guideTimerRef.current), []);
   const [guideSpeechGo, setGuideSpeechGo] = useState(0); // a guide arrival wants Fern to speak; held until any open tour is closed
@@ -175,7 +180,8 @@ export default function ShoppingScreen({ user }) {
   // then the coupon celebration. `tourChecked` flips once the tour has either opened or been skipped (already seen).
   const [tourChecked, setTourChecked] = useState(false);
   useEffect(() => {
-    Promise.resolve(maybeAutoStart('shopping')).catch(() => {}).then(() => setTourChecked(true));
+    // The Shopping intro tour is gone: Fern's spoken walkthrough (which scrolls to and highlights each part) replaces it.
+    setTourChecked(true);
   }, []);
 
   // "shopping" tour step -> scroll target: step 1 is the list itself (top),
@@ -258,6 +264,51 @@ export default function ShoppingScreen({ user }) {
     return () => clearTimeout(safety);
   }, [route?.params?.guide]);
 
+  // Resolves when the line that is playing now has finished (heard start, then stop); 25 s safety.
+  useEffect(() => {
+    const w = walkWaitRef.current;
+    if (!w) return;
+    if (isSpeaking) { w.heard = true; return; }
+    if (w.heard) { walkWaitRef.current = null; w.resolve(); }
+  }, [isSpeaking]);
+  const speakAndWait = async (text) => {
+    let w;
+    const done = new Promise((resolve) => {
+      w = { heard: false, resolve };
+      walkWaitRef.current = w;
+      setTimeout(() => { if (walkWaitRef.current === w) { walkWaitRef.current = null; resolve(); } }, 25000);
+    });
+    const uri = await speakText(text).catch(() => null);
+    if (!uri) { if (walkWaitRef.current === w) walkWaitRef.current = null; return false; }
+    await done;
+    return true;
+  };
+  // Fern's walkthrough: each line scrolls to the part of the screen she is talking about and outlines it.
+  const runWalkthrough = async (greeting) => {
+    const segs = [
+      { key: 'addRow', text: t('guide_seg_add') },
+      { key: 'everyday', text: t('guide_seg_everyday') },
+      { key: 'sales', text: t('guide_seg_sales') },
+      { key: 'couponCard', text: t('guide_seg_coupons'), when: () => hasCouponsRef.current },
+      { key: 'list', text: t('guide_seg_list'), when: () => hasListRef.current },
+    ];
+    let first = true;
+    try {
+      for (const seg of segs) {
+        if (seg.when && !seg.when()) continue;
+        if (!navigation.isFocused()) return first ? false : true;
+        setSpot(seg.key);
+        scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current[seg.key] || 0) - 8), animated: true });
+        const ok = await speakAndWait(first && greeting ? `${greeting} ${seg.text}` : seg.text);
+        if (!ok) return !first;
+        first = false;
+      }
+      return true;
+    } finally {
+      setSpot(null);
+    }
+  };
+
   useEffect(() => {
     if (!guideSpeechGo || !tourChecked || activeTourKey) return;
     setGuideSpeechGo(0);
@@ -277,7 +328,7 @@ export default function ShoppingScreen({ user }) {
       // The leaf is explained in the Home tour, so the app-level leaf welcome shouldn't talk on top of this walkthrough.
       leafMarked = true;
       AsyncStorage.setItem('fern_leaf_welcome_heard', 'done').catch(() => {});
-      return speakText(greeting ? `${greeting} ${t('guide_say_everyday')}` : t('guide_say_everyday')).then((uri) => {
+      return runWalkthrough(greeting).then((uri) => {
         if (uri) {
           setQaArmed(true);
           AsyncStorage.setItem(WALKTHROUGH_KEY, 'done').catch(() => {});
@@ -471,6 +522,8 @@ export default function ShoppingScreen({ user }) {
       .catch(() => { celebratedRef.current = new Set(); });
   }, []);
   // Never on top of a tour, Fern talking, or the "any questions?" card: it waits its turn, then pops up on its own.
+  hasCouponsRef.current = greatDeals.length > 0 || listCoupons.length > 0;
+  hasListRef.current = items.length > 0;
   const holdCelebration = !tourChecked || !!activeTourKey || guideSpeechGo !== 0 || introBusy || qaOpen || isSpeaking;
   useEffect(() => {
     if (holdCelebration || !celebratedRef.current || !listCoupons.length) return;
@@ -922,7 +975,7 @@ export default function ShoppingScreen({ user }) {
         />
         ) : null}
 
-        <View style={styles.addRow} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
+        <View style={[styles.addRow, hl('addRow')]} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -946,7 +999,7 @@ export default function ShoppingScreen({ user }) {
         ) : null}
 
         {(!guideStep || guideStep === 'list') && !listOnly ? (
-        <View onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
+        <View style={hl('everyday')} onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
           <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
         </View>
         ) : null}
@@ -992,7 +1045,7 @@ export default function ShoppingScreen({ user }) {
             The bare anchor keeps the step strip's "Sales" scroll target working either way. */}
         {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
         {weekDeals.length > 0 && (!guideStep || guideStep === 'list') && !listOnly ? (
-        <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
+        <View style={hl('sales')} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           {weekDeals.length ? (
             <SaleItemsList
               cardStyle={[styles.checkoutCard, shadow.card]}
@@ -1057,7 +1110,7 @@ export default function ShoppingScreen({ user }) {
         ) : null}
 
         {(greatDeals.length > 0 || listCoupons.length > 0) && guideStep !== 'meals' && !listOnly ? (
-          <View style={[styles.greatCard, shadow.card]}>
+          <View style={[styles.greatCard, shadow.card, hl('couponCard')]} onLayout={(e) => { sectionY.current.couponCard = e.nativeEvent.layout.y; }}>
             <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
             {listCoupons.length ? (
               <>
@@ -1178,7 +1231,7 @@ export default function ShoppingScreen({ user }) {
         {(!guideStep || guideStep === 'list' || guideStep === 'ready') ? (
         <>
         {items.length ? (
-          <View style={styles.listWrap}>
+          <View style={[styles.listWrap, hl('list')]} onLayout={(e) => { sectionY.current.list = e.nativeEvent.layout.y; }}>
             {guideStep ? <Text style={styles.bigListTitle}>{t('shopping_list_title')}</Text> : null}
             <Text style={styles.listMeta}>
               {remainingCount === 1
@@ -1469,6 +1522,7 @@ const styles = StyleSheet.create({
   },
   fernSpeakPill: { alignSelf: 'center', backgroundColor: '#1f3d1f', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, marginTop: 6, marginBottom: 2 },
   fernSpeakText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+  spotBox: { borderWidth: 3, borderColor: '#F28C28', borderRadius: 18 },
   content: {
     paddingHorizontal: 20,
     paddingTop: 18,
