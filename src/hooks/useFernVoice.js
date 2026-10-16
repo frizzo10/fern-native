@@ -27,7 +27,7 @@
 
 
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -62,7 +62,12 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
     const isMountedRef = useRef(true);
     const enabledRef = useRef(allowed);
     const lastPlayedUriRef = useRef(null);
-    const player = useAudioPlayer(audioUri ? { uri: audioUri } : null);
+    const lastPlayedPlayerRef = useRef(null);
+    // Keep the source object stable: a new `{ uri }` literal every render can make expo-audio swap in a fresh player,
+    // which releases the one that is mid-sentence (speech cut off after the first word) and, because of the
+    // lastPlayedUriRef guard below, the new player never replays it.
+    const audioSource = useMemo(() => (audioUri ? { uri: audioUri } : null), [audioUri]);
+    const player = useAudioPlayer(audioSource);
 
     useEffect(() => {
         return () => {
@@ -92,8 +97,10 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
         if (!allowed || !audioUri || !player) return;
 
         // Guard against replaying the same file when player identity changes on re-render.
-        if (lastPlayedUriRef.current === audioUri) return;
+        // Keyed on the player too: if the player instance was swapped mid-line, start the line again rather than stay silent.
+        if (lastPlayedUriRef.current === audioUri && lastPlayedPlayerRef.current === player) return;
         lastPlayedUriRef.current = audioUri;
+        lastPlayedPlayerRef.current = player;
 
         try {
             player.seekTo(0);
