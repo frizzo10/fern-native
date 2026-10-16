@@ -30,7 +30,7 @@ const DIGITAL_OK = /publix|kroger|albertsons|safeway|food lion|meijer|walgreens|
 
 export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed, onClearChecked, storeName = '' }) {
   const { t } = useLanguage();
-  const { speakText, stopSpeaking } = useFernVoice({
+  const { speakText, stopSpeaking, isSpeaking } = useFernVoice({
     onError: (m) => console.warn('[ShoppingMode] voice error:', m),
     token: user?.token,
     enabled: Boolean(visible && voice),
@@ -84,19 +84,55 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     celebrateTimer.current = setTimeout(() => setCelebrate(null), 1900);
   };
 
-  const say = useCallback((text) => {
+  // Fern never talks over herself: a line that is being spoken (or fetched) is allowed to finish, and the next one
+  // waits its turn. Before, every new line stopped the one before it, so a quick tap on the next item (or a second
+  // announcement) cut the section change off mid-sentence. Only the newest plain line waits; lines flagged `keep`
+  // (section changes, skipped items coming back) are never dropped.
+  const speakTextRef = useRef(speakText);
+  speakTextRef.current = speakText;
+  const speechRef = useRef({ busy: false, heard: false, pending: [], timer: null });
+  const playNext = useRef(null);
+  playNext.current = () => {
+    const sp = speechRef.current;
+    clearTimeout(sp.timer);
+    const next = sp.pending.shift();
+    if (!next) { sp.busy = false; return; }
+    sp.busy = true;
+    sp.heard = false;
+    sp.timer = setTimeout(() => playNext.current(), 20000); // safety: never get stuck waiting on a line that did not play
+    speakTextRef.current(next.text).then((uri) => { if (!uri) playNext.current(); }).catch(() => playNext.current());
+  };
+  const resetSpeech = () => {
+    const sp = speechRef.current;
+    clearTimeout(sp.timer);
+    sp.busy = false;
+    sp.heard = false;
+    sp.pending = [];
+  };
+  useEffect(() => {
+    const sp = speechRef.current;
+    if (!sp.busy) return;
+    if (isSpeaking) { sp.heard = true; return; }
+    if (sp.heard) { sp.heard = false; playNext.current(); }
+  }, [isSpeaking]);
+
+  const say = useCallback((text, { keep = false } = {}) => {
     setStatus(text);
-    if (voice) speakText(text);
-  }, [voice, speakText]);
+    if (!voice) return;
+    const sp = speechRef.current;
+    sp.pending = sp.pending.filter((p) => p.keep);
+    sp.pending.push({ text, keep });
+    if (!sp.busy) playNext.current();
+  }, [voice]);
 
   const intro = (sectionKey) => t('shopmode_section_intro', { section: nameOf(sectionKey), n: openIn(sectionKey) });
 
   // Start fresh each time it opens, and read the first section.
   useEffect(() => {
-    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); setShowCoupons(false); stopSpeaking?.(); return; }
+    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); setShowCoupons(false); resetSpeech(); stopSpeaking?.(); return; }
     if (announced.current || !current) return;
     announced.current = true;
-    say(`${t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length })} ${intro(current.sectionKey)}`);
+    say(`${t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length })} ${intro(current.sectionKey)}`, { keep: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, current?.id]);
 
@@ -104,7 +140,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   useEffect(() => {
     if (!visible || current || !open.length) return;
     setSkipped([]);
-    say(t('shopmode_skipped_back'));
+    say(t('shopmode_skipped_back'), { keep: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, current, open.length]);
 
@@ -112,6 +148,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     const others = open.filter((i) => i.id !== item.id);
     const sameSection = others.filter((i) => i.sectionKey === item.sectionKey);
     let msg = t('shopmode_checked', { item: item.text });
+    let sectionChange = false;
     if (sameSection.length) {
       msg += ` ${t('shopmode_remaining', { n: sameSection.length, section: nameOf(item.sectionKey) })}`;
     } else {
@@ -120,14 +157,15 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
         celebrateSection(nameOf(item.sectionKey), nameOf(next.sectionKey));
         const nextCount = others.filter((i) => i.sectionKey === next.sectionKey).length;
         msg += ` ${t('shopmode_section_done', { section: nameOf(item.sectionKey) })} ${t('shopmode_section_intro', { section: nameOf(next.sectionKey), n: nextCount })}`;
+        sectionChange = true;
       } else if (others.length) {
-        msg += ` ${t('shopmode_skipped_back')}`;
+        // Only skipped items are left: the effect above says "now back to the ones you skipped" once, after this line.
       } else {
         celebrateSection(nameOf(item.sectionKey), '');
         msg += ` ${t('shopmode_all_done')}`;
       }
     }
-    say(msg);
+    say(msg, { keep: sectionChange });
     // Save last: the announcement/celebration above must show first, otherwise the next section's list flashes
     // on screen while the save finishes.
     await onSetChecked(item.ids || [item.id], true);
@@ -147,7 +185,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     const next = open.find((i) => i.sectionKey !== key && !skipped.includes(i.id));
     const go = () => {
       setSkipped((prev) => [...prev, ...left.map((i) => i.id)]);
-      if (next) say(`${t('shopmode_moving', { section: nameOf(next.sectionKey) })} ${intro(next.sectionKey)}`);
+      if (next) say(`${t('shopmode_moving', { section: nameOf(next.sectionKey) })} ${intro(next.sectionKey)}`, { keep: true });
     };
     Alert.alert(
       t('shopmode_move_title'),
@@ -168,7 +206,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   // Finish: with things checked off, show the recap + coupons first; the second tap closes.
   const finish = () => {
     if (showCoupons) { setShowCoupons(false); return; }
-    if (!recapOn && boughtCount > 0) { stopSpeaking?.(); setShowRecap(true); return; }
+    if (!recapOn && boughtCount > 0) { resetSpeech(); stopSpeaking?.(); setShowRecap(true); return; }
     onClose();
   };
 
