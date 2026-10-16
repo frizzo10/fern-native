@@ -95,6 +95,9 @@ function toSyncPayload(list) {
   }));
 }
 
+// Device-only: set once Fern has spoken the full circular walkthrough, so later visits skip it.
+const WALKTHROUGH_KEY = 'fern_shop_walkthrough_heard';
+
 export default function ShoppingScreen({ user }) {
   const { t, locale } = useLanguage();
   const { speakText, isSpeaking } = useFernVoice({ onError: (m) => console.warn('[Shopping] voice error:', m), token: user?.token, enabled: true });
@@ -208,8 +211,17 @@ export default function ShoppingScreen({ user }) {
     setQaOpen(false);
     setQaArmed(false);
     qaHeard.current = false;
-    // When the walkthrough finishes playing, Fern follows up with one AI sentence and "any questions?" (below).
-    speakText(t('guide_say_everyday')).then((uri) => { if (uri) setQaArmed(true); }).catch(() => {});
+    // First time ever: the full spoken walkthrough, then (when it finishes playing) one AI sentence and "any questions?".
+    // Every time after that: skip the tour and go straight to the AI sentence and "any questions?".
+    AsyncStorage.getItem(WALKTHROUGH_KEY).catch(() => null).then((heard) => {
+      if (heard) { setQaOpen(true); return null; }
+      return speakText(t('guide_say_everyday')).then((uri) => {
+        if (uri) {
+          setQaArmed(true);
+          AsyncStorage.setItem(WALKTHROUGH_KEY, 'done').catch(() => {});
+        }
+      });
+    }).catch(() => {});
   }, [route?.params?.guide]);
 
   useEffect(() => {
