@@ -2071,6 +2071,13 @@ export default function HomeScreen({ user, route }) {
     loadBrowseCoupons();
   };
 
+  // The More sheet's "Coupon Wallet" button navigates here with this param.
+  useEffect(() => {
+    if (!route?.params?.openCouponWallet) return;
+    navigation.setParams({ openCouponWallet: undefined });
+    openCouponWallet();
+  }, [route?.params?.openCouponWallet]);
+
   const openCouponDetail = (coupon) => {
     setSelectedCoupon(coupon);
   };

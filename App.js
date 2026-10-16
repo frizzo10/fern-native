@@ -146,12 +146,13 @@ function SyncFailedBanner({ onRetry, onDismiss }) {
   );
 }
 
-function MoreSheet({ visible, onClose, onProfile, onCookbooks, onImport, onHelp, onLogout }) {
+function MoreSheet({ visible, onClose, onProfile, onCookbooks, onCouponWallet, onImport, onHelp, onLogout }) {
   const { t } = useLanguage();
 
   const items = [
     { key: 'profile', label: t('more_profile'), emoji: '👤', onPress: onProfile },
     { key: 'cookbooks', label: t('more_cookbooks'), emoji: '📚', onPress: onCookbooks },
+    { key: 'coupons', label: t('more_coupon_wallet'), emoji: '🎟️', onPress: onCouponWallet },
     { key: 'import', label: t('importNavText'), emoji: '📥', onPress: onImport },
     { key: 'help', label: t('more_help'), emoji: '❓', onPress: onHelp },
     { key: 'logout', label: t('more_logout'), emoji: '🚪', onPress: onLogout },
@@ -379,6 +380,10 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         onCookbooks={() => {
           setIsMoreOpen(false);
           navigationRef.current?.navigate('Recipes', { openTab: 'cookbooks', requestKey: String(Date.now()) });
+        }}
+        onCouponWallet={() => {
+          setIsMoreOpen(false);
+          navigationRef.current?.navigate('Home', { openCouponWallet: Date.now() });
         }}
         onImport={() => {
           setIsMoreOpen(false);
