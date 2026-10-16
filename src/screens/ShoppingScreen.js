@@ -41,6 +41,10 @@ import ShoppingModeModal from '../components/trip/ShoppingModeModal';
 import { buildTripSystemPrompt, tripOpenerPrompt } from '../utils/tripChat';
 import { buildGuideQAPrompt, guideQAOpenerPrompt, guideQAReopenPrompt } from '../utils/planChat';
 import { useFernVoice } from '../hooks/useFernVoice';
+import useEntitlement from '../hooks/useEntitlement';
+import { TIERS } from '../constants/tiers';
+import { recipeLimitReached } from '../utils/freeLimits';
+import { fetchRecipeImage } from '../utils/recipeImage';
 import StoreRemainingItemsModal from '../components/modals/StoreRemainingItemsModal';
 import { fetchAllCoupons } from '../services/couponsService';
 import { normalizeCoupons } from '../utils/couponNormalize';
@@ -104,6 +108,7 @@ export default function ShoppingScreen({ user }) {
   const { speakText, isSpeaking } = useFernVoice({ onError: (m) => console.warn('[Shopping] voice error:', m), token: user?.token, enabled: true });
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
+  const { hasAccess } = useEntitlement();
   const route = useRoute();
   const navigation = useNavigation();
   const [items, setItems] = useState([]);
@@ -548,6 +553,50 @@ export default function ShoppingScreen({ user }) {
     await pushChangedFromStorage({ meal_plan: next });
   };
 
+  // Save a recipe Fern suggested into the saved recipes (rv4_saved), optionally into a cookbook.
+  const saveRecipeToLibrary = async (recipe, { bookId } = {}) => {
+    const title = String(recipe?.title || '').trim();
+    if (!title) throw new Error('no title');
+    let saved = [];
+    try { const raw = JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]'); saved = Array.isArray(raw) ? raw : []; } catch (e) {}
+    const existing = saved.find((r) => String(r?.title || '').trim().toLowerCase() === title.toLowerCase());
+    if (!existing && !hasAccess(TIERS.PRO) && (await recipeLimitReached())) {
+      Alert.alert(t('recipe_limit_title'), t('recipe_limit_desc'));
+      throw new Error('limit');
+    }
+    let next;
+    if (existing) {
+      if (!bookId) return 'exists';
+      next = saved.map((r) => (r === existing ? { ...r, _bookIds: Array.from(new Set([...(r._bookIds || []), bookId])) } : r));
+    } else {
+      const image = recipe.image || (await fetchRecipeImage(`${title} food`, user?.token));
+      const ingredients = (recipe.ingredients || []).map((x) => (typeof x === 'string' ? x : [x?.amount, x?.unit, x?.item].filter(Boolean).join(' ')));
+      next = [...saved, {
+        id: `shopping-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        title,
+        emoji: recipe.emoji,
+        cuisine: recipe.cuisine || '',
+        mealType: 'Dinner',
+        time: recipe.time,
+        difficulty: recipe.difficulty,
+        description: recipe.description,
+        ingredients: [...ingredients, ...(recipe.sides || [])],
+        instructions: recipe.instructions || recipe.directions || [],
+        note: '',
+        photoSearch: title,
+        _cloudPhotos: image ? [image] : [],
+        _bookIds: bookId ? [bookId] : [],
+      }];
+    }
+    await AsyncStorage.setItem('rv4_saved', JSON.stringify(next));
+    try {
+      const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: next }));
+    } catch (e) {}
+    await pushChangedFromStorage({ saved: next });
+    return 'saved';
+  };
+
   const persistShopping = async (nextItems) => {
     const canonical = toSyncPayload(nextItems);
     setItems(canonical);
@@ -858,13 +907,8 @@ export default function ShoppingScreen({ user }) {
         {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
         {weekDeals.length > 0 && (!guideStep || guideStep === 'list') && !listOnly ? (
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
-          <TouchableOpacity style={styles.salesHead} activeOpacity={0.8} onPress={() => setShowSales((v) => !v)}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
-              <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
-            </View>
-            <Text style={styles.salesToggle}>{`${showSales ? t('sale_list_week_hide') : t('sale_list_week_show')} ${showSales ? '▾' : '▸'}`}</Text>
-          </TouchableOpacity>
+          <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
+          <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
           <TouchableOpacity style={styles.askCircularBtn} activeOpacity={0.88} onPress={() => { setQaReopened(true); setQaOpen(true); }}>
             <Text style={styles.askCircularText}>{`🌿 ${t('guide_qa_ask_btn')}`}</Text>
           </TouchableOpacity>
@@ -872,6 +916,9 @@ export default function ShoppingScreen({ user }) {
             <SaleItemsList
               deals={weekDeals}
               collapsed={!showSales}
+              onToggle={() => setShowSales((v) => !v)}
+              books={data.books}
+              onSaveRecipe={saveRecipeToLibrary}
               openRequest={recipeRequest}
               t={t}
               isOnList={(deal) => {
@@ -913,6 +960,8 @@ export default function ShoppingScreen({ user }) {
             weekDeals={weekDeals}
             onAddToList={addRecipesToList}
             onPlanDay={planDinnerOnDay}
+            books={data.books}
+            onSaveRecipe={saveRecipeToLibrary}
             shoppingItems={items}
             pushChangedFromStorage={pushChangedFromStorage}
             onChanged={pull}

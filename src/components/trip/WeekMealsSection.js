@@ -9,6 +9,7 @@ import { PANTRY_SKIP, pickStarDeals } from '../../utils/starDeals';
 import { dealSaving, fmtMoney } from '../../utils/savings';
 import MealPlannerImage from '../MealPlannerImage';
 import ListAddPreview from '../ListAddPreview';
+import SaveRecipeButton from './SaveRecipeButton';
 import { planShoppingAdditions } from '../../utils/shoppingListSync';
 import useEntitlement from '../../hooks/useEntitlement';
 import { TIERS } from '../../constants/tiers';
@@ -48,7 +49,7 @@ async function readJson(key, fallback) {
 // every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
-export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, onReady }) {
+export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, onReady, onSaveRecipe, books }) {
   const { hasAccess } = useEntitlement();
   const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
@@ -429,6 +430,9 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                                       </View>
                                     )}
                                   </View>
+                                ) : null}
+                                {onSaveRecipe ? (
+                                  <SaveRecipeButton t={t} books={books} onSave={(o) => onSaveRecipe({ ...pv.recipe, emoji: idea.emoji, sides: idea.sides || [] }, o)} />
                                 ) : null}
                                 {ex.reviewing && !ex.done ? (
                                   <ListAddPreview

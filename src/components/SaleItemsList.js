@@ -7,6 +7,7 @@ import { dealSaving, dedupeDeals, fmtMoney } from '../utils/savings';
 import { dealKind, isFoodDeal, isUnreliableCategory } from '../utils/dealKind';
 import MealPlannerImage from './MealPlannerImage';
 import ListAddPreview from './ListAddPreview';
+import SaveRecipeButton from './trip/SaveRecipeButton';
 import { planShoppingAdditions } from '../utils/shoppingListSync';
 import { buildRollingWeekDateKeys, parseDateKey } from '../utils/familyDates';
 
@@ -17,7 +18,7 @@ import { buildRollingWeekDateKeys, parseDateKey } from '../utils/familyDates';
 //   onAdd     (deal) => void
 //   token, locale, onAddRecipe(recipe, deal) — when given, each row gets a "Recipes" button:
 //   3 dinner ideas for that item, a full preview on tap, and "Add ingredients to my list".
-export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, onPlanDay, shoppingItems, openRequest, collapsed }) {
+export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, onPlanDay, shoppingItems, openRequest, collapsed, onToggle, onSaveRecipe, books }) {
   const [query, setQuery] = useState('');
   const [added, setAdded] = useState({});
   const [open, setOpen] = useState(null); // { key, loading, ideas, failed, idea, recipe, recipeLoading, done }
@@ -215,6 +216,9 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                               {(open.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                               {(open.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
                               {(open.recipe.instructions || []).map((step, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${step}`}</Text>)}
+                              {onSaveRecipe ? (
+                                <SaveRecipeButton t={t} books={books} onSave={(o) => onSaveRecipe({ ...open.recipe, emoji: idea.emoji, sides: idea.sides || [] }, o)} />
+                              ) : null}
                               {onPlanDay ? (
                                 <View style={{ marginTop: 10 }}>
                                   <Text style={[styles.previewText, { fontWeight: '700' }]}>{open.plannedDay ? t('sale_list_planned_on', { day: open.plannedDay.label }) : t('sale_list_cook_on')}</Text>
@@ -284,6 +288,12 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
           {renderRow(pinned)}
         </View>
       ) : null}
+      {onToggle ? (
+        <TouchableOpacity style={styles.toggleBar} activeOpacity={0.85} onPress={onToggle}>
+          <Text style={styles.toggleText}>{`📰 ${collapsed ? t('sale_list_week_open', { n: dedupeDeals(deals).length }) : t('sale_list_week_close')}`}</Text>
+          <Text style={styles.toggleChevron}>{collapsed ? '▸' : '▾'}</Text>
+        </TouchableOpacity>
+      ) : null}
       {collapsed ? null : (
         <View>
           <TextInput
@@ -324,6 +334,9 @@ const styles = StyleSheet.create({
   pinned: { backgroundColor: '#FFF8F0', borderRadius: 12, borderWidth: 1, borderColor: '#F3D9C0', padding: 10, marginTop: 10, marginBottom: 6 },
   pinnedHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
   pinnedTitle: { flex: 1, fontSize: 13, fontWeight: '800', color: '#2D1B10' },
+  toggleBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E8742A', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginTop: 10 },
+  toggleText: { fontSize: 15, fontWeight: '800', color: '#2D1B10', flex: 1 },
+  toggleChevron: { fontSize: 18, color: '#E8742A', fontWeight: '800' },
   empty: { color: '#7a6d60', fontSize: 13, paddingVertical: 12, textAlign: 'center' },
   group: { marginTop: 8 },
   groupLabel: { fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#7a6d60', fontWeight: '700', marginBottom: 4 },
