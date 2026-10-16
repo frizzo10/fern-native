@@ -55,6 +55,9 @@ async function bumpFreeChat() {
   } catch (e) { /* best effort */ }
 }
 
+// How many times Fern has introduced herself in the general chat (she does it the first two times).
+const AGENT_INTRO_KEY = 'fern_agent_intro_count';
+
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 // Was free-text conversation only — Fern would happily reply "I've added
 // bananas, butter... to your shopping list!" without anything actually
@@ -117,7 +120,7 @@ export default function ChatSheetModal({
   systemPrompt: customSystemPrompt,
   agent, // true = Fern the food agent (knows the list, recipes, week, circular, coupons and acts on them). Default: on unless a custom systemPrompt is given
   agentExtra = '', // page-specific instructions appended to the agent prompt
-  autoOpenerPrompt = DEFAULT_AUTO_OPENER_PROMPT,
+  autoOpenerPrompt: customAutoOpener,
   title,
   emptyHintKey = 'chat_sheet_empty_hint',
   onAction,
@@ -127,6 +130,7 @@ export default function ChatSheetModal({
 }) {
   const { t, locale } = useLanguage();
   const agentOn = agent ?? !customSystemPrompt;
+  const autoOpenerPrompt = customAutoOpener || DEFAULT_AUTO_OPENER_PROMPT;
   const systemPrompt = customSystemPrompt || DEFAULT_SYSTEM_PROMPT;
   const { hasAccess } = useEntitlement();
   const isFreeRef = useRef(false);
@@ -335,9 +339,29 @@ export default function ChatSheetModal({
   // First time the sheet is opened with no conversation yet, kick things
   // off ourselves instead of leaving the person looking at an empty sheet.
   useEffect(() => {
-    if (visible && messagesRef.current.length === 0) {
-      askFern(autoOpenerPrompt, { silent: true });
+    if (!visible || messagesRef.current.length !== 0) return;
+    // The first two times the general Ask Fern opens, she introduces herself: always here, tap the leaf, what she can do.
+    if (agentOn && !customAutoOpener) {
+      (async () => {
+        let n = 0;
+        try { n = Number(await AsyncStorage.getItem(AGENT_INTRO_KEY)) || 0; } catch (e) { /* ignore */ }
+        if (n < 2) {
+          try { await AsyncStorage.setItem(AGENT_INTRO_KEY, String(n + 1)); } catch (e) { /* ignore */ }
+          const k = n === 0 ? 'agent_intro_1' : 'agent_intro_2';
+          setMessages([{ role: 'fern', text: t(`${k}_text`) }]);
+          if (mode !== 'text') {
+            heardSpeech.current = false;
+            setSpeechPending(true);
+            setTimeout(() => setSpeechPending(false), 25000);
+            speakText(t(`${k}_say`)).then((uri) => { if (!uri) setSpeechPending(false); }).catch(() => setSpeechPending(false));
+          }
+        } else {
+          askFern(autoOpenerPrompt, { silent: true });
+        }
+      })();
+      return;
     }
+    askFern(autoOpenerPrompt, { silent: true });
   }, [visible, autoOpenerPrompt]);
 
   useEffect(() => {

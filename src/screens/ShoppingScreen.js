@@ -919,15 +919,19 @@ export default function ShoppingScreen({ user }) {
             The bare anchor keeps the step strip's "Sales" scroll target working either way. */}
         {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
         {weekDeals.length > 0 && (!guideStep || guideStep === 'list') && !listOnly ? (
-        <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
-          <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
-          <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
-          <TouchableOpacity style={styles.askCircularBtn} activeOpacity={0.88} onPress={() => { setQaReopened(true); setQaOpen(true); }}>
-            <Text style={styles.askCircularText}>{`🌿 ${t('guide_qa_ask_btn')}`}</Text>
-          </TouchableOpacity>
+        <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           {weekDeals.length ? (
             <SaleItemsList
-              deals={weekDeals}
+              cardStyle={[styles.checkoutCard, shadow.card]}
+              header={(
+                <View>
+                  <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
+                  <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
+                  <TouchableOpacity style={styles.askCircularBtn} activeOpacity={0.88} onPress={() => { setQaReopened(true); setQaOpen(true); }}>
+                    <Text style={styles.askCircularText}>{`🌿 ${t('guide_qa_ask_btn')}`}</Text>
+                  </TouchableOpacity>
+                </View>
+              )}              deals={weekDeals}
               collapsed={!showSales}
               onToggle={() => setShowSales((v) => !v)}
               books={data.books}

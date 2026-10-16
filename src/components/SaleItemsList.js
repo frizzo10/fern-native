@@ -18,7 +18,7 @@ import { buildRollingWeekDateKeys, parseDateKey } from '../utils/familyDates';
 //   onAdd     (deal) => void
 //   token, locale, onAddRecipe(recipe, deal) — when given, each row gets a "Recipes" button:
 //   3 dinner ideas for that item, a full preview on tap, and "Add ingredients to my list".
-export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, onPlanDay, shoppingItems, openRequest, collapsed, onToggle, onSaveRecipe, books }) {
+export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, onPlanDay, shoppingItems, openRequest, collapsed, onToggle, onSaveRecipe, books, header, cardStyle }) {
   const [query, setQuery] = useState('');
   const [added, setAdded] = useState({});
   const [open, setOpen] = useState(null); // { key, loading, ideas, failed, idea, recipe, recipeLoading, done }
@@ -288,6 +288,8 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
           {renderRow(pinned)}
         </View>
       ) : null}
+      <View style={cardStyle}>
+      {header}
       {onToggle ? (
         <TouchableOpacity style={styles.toggleBar} activeOpacity={0.85} onPress={onToggle}>
           <Text style={styles.toggleText}>{`📰 ${collapsed ? t('sale_list_week_open', { n: dedupeDeals(deals).length }) : t('sale_list_week_close')}`}</Text>
@@ -315,6 +317,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
           ))}
         </View>
       )}
+      </View>
     </View>
   );
 }
@@ -331,7 +334,7 @@ const styles = StyleSheet.create({
     color: '#2D1B10',
     marginBottom: 6,
   },
-  pinned: { backgroundColor: '#FFF8F0', borderRadius: 12, borderWidth: 1, borderColor: '#F3D9C0', padding: 10, marginTop: 10, marginBottom: 6 },
+  pinned: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: '#2A6A2A', padding: 14, marginBottom: 12 },
   pinnedHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
   pinnedTitle: { flex: 1, fontSize: 13, fontWeight: '800', color: '#2D1B10' },
   toggleBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E8742A', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginTop: 10 },
