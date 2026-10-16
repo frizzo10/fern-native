@@ -206,6 +206,11 @@ async function checkForUpdate() {
   }
 }
 
+// "Publix - Blowing Rock" / "Harris Teeter #123" -> "Publix" / "Harris Teeter" so she says it naturally.
+function shortStoreName(name) {
+  return String(name || '').split(/ - |#/)[0].trim() || String(name || '');
+}
+
 function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, retrySync }) {
   const { t } = useLanguage();
   const { visible: isAccountOpen, open: openAccount, close: closeAccount } = useAccountModal();
@@ -250,6 +255,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
     stores: userStores,
     onArrival: (store, distMeters) => {
       setArrivedStore(store);
+      // Fern greets you out loud the moment you arrive (app open), and says she's here to help.
+      try { speakWelcome(t('arrival_greet_say', { store: shortStoreName(store?.name || store) })); } catch (e) { /* ignore */ }
     },
   });
 
@@ -320,7 +327,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         // Shopping savings card, and the everyday nudge on Shopping's Everyday card.
         if (content.data.type === 'everyday_nudge') nav.navigate('Shopping', { everyday: Date.now() });
         else if (isExit) nav.navigate('Shopping', { tripDone: Date.now() });
-        else nav.navigate('Shopping', { guide: Date.now(), guideStore: store }); // arrival: Fern starts guiding the trip
+        else nav.navigate('Shopping', { guide: Date.now(), guideStore: store, greet: true }); // arrival: Fern starts guiding the trip
       };
       go();
     };
@@ -380,7 +387,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           store={arrivedStore}
           onShop={() => {
             setArrivedStore(null);
-            navigationRef.current?.navigate('Shopping', { guide: Date.now(), guideStore: String(arrivedStore?.name || arrivedStore || '') });
+            navigationRef.current?.navigate('Shopping', { guide: Date.now(), guideStore: String(arrivedStore?.name || arrivedStore || ''), greet: true });
           }}
           onDismiss={() => setArrivedStore(null)}
         />

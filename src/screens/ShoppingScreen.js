@@ -243,9 +243,14 @@ export default function ShoppingScreen({ user }) {
     qaHeard.current = false;
     // First time ever: the full spoken walkthrough, then (when it finishes playing) one AI sentence and "any questions?".
     // Every time after that: skip the tour and go straight to the AI sentence and "any questions?".
+    const greeting = route?.params?.greet
+      ? t('arrival_greet_say', { store: String(route.params.guideStore || '').split(/ - |#/)[0].trim() || t('arrival_greet_store_fallback') })
+      : '';
     AsyncStorage.getItem(WALKTHROUGH_KEY).catch(() => null).then((heard) => {
+      // Arriving at a store: she greets you and says she's here to help (then stays quiet; the leaf reaches her).
+      if (heard && greeting) { speakText(greeting).catch(() => {}); return null; }
       if (heard) { setQaOpen(true); return null; }
-      return speakText(t('guide_say_everyday')).then((uri) => {
+      return speakText(greeting ? `${greeting} ${t('guide_say_everyday')}` : t('guide_say_everyday')).then((uri) => {
         if (uri) {
           setQaArmed(true);
           AsyncStorage.setItem(WALKTHROUGH_KEY, 'done').catch(() => {});
