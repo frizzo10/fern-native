@@ -103,7 +103,7 @@ function toSyncPayload(list) {
 
 // Device-only: set once Fern has spoken the full circular walkthrough, so later visits skip it.
 const WALKTHROUGH_KEY = 'fern_shop_walkthrough_heard';
-const GUIDE_SPEECH_DELAY_MS = 5000; // how long the person gets to read the Shopping screen before Fern speaks
+const GUIDE_SPEECH_DELAY_MS = 3000; // how long the person gets to read the Shopping screen before Fern speaks
 
 export default function ShoppingScreen({ user }) {
   const { t, locale } = useLanguage();
@@ -882,6 +882,11 @@ export default function ShoppingScreen({ user }) {
           onExit={() => setGuideStep(null)}
         />
       ) : null}
+      {(isSpeaking || introBusy) ? (
+        <View style={styles.fernSpeakPill} pointerEvents="none">
+          <Text style={styles.fernSpeakText}>{isSpeaking ? t('fern_talking') : t('fern_talk_soon')}</Text>
+        </View>
+      ) : null}
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {!guideStep ? (
         <View style={styles.headerRow}>
@@ -1462,6 +1467,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F4F1ED',
   },
+  fernSpeakPill: { alignSelf: 'center', backgroundColor: '#1f3d1f', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, marginTop: 6, marginBottom: 2 },
+  fernSpeakText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   content: {
     paddingHorizontal: 20,
     paddingTop: 18,

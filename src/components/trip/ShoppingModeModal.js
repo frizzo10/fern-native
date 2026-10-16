@@ -120,6 +120,9 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     setStatus(text);
     if (!voice) return;
     const sp = speechRef.current;
+    if (sp.lastText === text && Date.now() - (sp.lastAt || 0) < 3000) return; // same line twice in a row: say it once
+    sp.lastText = text;
+    sp.lastAt = Date.now();
     sp.pending = sp.pending.filter((p) => p.keep);
     sp.pending.push({ text, keep });
     if (!sp.busy) playNext.current();
@@ -144,7 +147,13 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, current, open.length]);
 
+  const gotRef = useRef({});
   const got = async (item) => {
+    // A double tap / double event on the same item must announce it once.
+    const key = item.id;
+    if (gotRef.current[key]) return;
+    gotRef.current[key] = true;
+    setTimeout(() => { delete gotRef.current[key]; }, 1500);
     const others = open.filter((i) => i.id !== item.id);
     const sameSection = others.filter((i) => i.sectionKey === item.sectionKey);
     let msg = t('shopmode_checked', { item: item.text });
