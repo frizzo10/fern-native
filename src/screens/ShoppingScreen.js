@@ -109,7 +109,7 @@ const GUIDE_SPEECH_DELAY_MS = 3000; // how long the person gets to read the Shop
 export default function ShoppingScreen({ user }) {
   const { t, locale } = useLanguage();
   const [voiceErr, setVoiceErr] = useState('');
-  const { speakText, isSpeaking } = useFernVoice({ onError: (m) => { console.warn('[Shopping] voice error:', m); setVoiceErr(String(m || '').slice(0, 120)); }, token: user?.token, enabled: true });
+  const { speakText, prepareSpeech, playPrepared, isSpeaking } = useFernVoice({ onError: (m) => { console.warn('[Shopping] voice error:', m); setVoiceErr(String(m || '').slice(0, 120)); }, token: user?.token, enabled: true });
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const { hasAccess } = useEntitlement();
@@ -284,6 +284,7 @@ export default function ShoppingScreen({ user }) {
     if (isSpeaking) { w.heard = true; return; }
     if (w.heard) { walkWaitRef.current = null; w.resolve(); }
   }, [isSpeaking]);
+  // `text` is a string (fetched now) or a promise of an already-fetched line (prepared while the previous one played).
   const speakAndWait = async (text) => {
     let w;
     const done = new Promise((resolve) => {
@@ -292,7 +293,10 @@ export default function ShoppingScreen({ user }) {
     });
     setVoiceErr('');
     // Never wait on one line forever (a stalled request used to leave "Fern is about to talk…" up with no sound).
-    const uri = await Promise.race([speakText(text).catch(() => null), new Promise((r) => setTimeout(() => r(null), 30000))]);
+    const ready = typeof text === 'string'
+      ? speakText(text).catch(() => null)
+      : Promise.resolve(text).then((uri) => (uri ? playPrepared(uri) : null)).catch(() => null);
+    const uri = await Promise.race([ready, new Promise((r) => setTimeout(() => r(null), 30000))]);
     if (!uri) { if (walkWaitRef.current === w) walkWaitRef.current = null; return false; }
     // 40 s safety for the audio itself, counted from when the line was ready (not from the request).
     setTimeout(() => { if (walkWaitRef.current === w) { walkWaitRef.current = null; w.resolve(); } }, 40000);
@@ -308,15 +312,19 @@ export default function ShoppingScreen({ user }) {
       { key: 'couponCard', text: t('guide_seg_coupons'), when: () => hasCouponsRef.current },
       { key: 'list', text: t('guide_seg_list'), when: () => hasListRef.current },
     ];
+    // Only the parts that exist, fetched all at once now: the next line is already on the phone when this one ends.
+    const active = segs.filter((seg) => !seg.when || seg.when());
+    const lines = active.map((seg, i) => (i === 0 && greeting ? `${greeting} ${seg.text}` : seg.text));
+    const prepared = lines.map((line) => prepareSpeech(line).catch(() => null));
     let first = true;
     try {
-      for (const seg of segs) {
-        if (seg.when && !seg.when()) continue;
+      for (let i = 0; i < active.length; i += 1) {
+        const seg = active[i];
         if (!navigation.isFocused()) return first ? false : true;
         setSpot(seg.key);
         scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current[seg.key] || 0) - 8), animated: true });
-        const ok = await speakAndWait(first && greeting ? `${greeting} ${seg.text}` : seg.text);
-        if (!ok) return !first;
+        const ok = await speakAndWait(prepared[i]);
+        if (!ok) { if (first) return false; continue; } // a later line that failed is skipped, not the rest
         first = false;
       }
       return true;

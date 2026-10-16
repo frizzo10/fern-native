@@ -126,15 +126,14 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
         }
     }, []);
 
-    const speakText = useCallback(async (text) => {
+    // Fetch + save a spoken line WITHOUT playing it, so the next line can be ready before the current one ends
+    // (the walkthrough prepares every segment up front; otherwise each hand-off waited on a fresh network round trip).
+    const prepareSpeech = useCallback(async (text) => {
         const cleanText = text?.trim?.();
         if (!cleanText) return null;
         if (!enabledRef.current) return null;
         const voiceOn = await isVoiceEnabled();
         if (!voiceOn) return null;
-
-        // If something is already speaking, stop it before starting new playback.
-        stopSpeaking();
 
         try {
             // A stalled connection (weak signal in a store) must not hang the caller forever: give up after 25 s.
@@ -161,7 +160,7 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
             const arrayBuffer = await response.arrayBuffer();
             const bytes = new Uint8Array(arrayBuffer);
             const base64Audio = bytesToBase64(bytes);
-            const nextAudioUri = `${FileSystem.cacheDirectory}fern-speak-${Date.now()}.mp3`;
+            const nextAudioUri = `${FileSystem.cacheDirectory}fern-speak-${Date.now()}-${Math.floor(Math.random() * 1e6)}.mp3`;
 
             await FileSystem.writeAsStringAsync(nextAudioUri, base64Audio, {
                 encoding: FileSystem.EncodingType.Base64,
@@ -173,15 +172,27 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
             } catch (modeError) {
                 onError?.(`audio mode: ${modeError?.message ?? modeError}`);
             }
-
-            if (isMountedRef.current && enabledRef.current) playLine(nextAudioUri);
-
             return nextAudioUri;
         } catch (error) {
             onError?.(error?.message ?? 'Unable to generate speech');
             return null;
         }
-    }, [onError, stopSpeaking, playLine, locale, token, isVoiceEnabled]);
+    }, [onError, locale, token, isVoiceEnabled]);
+
+    // Play a line made by prepareSpeech (ends whatever is playing, anywhere in the app).
+    const playPrepared = useCallback((uri) => {
+        if (!uri || !isMountedRef.current || !enabledRef.current) return null;
+        playLine(uri);
+        return uri;
+    }, [playLine]);
+
+    const speakText = useCallback(async (text) => {
+        if (!text?.trim?.() || !enabledRef.current) return null;
+        // If something is already speaking, stop it before starting new playback.
+        stopSpeaking();
+        const uri = await prepareSpeech(text);
+        return uri ? playPrepared(uri) : null;
+    }, [stopSpeaking, prepareSpeech, playPrepared]);
 
     const getFernReply = useCallback(async (input, { speak = false } = {}) => {
         const message = input?.trim?.();
@@ -242,6 +253,8 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
         isSpeaking,
         lastReply,
         speakText,
+        prepareSpeech,
+        playPrepared,
         getFernReply,
         stopSpeaking,
     };
