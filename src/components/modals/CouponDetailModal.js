@@ -3,6 +3,7 @@ import { Image, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } fr
 import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
 import { code128Widths } from '../../utils/code128';
+import DigitalCouponHowTo from '../trip/DigitalCouponHowTo';
 
 export default function CouponDetailModal({ visible, coupon, isInWallet, onClose, onToggleWallet }) {
     const { t, locale } = useLanguage();
@@ -65,6 +66,8 @@ export default function CouponDetailModal({ visible, coupon, isInWallet, onClose
                                 ))}
                             </View>
                         </View>) : null}
+
+                        <DigitalCouponHowTo coupon={coupon} t={t} />
 
                         {coupon.expiresAt ? (
                             <Text style={styles.expiry}>{t('coupon_detail_expires_label', { date: expiryText })}</Text>

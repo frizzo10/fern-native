@@ -1,5 +1,6 @@
 import React from 'react';
 import { Image, Linking, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import DigitalCouponHowTo from './DigitalCouponHowTo';
 
 // Full details of one coupon, shown before the shopper accepts it (adds it to the wallet / list).
 //   preview   { coupon, itemText?, level? } — a match from ShoppingScreen's coupon cards
@@ -31,7 +32,7 @@ export default function CouponPreviewModal({ preview, onClose, onConfirm, confir
                 <Text style={styles.link}>{t('sav_open_link')}</Text>
               </TouchableOpacity>
             ) : null}
-            {c.redemption !== 'code' && c.redemption !== 'link' ? <Text style={styles.meta}>{t('sav_digital')}</Text> : null}
+            <DigitalCouponHowTo coupon={c} t={t} />
           </ScrollView>
           <TouchableOpacity style={[styles.btn, done ? styles.btnOn : null]} disabled={done} activeOpacity={0.88} onPress={onConfirm}>
             <Text style={[styles.btnText, done ? styles.btnTextOn : null]}>{done ? doneLabel : confirmLabel}</Text>
