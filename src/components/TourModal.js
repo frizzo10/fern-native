@@ -67,12 +67,15 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={finish}>
       <View style={styles.overlay}>
-        <LinearGradient
-          pointerEvents="none"
-          colors={['rgba(10,22,10,0)', 'rgba(10,22,10,0.55)', 'rgba(10,22,10,0.86)']}
-          locations={[0, 0.55, 1]}
-          style={styles.scrim}
-        />
+        {/* The bottom shading is skipped while a spotlight is showing: it would darken the very element being highlighted (the tab bar). */}
+        {rect ? null : (
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(10,22,10,0)', 'rgba(10,22,10,0.55)', 'rgba(10,22,10,0.86)']}
+            locations={[0, 0.55, 1]}
+            style={styles.scrim}
+          />
+        )}
 
         {rect ? (
           <>
