@@ -32,6 +32,7 @@ import { dateToKey } from './src/utils/familyDates';
 import UpgradeGateModal from './src/components/UpgradeGateModal';
 import { colors, radius, shadow } from './src/constants/tokens';
 import { useFonts } from 'expo-font';
+import { useFernVoice } from './src/hooks/useFernVoice';
 import { LanguageProvider } from './src/services/LanguageContext';
 import { useLanguage } from './src/hooks/useLanguage';
 import ChatSheetModal from './src/components/modals/ChatSheetModal';
@@ -260,6 +261,21 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   // Ask for location / "Always" / notifications on a short explanation screen: right
   // after signup or first login, and again (at most once a day) while something is missing.
   const [showLocationSetup, setShowLocationSetup] = useState(false);
+  // First time ever: Fern speaks up on her own (without anyone touching the leaf), says what she can do and that the leaf is how to reach her.
+  const { speakText: speakWelcome } = useFernVoice({ token: user?.token, allowFree: true, enabled: true });
+  useEffect(() => {
+    if (!user?.token || showLocationSetup || activeTour) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const heard = await AsyncStorage.getItem('fern_leaf_welcome_heard');
+        if (heard || cancelled) return;
+        const uri = await speakWelcome(t('leaf_welcome_say'));
+        if (uri) await AsyncStorage.setItem('fern_leaf_welcome_heard', 'done');
+      } catch (e) { /* ignore */ }
+    }, 2500);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [user?.token, showLocationSetup, !!activeTour]);
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;

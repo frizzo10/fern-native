@@ -184,7 +184,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                     try {
                         await AsyncStorage.multiRemove([
                             'fern_shop_walkthrough_heard', 'fern_agent_intro_count', 'fern_shop_greeting', 'fern_shop_greeting_spoken',
-                            'fern_coupons_celebrated', 'fern_week_deals', 'fern_circular_seen', ...TOUR_LIST.map((tour) => tour.storageKey),
+                            'fern_coupons_celebrated', 'fern_week_deals', 'fern_circular_seen', 'fern_leaf_welcome_heard', ...TOUR_LIST.map((tour) => tour.storageKey),
                         ]);
                         setSeenTours({});
                         Alert.alert(t('replay_fern_done'));
