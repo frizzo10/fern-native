@@ -96,12 +96,20 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
         activeLine = { end };
         endLineRef.current = end;
         if (isMountedRef.current) setIsSpeaking(true);
-        try {
-            p.play();
-        } catch (error) {
-            end();
-            onErrorRef.current?.(error?.message ?? 'Unable to play audio');
-        }
+        // Set the audio mode right before playing too: the mic hook resets it (without "play in silent mode") when a recording ends,
+        // which can land between fetching the line and playing it and leave the line silent.
+        Promise.resolve()
+            .then(() => setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false }))
+            .catch(() => { /* ignore */ })
+            .then(() => {
+                if (finished) return;
+                try {
+                    p.play();
+                } catch (error) {
+                    end();
+                    onErrorRef.current?.(error?.message ?? 'Unable to play audio');
+                }
+            });
     }, []);
 
     useEffect(() => {
@@ -131,9 +139,9 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
     const prepareSpeech = useCallback(async (text) => {
         const cleanText = text?.trim?.();
         if (!cleanText) return null;
-        if (!enabledRef.current) return null;
+        if (!enabledRef.current) { onError?.('voice not allowed here (plan or screen)'); return null; }
         const voiceOn = await isVoiceEnabled();
-        if (!voiceOn) return null;
+        if (!voiceOn) { onError?.('voice is turned off in Account'); return null; }
 
         try {
             // A stalled connection (weak signal in a store) must not hang the caller forever: give up after 25 s.

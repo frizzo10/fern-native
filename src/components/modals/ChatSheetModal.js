@@ -149,8 +149,9 @@ export default function ChatSheetModal({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
+  const [voiceErr, setVoiceErr] = useState('');
   const { speakText, stopSpeaking, isSpeaking, isThinking: voiceThinking } = useFernVoice({
-    onError: (message) => console.warn('[ChatSheetModal] voice error:', message),
+    onError: (message) => { console.warn('[ChatSheetModal] voice error:', message); setVoiceErr(String(message || '').slice(0, 140)); },
     token: user?.token,
     enabled: visible && mode !== 'text',
   });
@@ -191,6 +192,7 @@ export default function ChatSheetModal({
       setInputText('');
     }
     setError(false);
+    setVoiceErr('');
     setThinking(true);
 
     try {
@@ -399,6 +401,9 @@ export default function ChatSheetModal({
                 <ActivityIndicator size="small" color={colors.forest} />
               </View>
             </View>
+          )}
+          {!!voiceErr && (
+            <Text style={{ color: '#B3261E', fontSize: 12, marginHorizontal: 16, marginTop: 6 }}>Voice problem: {voiceErr}</Text>
           )}
           {error && (
             <View style={[styles.bubbleRow, styles.bubbleRowFern]}>
