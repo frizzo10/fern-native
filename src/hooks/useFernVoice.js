@@ -28,7 +28,7 @@
 
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAudioPlayer, setAudioModeAsync } from 'expo-audio';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import useLanguage from '../hooks/useLanguage';
@@ -39,6 +39,10 @@ import { TIERS } from '../constants/tiers';
 const GROQ_AI = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const GROQ_SPEAK = 'https://app.clickpickandcook.com/.netlify/functions/fern-speak';
 const FERN_VOICE_ENABLED_KEY = 'fern_voice_enabled';
+
+// The line playing right now anywhere in the app (hooks in the tour, Shopping, the greeting card...). A new line ends it.
+let activeLine = null;
+function stopActiveLine() { try { activeLine?.end?.(); } catch { /* ignore */ } }
 
 const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 
@@ -54,89 +58,64 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
     // allowFree so every new user still hears it.
     const { hasAccess } = useEntitlement();
     const allowed = enabled && (allowFree || hasAccess(TIERS.PRO));
-    const [audioUri, setAudioUri] = useState(null);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
     const [lastReply, setLastReply] = useState('');
 
     const isMountedRef = useRef(true);
     const enabledRef = useRef(allowed);
-    const lastPlayedUriRef = useRef(null);
-    // Keep the source object stable: a new `{ uri }` literal every render can make expo-audio swap in a fresh player,
-    // which releases the one that is mid-sentence (speech cut off after the first word) and, because of the
-    // lastPlayedUriRef guard below, the new player never replays it.
-    const audioSource = useMemo(() => (audioUri ? { uri: audioUri } : null), [audioUri]);
-    const player = useAudioPlayer(audioSource);
+    const onErrorRef = useRef(onError);
+    onErrorRef.current = onError;
+    const endLineRef = useRef(null); // ends whatever line THIS hook is playing
+
+    // One line = one fresh player. (The hook-owned player that swapped its source made later lines silent or stuck,
+    // especially when the Home tour's player and Shopping's player took turns.) Only one line plays app-wide.
+    const stopSpeaking = useCallback(() => {
+        try { endLineRef.current?.(); } finally { if (isMountedRef.current) setIsSpeaking(false); }
+    }, []);
+
+    const playLine = useCallback((uri) => {
+        stopActiveLine();
+        const p = createAudioPlayer({ uri });
+        let finished = false;
+        let sub = null;
+        let timer = null;
+        const end = () => {
+            if (finished) return;
+            finished = true;
+            if (timer) clearTimeout(timer);
+            try { sub?.remove?.(); } catch { /* ignore */ }
+            try { p.pause?.(); } catch { /* ignore */ }
+            try { p.remove?.(); } catch { /* ignore */ }
+            if (activeLine && activeLine.end === end) activeLine = null;
+            if (endLineRef.current === end) endLineRef.current = null;
+            if (isMountedRef.current) setIsSpeaking(false);
+        };
+        sub = p.addListener('playbackStatusUpdate', (status) => { if (status?.didJustFinish) end(); });
+        timer = setTimeout(end, 90000); // safety: never stay "speaking" forever
+        activeLine = { end };
+        endLineRef.current = end;
+        if (isMountedRef.current) setIsSpeaking(true);
+        try {
+            p.play();
+        } catch (error) {
+            end();
+            onErrorRef.current?.(error?.message ?? 'Unable to play audio');
+        }
+    }, []);
 
     useEffect(() => {
+        isMountedRef.current = true;
         return () => {
             isMountedRef.current = false;
+            try { endLineRef.current?.(); } catch { /* ignore */ }
         };
     }, []);
 
     useEffect(() => {
         enabledRef.current = allowed;
-        if (!allowed) {
-            lastPlayedUriRef.current = null;
-            setAudioUri(null);
-            if (isMountedRef.current) {
-                setIsSpeaking(false);
-                setIsThinking(false);
-            }
-            try {
-                player?.pause?.();
-                player?.seekTo?.(0);
-            } catch {
-                // Ignore cleanup errors while the sheet is closing.
-            }
-        }
-    }, [allowed, player]);
-
-    useEffect(() => {
-        if (!allowed || !audioUri || !player) return;
-
-        // Guard against replaying the same file when player identity changes on re-render.
-        // A line plays exactly once per file (never replayed when the player instance changes).
-        if (lastPlayedUriRef.current === audioUri) return;
-        lastPlayedUriRef.current = audioUri;
-
-        try {
-            player.seekTo(0);
-            player.play();
-            if (isMountedRef.current) {
-                setIsSpeaking(true);
-            }
-        } catch (error) {
-            if (isMountedRef.current) {
-                setIsSpeaking(false);
-            }
-            onError?.(error?.message ?? 'Unable to play audio');
-        }
-    }, [allowed, audioUri, player, onError]);
-
-    useEffect(() => {
-        if (!player) return;
-
-        const sub = player.addListener('playbackStatusUpdate', status => {
-            if (status.didJustFinish && isMountedRef.current) {
-                setIsSpeaking(false);
-            }
-        });
-
-        return () => sub?.remove?.();
-    }, [player]);
-
-    const stopSpeaking = useCallback(() => {
-        try {
-            if (!player) return;
-            player.pause();
-            player.seekTo(0);
-        } finally {
-            if (isMountedRef.current) {
-                setIsSpeaking(false);
-            }
-        }
-    }, [player]);
+        if (!allowed) stopSpeaking();
+    }, [allowed, stopSpeaking]);
 
     const isVoiceEnabled = useCallback(async () => {
         try {
@@ -195,17 +174,14 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
                 onError?.(`audio mode: ${modeError?.message ?? modeError}`);
             }
 
-            if (isMountedRef.current && enabledRef.current) {
-                lastPlayedUriRef.current = null;
-                setAudioUri(nextAudioUri);
-            }
+            if (isMountedRef.current && enabledRef.current) playLine(nextAudioUri);
 
             return nextAudioUri;
         } catch (error) {
             onError?.(error?.message ?? 'Unable to generate speech');
             return null;
         }
-    }, [onError, stopSpeaking, locale, token, isVoiceEnabled]);
+    }, [onError, stopSpeaking, playLine, locale, token, isVoiceEnabled]);
 
     const getFernReply = useCallback(async (input, { speak = false } = {}) => {
         const message = input?.trim?.();
