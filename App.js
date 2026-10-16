@@ -93,8 +93,7 @@ function ArrivalBanner({ store, onShop, onDismiss }) {
 
   useEffect(() => {
     Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, tension: 80 }).start();
-    const t = setTimeout(onDismiss, 45000); // auto-dismiss after 45s
-    return () => clearTimeout(t);
+    // Stays until the shopper taps Shop or ✕ (it used to disappear on its own after 45 s).
   }, []);
 
   return (
