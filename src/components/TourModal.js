@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect } from 'react';
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { Animated, Easing, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
@@ -11,6 +11,17 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
   const { speakText, stopSpeaking } = useFernVoice({ token, enabled: visible, allowFree: true });
 
   const step = tour?.steps?.[stepIndex];
+  // A step with `pointer: 'leaf'` shows a copy of the floating leaf button (same spot as App.js `chatFab`) with a pulsing ring and an arrow,
+  // and lifts the card so it doesn't cover it.
+  const pointLeaf = step?.pointer === 'leaf';
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!visible || !pointLeaf) return undefined;
+    pulse.setValue(0);
+    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.out(Easing.quad), useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [visible, pointLeaf, pulse]);
   const isLast = tour ? stepIndex === tour.steps.length - 1 : false;
   const title = tour ? t(tour.titleKey) : '';
   const body = step ? t(step.textKey) : '';
@@ -51,7 +62,19 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
           </TouchableOpacity>
         </View>
 
-        <View style={styles.cardOuter}>
+        {pointLeaf ? (
+          <View pointerEvents="none" style={styles.leafSpot}>
+            <Text style={styles.leafArrow}>▼</Text>
+            <View style={styles.leafBtnWrap}>
+              <Animated.View
+                style={[styles.leafRing, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.8, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] }) }] }]}
+              />
+              <View style={styles.leafBtn}><Text style={styles.leafBtnText}>🌿</Text></View>
+            </View>
+          </View>
+        ) : null}
+
+        <View style={[styles.cardOuter, pointLeaf && styles.cardOuterLifted]}>
           <View style={styles.fernAvatar}>
             <Text style={styles.fernAvatarEmoji}>🌳</Text>
           </View>
@@ -108,6 +131,14 @@ const styles = StyleSheet.create({
   skipText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
   cardOuter: { paddingHorizontal: 16, paddingBottom: 24, position: 'relative' },
+  cardOuterLifted: { paddingBottom: 176 },
+  // Same spot and size as App.js `chatFab` (right 18, bottom 86, 56x56); the arrow sits just above it.
+  leafSpot: { position: 'absolute', right: 18, bottom: 86, width: 56, alignItems: 'center', zIndex: 5 },
+  leafArrow: { position: 'absolute', top: -26, color: colors.orange, fontSize: 20, fontWeight: '900' },
+  leafBtnWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
+  leafRing: { position: 'absolute', width: 56, height: 56, borderRadius: 28, borderWidth: 3, borderColor: colors.orange },
+  leafBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.orange, alignItems: 'center', justifyContent: 'center', ...shadow.strong },
+  leafBtnText: { fontSize: 26 },
 
   fernAvatar: {
     position: 'absolute',

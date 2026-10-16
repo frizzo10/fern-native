@@ -15,7 +15,7 @@ export const TOURS = {
     titleKey: 'tour_home_title',
     steps: [
       { textKey: 'tour_home_step1' },
-      { textKey: 'tour_home_step2' },
+      { textKey: 'tour_home_step2', pointer: 'leaf' }, // TourModal shows the real leaf button's spot
       { textKey: 'tour_home_step3' },
       { textKey: 'tour_home_step4' },
     ],
