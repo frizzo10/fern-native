@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { subscribeAgentChange } from '../services/fernAgent';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { setTourStaticRect } from '../services/tourTargets';
 import { loadWeekDeals, couponItemName } from '../utils/savings';
 import { claimArrival, storeKey, notifyArrival } from '../services/storeGeofencing';
 import { dealsForStore, storeAtPosition } from '../utils/flyerStore';
@@ -156,6 +158,10 @@ export default function HomeScreen({ user, route }) {
   useEffect(() => {
     maybeAutoStart('home');
   }, []);
+
+  // The Home tour's "tabs" step rings the real bottom tab bar: tell the tour how tall it is (it is glued to the window bottom).
+  const tabBarHeight = useBottomTabBarHeight();
+  useEffect(() => { setTourStaticRect('tabs', { height: tabBarHeight }); }, [tabBarHeight]);
 
   // "home" tour step -> scroll target: step 1 ("your whole week, day by
   // day") is the one step with a real distinct section (the THIS WEEK

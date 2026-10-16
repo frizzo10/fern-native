@@ -1,10 +1,13 @@
-import React, { useCallback, useEffect, useRef } from 'react';
-import { Animated, Easing, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, Dimensions, Easing, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
 import { useFernVoice } from '../hooks/useFernVoice';
+import { measureTourTarget } from '../services/tourTargets';
+
+const PAD = 6; // breathing room around a highlighted element
 
 export default function TourModal({ visible, tour, storageKey, onClose, token, stepIndex, setStepIndex }) {
   const { t } = useLanguage();
@@ -14,14 +17,29 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
   // A step with `pointer: 'leaf'` shows a copy of the floating leaf button (same spot as App.js `chatFab`) with a pulsing ring and an arrow,
   // and lifts the card so it doesn't cover it.
   const pointLeaf = step?.pointer === 'leaf';
+  // A step with `target: '<name>'` (see src/services/tourTargets.js) dims everything except that real element and rings it.
+  const targetName = step?.target || null;
+  const [rect, setRect] = useState(null);
   const pulse = useRef(new Animated.Value(0)).current;
+  const animate = pointLeaf || !!targetName;
   useEffect(() => {
-    if (!visible || !pointLeaf) return undefined;
+    if (!visible || !animate) return undefined;
     pulse.setValue(0);
     const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1200, easing: Easing.out(Easing.quad), useNativeDriver: true }));
     loop.start();
     return () => loop.stop();
-  }, [visible, pointLeaf, pulse]);
+  }, [visible, animate, pulse]);
+  // Measure after the screen has finished scrolling to the section this step narrates (Home scrolls on step change).
+  useEffect(() => {
+    setRect(null);
+    if (!visible || !targetName) return undefined;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const r = await measureTourTarget(targetName, Dimensions.get('window'));
+      if (!cancelled) setRect(r);
+    }, targetName === 'tabs' ? 150 : 700);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [visible, targetName, stepIndex]);
   const isLast = tour ? stepIndex === tour.steps.length - 1 : false;
   const title = tour ? t(tour.titleKey) : '';
   const body = step ? t(step.textKey) : '';
@@ -56,6 +74,23 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
           style={styles.scrim}
         />
 
+        {rect ? (
+          <>
+            <View pointerEvents="none" style={[styles.dim, { left: 0, right: 0, top: 0, height: Math.max(0, rect.y - PAD) }]} />
+            <View pointerEvents="none" style={[styles.dim, { left: 0, right: 0, top: rect.y + rect.height + PAD, bottom: 0 }]} />
+            <View pointerEvents="none" style={[styles.dim, { left: 0, width: Math.max(0, rect.x - PAD), top: rect.y - PAD, height: rect.height + PAD * 2 }]} />
+            <View pointerEvents="none" style={[styles.dim, { left: rect.x + rect.width + PAD, right: 0, top: rect.y - PAD, height: rect.height + PAD * 2 }]} />
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.spot,
+                { left: rect.x - PAD, top: rect.y - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2, borderRadius: Math.min(rect.width, rect.height) <= 60 ? 999 : 18 },
+                { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] }) },
+              ]}
+            />
+          </>
+        ) : null}
+
         <View style={styles.skipWrap}>
           <TouchableOpacity style={styles.skipBtn} activeOpacity={0.8} onPress={finish}>
             <Text style={styles.skipText}>{t('tour_skip')}</Text>
@@ -74,7 +109,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
           </View>
         ) : null}
 
-        <View style={[styles.cardOuter, pointLeaf && styles.cardOuterLifted]}>
+        <View style={[styles.cardOuter, (pointLeaf || targetName === 'tabs') && styles.cardOuterLifted]}>
           <View style={styles.fernAvatar}>
             <Text style={styles.fernAvatarEmoji}>🌳</Text>
           </View>
@@ -121,6 +156,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: '62%',
   },
+  dim: { position: 'absolute', backgroundColor: 'rgba(10,22,10,0.55)' },
+  spot: { position: 'absolute', borderWidth: 3, borderColor: colors.orange },
   skipWrap: { alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 56 },
   skipBtn: {
     backgroundColor: 'rgba(255,255,255,0.15)',

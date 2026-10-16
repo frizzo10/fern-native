@@ -6,6 +6,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { formatDayLabel } from '../../utils/familyDates';
+import { tourTargetRef } from '../../services/tourTargets';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/tokens';
 import { fetchRecipeImage } from '../../utils/recipeImage';
@@ -125,7 +126,7 @@ export default function NewHome({
           >
             <Ionicons name={toolsOpen ? 'close' : 'apps-outline'} size={20} color={toolsOpen ? CREAM : FOREST} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.roundBtn} activeOpacity={0.85} onPress={onOpenAccount} accessibilityRole="button" accessibilityLabel={t('home_profile_a11y')}>
+          <TouchableOpacity ref={tourTargetRef('profile')} collapsable={false} style={styles.roundBtn} activeOpacity={0.85} onPress={onOpenAccount} accessibilityRole="button" accessibilityLabel={t('home_profile_a11y')}>
             <Ionicons name="person-outline" size={20} color={FOREST} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.roundBtn, styles.langBtn]} activeOpacity={0.85} onPress={onOpenLanguage} accessibilityRole="button">
@@ -225,7 +226,7 @@ export default function NewHome({
         </View>
       </TouchableOpacity>
 
-      <View style={styles.weekRow}>
+      <View ref={tourTargetRef('week')} collapsable={false} style={styles.weekRow}>
         {weekDays.map((d) => (
           <TouchableOpacity
             key={`nh-${d.key}`}

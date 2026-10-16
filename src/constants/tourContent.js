@@ -14,10 +14,11 @@ export const TOURS = {
   home: {
     titleKey: 'tour_home_title',
     steps: [
-      { textKey: 'tour_home_step1' },
+      // `target` = name registered with tourTargetRef/setTourStaticRect (src/services/tourTargets.js); TourModal dims the rest and rings it.
+      { textKey: 'tour_home_step1', target: 'week' },
       { textKey: 'tour_home_step2', pointer: 'leaf' }, // TourModal shows the real leaf button's spot
-      { textKey: 'tour_home_step3' },
-      { textKey: 'tour_home_step4' },
+      { textKey: 'tour_home_step3', target: 'tabs' },
+      { textKey: 'tour_home_step4', target: 'profile' },
     ],
   },
   find: {
