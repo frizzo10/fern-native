@@ -54,11 +54,11 @@ export function buildGuideQAPrompt({ store, deals = [], list = [], savedTitles =
     unchecked.length ? `On their shopping list now: ${unchecked.join(', ')}.` : 'Their shopping list is empty.',
     savedTitles.length ? `Recipes they have saved: ${savedTitles.slice(0, 25).map((t) => clip(t, 40)).join('; ')}.` : '',
     'The page has: an add bar at the top for anything they want, an everyday-items box, the digitized circular where each sale item opens recipes with sides, the picked coupons, and the shopping list at the bottom. Digital coupons only work if clipped to the store loyalty account first; Walmart does not accept digital coupons.',
-    'Answer their questions plainly using only the facts above. If they ask you to add something to their shopping list, put plain grocery names (like "Ground beef") in add_to_shopping_list and just say you are adding it. Otherwise leave it empty.',
+    'Your very first message must end with the exact question: "Do you have any questions?" After that, answer their questions plainly using only the facts above. If they ask you to add something to their shopping list, put plain grocery names (like "Ground beef") in add_to_shopping_list and just say you are adding it. Otherwise leave it empty.',
     'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":["item1"]}',
   ].filter(Boolean).join('\n\n');
 }
 
 export function guideQAOpenerPrompt() {
-  return 'You just walked me through my digitized circular. In ONE short spoken sentence, tell me something specific from this week\'s sale items (how many there are and the single best deal), then ask me: "Do you have any questions?" Do not repeat the page tour.';
+  return 'You just walked me through my digitized circular. In ONE short spoken sentence, tell me something specific from this week\'s sale items (how many there are and the single best deal), then ask me: "Do you have any questions?" Do not repeat the page tour. Your reply MUST end with that question.';
 }

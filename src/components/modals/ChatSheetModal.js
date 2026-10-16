@@ -130,6 +130,10 @@ export default function ChatSheetModal({
   const [inputText, setInputText] = useState('');
   const [thinking, setThinking] = useState(false);
   const [error, setError] = useState(false);
+  // Fern's voice reply is on its way (being fetched) or playing: the mic must not open until it has finished.
+  const [speechPending, setSpeechPending] = useState(false);
+  const heardSpeech = useRef(false);
+  const emptyHeard = useRef(0); // consecutive recordings that came back with no words
   const scrollRef = useRef(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -196,7 +200,16 @@ export default function ChatSheetModal({
         : [];
 
       setMessages(prev => [...prev, { role: 'fern', text: reply }]);
-      speakText(spokenSummary(reply));
+      if (mode === 'voice') {
+        // The audio takes a moment to arrive; until it has played, the mic stays closed (opening it early made the
+        // recording go silent when playback switched the phone out of recording mode).
+        heardSpeech.current = false;
+        setSpeechPending(true);
+        setTimeout(() => setSpeechPending(false), 25000); // safety: never leave the mic closed for good
+        speakText(spokenSummary(reply)).then((uri) => { if (!uri) setSpeechPending(false); }).catch(() => setSpeechPending(false));
+      } else {
+        speakText(spokenSummary(reply));
+      }
 
       if (itemsToAdd.length) {
         const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(
@@ -221,13 +234,18 @@ export default function ChatSheetModal({
     } finally {
       setThinking(false);
     }
-  }, [locale, user, speakText, pull, pushAllFromStorage, t, systemPrompt, onAction]);
+  }, [locale, user, speakText, pull, pushAllFromStorage, t, systemPrompt, onAction, mode]);
 
   const { isListening, start, stop } = useContinuousMic({
     locale,
     token: user?.token,
     autoSpeakReply: false, // askFern already speaks the reply itself
-    onTranscript: askFern,
+    onTranscript: (text) => {
+      // Silence or background noise comes back as "." or similar: not a question, so don't send it (Fern used to answer it by repeating herself).
+      if (!/[A-Za-z0-9\u00C0-\u024F]/.test(String(text || ''))) { emptyHeard.current += 1; return; }
+      emptyHeard.current = 0;
+      askFern(text);
+    },
     onError: (e) => {
       console.warn('[ChatSheetModal] Mic error:', e);
       setError(true);
@@ -237,11 +255,18 @@ export default function ChatSheetModal({
   // Hands-free: once Fern has finished a reply (and finished speaking it), listen for the next answer.
   // Voice-activity detection ends the recording on its own, so the conversation just flows.
   useEffect(() => {
-    if (mode !== 'voice' || !visible || thinking || voiceThinking || isSpeaking || isListening || error) return undefined;
+    if (mode !== 'voice' || !visible || thinking || voiceThinking || isSpeaking || speechPending || isListening || error) return undefined;
+    if (emptyHeard.current >= 3) return undefined; // heard nothing three times in a row: stop re-opening the mic, the person can tap it
     if (messages.length === 0 || messages[messages.length - 1].role !== 'fern') return undefined;
     const timer = setTimeout(() => { start(); }, 900);
     return () => clearTimeout(timer);
-  }, [mode, visible, thinking, voiceThinking, isSpeaking, isListening, error, messages, start]);
+  }, [mode, visible, thinking, voiceThinking, isSpeaking, speechPending, isListening, error, messages, start]);
+
+  // Playback of Fern's reply finished: the mic may open now.
+  useEffect(() => {
+    if (isSpeaking) { heardSpeech.current = true; return; }
+    if (heardSpeech.current) { heardSpeech.current = false; setSpeechPending(false); }
+  }, [isSpeaking]);
 
   const micDisabled = isSpeaking && !BARGE_IN_ON_MIC_PRESS;
 
