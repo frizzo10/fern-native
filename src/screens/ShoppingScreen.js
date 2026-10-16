@@ -103,6 +103,7 @@ function toSyncPayload(list) {
 
 // Device-only: set once Fern has spoken the full circular walkthrough, so later visits skip it.
 const WALKTHROUGH_KEY = 'fern_shop_walkthrough_heard';
+const GUIDE_SPEECH_DELAY_MS = 5000; // how long the person gets to read the Shopping screen before Fern speaks
 
 export default function ShoppingScreen({ user }) {
   const { t, locale } = useLanguage();
@@ -135,6 +136,8 @@ export default function ShoppingScreen({ user }) {
   };
   const [review, setReview] = useState(null);
   useEffect(() => subscribeReview(setReview), []);
+  const guideTimerRef = useRef(null); // pending "Fern starts talking in a few seconds"
+  useEffect(() => () => clearTimeout(guideTimerRef.current), []);
   const [guideSpeechGo, setGuideSpeechGo] = useState(0); // a guide arrival wants Fern to speak; held until any open tour is closed
   const [introBusy, setIntroBusy] = useState(false); // Fern's arrival speech / walkthrough is still going; the celebration waits
   const [qaArmed, setQaArmed] = useState(false); // Fern's scripted walkthrough is playing; ask "any questions?" when it ends
@@ -247,6 +250,7 @@ export default function ShoppingScreen({ user }) {
     qaStage.current = 'intro';
     qaHeard.current = false;
     // Fern's speech itself starts in the effect below, once any open tour has closed (so two voices never overlap).
+    clearTimeout(guideTimerRef.current); // a newer arrival replaces a speech that was still waiting
     setShowSales(true); // tapping a scanned circular takes you to it, open
     setIntroBusy(true);
     setGuideSpeechGo(Date.now());
@@ -257,6 +261,7 @@ export default function ShoppingScreen({ user }) {
   useEffect(() => {
     if (!guideSpeechGo || !tourChecked || activeTourKey) return;
     setGuideSpeechGo(0);
+    const runGuideSpeech = () => {
     // First time ever: the full spoken walkthrough, then (when it finishes playing) one AI sentence and "any questions?".
     // Every time after that: skip the tour and go straight to the AI sentence and "any questions?".
     const greeting = route?.params?.greet
@@ -282,6 +287,14 @@ export default function ShoppingScreen({ user }) {
         }
       });
     }).catch(() => { if (leafMarked) AsyncStorage.removeItem('fern_leaf_welcome_heard').catch(() => {}); setIntroBusy(false); });
+    };
+    // Let them see the page first: Fern starts a few seconds after the Shopping screen is up (and not at all if they've already left it).
+    clearTimeout(guideTimerRef.current);
+    guideTimerRef.current = setTimeout(() => {
+      guideTimerRef.current = null;
+      if (!navigation.isFocused()) { setIntroBusy(false); return; }
+      runGuideSpeech();
+    }, GUIDE_SPEECH_DELAY_MS);
   }, [guideSpeechGo, tourChecked, activeTourKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The walkthrough is over once the "any questions?" card is up.
