@@ -825,7 +825,7 @@ export default function ShoppingScreen({ user }) {
         {false ? (
           <>
         <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
-          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { setShowSales(true); if (route?.params?.tripStart) setTripChatMode('choose'); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
+          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { if (route?.params?.tripStart) setTripChatMode('choose'); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
         </View>
 
         {(tripChatMode === 'choose' ? (
@@ -858,14 +858,20 @@ export default function ShoppingScreen({ user }) {
         {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
         {weekDeals.length > 0 && (!guideStep || guideStep === 'list') && !listOnly ? (
         <View style={[styles.checkoutCard, shadow.card]} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
-          <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
-          <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
+          <TouchableOpacity style={styles.salesHead} activeOpacity={0.8} onPress={() => setShowSales((v) => !v)}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
+              <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
+            </View>
+            <Text style={styles.salesToggle}>{`${showSales ? t('sale_list_week_hide') : t('sale_list_week_show')} ${showSales ? '▾' : '▸'}`}</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.askCircularBtn} activeOpacity={0.88} onPress={() => { setQaReopened(true); setQaOpen(true); }}>
             <Text style={styles.askCircularText}>{`🌿 ${t('guide_qa_ask_btn')}`}</Text>
           </TouchableOpacity>
           {weekDeals.length ? (
             <SaleItemsList
               deals={weekDeals}
+              collapsed={!showSales}
               openRequest={recipeRequest}
               t={t}
               isOnList={(deal) => {
@@ -1575,6 +1581,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   couponTitle: { color: '#2B1E13', fontSize: 14, lineHeight: 19, fontFamily: 'Jost-SemiBold' },
+  salesHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  salesToggle: { color: '#E8742A', fontSize: 13, fontWeight: '800' },
   askCircularBtn: { alignSelf: 'flex-start', backgroundColor: '#2A6A2A', borderRadius: 20, paddingVertical: 8, paddingHorizontal: 14, marginTop: 8, marginBottom: 6 },
   askCircularText: { color: '#F7F5F0', fontSize: 14, fontFamily: 'Jost-Bold' },
   couponMeta: { color: '#7A5C3A', fontSize: 11, lineHeight: 15, fontFamily: 'Jost-Regular', marginTop: 2 },

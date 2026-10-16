@@ -17,13 +17,14 @@ import { buildRollingWeekDateKeys, parseDateKey } from '../utils/familyDates';
 //   onAdd     (deal) => void
 //   token, locale, onAddRecipe(recipe, deal) — when given, each row gets a "Recipes" button:
 //   3 dinner ideas for that item, a full preview on tap, and "Add ingredients to my list".
-export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, onPlanDay, shoppingItems, openRequest }) {
+export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale, onAddRecipe, onPlanDay, shoppingItems, openRequest, collapsed }) {
   const [query, setQuery] = useState('');
   const [added, setAdded] = useState({});
   const [open, setOpen] = useState(null); // { key, loading, ideas, failed, idea, recipe, recipeLoading, done }
   const [sidePreviews, setSidePreviews] = useState({}); // `${idea.title}::${side}` -> { loading | failed | recipe }
   const [sideAdds, setSideAdds] = useState({}); // `${idea.title}::${side}` -> { reviewing, saving, done }
   const setSideAdd = (k, patch) => setSideAdds((p) => ({ ...p, [k]: { ...(p[k] || {}), ...patch } }));
+  const [pinned, setPinned] = useState(null); // { deal, key }: the item Fern was asked to find recipes for, shown above the (collapsible) circular
   const [meal, setMeal] = useState('Dinner'); // which meal "Cook it on" puts the dish in
 
   // Tap a side to see how to make it (same lookup the Shopping week-of-dinners cards use).
@@ -39,8 +40,8 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
     }
   };
 
-  const findRecipes = async (deal, key) => {
-    if (open?.key === key) { setOpen(null); return; }
+  const findRecipes = async (deal, key, force) => {
+    if (open?.key === key && !force) { setOpen(null); return; }
     setOpen({ key, loading: true, ideas: [] });
     try {
       const ideas = await fetchDealRecipeIdeas({ itemName: deal.name, locale, token });
@@ -94,8 +95,9 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
     });
     if (best < 0) return;
     const deal = list[best];
-    setQuery(String(deal.name || '').trim());
-    findRecipes(deal, `${String(deal?.name || '').trim()}-${deal?.store || ''}-${best}`);
+    const key = `${String(deal?.name || '').trim()}-${deal?.store || ''}-${best}`;
+    setPinned({ deal, key });
+    findRecipes(deal, key, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openRequest?.nonce]);
 
@@ -110,6 +112,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
       const kind = dealKind(deal);
       const stored = String(deal?.category || '').trim();
       const cat = kind && isUnreliableCategory(stored) ? t(kind.labelKey) : (stored || t('sale_list_other'));
+      if (pinned && pinned.key === `${name}-${deal?.store || ''}-${i}`) return;
       if (q && !name.toLowerCase().includes(q) && !cat.toLowerCase().includes(q)) return;
       if (!map.has(cat)) map.set(cat, []);
       map.get(cat).push({ deal, key: `${name}-${deal?.store || ''}-${i}` });
@@ -117,25 +120,9 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
     // Biggest savers first inside each aisle.
     map.forEach((rows) => rows.sort((a, b) => dealSaving(b.deal).amount - dealSaving(a.deal).amount));
     return Array.from(map.entries());
-  }, [deals, query, t]);
+  }, [deals, query, t, pinned]);
 
-  return (
-    <View>
-      <TextInput
-        style={styles.search}
-        value={query}
-        onChangeText={setQuery}
-        placeholder={t('sale_list_search')}
-        placeholderTextColor="#9a8f84"
-        autoCorrect={false}
-        autoCapitalize="none"
-        clearButtonMode="while-editing"
-      />
-      {!groups.length ? <Text style={styles.empty}>{t('sale_list_none')}</Text> : null}
-      {groups.map(([cat, rows]) => (
-        <View key={cat} style={styles.group}>
-          <Text style={styles.groupLabel}>{cat}</Text>
-          {rows.map(({ deal, key }) => {
+  const renderRow = ({ deal, key }) => {
             const done = Boolean(added[key]) || Boolean(isOnList?.(deal));
             const saving = dealSaving(deal);
             const price = deal.isBogo ? 'BOGO' : deal.salePrice;
@@ -282,9 +269,42 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
               ) : null}
               </View>
             );
-          })}
+  };
+
+  return (
+    <View>
+      {pinned ? (
+        <View style={styles.pinned}>
+          <View style={styles.pinnedHead}>
+            <Text style={styles.pinnedTitle} numberOfLines={2}>{t('sale_list_recipes_for', { name: pinned.deal.name })}</Text>
+            <TouchableOpacity onPress={() => { setPinned(null); setOpen(null); }} activeOpacity={0.8}>
+              <Text style={styles.hideLink}>{t('sale_list_close')}</Text>
+            </TouchableOpacity>
+          </View>
+          {renderRow(pinned)}
         </View>
-      ))}
+      ) : null}
+      {collapsed ? null : (
+        <View>
+          <TextInput
+            style={styles.search}
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('sale_list_search')}
+            placeholderTextColor="#9a8f84"
+            autoCorrect={false}
+            autoCapitalize="none"
+            clearButtonMode="while-editing"
+          />
+          {!groups.length ? <Text style={styles.empty}>{t('sale_list_none')}</Text> : null}
+          {groups.map(([cat, rows]) => (
+            <View key={cat} style={styles.group}>
+              <Text style={styles.groupLabel}>{cat}</Text>
+              {rows.map(renderRow)}
+            </View>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -301,6 +321,9 @@ const styles = StyleSheet.create({
     color: '#2D1B10',
     marginBottom: 6,
   },
+  pinned: { backgroundColor: '#FFF8F0', borderRadius: 12, borderWidth: 1, borderColor: '#F3D9C0', padding: 10, marginTop: 10, marginBottom: 6 },
+  pinnedHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
+  pinnedTitle: { flex: 1, fontSize: 13, fontWeight: '800', color: '#2D1B10' },
   empty: { color: '#7a6d60', fontSize: 13, paddingVertical: 12, textAlign: 'center' },
   group: { marginTop: 8 },
   groupLabel: { fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#7a6d60', fontWeight: '700', marginBottom: 4 },
