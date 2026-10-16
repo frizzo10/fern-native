@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Clipboard,
   Linking,
   Share,
   ScrollView,
@@ -576,13 +577,27 @@ export default function ShoppingScreen({ user }) {
     await persistShopping([...items, ...additions]);
   };
 
-  const shareList = async () => {
-    // Grouped by store section, with how many to buy when more than one meal needs it.
+  // Grouped by store section, with how many to buy when more than one meal needs it.
+  const buildListText = () => {
     const lines = aisleSections.flatMap((section) => [
       `\n${t(section.aisle.labelKey).toUpperCase()}`,
       ...section.items.map((item) => `${item.checked ? '✓' : '•'} ${item.text}${buyCount(item) > 1 ? ` ×${buyCount(item)}` : ''}`),
     ]);
-    const message = lines.length ? `${t('share_list_header')}\n\n${lines.join('\n')}` : t('share_list_empty');
+    return lines.length ? `${t('share_list_header')}\n\n${lines.join('\n')}` : t('share_list_empty');
+  };
+
+  // The 📋 button next to Share: copy the whole list as text so it can be pasted into Notes, a text, etc.
+  const copyList = () => {
+    try {
+      Clipboard.setString(buildListText());
+      Alert.alert(t('copied'));
+    } catch (e) {
+      console.warn('Copy failed:', e);
+    }
+  };
+
+  const shareList = async () => {
+    const message = buildListText();
     try {
       await Share.share({ message });
     } catch (e) {
@@ -666,7 +681,7 @@ export default function ShoppingScreen({ user }) {
             <TouchableOpacity style={styles.shareBtn} activeOpacity={0.86} onPress={shareList}>
               <Text style={styles.shareBtnText}>{t('share_button')}</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.clipBtn} activeOpacity={0.86}>
+            <TouchableOpacity style={styles.clipBtn} activeOpacity={0.86} onPress={copyList}>
               <Text style={styles.clipBtnText}>📋</Text>
             </TouchableOpacity>
           </View>
