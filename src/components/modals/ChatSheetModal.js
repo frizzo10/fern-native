@@ -15,7 +15,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet, Modal,
-  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Alert, Animated, Pressable,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../../constants/tokens';
@@ -127,6 +127,7 @@ export default function ChatSheetModal({
   onSpeechDone, // (parsed) => void, called once Fern has finished speaking a reply whose action asked to close the card / open something
   compact = false, // true = a bottom card that leaves the page above it visible, instead of a full-screen sheet
   mode, // 'voice' = Fern speaks and the mic re-arms after every reply (hands-free); 'text' = typing only, no speech
+  voiceOnly = false, // true = no chat window at all: a small listening card, Fern talks and listens by herself (implies mode 'voice')
 }) {
   const { t, locale } = useLanguage();
   const agentOn = agent ?? !customSystemPrompt;
@@ -145,6 +146,14 @@ export default function ChatSheetModal({
   const heardSpeech = useRef(false);
   const finishAction = useRef(null); // the parsed reply to hand to onSpeechDone when her voice ends
   const emptyHeard = useRef(0); // consecutive recordings that came back with no words
+  const closeRef = useRef(null);
+  const micErrCount = useRef(0);
+  const [retryTick, setRetryTick] = useState(0);
+  // Heard nothing twice in a row in voice-only mode: she was left open by mistake, so put the card away.
+  const noteEmpty = () => {
+    emptyHeard.current += 1;
+    if (voiceOnly && emptyHeard.current >= 2) setTimeout(() => closeRef.current?.(), 400);
+  };
   const scrollRef = useRef(null);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
@@ -284,14 +293,25 @@ export default function ChatSheetModal({
     locale,
     token: user?.token,
     autoSpeakReply: false, // askFern already speaks the reply itself
+    onEmpty: noteEmpty,
+    noSpeechMs: voiceOnly ? 9000 : 0,
     onTranscript: (text) => {
       // Silence or background noise comes back as "." or similar: not a question, so don't send it (Fern used to answer it by repeating herself).
-      if (!/[A-Za-z0-9\u00C0-\u024F]/.test(String(text || ''))) { emptyHeard.current += 1; return; }
+      if (!/[A-Za-z0-9\u00C0-\u024F]/.test(String(text || ''))) { noteEmpty(); return; }
       emptyHeard.current = 0;
+      micErrCount.current = 0;
       askFern(text);
     },
     onError: (e) => {
       console.warn('[ChatSheetModal] Mic error:', e);
+      if (voiceOnly) {
+        // Try once more by herself, then show the problem and wait for a tap on the leaf.
+        setVoiceErr(String(e || '').slice(0, 140));
+        micErrCount.current += 1;
+        if (micErrCount.current < 2) setTimeout(() => setRetryTick((x) => x + 1), 1500);
+        else setError(true);
+        return;
+      }
       setError(true);
     },
   });
@@ -305,7 +325,7 @@ export default function ChatSheetModal({
     if (messages.length === 0 || messages[messages.length - 1].role !== 'fern') return undefined;
     const timer = setTimeout(() => { start(); }, 900);
     return () => clearTimeout(timer);
-  }, [mode, visible, thinking, voiceThinking, isSpeaking, speechPending, isListening, error, messages, start]);
+  }, [mode, visible, thinking, voiceThinking, isSpeaking, speechPending, isListening, error, messages, start, retryTick]);
 
   // Playback of Fern's reply finished: the mic may open now.
   useEffect(() => {
@@ -335,8 +355,10 @@ export default function ChatSheetModal({
     if (!visible) {
       if (isListening) stop();
       stopSpeaking();
+      // Voice-only: every open is a fresh short session (she greets again and the counters start over).
+      if (voiceOnly) { setMessages([]); setError(false); setVoiceErr(''); emptyHeard.current = 0; micErrCount.current = 0; finishAction.current = null; }
     }
-  }, [visible, isListening, stop, stopSpeaking]);
+  }, [visible, isListening, stop, stopSpeaking, voiceOnly]);
 
   // First time the sheet is opened with no conversation yet, kick things
   // off ourselves instead of leaving the person looking at an empty sheet.
@@ -357,6 +379,13 @@ export default function ChatSheetModal({
             setTimeout(() => setSpeechPending(false), 25000);
             speakText(t(`${k}_say`)).then((uri) => { if (!uri) setSpeechPending(false); }).catch(() => setSpeechPending(false));
           }
+        } else if (voiceOnly) {
+          // No AI round trip: say a short line, then the mic opens by itself.
+          setMessages([{ role: 'fern', text: t('voice_say_ready') }]);
+          heardSpeech.current = false;
+          setSpeechPending(true);
+          setTimeout(() => setSpeechPending(false), 25000);
+          speakText(t('voice_say_ready')).then((uri) => { if (!uri) setSpeechPending(false); }).catch(() => setSpeechPending(false));
         } else {
           askFern(autoOpenerPrompt, { silent: true });
         }
@@ -375,6 +404,59 @@ export default function ChatSheetModal({
     stopSpeaking();
     onClose();
   }, [isListening, stop, stopSpeaking, onClose]);
+  closeRef.current = handleClose;
+
+  // Voice-only: the orb. Tap = start / stop listening (or cut Fern off and talk), also the way to retry after a problem.
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (!voiceOnly || !visible || !isListening) { pulse.setValue(1); return undefined; }
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(pulse, { toValue: 1.18, duration: 650, useNativeDriver: true }),
+      Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [voiceOnly, visible, isListening, pulse]);
+  const handleOrbPress = useCallback(() => {
+    if (isListening) { stop(); return; }
+    stopSpeaking();
+    setError(false);
+    setVoiceErr('');
+    micErrCount.current = 0;
+    emptyHeard.current = 0;
+    start();
+  }, [isListening, stop, stopSpeaking, start]);
+
+  if (voiceOnly) {
+    const lastHeard = [...messages].reverse().find((m) => m.role === 'user')?.text || '';
+    const lastFern = [...messages].reverse().find((m) => m.role === 'fern')?.text || '';
+    let status = t('voice_fern_tap');
+    if (error) status = t('voice_fern_problem');
+    else if (isListening) status = t('voice_fern_listening');
+    else if (thinking || voiceThinking) status = t('voice_fern_thinking');
+    else if (isSpeaking || speechPending) status = t('voice_fern_talking');
+    return (
+      <Modal visible={visible} animationType="fade" transparent onRequestClose={handleClose}>
+        <Pressable style={styles.voiceBackdrop} onPress={handleClose}>
+          <Pressable style={styles.voiceCard} onPress={() => {}}>
+            <TouchableOpacity style={styles.voiceClose} onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Text style={styles.closeX}>✕</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.85} onPress={handleOrbPress}>
+              <Animated.View style={[styles.orb, isListening && styles.orbListening, error && styles.orbError, { transform: [{ scale: pulse }] }]}>
+                <Text style={styles.orbLeaf}>🌿</Text>
+              </Animated.View>
+            </TouchableOpacity>
+            <Text style={styles.voiceStatus}>{status}</Text>
+            {!!lastHeard && <Text style={styles.voiceHeard} numberOfLines={2}>{t('voice_fern_heard')}: “{lastHeard}”</Text>}
+            {!!lastFern && <Text style={styles.voiceSaid} numberOfLines={5}>{lastFern}</Text>}
+            {!!voiceErr && <Text style={styles.voiceErrText}>{voiceErr}</Text>}
+          </Pressable>
+        </Pressable>
+        <UpgradeGateModal visible={limitGate} onClose={() => setLimitGate(false)} tier={TIERS.PRO} title={t('chat_limit_title')} desc={t('chat_limit_desc')} />
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={visible} animationType="slide" transparent={compact} onRequestClose={handleClose}>
@@ -497,6 +579,24 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
+
+  voiceBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
+  voiceCard: {
+    backgroundColor: colors.parch, borderTopLeftRadius: 28, borderTopRightRadius: 28,
+    paddingHorizontal: 24, paddingTop: 22, paddingBottom: 44, alignItems: 'center',
+  },
+  voiceClose: { position: 'absolute', top: 14, right: 18 },
+  orb: {
+    width: 104, height: 104, borderRadius: 52, backgroundColor: colors.forest,
+    alignItems: 'center', justifyContent: 'center', marginTop: 6,
+  },
+  orbListening: { backgroundColor: colors.orange },
+  orbError: { backgroundColor: colors.voiceRed },
+  orbLeaf: { fontSize: 46 },
+  voiceStatus: { marginTop: 14, fontSize: 18, fontWeight: '800', color: colors.ink, textAlign: 'center' },
+  voiceHeard: { marginTop: 10, fontSize: 14, color: colors.brown, fontStyle: 'italic', textAlign: 'center' },
+  voiceSaid: { marginTop: 10, fontSize: 15, lineHeight: 21, color: colors.ink, textAlign: 'center' },
+  voiceErrText: { marginTop: 8, fontSize: 12, color: colors.voiceRed, textAlign: 'center' },
 
   listeningHint: { textAlign: 'center', fontSize: 12, color: colors.brown, paddingBottom: 10, fontStyle: 'italic' },
 });

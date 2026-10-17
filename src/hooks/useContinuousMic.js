@@ -18,7 +18,9 @@ function isFernVoiceEnabledValue(raw) {
 }
 
 
-export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true, locale = 'en', token } = {}) {
+// onEmpty: called when a recording came back with no words. noSpeechMs (0 = off): stop a recording that has heard no speech
+// after this long, so a hands-free listener doesn't sit open for the full 30 s when nobody talks.
+export function useContinuousMic({ onTranscript, onError, onEmpty, noSpeechMs = 0, autoSpeakReply = true, locale = 'en', token } = {}) {
   // Spoken replies are a Pro feature (they cost per character); Free still gets the transcript.
   const { hasAccess } = useEntitlement();
   const speakReplies = autoSpeakReply && hasAccess(TIERS.PRO);
@@ -36,6 +38,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
   const vadIntervalRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
   const maxRecordingTimeoutRef = useRef(null);
+  const noSpeechTimeoutRef = useRef(null);
   const hasSpeechRef = useRef(false);
   const stoppedBySilenceRef = useRef(false);
 
@@ -231,6 +234,8 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
         if (speakReplies) {
           await processFernReply(transcript);
         }
+      } else {
+        onEmpty?.();
       }
 
     } catch (error) {
@@ -240,7 +245,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
 
     }
 
-  }, [onTranscript, speakReplies, processFernReply]);
+  }, [onTranscript, onEmpty, speakReplies, processFernReply]);
 
   const start = useCallback(async () => {
     try {
@@ -283,6 +288,16 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
 
       await recorder.record();
       hasSpeechRef.current = false;
+
+      if (noSpeechMs > 0) {
+        noSpeechTimeoutRef.current = setTimeout(() => {
+          noSpeechTimeoutRef.current = null;
+          if (activeRef.current && !hasSpeechRef.current && !processingRef.current) {
+            console.log('[vad] no speech heard, stopping');
+            stop();
+          }
+        }, noSpeechMs);
+      }
 
       maxRecordingTimeoutRef.current = setTimeout(() => {
         console.log('[vad] max recording reached');
@@ -370,7 +385,7 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
         error?.message ?? 'Failed to start microphone'
       );
     }
-  }, [recorder, onError]);
+  }, [recorder, onError, noSpeechMs]);
 
   useEffect(() => {
     if (!player) return;
@@ -409,6 +424,11 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
 
       maxRecordingTimeoutRef.current = null;
 
+    }
+
+    if (noSpeechTimeoutRef.current) {
+      clearTimeout(noSpeechTimeoutRef.current);
+      noSpeechTimeoutRef.current = null;
     }
 
     if (!activeRef.current) return;
@@ -461,6 +481,10 @@ export function useContinuousMic({ onTranscript, onError, autoSpeakReply = true,
       if (maxRecordingTimeoutRef.current) {
         clearTimeout(maxRecordingTimeoutRef.current);
         maxRecordingTimeoutRef.current = null;
+      }
+      if (noSpeechTimeoutRef.current) {
+        clearTimeout(noSpeechTimeoutRef.current);
+        noSpeechTimeoutRef.current = null;
       }
 
       // Release the native recording session on unmount (dev reload included)

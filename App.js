@@ -415,6 +415,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         visible={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         user={user}
+        mode="voice"
+        voiceOnly
         onSpeechDone={(p) => {
           // Fern finished talking and asked to open something / close the card.
           setIsChatOpen(false);
