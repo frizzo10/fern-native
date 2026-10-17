@@ -61,7 +61,10 @@ export default function ShareLinkModal({
 
     const handleShare = async () => {
         try {
-            await Share.share({ message: buildShareText(url) });
+            // Hand over ONLY the web address. With "Title - N recipes: https://..." as the text, Copy puts that whole
+            // line on the clipboard and pasting it into a browser runs a Google search instead of opening the link.
+            if (Platform.OS === 'ios') await Share.share({ url });
+            else await Share.share({ message: url });
         } catch (e) {
             console.log('[share] share sheet failed', e?.message || e);
         }
