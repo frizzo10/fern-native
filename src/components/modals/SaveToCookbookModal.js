@@ -58,6 +58,7 @@ export default function SaveToCookbookModal({
     initialCuisine = '',
     initialMealType = '',
     isSaving = false,
+    keepMounted = false,
     onCancel,
     onSave,
 }) {
@@ -79,7 +80,9 @@ export default function SaveToCookbookModal({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible, initialBookId, initialCuisine, initialMealType]);
 
-    if (!visible) return null;
+    // keepMounted: let the native Modal dismiss itself (visible=false) instead of being yanked out of
+    // the tree, which on iOS can leave the screen behind it frozen until the app is reopened.
+    if (!visible && !keepMounted) return null;
 
     const bookOptions = [
         { value: MY_RECIPES_ID, label: t('my_recipes_option') },
@@ -103,7 +106,7 @@ export default function SaveToCookbookModal({
     };
 
     return (
-        <Modal visible transparent animationType="slide" onRequestClose={onCancel}>
+        <Modal visible={keepMounted ? visible : true} transparent animationType="slide" onRequestClose={onCancel}>
             <View style={styles.backdrop}>
                 <View style={styles.card}>
                     <View style={styles.header}>

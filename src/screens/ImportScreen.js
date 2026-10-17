@@ -4,7 +4,7 @@
 // method-for-method -- this is the same feature, just previously missing
 // from the native app entirely.
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ScrollView, ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform,
@@ -60,6 +60,8 @@ export default function ImportScreen({ user, onBack, onImported }) {
   const [previewRecipe, setPreviewRecipe] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const pendingRef = useRef(false); // set the moment Save is tapped in the picker
+  const savingRef = useRef(false); // blocks a second tap while the first save is still starting
   const [savedInfo, setSavedInfo] = useState(null); // { title, book } once a save really finished
 
   async function handleImport() {
@@ -112,16 +114,19 @@ export default function ImportScreen({ user, onBack, onImported }) {
 
   // Which cookbook / cuisine / meal type, like the web app's save dialog.
   async function handleSave({ bookId, cuisine, mealType } = {}) {
+    if (savingRef.current) return;
     if (!previewRecipe) {
       setSaveError('Nothing to save - the recipe was lost. Please scan it again.');
       return;
     }
+    savingRef.current = true;
     setSaving(true);
     setSaveError('');
     try {
       const storedSaved = JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]');
       const baseSaved = Array.isArray(storedSaved) ? storedSaved : [];
-      const updatedSaved = [
+      const dupe = baseSaved.some((r) => r && r.title === previewRecipe.title && (r._bookIds || []).join() === (bookId ? String(bookId) : ''));
+      const updatedSaved = dupe ? baseSaved : [
         ...baseSaved,
         {
           id: `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -164,6 +169,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
       // Shown on the page itself: iOS drops an Alert raised right after a Modal closes.
       setSaveError(String((e && e.message) || e));
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -337,9 +343,10 @@ export default function ImportScreen({ user, onBack, onImported }) {
         initialCuisine={previewRecipe?.cuisine || ''}
         initialMealType={previewRecipe?.mealType || ''}
         isSaving={saving}
+        keepMounted
         onCancel={() => setPickerOpen(false)}
         // iOS drops an Alert shown while a Modal is still closing, so close first, then save.
-        onSave={(choice) => { setPickerOpen(false); setTimeout(() => handleSave(choice), 450); }}
+        onSave={(choice) => { if (pendingRef.current || savingRef.current) return; pendingRef.current = true; setPickerOpen(false); setSaving(true); setTimeout(() => { pendingRef.current = false; handleSave(choice); }, 450); }}
       />
       <UpgradeGateModal
         visible={limitGate}
