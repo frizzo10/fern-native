@@ -1485,11 +1485,16 @@ export default function HomeScreen({ user, route }) {
   // Scan a flyer right here: pick a photo, show Fern "reading" it for at least 3 seconds, say what was found,
   // then land on the Shopping page with the sales list.
   const [flyerScan, setFlyerScan] = useState(null); // null | { phase: 'working' } | { phase: 'done', count, store }
+  // Diagnostic: shows which step the flyer photo picker reached (a plain banner, not a Modal, so iOS can't drop it).
+  const [flyerTrace, setFlyerTrace] = useState('');
   const runHomeFlyerScan = async (fromCamera) => {
     let picked;
+    setFlyerTrace('1. tapped, starting');
     try {
-      picked = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+      const traceOpts = { onStage: (s) => setFlyerTrace(s) };
+      picked = fromCamera ? await pickPhotoFromCamera(traceOpts) : await pickPhotoFromLibrary(traceOpts);
     } catch (e) {
+      setFlyerTrace(`ERROR: ${String(e?.message || e).slice(0, 120)}`);
       // A picker that throws used to vanish silently (this runs inside a setTimeout); show why.
       console.log('[home] flyer photo picker failed', e?.message || e);
       Alert.alert(t('scan_circular_scan_failed_title'), String(e?.message || e).slice(0, 200));
@@ -1507,6 +1512,7 @@ export default function HomeScreen({ user, route }) {
     // iOS silently drops a Modal opened while the camera / photo picker is still dismissing, so the
     // "reading your flyer" pop-up never appeared. Let the picker finish closing first.
     await new Promise((r) => setTimeout(r, 600));
+    setFlyerTrace('');
     setFlyerScan({ phase: 'working' });
     const started = Date.now();
     try {
@@ -1532,8 +1538,8 @@ export default function HomeScreen({ user, route }) {
   const flyerSkipRef = useRef(false);
   const askFlyerPhoto = () => {
     Alert.alert(t('trip_flyer_title'), undefined, [
-      { text: t('trip_flyer_camera'), onPress: () => setTimeout(() => runHomeFlyerScan(true), 400) },
-      { text: t('trip_flyer_library'), onPress: () => setTimeout(() => runHomeFlyerScan(false), 400) },
+      { text: t('trip_flyer_camera'), onPress: () => { setFlyerTrace('0. camera button pressed'); setTimeout(() => runHomeFlyerScan(true), 400); } },
+      { text: t('trip_flyer_library'), onPress: () => { setFlyerTrace('0. photos button pressed'); setTimeout(() => runHomeFlyerScan(false), 400); } },
       { text: t('cancel_btn'), style: 'cancel' },
     ]);
   };
@@ -3082,6 +3088,12 @@ export default function HomeScreen({ user, route }) {
           </TouchableWithoutFeedback>
         </KeyboardAvoidingView>
       </Modal>
+
+      {!!flyerTrace && (
+        <View pointerEvents="none" style={{ position: 'absolute', top: 64, left: 12, right: 12, zIndex: 999, elevation: 999, backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: 10, padding: 10 }}>
+          <Text style={{ color: '#fff', fontSize: 13 }}>{`Photo: ${flyerTrace}`}</Text>
+        </View>
+      )}
 
       <Modal visible={Boolean(flyerScan)} transparent animationType="fade" onRequestClose={() => {}}>
         <View style={{ flex: 1, backgroundColor: 'rgba(20,45,20,0.92)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>

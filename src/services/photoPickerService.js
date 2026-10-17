@@ -12,18 +12,23 @@ function normalizeAsset(asset) {
     };
 }
 
-async function pickFromSource(launchFn, requestPermissionFn, { quality = 0.6 } = {}) {
+async function pickFromSource(launchFn, requestPermissionFn, { quality = 0.6, onStage } = {}) {
+    // onStage (optional) reports each step so a picker that never opens can be located on the phone.
+    onStage?.('2. asking permission');
     const { status } = await requestPermissionFn();
+    onStage?.(`3. permission answer: ${status}`);
     if (status !== 'granted') {
         return { canceled: true, permissionDenied: true, photo: null };
     }
 
+    onStage?.('4. opening camera/photos');
     const result = await launchFn({
         mediaTypes: ['images'],
         base64: true,
         quality,
         allowsEditing: false,
     });
+    onStage?.(`5. picker closed (canceled: ${Boolean(result?.canceled)})`);
 
     if (result.canceled || !result.assets?.length) {
         return { canceled: true, permissionDenied: false, photo: null };
