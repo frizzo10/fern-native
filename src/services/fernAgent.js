@@ -14,6 +14,7 @@ import { fetchAllCoupons } from './couponsService';
 import { normalizeCoupons } from '../utils/couponNormalize';
 import { recipeLimitReached } from '../utils/freeLimits';
 import { fetchRecipeImage } from '../utils/recipeImage';
+import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 
 // Screens that show list / recipes / week data listen here and re-pull after Fern changed something.
 const listeners = new Set();
@@ -124,6 +125,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false } = {}) {
     ctx.catalog.length ? `COUPON CATALOG (a sample of ${Math.min(ctx.catalog.length, 25)} of ${ctx.catalog.length}):\n${ctx.catalog.slice(0, 25).map(couponLine).join('\n')}` : '',
     'HOW COUPONS WORK: a [digital] coupon has no barcode; the shopper must first load it to their loyalty account in that store\'s app or website, then it comes off at checkout when they give their phone number or card. Adding it to the Fern wallet does NOT load it to the store. [code] coupons are entered at checkout online; [link] coupons are opened from a link. Walmart does not accept digital coupons.',
     'WHAT YOU CAN DO. Put plain grocery names (like "Ground beef") in add_to_shopping_list when they want things added to the list (do not read the items back in your reply; the app confirms). For everything else put objects in "actions":\n' +
+      '- {"type":"add_recipe_to_list","title":"recipe name","ingredients":["only if it is NOT one of their saved recipes: the buyable ingredients"]} — puts a whole recipe\'s ingredients on the shopping list (for a saved recipe the app uses its real ingredients, so use the exact saved title and leave ingredients out).\n' +
       '- {"type":"remove_from_list","items":["Milk"]}\n' +
       '- {"type":"check_off","items":["Milk"]} — they say they already got it / have it (instant, no confirmation needed)\n' +
       '- {"type":"save_recipe","title":"...","emoji":"🍝","time":"30 min","description":"one line","ingredients":["1 lb ground beef", "..."],"instructions":["step", "..."],"book":"exact cookbook name or empty for My Recipes"} — YOU write the full recipe (real quantities, 4-8 steps) unless it is one of their saved recipes.\n' +
@@ -134,6 +136,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false } = {}) {
       '- {"type":"go_to","screen":"Shopping|Recipes|Family|Find|Home"} — use it when they ask to be taken somewhere or after you explain where something is.\n' +
       '- {"type":"close_chat"} when they are done (that\'s all, thanks, close this): say a short goodbye.',
     APP_GUIDE,
+    'LET THEM CHOOSE: when they ask for a dish by a general name ("add tacos", "plan pasta Tuesday", "what about chili") and did not name one exact saved recipe, do NOT pick for them and do NOT act yet. Offer 2 or 3 options in one short spoken sentence: up to two matching recipes from SAVED RECIPES (say their exact saved titles first, because they are the family\'s own) plus one fresh idea of yours (say it is a new idea). End by asking which one. Leave add_to_shopping_list and actions EMPTY on that turn. Only when they pick (by name, or "the first one" / "the second") do what they originally asked: for the list use add_recipe_to_list; for a day use plan_meal (ask which day if they did not say) plus add_recipe_to_list if they want the ingredients; a fresh idea they like is also saved with save_recipe only if they say so. If they named one exact saved recipe or a plain grocery item (milk, salt, eggs), skip the choice and just do it.',
     'SAFETY: adding is instant, but BEFORE removing list items or replacing a meal that is already planned, ask "Want me to remove/replace it?" and only emit that action after they say yes. Never claim you did something you did not put in add_to_shopping_list or actions. If a request cannot be done with the above, say so honestly and tell them where in the app to do it. If they ask for something not on sale, say it is not in this week\'s circular.',
     extra,
     'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":[],"actions":[]}',
@@ -178,6 +181,20 @@ async function checkOff(items) {
   await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(next));
   await patchCache({ shopping: next });
   return { ok: true, text: `Checked off: ${hit.join(', ')}`, next };
+}
+
+async function addRecipeToList(a, env) {
+  const title = clip(a.title, 120);
+  if (!title) return { ok: false, text: 'I could not add that recipe (no name).' };
+  const saved = await readJson('rv4_saved', []);
+  const own = saved.find((r) => lc(r?.title) === lc(title)) || saved.find((r) => lc(r?.title).includes(lc(title)));
+  const raw = own ? (Array.isArray(own.ingredients) ? own.ingredients : []) : (Array.isArray(a.ingredients) ? a.ingredients : []);
+  const ingredients = raw.map((x) => (typeof x === 'string' ? x : [x?.amount, x?.unit, x?.item || x?.name].filter(Boolean).join(' '))).map((x) => String(x).trim()).filter(Boolean);
+  if (!ingredients.length) return { ok: false, text: `I could not find ingredients for "${title}".` };
+  const list = await readJson('rv4_master_shop', []);
+  const { addedCount = 0, checkedCount = 0 } = (await addRecipeIngredientsToShoppingList({ id: `agent-${Date.now()}`, title: own?.title || title, ingredients }, list)) || {};
+  await env.pushChangedFromStorage();
+  return { ok: true, text: `Added ${addedCount + checkedCount} ingredients for ${own?.title || title} to your list`, changed: 'shopping' };
 }
 
 async function saveRecipe(a, env) {
@@ -283,13 +300,14 @@ async function addCoupon(a, env) {
 // Runs every action she asked for. Returns { lines: [report lines], showRecipesFor, goTo, close }.
 // env: { pushChangedFromStorage, token, canSaveUnlimited }
 export async function executeAgentActions(actions, env) {
-  const out = { lines: [], showRecipesFor: '', goTo: '', close: false };
+  const out = { lines: [], showRecipesFor: '', goTo: '', close: false, watch: null }; // watch: where to jump so the person sees the change happen
   for (const a of Array.isArray(actions) ? actions : []) {
     const type = String(a?.type || '');
     try {
       let r = null;
       if (type === 'remove_from_list') r = await removeFromList(a.items, env);
       else if (type === 'check_off') { r = await checkOff(a.items); if (r.next) await env.pushChangedFromStorage({ shopping: r.next }); }
+      else if (type === 'add_recipe_to_list') r = await addRecipeToList(a, env);
       else if (type === 'save_recipe') r = await saveRecipe(a, env);
       else if (type === 'plan_meal') r = await planMeal(a, env);
       else if (type === 'add_activity') r = await addActivity(a, env);
@@ -298,6 +316,11 @@ export async function executeAgentActions(actions, env) {
       else if (type === 'go_to') out.goTo = ['Shopping', 'Recipes', 'Family', 'Find', 'Home'].includes(a.screen) ? a.screen : '';
       else if (type === 'close_chat') out.close = true;
       if (r) out.lines.push(`${r.ok ? '✓' : '✗'} ${r.text}`);
+      if (r?.ok && !out.watch) {
+        if (['remove_from_list', 'check_off', 'add_coupon', 'add_recipe_to_list'].includes(type)) out.watch = { screen: 'Shopping' };
+        else if (type === 'plan_meal' || type === 'add_activity') out.watch = { screen: 'Family', dayOffset: Math.max(0, Math.min(6, Number(a.day_offset) || 0)) };
+        else if (type === 'save_recipe') out.watch = { screen: 'Recipes' };
+      }
     } catch (e) {
       console.warn('[fernAgent] action failed', type, e?.message || e);
       out.lines.push(`✗ I could not do that (${type.replace(/_/g, ' ')}).`);

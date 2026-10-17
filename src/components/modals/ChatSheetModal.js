@@ -127,6 +127,8 @@ export default function ChatSheetModal({
   onSpeechDone, // (parsed) => void, called once Fern has finished speaking a reply whose action asked to close the card / open something
   compact = false, // true = a bottom card that leaves the page above it visible, instead of a full-screen sheet
   mode, // 'voice' = Fern speaks and the mic re-arms after every reply (hands-free); 'text' = typing only, no speech
+  onShow, // ({ screen, dayOffset }) => void: called the moment Fern changed something, so the app can jump to where the change is
+  onPhase, // (phase, detail) => void: voice-only status for the leaf button ('listen' | 'talk' | 'think' | 'idle' | 'error' | 'off')
   voiceOnly = false, // true = no chat window at all: a small listening card, Fern talks and listens by herself (implies mode 'voice')
 }) {
   const { t, locale } = useLanguage();
@@ -168,6 +170,8 @@ export default function ChatSheetModal({
   const shoppingRef = useRef(data.shopping);
   shoppingRef.current = data.shopping;
 
+  const onShowRef = useRef(onShow);
+  onShowRef.current = onShow;
   const onSpeechDoneRef = useRef(onSpeechDone);
   onSpeechDoneRef.current = onSpeechDone;
   const runFinishAction = () => {
@@ -256,6 +260,7 @@ export default function ChatSheetModal({
         await pull();
         emitAgentChange();
         if (addedCount > 0 || checkedCount > 0) {
+          onShowRef.current?.({ screen: 'Shopping' });
           const confirmText = t('chat_shopping_list_confirm', { items: itemsToAdd.join(', ') });
           setMessages(prev => [...prev, { role: 'fern', text: confirmText }]);
         }
@@ -268,6 +273,7 @@ export default function ChatSheetModal({
           await pull();
           emitAgentChange();
         }
+        if (done.watch) onShowRef.current?.(done.watch);
         // Hand the "open / go / close" part to the caller once her voice has finished.
         parsed.show_recipes_for = done.showRecipesFor || parsed.show_recipes_for || '';
         parsed.go_to = done.goTo || '';
@@ -415,60 +421,18 @@ export default function ChatSheetModal({
   }, [isListening, stop, stopSpeaking, onClose]);
   closeRef.current = handleClose;
 
-  // Voice-only: one calm orb. It never changes colour or words, it only moves: a steady pulse while she listens,
-  // a slow breathing while she thinks, a quicker soft pulse while she talks.
-  const pulse = useRef(new Animated.Value(1)).current;
-  const glow = useRef(new Animated.Value(0.35)).current;
+  // Voice-only: no window at all. The green leaf button (App.js) shows the state by pulsing; see onPhase.
   const phase = (isListening && 'listen') || (isSpeaking || speechPending ? 'talk' : (thinking || voiceThinking ? 'think' : 'idle'));
+  const onPhaseRef = useRef(onPhase);
+  onPhaseRef.current = onPhase;
   useEffect(() => {
-    if (!voiceOnly || !visible) return undefined;
-    const cfg = { listen: [1.14, 700, 0.8], talk: [1.08, 420, 0.9], think: [1.04, 1100, 0.55], idle: [1, 1, 0.35] }[phase];
-    if (phase === 'idle') { pulse.setValue(1); glow.setValue(0.35); return undefined; }
-    const loop = Animated.loop(Animated.parallel([
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: cfg[0], duration: cfg[1], useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 1, duration: cfg[1], useNativeDriver: true }),
-      ]),
-      Animated.sequence([
-        Animated.timing(glow, { toValue: cfg[2], duration: cfg[1], useNativeDriver: true }),
-        Animated.timing(glow, { toValue: 0.35, duration: cfg[1], useNativeDriver: true }),
-      ]),
-    ]));
-    loop.start();
-    return () => loop.stop();
-  }, [voiceOnly, visible, phase, pulse, glow]);
-  const handleOrbPress = useCallback(() => {
-    if (isListening) { stop(); return; }
-    stopSpeaking();
-    setError(false);
-    setVoiceErr('');
-    micErrCount.current = 0;
-    emptyHeard.current = 0;
-    start();
-  }, [isListening, stop, stopSpeaking, start]);
+    if (!voiceOnly) return;
+    onPhaseRef.current?.(!visible ? 'off' : (error ? 'error' : phase), voiceErr);
+  }, [voiceOnly, visible, phase, error, voiceErr]);
 
   if (voiceOnly) {
-    return (
-      <Modal visible={visible} animationType="fade" onRequestClose={handleClose}>
-        <View style={styles.voiceFull}>
-          <TouchableOpacity style={styles.voiceClose} onPress={handleClose} hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}>
-            <Text style={styles.voiceCloseX}>✕</Text>
-          </TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.9} onPress={handleOrbPress} accessibilityLabel={t('voice_fern_tap')}>
-            <View style={styles.orbWrap}>
-              <Animated.View style={[styles.orbGlow, { opacity: glow, transform: [{ scale: pulse }] }]} />
-              <Animated.View style={[styles.orb, error && styles.orbError, { transform: [{ scale: pulse }] }]}>
-                <Text style={styles.orbLeaf}>🌿</Text>
-              </Animated.View>
-            </View>
-          </TouchableOpacity>
-          {(error || !!voiceErr) && (
-            <Text style={styles.voiceErrText}>{t('voice_fern_problem')}{voiceErr ? `\n${voiceErr}` : ''}</Text>
-          )}
-        </View>
-        <UpgradeGateModal visible={limitGate} onClose={() => setLimitGate(false)} tier={TIERS.PRO} title={t('chat_limit_title')} desc={t('chat_limit_desc')} />
-      </Modal>
-    );
+    // Nothing covers the app: only the upgrade popup can appear (daily limit reached).
+    return <UpgradeGateModal visible={limitGate} onClose={() => setLimitGate(false)} tier={TIERS.PRO} title={t('chat_limit_title')} desc={t('chat_limit_desc')} />;
   }
 
   return (
@@ -592,19 +556,6 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
-
-  voiceFull: { flex: 1, backgroundColor: colors.forest, alignItems: 'center', justifyContent: 'center' },
-  voiceClose: { position: 'absolute', top: 60, right: 24 },
-  voiceCloseX: { fontSize: 24, color: 'rgba(255,255,255,0.7)', padding: 4 },
-  orbWrap: { width: 260, height: 260, alignItems: 'center', justifyContent: 'center' },
-  orbGlow: { position: 'absolute', width: 230, height: 230, borderRadius: 115, backgroundColor: colors.orange },
-  orb: {
-    width: 150, height: 150, borderRadius: 75, backgroundColor: colors.parch,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  orbError: { backgroundColor: '#F3D6D2' },
-  orbLeaf: { fontSize: 64 },
-  voiceErrText: { marginTop: 24, paddingHorizontal: 32, fontSize: 13, color: 'rgba(255,255,255,0.85)', textAlign: 'center' },
 
   listeningHint: { textAlign: 'center', fontSize: 12, color: colors.brown, paddingBottom: 10, fontStyle: 'italic' },
 });

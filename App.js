@@ -227,6 +227,27 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   const [syncBannerDismissed, setSyncBannerDismissed] = useState(false);
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  // The leaf button shows what Fern is doing while the voice session is open: 'listen' | 'talk' | 'think' | 'idle' | 'error' | 'off'.
+  const [leafPhase, setLeafPhase] = useState('off');
+  const [leafProblem, setLeafProblem] = useState('');
+  const leafPulse = React.useRef(new Animated.Value(1)).current;
+  const leafRing = React.useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const cfg = { listen: [1.12, 700, 0.7], talk: [1.07, 420, 0.8], think: [1.03, 1100, 0.5] }[leafPhase];
+    if (!cfg) { leafPulse.setValue(1); leafRing.setValue(0); return undefined; }
+    const loop = Animated.loop(Animated.parallel([
+      Animated.sequence([
+        Animated.timing(leafPulse, { toValue: cfg[0], duration: cfg[1], useNativeDriver: true }),
+        Animated.timing(leafPulse, { toValue: 1, duration: cfg[1], useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.timing(leafRing, { toValue: cfg[2], duration: cfg[1], useNativeDriver: true }),
+        Animated.timing(leafRing, { toValue: 0.15, duration: cfg[1], useNativeDriver: true }),
+      ]),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [leafPhase, leafPulse, leafRing]);
   const [activeTabName, setActiveTabName] = useState('');
   // Lets screens (the new Home's "Ask Fern" bar) open this global chat sheet.
   useEffect(() => subscribeOpenChat(() => setIsChatOpen(true)), []);
@@ -417,6 +438,13 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         user={user}
         mode="voice"
         voiceOnly
+        onPhase={(p, detail) => { setLeafPhase(p); setLeafProblem(p === 'error' ? String(detail || '') : ''); }}
+        onShow={(w) => {
+          // She just changed something: jump to where it is so the person watches it happen (the chat stays open and she keeps talking).
+          if (!w?.screen) return;
+          if (w.screen === 'Family') navigationRef.current?.navigate('Family', { showDayOffset: w.dayOffset || 0, showNonce: Date.now() });
+          else navigationRef.current?.navigate(w.screen);
+        }}
         onSpeechDone={(p) => {
           // Fern finished talking and asked to open something / close the card.
           setIsChatOpen(false);
@@ -466,19 +494,25 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         setStepIndex={setActiveTourStepIndex}
       />
 
-      {!isChatOpen && (
+      {!!leafProblem && isChatOpen && (
+        <View style={styles.leafProblem} pointerEvents="none">
+          <Text style={styles.leafProblemText} numberOfLines={3}>{t('voice_fern_problem')} {leafProblem}</Text>
+        </View>
+      )}
+      {isChatOpen && <Animated.View pointerEvents="none" style={[styles.chatFabRing, { opacity: leafRing, transform: [{ scale: leafPulse }] }]} />}
+      <Animated.View style={[styles.chatFabWrap, { transform: [{ scale: isChatOpen ? leafPulse : 1 }] }]}>
         <TouchableOpacity
           style={styles.chatFab}
           activeOpacity={0.85}
           onPress={() => {
-            // One Fern everywhere: the same food agent on every screen (she knows the page's data too).
-            setIsChatOpen(true);
+            // One Fern everywhere. Tap = start talking to her; tap again = end the conversation. The app stays visible the whole time.
+            setIsChatOpen((open) => !open);
           }}
           accessibilityLabel={t('ask_fern_btn')}
         >
           <Text style={styles.chatFabText}>🌿</Text>
         </TouchableOpacity>
-      )}
+      </Animated.View>
 
       <Tab.Navigator
         screenListeners={{
@@ -782,11 +816,11 @@ const styles = StyleSheet.create({
   bannerCloseText: { color: 'rgba(255,255,255,0.4)', fontSize: 18 },
   syncBanner: { backgroundColor: '#B45309', borderBottomColor: 'rgba(255,255,255,0.25)' },
 
+  chatFabWrap: { position: 'absolute', right: 18, bottom: 86, zIndex: 998, width: 56, height: 56 },
+  chatFabRing: { position: 'absolute', right: 6, bottom: 74, zIndex: 997, width: 80, height: 80, borderRadius: 40, backgroundColor: colors.orange },
+  leafProblem: { position: 'absolute', right: 18, bottom: 152, zIndex: 999, maxWidth: 260, backgroundColor: 'rgba(30,30,30,0.92)', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 },
+  leafProblemText: { color: '#fff', fontSize: 12 },
   chatFab: {
-    position: 'absolute',
-    right: 18,
-    bottom: 86,
-    zIndex: 998,
     width: 56,
     height: 56,
     borderRadius: radius.full,

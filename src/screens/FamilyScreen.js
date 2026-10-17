@@ -125,6 +125,17 @@ export default function FamilyScreen({ user }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [route?.params?.requestKey]);
 
+    // Fern (the leaf voice) just planned something: show that day, so the person sees it land.
+    useEffect(() => {
+        const off = route?.params?.showDayOffset;
+        if (off == null) return;
+        const idx = Math.max(0, Math.min(Number(off) || 0, dateKeys.length - 1));
+        goToDay(idx);
+        setTimeout(() => dayScrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: false }), 350);
+        navigation.setParams({ showDayOffset: undefined });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [route?.params?.showNonce]);
+
     const dinnersPlannedCount = dateKeys.filter((key) => (
         (mealPlanLocal[key] || []).some((entry) => normalizeSlot(entry) === 'dinner')
     )).length;
