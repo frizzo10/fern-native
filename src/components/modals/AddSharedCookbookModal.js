@@ -28,7 +28,7 @@ export default function AddSharedCookbookModal({ visible, onClose, onAdd }) {
     setBusy(false);
     if (r?.ok) {
       setDone(true);
-      setMsg(t('shared_cb_added', { name: r.name, count: r.count }));
+      setMsg(r.recipe ? t('shared_rc_added', { name: r.name }) : t('shared_cb_added', { name: r.name, count: r.count }));
     } else {
       setMsg(t(r?.error || 'shared_cb_err_generic'));
     }

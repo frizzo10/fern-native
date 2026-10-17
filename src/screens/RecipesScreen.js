@@ -32,13 +32,13 @@ import NewCookbookModal from '../components/modals/NewCookbookModal';
 import AddRecipesToCookbookModal from '../components/modals/AddRecipesToCookbookModal';
 import ShareLinkModal from '../components/modals/ShareLinkModal';
 import AddSharedCookbookModal from '../components/modals/AddSharedCookbookModal';
-import { createCookbookShareLink, fetchSharedCookbook } from '../services/shareService';
+import { createCookbookShareLink, fetchSharedCookbook, fetchSharedRecipe, parseShareLink } from '../services/shareService';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import UpgradeGateModal from '../components/UpgradeGateModal';
-import { cookbookCount, FREE_COOKBOOK_LIMIT } from '../utils/freeLimits';
+import { cookbookCount, FREE_COOKBOOK_LIMIT, recipeLimitReached } from '../utils/freeLimits';
 
 function resolveCoverUri(cover) {
   if (!cover || typeof cover !== 'string') return null;
@@ -216,6 +216,31 @@ export default function RecipesScreen({ user }) {
   // Pasted share link -> new cookbook + all its recipes, saved and synced like any other.
   const handleAddSharedCookbook = async (linkText) => {
     try {
+      const { kind, id } = parseShareLink(linkText);
+      if (!kind) return { ok: false, error: 'shared_cb_err_link' };
+      if (kind === 'recipe' || kind === 'unknown') {
+        // A shared recipe link (or a bare id that is not a cookbook): save it to My Recipes.
+        let recipe = null;
+        try {
+          recipe = await fetchSharedRecipe(id);
+        } catch (e) {
+          if (kind === 'recipe' || String(e?.message) !== 'not_found') throw e;
+        }
+        if (recipe) {
+          const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+          const baseSaved = Array.isArray(storedSaved) ? storedSaved : [];
+          const key = recipe.title.trim().toLowerCase();
+          if (baseSaved.some((r) => String(r?.title || '').trim().toLowerCase() === key)) return { ok: false, error: 'shared_rc_err_already' };
+          if (!hasAccess(TIERS.PRO) && (await recipeLimitReached())) return { ok: false, error: 'shared_rc_err_limit' };
+          const nextSaved = [...baseSaved, { ...recipe, id: `shared-${Date.now()}`, _bookIds: [] }];
+          await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+          const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+          await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: nextSaved }));
+          await pushChangedFromStorage({ saved: nextSaved });
+          await pull();
+          return { ok: true, recipe: true, name: recipe.title };
+        }
+      }
       const shared = await fetchSharedCookbook(linkText);
       const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
       const baseBooks = Array.isArray(storedBooks) ? storedBooks : (Array.isArray(booksLocal) ? booksLocal : []);

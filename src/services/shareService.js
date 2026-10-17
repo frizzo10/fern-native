@@ -146,3 +146,44 @@ export async function fetchSharedCookbook(input) {
         cover: /^https?:\/\//i.test(d.cv || '') ? d.cv : '',
     };
 }
+
+// Recipe share links (…/share.html?id=abc12345) come back from `share?id=` as { t,e,c,m,tm,d,ds,i,ins,n,p,s,msg }.
+export function parseShareLink(input) {
+    const text = String(input || '');
+    const id = parseCookbookShareId(text);
+    if (!id) return { kind: '', id: '' };
+    if (/cookbook-share/i.test(text)) return { kind: 'cookbook', id };
+    if (/share\.html/i.test(text)) return { kind: 'recipe', id };
+    return { kind: 'unknown', id }; // bare id: try cookbook first, then recipe
+}
+
+export async function fetchSharedRecipe(id) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    let res;
+    try {
+        res = await fetch(`${FUNCTIONS_BASE}/share?id=${encodeURIComponent(id)}`, {
+            headers: { 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+            signal: ctrl.signal,
+        });
+    } finally {
+        clearTimeout(timer);
+    }
+    if (res.status === 404 || res.status === 400) throw new Error('not_found');
+    if (!res.ok) throw new Error(`server_${res.status}`);
+    const r = await res.json();
+    if (!r?.t) throw new Error('not_found');
+    return {
+        title: r.t,
+        emoji: r.e || '🍽',
+        cuisine: r.c || '',
+        mealType: r.m || '',
+        time: r.tm || '',
+        difficulty: r.d || '',
+        description: r.ds || '',
+        ingredients: Array.isArray(r.i) ? r.i : [],
+        instructions: Array.isArray(r.ins) ? r.ins : [],
+        note: r.n || '',
+        _cloudPhotos: r.p && /^https?:\/\//i.test(r.p) ? [r.p] : [],
+    };
+}
