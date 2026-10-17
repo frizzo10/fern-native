@@ -60,9 +60,11 @@ export default function ImportScreen({ user, onBack, onImported }) {
   const [previewRecipe, setPreviewRecipe] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [savedInfo, setSavedInfo] = useState(null); // { title, book } once a save really finished
 
   async function handleImport() {
     setLoading(true);
+    setSavedInfo(null);
     try {
       let recipe;
       if (mode === 'url') {
@@ -153,10 +155,11 @@ export default function ImportScreen({ user, onBack, onImported }) {
       }
       await pull();
 
+      const bookRow = bookId ? (data?.books || []).find((b) => String(b?.id ?? b?.uuid ?? b?.book_id) === String(bookId)) : null;
+      const bookName = (bookRow && (bookRow.title || bookRow.name || bookRow.book_title)) || t('my_recipes_option');
+      setSavedInfo({ title: previewRecipe.title, book: bookName });
       setPreviewRecipe(null);
       setUrl(''); setVideoUrl(''); setText(''); setCardPhoto(null);
-      if (onImported) onImported();
-      Alert.alert(t('import_saved_title'));
     } catch (e) {
       // Shown on the page itself: iOS drops an Alert raised right after a Modal closes.
       setSaveError(String((e && e.message) || e));
@@ -187,7 +190,21 @@ export default function ImportScreen({ user, onBack, onImported }) {
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-          {previewRecipe ? (
+          {savedInfo ? (
+            <View style={s.previewCard}>
+              <Text style={s.savedCheck}>✓</Text>
+              <Text style={s.previewTitle}>{t('import_saved_to', { book: savedInfo.book })}</Text>
+              <Text style={s.previewMeta}>{savedInfo.title}</Text>
+              <View style={s.previewActions}>
+                <TouchableOpacity style={s.discardBtn} onPress={() => setSavedInfo(null)}>
+                  <Text style={s.discardBtnText}>{t('import_another_btn')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={s.saveBtn} onPress={() => { setSavedInfo(null); if (onImported) onImported(); }}>
+                  <Text style={s.saveBtnText}>{t('import_done_btn')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : previewRecipe ? (
             <View style={s.previewCard}>
               {previewRecipe.image ? (
                 <Image source={{ uri: previewRecipe.image }} style={s.previewImg} />
@@ -210,6 +227,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
                 <Text key={`step-${i}`} style={s.listItem}>{i + 1}. {lineText(step)}</Text>
               ))}
               {previewRecipe.notes ? <Text style={s.listNote}>{previewRecipe.notes}</Text> : null}
+              {saving ? <Text style={s.savingText}>{t('import_saving')}</Text> : null}
               {saveError ? <Text style={s.saveErrorText}>{saveError}</Text> : null}
               <View style={s.previewActions}>
                 <TouchableOpacity style={s.discardBtn} onPress={() => setPreviewRecipe(null)} disabled={saving}>
@@ -386,6 +404,8 @@ const s = StyleSheet.create({
   previewActions: { flexDirection: 'row', gap: 12, width: '100%' },
   discardBtn: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   discardBtnText: { color: C.brown, fontFamily: 'Jost-SemiBold', fontSize: 13 },
+  savedCheck: { fontSize: 44, color: C.forest, marginBottom: 8 },
+  savingText: { color: C.brown, fontFamily: 'Jost-Bold', fontSize: 13, marginTop: 12, textAlign: 'center' },
   saveErrorText: { color: '#B8411A', fontFamily: 'Jost-Bold', fontSize: 13, marginTop: 12, textAlign: 'center' },
   saveBtn: { flex: 1, backgroundColor: C.forest, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontFamily: 'Jost-Bold', fontSize: 13 },
