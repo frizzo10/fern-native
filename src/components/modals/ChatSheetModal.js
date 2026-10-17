@@ -215,17 +215,26 @@ export default function ChatSheetModal({
       const system = agentOn
         ? buildAgentPrompt(await buildAgentContext(), { extra: agentExtra, voice: mode === 'voice' })
         : systemPrompt;
-      const res = await fetch(AI_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          system,
-          messages: requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
-          locale,
-          userId: user?.id,
-          token: user?.token,
-        }),
-      });
+      // Never wait forever on a stalled connection: give up after 25 s and say so.
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const ctlTimer = ctl ? setTimeout(() => ctl.abort(), 25000) : null;
+      let res;
+      try {
+        res = await fetch(AI_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system,
+            messages: requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
+            locale,
+            userId: user?.id,
+            token: user?.token,
+          }),
+          ...(ctl ? { signal: ctl.signal } : {}),
+        });
+      } finally {
+        if (ctlTimer) clearTimeout(ctlTimer);
+      }
       if (!res.ok) {
         throw new Error(`ai request failed: ${res.status}`);
       }
@@ -291,6 +300,7 @@ export default function ChatSheetModal({
       }
     } catch (e) {
       console.warn('[ChatSheetModal] Ask Fern failed:', e.message);
+      setVoiceErr(`answer failed: ${String(e?.message || e).slice(0, 100)}`);
       setError(true);
     } finally {
       setThinking(false);
@@ -427,8 +437,10 @@ export default function ChatSheetModal({
   onPhaseRef.current = onPhase;
   useEffect(() => {
     if (!voiceOnly) return;
-    onPhaseRef.current?.(!visible ? 'off' : (error ? 'error' : phase), voiceErr);
-  }, [voiceOnly, visible, phase, error, voiceErr]);
+    // detail = the real problem if there is one, else what she heard (so you can see she understood you)
+    const heard = [...messagesRef.current].reverse().find((m) => m.role === 'user')?.text || '';
+    onPhaseRef.current?.(!visible ? 'off' : (error ? 'error' : phase), voiceErr || (heard ? `“${heard.slice(0, 80)}”` : ''));
+  }, [voiceOnly, visible, phase, error, voiceErr, messages]);
 
   if (voiceOnly) {
     // Nothing covers the app: only the upgrade popup can appear (daily limit reached).

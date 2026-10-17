@@ -229,7 +229,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   const [isChatOpen, setIsChatOpen] = useState(false);
   // The leaf button shows what Fern is doing while the voice session is open: 'listen' | 'talk' | 'think' | 'idle' | 'error' | 'off'.
   const [leafPhase, setLeafPhase] = useState('off');
-  const [leafProblem, setLeafProblem] = useState('');
+  const [leafNote, setLeafNote] = useState(''); // the real problem, or what she just heard
   const leafPulse = React.useRef(new Animated.Value(1)).current;
   const leafRing = React.useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -438,7 +438,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         user={user}
         mode="voice"
         voiceOnly
-        onPhase={(p, detail) => { setLeafPhase(p); setLeafProblem(p === 'error' ? String(detail || '') : ''); }}
+        onPhase={(p, detail) => { setLeafPhase(p); setLeafNote(String(detail || '')); }}
         onShow={(w) => {
           // She just changed something: jump to where it is so the person watches it happen (the chat stays open and she keeps talking).
           if (!w?.screen) return;
@@ -494,9 +494,9 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         setStepIndex={setActiveTourStepIndex}
       />
 
-      {!!leafProblem && isChatOpen && (
+      {!!leafNote && isChatOpen && (
         <View style={styles.leafProblem} pointerEvents="none">
-          <Text style={styles.leafProblemText} numberOfLines={3}>{t('voice_fern_problem')} {leafProblem}</Text>
+          <Text style={styles.leafProblemText} numberOfLines={3}>{leafPhase === 'error' ? `${t('voice_fern_problem')} ` : ''}{leafNote}</Text>
         </View>
       )}
       {isChatOpen && <Animated.View pointerEvents="none" style={[styles.chatFabRing, { opacity: leafRing, transform: [{ scale: leafPulse }] }]} />}

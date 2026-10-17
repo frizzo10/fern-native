@@ -215,11 +215,20 @@ export function useContinuousMic({ onTranscript, onError, onEmpty, noSpeechMs = 
         encoding: FileSystem.EncodingType.Base64,
       });
 
-      const response = await fetch('https://app.clickpickandcook.com/.netlify/functions/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audio: base64Audio, mimeType: 'audio/mp4' }),
-      });
+      // Give up after 20 s instead of hanging silently.
+      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const ctlTimer = ctl ? setTimeout(() => ctl.abort(), 20000) : null;
+      let response;
+      try {
+        response = await fetch('https://app.clickpickandcook.com/.netlify/functions/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: base64Audio, mimeType: 'audio/mp4' }),
+          ...(ctl ? { signal: ctl.signal } : {}),
+        });
+      } finally {
+        if (ctlTimer) clearTimeout(ctlTimer);
+      }
       const data = await response.json();
       if (data?.error) {
         console.warn('[mic] transcribe error:', data.error);

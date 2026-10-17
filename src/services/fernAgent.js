@@ -44,8 +44,10 @@ let catalogCache = null;
 async function loadCatalog() {
   if (catalogCache) return catalogCache;
   try {
-    catalogCache = normalizeCoupons(await fetchAllCoupons());
-  } catch (e) { catalogCache = []; }
+    // A stalled connection must not hold up her answer: give the catalog 4 s, then go without it (not cached, so a later turn retries).
+    const raw = await Promise.race([fetchAllCoupons(), new Promise((_, rej) => setTimeout(() => rej(new Error('catalog timeout')), 4000))]);
+    catalogCache = normalizeCoupons(raw);
+  } catch (e) { return []; }
   return catalogCache;
 }
 
