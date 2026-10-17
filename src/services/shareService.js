@@ -95,3 +95,54 @@ export function createCookbookShareLink({ title, colorId, recipes, coverUrl, sen
         siteUrl: SITE_URL,
     });
 }
+
+// Reads a shared cookbook back from the server so it can be added to this
+// library. `input` is a pasted share link (…/cookbook-share.html?id=abc12345,
+// possibly with other text around it) or just the bare id.
+// → { id, name, recipes: [native raw recipe objects without ids/_bookIds] }
+export function parseCookbookShareId(input) {
+    const text = String(input || '');
+    const fromLink = text.match(/[?&#/]id=([a-z0-9]{1,16})/i);
+    if (fromLink) return fromLink[1];
+    const bare = text.trim().match(/^[a-z0-9]{6,16}$/i);
+    return bare ? bare[0] : '';
+}
+
+export async function fetchSharedCookbook(input) {
+    const id = parseCookbookShareId(input);
+    if (!id) throw new Error('not_a_link');
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    let res;
+    try {
+        res = await fetch(`${FUNCTIONS_BASE}/share-cookbook?id=${encodeURIComponent(id)}`, {
+            headers: { 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+            signal: ctrl.signal,
+        });
+    } finally {
+        clearTimeout(timer);
+    }
+    if (res.status === 404) throw new Error('not_found');
+    if (!res.ok) throw new Error(`server_${res.status}`);
+    const d = await res.json();
+    const list = Array.isArray(d?.r) ? d.r : [];
+    if (!list.length) throw new Error('not_found');
+    return {
+        id,
+        name: String(d.n || 'Shared cookbook'),
+        recipes: list.map((r) => ({
+            title: r.t || '',
+            emoji: r.e || '🍽',
+            cuisine: r.c || '',
+            mealType: r.m || '',
+            time: r.tm || '',
+            difficulty: r.d || '',
+            description: r.ds || '',
+            ingredients: Array.isArray(r.i) ? r.i : [],
+            instructions: Array.isArray(r.ins) ? r.ins : [],
+            note: r.n || '',
+            _cloudPhotos: r.p && /^https?:\/\//i.test(r.p) ? [r.p] : [],
+        })).filter((r) => r.title),
+        cover: /^https?:\/\//i.test(d.cv || '') ? d.cv : '',
+    };
+}

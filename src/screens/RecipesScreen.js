@@ -31,7 +31,8 @@ import { uploadPhoto } from '../services/uploadPhotoService';
 import NewCookbookModal from '../components/modals/NewCookbookModal';
 import AddRecipesToCookbookModal from '../components/modals/AddRecipesToCookbookModal';
 import ShareLinkModal from '../components/modals/ShareLinkModal';
-import { createCookbookShareLink } from '../services/shareService';
+import AddSharedCookbookModal from '../components/modals/AddSharedCookbookModal';
+import { createCookbookShareLink, fetchSharedCookbook } from '../services/shareService';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
@@ -206,6 +207,48 @@ export default function RecipesScreen({ user }) {
   const openNewCookbook = async () => {
     if (!hasAccess(TIERS.PRO) && (await cookbookCount()) >= FREE_COOKBOOK_LIMIT) { setCookbookGate(true); return; }
     setIsNewCookbookVisible(true);
+  };
+  const [isSharedCbVisible, setIsSharedCbVisible] = useState(false);
+  const openSharedCookbook = async () => {
+    if (!hasAccess(TIERS.PRO) && (await cookbookCount()) >= FREE_COOKBOOK_LIMIT) { setCookbookGate(true); return; }
+    setIsSharedCbVisible(true);
+  };
+  // Pasted share link -> new cookbook + all its recipes, saved and synced like any other.
+  const handleAddSharedCookbook = async (linkText) => {
+    try {
+      const shared = await fetchSharedCookbook(linkText);
+      const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
+      const baseBooks = Array.isArray(storedBooks) ? storedBooks : (Array.isArray(booksLocal) ? booksLocal : []);
+      if (baseBooks.some((b) => b?.sharedFrom === shared.id)) return { ok: false, error: 'shared_cb_err_already' };
+
+      const stamp = Date.now();
+      const bookId = `cb_${stamp}`;
+      const newBook = {
+        id: bookId, title: shared.name, name: shared.name, subtitle: 'Shared cookbook',
+        color: '#1F5C3A', cover: shared.cover || '', recipeIds: [], sharedFrom: shared.id,
+      };
+      const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+      const baseSaved = Array.isArray(storedSaved) ? storedSaved : [];
+      const nextSaved = [
+        ...baseSaved,
+        ...shared.recipes.map((r, i) => ({ ...r, id: `shared-${stamp}-${i}`, _bookIds: [bookId] })),
+      ];
+      const nextBooks = [...baseBooks, newBook];
+
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+      await AsyncStorage.setItem('rv4_books', JSON.stringify(nextBooks));
+      setBooksLocal(nextBooks);
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: nextSaved, books: nextBooks }));
+      await pushChangedFromStorage({ saved: nextSaved, books: nextBooks });
+      await pull();
+      return { ok: true, name: shared.name, count: shared.recipes.length };
+    } catch (e) {
+      const m = String(e?.message || '');
+      if (m === 'not_a_link') return { ok: false, error: 'shared_cb_err_link' };
+      if (m === 'not_found') return { ok: false, error: 'shared_cb_err_notfound' };
+      return { ok: false, error: 'shared_cb_err_generic' };
+    }
   };
   const [isCreatingCookbook, setIsCreatingCookbook] = useState(false);
   const [isEditCookbookVisible, setIsEditCookbookVisible] = useState(false);
@@ -1182,6 +1225,14 @@ export default function RecipesScreen({ user }) {
                   <Text style={styles.newBookBtnText}>{t('new_cookbook_btn')}</Text>
                 </TouchableOpacity>
 
+                <TouchableOpacity
+                  style={[styles.newBookBtn, { marginTop: 8 }]}
+                  activeOpacity={0.85}
+                  onPress={openSharedCookbook}
+                >
+                  <Text style={styles.newBookBtnText}>{t('shared_cb_btn')}</Text>
+                </TouchableOpacity>
+
                 <View style={styles.bookshelfDeck}>
                   <ScrollView
                     horizontal
@@ -1242,6 +1293,12 @@ export default function RecipesScreen({ user }) {
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>{t('no_cookbooks_title')}</Text>
               <Text style={styles.emptySub}>{t('no_cookbooks_sub')}</Text>
+              <TouchableOpacity style={styles.newBookBtn} activeOpacity={0.85} onPress={openNewCookbook}>
+                <Text style={styles.newBookBtnText}>{t('new_cookbook_btn')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.newBookBtn, { marginTop: 8 }]} activeOpacity={0.85} onPress={openSharedCookbook}>
+                <Text style={styles.newBookBtnText}>{t('shared_cb_btn')}</Text>
+              </TouchableOpacity>
             </View>
           )
         )}
@@ -1268,6 +1325,12 @@ export default function RecipesScreen({ user }) {
         onClose={() => setIsNewCookbookVisible(false)}
         onCreate={handleCreateCookbook}
         isCreating={isCreatingCookbook}
+      />
+
+      <AddSharedCookbookModal
+        visible={isSharedCbVisible}
+        onClose={() => setIsSharedCbVisible(false)}
+        onAdd={handleAddSharedCookbook}
       />
 
       <UpgradeGateModal
