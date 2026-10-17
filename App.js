@@ -47,6 +47,7 @@ import { TourProvider, useTour } from './src/services/TourContext';
 import TourModal from './src/components/TourModal';
 import { TOUR_PREVIEW_ROUTE } from './src/constants/tourContent';
 import { RevenueCatProvider, useRevenueCat } from './src/services/RevenueCatContext';
+import JsHeartbeat from './src/components/JsHeartbeat';
 import { useSync } from './src/hooks/useSync';
 
 const Tab = createBottomTabNavigator();
@@ -713,6 +714,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <JsHeartbeat />
       <RevenueCatProvider>
         <LanguageProvider>
           <AccountModalProvider>
