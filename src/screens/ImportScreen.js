@@ -62,6 +62,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
   const [saveError, setSaveError] = useState('');
   const pendingRef = useRef(false); // set the moment Save is tapped in the picker
   const savingRef = useRef(false); // blocks a second tap while the first save is still starting
+  const [syncState, setSyncState] = useState('ok'); // 'syncing' | 'ok' | 'failed' (after a save)
   const [savedInfo, setSavedInfo] = useState(null); // { title, book } once a save really finished
 
   async function handleImport() {
@@ -149,24 +150,28 @@ export default function ImportScreen({ user, onBack, onImported }) {
       ];
       await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
 
-      // Push first and CHECK it worked. Pulling after a failed push replaces the
-      // phone's list with the server's old one, which silently erased the recipe.
-      const pushResult = await pushChangedFromStorage();
-      if (!pushResult || pushResult.error) {
-        throw new Error(
-          (pushResult && pushResult.error) ||
-          'Could not reach the server to sync. The recipe is kept on this phone - tap Save again to retry.'
-        );
-      }
-      // The recipe is already on the phone and the server accepted it, so refresh from the
-      // server in the background instead of making the person wait for a second full download.
-      pull().catch(() => {});
-
+      // The recipe is on the phone: show the confirmation right now. Syncing the whole library
+      // to the server is slow (it was holding the screen for 30 s), so it runs in the background.
       const bookRow = bookId ? (data?.books || []).find((b) => String(b?.id ?? b?.uuid ?? b?.book_id) === String(bookId)) : null;
       const bookName = (bookRow && (bookRow.title || bookRow.name || bookRow.book_title)) || t('my_recipes_option');
       setSavedInfo({ title: previewRecipe.title, book: bookName });
+      setSyncState('syncing');
       setPreviewRecipe(null);
       setUrl(''); setVideoUrl(''); setText(''); setCardPhoto(null);
+
+      (async () => {
+        // Push, and only pull if the push worked: pulling after a failed push would replace the
+        // phone's list with the server's old one and erase the new recipe.
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const pushResult = await pushChangedFromStorage();
+          if (pushResult && !pushResult.error) {
+            setSyncState('ok');
+            pull().catch(() => {});
+            return;
+          }
+        }
+        setSyncState('failed');
+      })();
     } catch (e) {
       // Shown on the page itself: iOS drops an Alert raised right after a Modal closes.
       setSaveError(String((e && e.message) || e));
@@ -203,6 +208,8 @@ export default function ImportScreen({ user, onBack, onImported }) {
               <Text style={s.savedCheck}>✓</Text>
               <Text style={s.previewTitle}>{t('import_saved_to', { book: savedInfo.book })}</Text>
               <Text style={s.previewMeta}>{savedInfo.title}</Text>
+              {syncState === 'syncing' ? <Text style={s.savingText}>{t('import_syncing')}</Text> : null}
+              {syncState === 'failed' ? <Text style={s.saveErrorText}>{t('import_sync_failed')}</Text> : null}
               <View style={s.previewActions}>
                 <TouchableOpacity style={s.discardBtn} onPress={() => setSavedInfo(null)}>
                   <Text style={s.discardBtnText}>{t('import_another_btn')}</Text>
