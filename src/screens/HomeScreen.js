@@ -1538,8 +1538,8 @@ export default function HomeScreen({ user, route }) {
   const flyerSkipRef = useRef(false);
   const askFlyerPhoto = () => {
     Alert.alert(t('trip_flyer_title'), undefined, [
-      { text: t('trip_flyer_camera'), onPress: () => { setFlyerTrace('0. camera button pressed'); setTimeout(() => runHomeFlyerScan(true), 400); } },
-      { text: t('trip_flyer_library'), onPress: () => { setFlyerTrace('0. photos button pressed'); setTimeout(() => runHomeFlyerScan(false), 400); } },
+      { text: t('trip_flyer_camera'), onPress: () => { setFlyerTrace('0. camera button pressed'); runHomeFlyerScan(true); } },
+      { text: t('trip_flyer_library'), onPress: () => { setFlyerTrace('0. photos button pressed'); runHomeFlyerScan(false); } },
       { text: t('cancel_btn'), style: 'cancel' },
     ]);
   };

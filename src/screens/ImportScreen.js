@@ -365,7 +365,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
         inline
         onCancel={() => setPickerOpen(false)}
         // iOS drops an Alert shown while a Modal is still closing, so close first, then save.
-        onSave={(choice) => { if (pendingRef.current || savingRef.current) return; pendingRef.current = true; t0Ref.current = Date.now(); setTrace([]); tr('Save tapped'); setPickerOpen(false); setSaving(true); setTimeout(() => { pendingRef.current = false; tr('timer fired'); handleSave(choice); }, 450); }}
+        onSave={(choice) => { if (pendingRef.current || savingRef.current) return; pendingRef.current = true; t0Ref.current = Date.now(); setTrace([]); tr('Save tapped'); setPickerOpen(false); setSaving(true); pendingRef.current = false; handleSave(choice); }}
       />
       <UpgradeGateModal
         visible={limitGate}
