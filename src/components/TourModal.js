@@ -9,7 +9,7 @@ import { measureTourTarget } from '../services/tourTargets';
 
 const PAD = 6; // breathing room around a highlighted element
 
-export default function TourModal({ visible, tour, storageKey, onClose, token, stepIndex, setStepIndex }) {
+export default function TourModal({ visible, tour, storageKey, onClose, onDone, token, stepIndex, setStepIndex }) {
   const { t } = useLanguage();
   const { speakText, stopSpeaking } = useFernVoice({ token, enabled: visible, allowFree: true });
 
@@ -55,12 +55,14 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, stepIndex, body]);
 
-  const finish = useCallback(() => {
+  const finish = useCallback((completed) => {
     stopSpeaking();
     if (storageKey) AsyncStorage.setItem(storageKey, '1').catch(() => {});
     setStepIndex(0);
     onClose();
-  }, [storageKey, onClose, stopSpeaking]);
+    // Reached the last step and tapped Done (not Skip): let the app take the person into the feature.
+    if (completed === true) onDone?.();
+  }, [storageKey, onClose, onDone, stopSpeaking]);
 
   if (!tour?.steps?.length) return null;
 
@@ -135,7 +137,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, token, s
             <TouchableOpacity
               style={styles.nextBtn}
               activeOpacity={0.9}
-              onPress={() => (isLast ? finish() : setStepIndex((i) => i + 1))}
+              onPress={() => (isLast ? finish(true) : setStepIndex((i) => i + 1))}
             >
               <Text style={styles.nextBtnText}>{isLast ? t('tour_done') : t('tour_next')}</Text>
             </TouchableOpacity>

@@ -2081,6 +2081,15 @@ export default function HomeScreen({ user, route }) {
     loadBrowseCoupons();
   };
 
+  // Finishing a feature tour (App.js launchAfterTour) opens that feature's page here. Ref because the tool list is built further down.
+  const openToolRef = React.useRef(null);
+  useEffect(() => {
+    const key = route?.params?.openTool;
+    if (!key) return;
+    navigation.setParams({ openTool: undefined });
+    setTimeout(() => openToolRef.current?.(key), 150);
+  }, [route?.params?.openToolNonce]);
+
   // The More sheet's "Coupon Wallet" button navigates here with this param.
   useEffect(() => {
     if (!route?.params?.openCouponWallet) return;
@@ -2532,6 +2541,7 @@ export default function HomeScreen({ user, route }) {
     { label: 'Family Vault', icon: 'book-outline', featureKey: 'family_vault', onPress: () => setIsFamilyVaultOpen(true) },
     { label: 'Insider Deals', icon: 'diamond-outline', featureKey: 'insider_deals', onPress: () => setIsInsiderDealsOpen(true) },
   ];
+  openToolRef.current = (key) => { newHomeToolDefs.find((d) => d.featureKey === key)?.onPress?.(); };
   const newHomeTools = newHomeToolDefs.map(({ label, icon, featureKey, onPress }) => {
     const requiredTier = FEATURE_TIERS[featureKey];
     const isLocked = requiredTier && requiredTier !== TIERS.FREE && !hasAccess(requiredTier);

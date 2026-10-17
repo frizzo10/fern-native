@@ -15,10 +15,14 @@ export function TourProvider({ children }) {
   // "which step of which tour is active right now" via useTour() and react
   // to it — e.g. scrolling to the section a given step is narrating.
   const [stepIndex, setStepIndex] = useState(0);
+  // true when the person picked the tour from the Account / Plans list (not when the feature opened it itself):
+  // only then does finishing the tour take them into the feature.
+  const [startedManually, setStartedManually] = useState(false);
 
   const startTour = useCallback((key) => {
     if (TOURS[key]) {
       setStepIndex(0);
+      setStartedManually(true);
       setActiveTourKey(key);
     }
   }, []);
@@ -29,6 +33,7 @@ export function TourProvider({ children }) {
     const seen = await AsyncStorage.getItem(storageKey);
     if (!seen) {
       setStepIndex(0);
+      setStartedManually(false);
       setActiveTourKey(key);
     }
   }, []);
@@ -41,13 +46,14 @@ export function TourProvider({ children }) {
   const value = useMemo(() => ({
     tour: activeTourKey ? TOURS[activeTourKey] : null,
     tourKey: activeTourKey,
+    startedManually,
     stepIndex,
     setStepIndex,
     storageKey: activeTourKey ? STORAGE_KEY_BY_TOUR[activeTourKey] : null,
     startTour,
     maybeAutoStart,
     closeTour,
-  }), [activeTourKey, stepIndex, startTour, maybeAutoStart, closeTour]);
+  }), [activeTourKey, startedManually, stepIndex, startTour, maybeAutoStart, closeTour]);
 
   return (
     <TourContext.Provider value={value}>

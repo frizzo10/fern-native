@@ -218,6 +218,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   const {
     tour: activeTour,
     tourKey: activeTourKey,
+    startedManually: tourStartedManually,
     stepIndex: activeTourStepIndex,
     setStepIndex: setActiveTourStepIndex,
     storageKey: activeTourStorageKey,
@@ -375,6 +376,24 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   // was a real bug (tapping Fridge Challenge appeared to "freeze"). Tabs
   // don't have this problem since they're not native Modals, so this stays
   // scoped to navigation only.
+  // Finishing a feature tour that was picked from the Account / Plans list takes the person into that feature
+  // (Fridge Challenge tour -> the Fridge Challenge page). If a plan ever locks it, the feature's own upgrade offer shows.
+  const launchAfterTour = (key) => {
+    if (!key || !tourStartedManually) return;
+    const TOOL_ON_HOME = { weekly_nutrition: 'nutrition', fridge_challenge: 1, leftover_magic: 1, quick_dinner: 1, budget_planner: 1, meal_planner: 1, semi_homemade: 1, charcuterie: 1, wine_pairing: 1, nutrition: 1, dinner_party: 1, alexa_skill: 1, family_vault: 1 };
+    const SCREEN = { find: 'Find', recipes: 'Recipes', cook_mode: 'Recipes', shopping: 'Shopping', shopping_mode: 'Shopping', personal_shopper: 'Shopping', instacart: 'Shopping', family_hub: 'Family' };
+    // Wait for the tour card to finish closing: iOS drops a modal opened while another is still dismissing.
+    setTimeout(() => {
+      if (key === 'ask_fern') { setIsChatOpen(true); return; }
+      if (TOOL_ON_HOME[key]) {
+        const tool = typeof TOOL_ON_HOME[key] === 'string' ? TOOL_ON_HOME[key] : key;
+        navigationRef.current?.navigate('Home', { openTool: tool, openToolNonce: Date.now() });
+      } else if (SCREEN[key]) {
+        navigationRef.current?.navigate(SCREEN[key]);
+      }
+    }, 500);
+  };
+
   useEffect(() => {
     const route = TOUR_PREVIEW_ROUTE[activeTourKey];
     if (route) navigationRef.current?.navigate(route);
@@ -489,6 +508,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         tour={activeTour}
         storageKey={activeTourStorageKey}
         onClose={closeTour}
+        onDone={() => launchAfterTour(activeTourKey)}
         token={user?.token}
         stepIndex={activeTourStepIndex}
         setStepIndex={setActiveTourStepIndex}
