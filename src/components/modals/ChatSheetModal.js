@@ -36,7 +36,7 @@ import { buildAgentContext, buildAgentPrompt, executeAgentActions, emitAgentChan
 const FREE_CHAT_KEY = 'fern_free_chat_count';
 const FREE_CHAT_PER_DAY = 5;
 // Launch period (constants/launch.js): everyone is Pro Max, but chat is capped per day to keep AI cost bounded.
-const LAUNCH_CHAT_PER_DAY = 25;
+const LAUNCH_CHAT_PER_DAY = 10; // the server enforces the same cap per account (ai function, AGENT_CHAT_DAILY_LIMIT)
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -213,7 +213,7 @@ export default function ChatSheetModal({
     try {
       // The agent sees fresh state on every turn (list, recipes, week, circular, coupons), so what she says is current.
       const system = agentOn
-        ? buildAgentPrompt(await buildAgentContext(), { extra: agentExtra, voice: mode === 'voice' })
+        ? buildAgentPrompt(await buildAgentContext(), { extra: agentExtra, voice: mode === 'voice', topic: requestMessages.slice(-4).map((m) => m.text).join(' ') })
         : systemPrompt;
       // Never wait forever on a stalled connection: give up after 25 s and say so.
       const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
@@ -225,6 +225,7 @@ export default function ChatSheetModal({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             system,
+            ...(agentOn && !silent ? { feature: 'agent_chat' } : {}),
             messages: requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
             locale,
             userId: user?.id,
@@ -234,6 +235,12 @@ export default function ChatSheetModal({
         });
       } finally {
         if (ctlTimer) clearTimeout(ctlTimer);
+      }
+      if (res.status === 429) {
+        // The server's per-account daily cap (counted on the account, so reinstalling does not reset it).
+        setThinking(false);
+        Alert.alert(t('launch_chat_limit_title'), t('launch_chat_limit_desc'));
+        return;
       }
       if (!res.ok) {
         throw new Error(`ai request failed: ${res.status}`);
