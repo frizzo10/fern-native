@@ -15,11 +15,25 @@ import { getShoppingDay, saveShoppingDay } from '../utils/staples';
 import { LAUNCH_ALL_FREE } from '../constants/launch';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { usePlansModal } from '../services/PlansModalContext';
+import * as Updates from 'expo-updates';
+import appJson from '../../app.json';
+import { CODE_VERSION } from '../constants/codeVersion';
 
 const TIER_BY_TOUR_KEY = TOUR_LIST.reduce((acc, entry) => {
     acc[entry.key] = entry.tier;
     return acc;
 }, {});
+
+function versionLines() {
+    let upd = 'built-in (no update installed)';
+    try {
+        if (Updates.updateId) {
+            const when = Updates.createdAt ? new Date(Updates.createdAt).toLocaleString() : '';
+            upd = `${String(Updates.updateId).slice(0, 8)}${when ? ` · ${when}` : ''}`;
+        }
+    } catch (e) { /* expo-updates not available */ }
+    return [`Fern ${appJson?.expo?.version || ''}  ·  code ${CODE_VERSION}`, `Update: ${upd}`];
+}
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
 const FERN_VOICE_ENABLED_KEY = 'fern_voice_enabled';
@@ -436,6 +450,12 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             </Text>
                         </TouchableOpacity>
 
+                        <View style={styles.versionBox}>
+                            {versionLines().map((line) => (
+                                <Text key={line} style={styles.versionText} selectable>{line}</Text>
+                            ))}
+                        </View>
+
                         <TouchableOpacity style={styles.restoreLinkBtn} activeOpacity={0.8} onPress={handleReplayFern}>
                             <Text style={styles.restoreLinkBtnText}>{`🔁 ${t('replay_fern_btn')}`}</Text>
                         </TouchableOpacity>
@@ -750,6 +770,8 @@ const styles = StyleSheet.create({
         fontSize: 12,
     },
 
+    versionBox: { alignItems: 'center', paddingVertical: 8 },
+    versionText: { fontSize: 12, color: colors.brown, textAlign: 'center' },
     restoreLinkBtn: {
         alignItems: 'center',
         paddingVertical: 10,
