@@ -20,7 +20,7 @@ function isFernVoiceEnabledValue(raw) {
 
 // onEmpty: called when a recording came back with no words. noSpeechMs (0 = off): stop a recording that has heard no speech
 // after this long, so a hands-free listener doesn't sit open for the full 30 s when nobody talks.
-export function useContinuousMic({ onTranscript, onError, onEmpty, noSpeechMs = 0, autoSpeakReply = true, locale = 'en', token } = {}) {
+export function useContinuousMic({ onTranscript, onError, onEmpty, noSpeechMs = 0, silenceMs = 1500, autoSpeakReply = true, locale = 'en', token } = {}) {
   // Spoken replies are a Pro feature (they cost per character); Free still gets the transcript.
   const { hasAccess } = useEntitlement();
   const speakReplies = autoSpeakReply && hasAccess(TIERS.PRO);
@@ -33,7 +33,7 @@ export function useContinuousMic({ onTranscript, onError, onEmpty, noSpeechMs = 
 
   //VAD 
   const SILENCE_DB = -30;
-  const SILENCE_MS = 1500;
+  const SILENCE_MS = silenceMs; // how long a pause counts as "done talking"
   const MAX_RECORDING_MS = 30000;
   const vadIntervalRef = useRef(null);
   const silenceTimeoutRef = useRef(null);
@@ -385,7 +385,7 @@ export function useContinuousMic({ onTranscript, onError, onEmpty, noSpeechMs = 
         error?.message ?? 'Failed to start microphone'
       );
     }
-  }, [recorder, onError, noSpeechMs]);
+  }, [recorder, onError, noSpeechMs, SILENCE_MS]);
 
   useEffect(() => {
     if (!player) return;

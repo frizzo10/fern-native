@@ -159,7 +159,7 @@ export default function ChatSheetModal({
   messagesRef.current = messages;
 
   const [voiceErr, setVoiceErr] = useState('');
-  const { speakText, stopSpeaking, isSpeaking, isThinking: voiceThinking } = useFernVoice({
+  const { speakText, speakChunks, stopSpeaking, isSpeaking, isThinking: voiceThinking } = useFernVoice({
     onError: (message) => { console.warn('[ChatSheetModal] voice error:', message); setVoiceErr(String(message || '').slice(0, 140)); },
     token: user?.token,
     enabled: visible && mode !== 'text',
@@ -195,7 +195,9 @@ export default function ChatSheetModal({
     // In silent mode (the auto-opener) this user turn is sent to the AI
     // for context but never added to `messages`, so no bubble for it ever
     // renders — only Fern's reply below does.
-    const requestMessages = [...messagesRef.current, userMsg];
+    // Voice-only keeps just the recent turns: a shorter request comes back faster.
+    const history = voiceOnly ? messagesRef.current.slice(-8) : messagesRef.current;
+    const requestMessages = [...history, userMsg];
     if (!silent) {
       setMessages(requestMessages);
       setInputText('');
@@ -240,7 +242,7 @@ export default function ChatSheetModal({
         heardSpeech.current = false;
         setSpeechPending(true);
         setTimeout(() => setSpeechPending(false), 25000); // safety: never leave the mic closed for good
-        speakText(spokenSummary(reply)).then((uri) => { if (!uri) { setSpeechPending(false); runFinishAction(); } }).catch(() => { setSpeechPending(false); runFinishAction(); });
+        speakChunks(spokenSummary(reply)).then((uri) => { if (!uri) { setSpeechPending(false); runFinishAction(); } }).catch(() => { setSpeechPending(false); runFinishAction(); });
       } else {
         speakText(spokenSummary(reply));
       }
@@ -287,7 +289,7 @@ export default function ChatSheetModal({
     } finally {
       setThinking(false);
     }
-  }, [locale, user, speakText, pull, pushAllFromStorage, pushChangedFromStorage, t, systemPrompt, agentOn, agentExtra, onAction, onSpeechDone, mode]);
+  }, [locale, user, speakText, speakChunks, voiceOnly, pull, pushAllFromStorage, pushChangedFromStorage, t, systemPrompt, agentOn, agentExtra, onAction, onSpeechDone, mode]);
 
   const { isListening, start, stop } = useContinuousMic({
     locale,
@@ -295,6 +297,7 @@ export default function ChatSheetModal({
     autoSpeakReply: false, // askFern already speaks the reply itself
     onEmpty: noteEmpty,
     noSpeechMs: voiceOnly ? 9000 : 0,
+    silenceMs: voiceOnly ? 800 : 1500, // voice-only: a shorter pause means "your turn" sooner
     onTranscript: (text) => {
       // Silence or background noise comes back as "." or similar: not a question, so don't send it (Fern used to answer it by repeating herself).
       if (!/[A-Za-z0-9\u00C0-\u024F]/.test(String(text || ''))) { noteEmpty(); return; }
@@ -323,9 +326,9 @@ export default function ChatSheetModal({
     if (finishAction.current) return undefined; // she is about to close / open something: don't reopen the mic
     if (emptyHeard.current >= 3) return undefined; // heard nothing three times in a row: stop re-opening the mic, the person can tap it
     if (messages.length === 0 || messages[messages.length - 1].role !== 'fern') return undefined;
-    const timer = setTimeout(() => { start(); }, 900);
+    const timer = setTimeout(() => { start(); }, voiceOnly ? 200 : 900);
     return () => clearTimeout(timer);
-  }, [mode, visible, thinking, voiceThinking, isSpeaking, speechPending, isListening, error, messages, start, retryTick]);
+  }, [mode, visible, thinking, voiceThinking, isSpeaking, speechPending, isListening, error, messages, start, retryTick, voiceOnly]);
 
   // Playback of Fern's reply finished: the mic may open now.
   useEffect(() => {
@@ -349,6 +352,12 @@ export default function ChatSheetModal({
     }
     start();
   }, [isListening, isSpeaking, start, stop, stopSpeaking]);
+
+  // Voice-only: load what Fern needs to know (list, week, coupon catalog) while she is still saying hello,
+  // so the first answer doesn't wait for it.
+  useEffect(() => {
+    if (voiceOnly && visible) buildAgentContext().catch(() => {});
+  }, [voiceOnly, visible]);
 
   // Stop listening and any playback when the sheet closes.
   useEffect(() => {
@@ -406,17 +415,28 @@ export default function ChatSheetModal({
   }, [isListening, stop, stopSpeaking, onClose]);
   closeRef.current = handleClose;
 
-  // Voice-only: the orb. Tap = start / stop listening (or cut Fern off and talk), also the way to retry after a problem.
+  // Voice-only: one calm orb. It never changes colour or words, it only moves: a steady pulse while she listens,
+  // a slow breathing while she thinks, a quicker soft pulse while she talks.
   const pulse = useRef(new Animated.Value(1)).current;
+  const glow = useRef(new Animated.Value(0.35)).current;
+  const phase = (isListening && 'listen') || (isSpeaking || speechPending ? 'talk' : (thinking || voiceThinking ? 'think' : 'idle'));
   useEffect(() => {
-    if (!voiceOnly || !visible || !isListening) { pulse.setValue(1); return undefined; }
-    const loop = Animated.loop(Animated.sequence([
-      Animated.timing(pulse, { toValue: 1.18, duration: 650, useNativeDriver: true }),
-      Animated.timing(pulse, { toValue: 1, duration: 650, useNativeDriver: true }),
+    if (!voiceOnly || !visible) return undefined;
+    const cfg = { listen: [1.14, 700, 0.8], talk: [1.08, 420, 0.9], think: [1.04, 1100, 0.55], idle: [1, 1, 0.35] }[phase];
+    if (phase === 'idle') { pulse.setValue(1); glow.setValue(0.35); return undefined; }
+    const loop = Animated.loop(Animated.parallel([
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: cfg[0], duration: cfg[1], useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: cfg[1], useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.timing(glow, { toValue: cfg[2], duration: cfg[1], useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0.35, duration: cfg[1], useNativeDriver: true }),
+      ]),
     ]));
     loop.start();
     return () => loop.stop();
-  }, [voiceOnly, visible, isListening, pulse]);
+  }, [voiceOnly, visible, phase, pulse, glow]);
   const handleOrbPress = useCallback(() => {
     if (isListening) { stop(); return; }
     stopSpeaking();
@@ -428,31 +448,24 @@ export default function ChatSheetModal({
   }, [isListening, stop, stopSpeaking, start]);
 
   if (voiceOnly) {
-    const lastHeard = [...messages].reverse().find((m) => m.role === 'user')?.text || '';
-    const lastFern = [...messages].reverse().find((m) => m.role === 'fern')?.text || '';
-    let status = t('voice_fern_tap');
-    if (error) status = t('voice_fern_problem');
-    else if (isListening) status = t('voice_fern_listening');
-    else if (thinking || voiceThinking) status = t('voice_fern_thinking');
-    else if (isSpeaking || speechPending) status = t('voice_fern_talking');
     return (
-      <Modal visible={visible} animationType="fade" transparent onRequestClose={handleClose}>
-        <Pressable style={styles.voiceBackdrop} onPress={handleClose}>
-          <Pressable style={styles.voiceCard} onPress={() => {}}>
-            <TouchableOpacity style={styles.voiceClose} onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Text style={styles.closeX}>✕</Text>
-            </TouchableOpacity>
-            <TouchableOpacity activeOpacity={0.85} onPress={handleOrbPress}>
-              <Animated.View style={[styles.orb, isListening && styles.orbListening, error && styles.orbError, { transform: [{ scale: pulse }] }]}>
+      <Modal visible={visible} animationType="fade" onRequestClose={handleClose}>
+        <View style={styles.voiceFull}>
+          <TouchableOpacity style={styles.voiceClose} onPress={handleClose} hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}>
+            <Text style={styles.voiceCloseX}>✕</Text>
+          </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.9} onPress={handleOrbPress} accessibilityLabel={t('voice_fern_tap')}>
+            <View style={styles.orbWrap}>
+              <Animated.View style={[styles.orbGlow, { opacity: glow, transform: [{ scale: pulse }] }]} />
+              <Animated.View style={[styles.orb, error && styles.orbError, { transform: [{ scale: pulse }] }]}>
                 <Text style={styles.orbLeaf}>🌿</Text>
               </Animated.View>
-            </TouchableOpacity>
-            <Text style={styles.voiceStatus}>{status}</Text>
-            {!!lastHeard && <Text style={styles.voiceHeard} numberOfLines={2}>{t('voice_fern_heard')}: “{lastHeard}”</Text>}
-            {!!lastFern && <Text style={styles.voiceSaid} numberOfLines={5}>{lastFern}</Text>}
-            {!!voiceErr && <Text style={styles.voiceErrText}>{voiceErr}</Text>}
-          </Pressable>
-        </Pressable>
+            </View>
+          </TouchableOpacity>
+          {(error || !!voiceErr) && (
+            <Text style={styles.voiceErrText}>{t('voice_fern_problem')}{voiceErr ? `\n${voiceErr}` : ''}</Text>
+          )}
+        </View>
         <UpgradeGateModal visible={limitGate} onClose={() => setLimitGate(false)} tier={TIERS.PRO} title={t('chat_limit_title')} desc={t('chat_limit_desc')} />
       </Modal>
     );
@@ -580,23 +593,18 @@ const styles = StyleSheet.create({
   },
   sendBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
 
-  voiceBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.3)' },
-  voiceCard: {
-    backgroundColor: colors.parch, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    paddingHorizontal: 24, paddingTop: 22, paddingBottom: 44, alignItems: 'center',
-  },
-  voiceClose: { position: 'absolute', top: 14, right: 18 },
+  voiceFull: { flex: 1, backgroundColor: colors.forest, alignItems: 'center', justifyContent: 'center' },
+  voiceClose: { position: 'absolute', top: 60, right: 24 },
+  voiceCloseX: { fontSize: 24, color: 'rgba(255,255,255,0.7)', padding: 4 },
+  orbWrap: { width: 260, height: 260, alignItems: 'center', justifyContent: 'center' },
+  orbGlow: { position: 'absolute', width: 230, height: 230, borderRadius: 115, backgroundColor: colors.orange },
   orb: {
-    width: 104, height: 104, borderRadius: 52, backgroundColor: colors.forest,
-    alignItems: 'center', justifyContent: 'center', marginTop: 6,
+    width: 150, height: 150, borderRadius: 75, backgroundColor: colors.parch,
+    alignItems: 'center', justifyContent: 'center',
   },
-  orbListening: { backgroundColor: colors.orange },
-  orbError: { backgroundColor: colors.voiceRed },
-  orbLeaf: { fontSize: 46 },
-  voiceStatus: { marginTop: 14, fontSize: 18, fontWeight: '800', color: colors.ink, textAlign: 'center' },
-  voiceHeard: { marginTop: 10, fontSize: 14, color: colors.brown, fontStyle: 'italic', textAlign: 'center' },
-  voiceSaid: { marginTop: 10, fontSize: 15, lineHeight: 21, color: colors.ink, textAlign: 'center' },
-  voiceErrText: { marginTop: 8, fontSize: 12, color: colors.voiceRed, textAlign: 'center' },
+  orbError: { backgroundColor: '#F3D6D2' },
+  orbLeaf: { fontSize: 64 },
+  voiceErrText: { marginTop: 24, paddingHorizontal: 32, fontSize: 13, color: 'rgba(255,255,255,0.85)', textAlign: 'center' },
 
   listeningHint: { textAlign: 'center', fontSize: 12, color: colors.brown, paddingBottom: 10, fontStyle: 'italic' },
 });

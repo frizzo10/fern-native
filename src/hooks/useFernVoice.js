@@ -58,7 +58,10 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
     // allowFree so every new user still hears it.
     const { hasAccess } = useEntitlement();
     const allowed = enabled && (allowFree || hasAccess(TIERS.PRO));
-    const [isSpeaking, setIsSpeaking] = useState(false);
+    const [lineSpeaking, setIsSpeaking] = useState(false);
+    const [seqActive, setSeqActive] = useState(false); // a multi-part reply is in progress (stays true between its parts)
+    const seqTokenRef = useRef(0);
+    const isSpeaking = lineSpeaking || seqActive;
     const [isThinking, setIsThinking] = useState(false);
     const [lastReply, setLastReply] = useState('');
 
@@ -71,10 +74,11 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
     // One line = one fresh player. (The hook-owned player that swapped its source made later lines silent or stuck,
     // especially when the Home tour's player and Shopping's player took turns.) Only one line plays app-wide.
     const stopSpeaking = useCallback(() => {
-        try { endLineRef.current?.(); } finally { if (isMountedRef.current) setIsSpeaking(false); }
+        seqTokenRef.current += 1; // cancels any multi-part reply
+        try { endLineRef.current?.(); } finally { if (isMountedRef.current) { setIsSpeaking(false); setSeqActive(false); } }
     }, []);
 
-    const playLine = useCallback((uri) => {
+    const playLine = useCallback((uri, onEnd) => {
         stopActiveLine();
         const p = createAudioPlayer({ uri });
         let finished = false;
@@ -90,6 +94,7 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
             if (activeLine && activeLine.end === end) activeLine = null;
             if (endLineRef.current === end) endLineRef.current = null;
             if (isMountedRef.current) setIsSpeaking(false);
+            try { onEnd?.(); } catch { /* ignore */ }
         };
         sub = p.addListener('playbackStatusUpdate', (status) => { if (status?.didJustFinish) end(); });
         timer = setTimeout(end, 90000); // safety: never stay "speaking" forever
@@ -202,6 +207,32 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
         return uri ? playPrepared(uri) : null;
     }, [stopSpeaking, prepareSpeech, playPrepared]);
 
+    // Speak a reply in two parts so she starts talking sooner: the first sentence and the rest are fetched at the same
+    // time, the first plays the moment it is ready, the rest follows without a gap. Resolves with the first part's uri
+    // as soon as it starts playing (null if it could not), while the second part keeps going in the background.
+    const speakChunks = useCallback(async (text) => {
+        const clean = text?.trim?.();
+        if (!clean || !enabledRef.current) return null;
+        const m = clean.match(/^([\s\S]{25,}?[.!?])\s+([\s\S]+)$/);
+        if (!m) return speakText(clean);
+        stopSpeaking();
+        const token = seqTokenRef.current;
+        if (isMountedRef.current) setSeqActive(true);
+        const first = prepareSpeech(m[1]);
+        const second = prepareSpeech(m[2]);
+        const firstUri = await first;
+        if (token !== seqTokenRef.current || !isMountedRef.current) return null;
+        if (!firstUri) { setSeqActive(false); return null; }
+        playLine(firstUri, async () => {
+            if (token !== seqTokenRef.current) return;
+            const secondUri = await second;
+            if (token !== seqTokenRef.current || !isMountedRef.current) return;
+            if (secondUri) playLine(secondUri, () => { if (token === seqTokenRef.current && isMountedRef.current) setSeqActive(false); });
+            else setSeqActive(false);
+        });
+        return firstUri;
+    }, [speakText, stopSpeaking, prepareSpeech, playLine]);
+
     const getFernReply = useCallback(async (input, { speak = false } = {}) => {
         const message = input?.trim?.();
         if (!message) return '';
@@ -261,6 +292,7 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
         isSpeaking,
         lastReply,
         speakText,
+        speakChunks,
         prepareSpeech,
         playPrepared,
         getFernReply,
