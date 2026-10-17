@@ -158,7 +158,9 @@ export default function ImportScreen({ user, onBack, onImported }) {
           'Could not reach the server to sync. The recipe is kept on this phone - tap Save again to retry.'
         );
       }
-      await pull();
+      // The recipe is already on the phone and the server accepted it, so refresh from the
+      // server in the background instead of making the person wait for a second full download.
+      pull().catch(() => {});
 
       const bookRow = bookId ? (data?.books || []).find((b) => String(b?.id ?? b?.uuid ?? b?.book_id) === String(bookId)) : null;
       const bookName = (bookRow && (bookRow.title || bookRow.name || bookRow.book_title)) || t('my_recipes_option');
