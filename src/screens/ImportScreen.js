@@ -42,7 +42,7 @@ const lineText = (x) => {
 
 export default function ImportScreen({ user, onBack, onImported }) {
   const { t, locale } = useLanguage();
-  const { pushAllFromStorage, pull, data } = useSync(user);
+  const { pushChangedFromStorage, pull, data } = useSync(user);
   const [pickerOpen, setPickerOpen] = useState(false);
   const { hasAccess } = useEntitlement();
   const [limitGate, setLimitGate] = useState(false);
@@ -59,6 +59,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
   const [loading, setLoading] = useState(false);
   const [previewRecipe, setPreviewRecipe] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   async function handleImport() {
     setLoading(true);
@@ -109,8 +110,12 @@ export default function ImportScreen({ user, onBack, onImported }) {
 
   // Which cookbook / cuisine / meal type, like the web app's save dialog.
   async function handleSave({ bookId, cuisine, mealType } = {}) {
-    if (!previewRecipe) return;
+    if (!previewRecipe) {
+      setSaveError('Nothing to save - the recipe was lost. Please scan it again.');
+      return;
+    }
     setSaving(true);
+    setSaveError('');
     try {
       const storedSaved = JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]');
       const baseSaved = Array.isArray(storedSaved) ? storedSaved : [];
@@ -136,14 +141,25 @@ export default function ImportScreen({ user, onBack, onImported }) {
         },
       ];
       await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
-      await pushAllFromStorage();
+
+      // Push first and CHECK it worked. Pulling after a failed push replaces the
+      // phone's list with the server's old one, which silently erased the recipe.
+      const pushResult = await pushChangedFromStorage();
+      if (!pushResult || pushResult.error) {
+        throw new Error(
+          (pushResult && pushResult.error) ||
+          'Could not reach the server to sync. The recipe is kept on this phone - tap Save again to retry.'
+        );
+      }
       await pull();
+
       setPreviewRecipe(null);
       setUrl(''); setVideoUrl(''); setText(''); setCardPhoto(null);
       if (onImported) onImported();
       Alert.alert(t('import_saved_title'));
     } catch (e) {
-      Alert.alert(t('import_save_failed'), e.message);
+      // Shown on the page itself: iOS drops an Alert raised right after a Modal closes.
+      setSaveError(String((e && e.message) || e));
     } finally {
       setSaving(false);
     }
@@ -194,6 +210,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
                 <Text key={`step-${i}`} style={s.listItem}>{i + 1}. {lineText(step)}</Text>
               ))}
               {previewRecipe.notes ? <Text style={s.listNote}>{previewRecipe.notes}</Text> : null}
+              {saveError ? <Text style={s.saveErrorText}>{saveError}</Text> : null}
               <View style={s.previewActions}>
                 <TouchableOpacity style={s.discardBtn} onPress={() => setPreviewRecipe(null)} disabled={saving}>
                   <Text style={s.discardBtnText}>{t('discard')}</Text>
@@ -369,6 +386,7 @@ const s = StyleSheet.create({
   previewActions: { flexDirection: 'row', gap: 12, width: '100%' },
   discardBtn: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   discardBtnText: { color: C.brown, fontFamily: 'Jost-SemiBold', fontSize: 13 },
+  saveErrorText: { color: '#B8411A', fontFamily: 'Jost-Bold', fontSize: 13, marginTop: 12, textAlign: 'center' },
   saveBtn: { flex: 1, backgroundColor: C.forest, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   saveBtnText: { color: '#fff', fontFamily: 'Jost-Bold', fontSize: 13 },
 });
