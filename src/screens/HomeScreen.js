@@ -41,6 +41,7 @@ import { fetchBudgetMealPlan } from '../services/budgetPlannerService';
 import { fetchSemiHomemadeRecipe } from '../services/semiHomemadeService';
 import NewHome from '../components/home/NewHome';
 import { openChat } from '../services/chatBus';
+import { subscribeOpenTool } from '../services/toolBus';
 import { fetchSuggestedRecipeGroups, fetchQuickSuggestions, buildSuggestionsPrompt } from '../services/suggestedRecipesService';
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
@@ -2083,12 +2084,7 @@ export default function HomeScreen({ user, route }) {
 
   // Finishing a feature tour (App.js launchAfterTour) opens that feature's page here. Ref because the tool list is built further down.
   const openToolRef = React.useRef(null);
-  useEffect(() => {
-    const key = route?.params?.openTool;
-    if (!key) return;
-    navigation.setParams({ openTool: undefined });
-    setTimeout(() => openToolRef.current?.(key), 150);
-  }, [route?.params?.openToolNonce]);
+  useEffect(() => subscribeOpenTool((key) => openToolRef.current?.(key)), []);
 
   // The More sheet's "Coupon Wallet" button navigates here with this param.
   useEffect(() => {

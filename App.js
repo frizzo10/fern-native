@@ -38,6 +38,7 @@ import { LanguageProvider } from './src/services/LanguageContext';
 import { useLanguage } from './src/hooks/useLanguage';
 import ChatSheetModal from './src/components/modals/ChatSheetModal';
 import { subscribeOpenChat } from './src/services/chatBus';
+import { requestOpenTool } from './src/services/toolBus';
 import AccountScreen from './src/screens/AccountScreen';
 import PlansScreen from './src/screens/PlansScreen';
 import HelpModal from './src/components/modals/HelpModal';
@@ -387,7 +388,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
       if (key === 'ask_fern') { setIsChatOpen(true); return; }
       if (TOOL_ON_HOME[key]) {
         const tool = typeof TOOL_ON_HOME[key] === 'string' ? TOOL_ON_HOME[key] : key;
-        navigationRef.current?.navigate('Home', { openTool: tool, openToolNonce: Date.now() });
+        navigationRef.current?.navigate('Home');
+        setTimeout(() => requestOpenTool(tool), 250);
       } else if (SCREEN[key]) {
         navigationRef.current?.navigate(SCREEN[key]);
       }
