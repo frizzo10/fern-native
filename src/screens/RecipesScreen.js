@@ -998,6 +998,30 @@ export default function RecipesScreen({ user }) {
     console.log('[RecipesScreen] normalized cookbook matches:', JSON.stringify(normalizedMatches, null, 2));
   }, [data.books, data.recipes, booksWithMatchedCounts, recipes]);
 
+  // Opened with a recipe to show (e.g. right after an import): open its card once it is in the list.
+  const openedRecipeKeyRef = useRef('');
+  React.useEffect(() => {
+    const wantId = route?.params?.openRecipeId;
+    if (wantId == null) return;
+    const key = `${wantId}:${route?.params?.requestKey || ''}`;
+    if (openedRecipeKeyRef.current === key) return;
+    const found = recipes.find((r) => String(r.id) === String(wantId))
+      || recipes.find((r) => route?.params?.openRecipeTitle && r.title === route.params.openRecipeTitle);
+    if (found) {
+      openedRecipeKeyRef.current = key;
+      openRecipeDetail(found);
+      return;
+    }
+    // The list on screen can lag the phone's storage (the background sync has not come back yet),
+    // so read the saved recipe straight from storage.
+    openedRecipeKeyRef.current = key;
+    AsyncStorage.getItem('rv4_saved').then((raw) => {
+      const list = JSON.parse(raw || '[]');
+      const row = (Array.isArray(list) ? list : []).find((r) => r && String(r.id) === String(wantId));
+      if (row) openRecipeDetail(normalizeRecipe(row));
+    }).catch(() => {});
+  }, [route?.params?.openRecipeId, route?.params?.requestKey, recipes]);
+
   React.useEffect(() => {
     const requestedTab = route?.params?.openTab;
     if (requestedTab === 'recipes' || requestedTab === 'cookbooks') {

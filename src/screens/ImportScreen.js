@@ -130,10 +130,13 @@ export default function ImportScreen({ user, onBack, onImported }) {
       const storedSaved = JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]');
       const baseSaved = Array.isArray(storedSaved) ? storedSaved : [];
       const dupe = baseSaved.some((r) => r && r.title === previewRecipe.title && (r._bookIds || []).join() === (bookId ? String(bookId) : ''));
+      const newId = `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const existingRow = dupe ? baseSaved.find((r) => r && r.title === previewRecipe.title && (r._bookIds || []).join() === (bookId ? String(bookId) : '')) : null;
+      const savedId = existingRow && existingRow.id != null ? existingRow.id : newId;
       const updatedSaved = dupe ? baseSaved : [
         ...baseSaved,
         {
-          id: `import-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          id: newId,
           title: previewRecipe.title,
           emoji: previewRecipe.emoji || '🍽️',
           image: previewRecipe.image || null,
@@ -159,7 +162,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
       // to the server is slow (it was holding the screen for 30 s), so it runs in the background.
       const bookRow = bookId ? (data?.books || []).find((b) => String(b?.id ?? b?.uuid ?? b?.book_id) === String(bookId)) : null;
       const bookName = (bookRow && (bookRow.title || bookRow.name || bookRow.book_title)) || t('my_recipes_option');
-      setSavedInfo({ title: previewRecipe.title, book: bookName });
+      setSavedInfo({ title: previewRecipe.title, book: bookName, id: savedId });
       setSyncState('syncing');
       setPreviewRecipe(null);
       setUrl(''); setVideoUrl(''); setText(''); setCardPhoto(null);
@@ -221,7 +224,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
                 <TouchableOpacity style={s.discardBtn} onPress={() => setSavedInfo(null)}>
                   <Text style={s.discardBtnText}>{t('import_another_btn')}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.saveBtn} onPress={() => { setSavedInfo(null); if (onImported) onImported(); }}>
+                <TouchableOpacity style={s.saveBtn} onPress={() => { const info = savedInfo; setSavedInfo(null); if (onImported) onImported(info); }}>
                   <Text style={s.saveBtnText}>{t('import_done_btn')}</Text>
                 </TouchableOpacity>
               </View>

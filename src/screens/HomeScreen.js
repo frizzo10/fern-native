@@ -2592,7 +2592,13 @@ export default function HomeScreen({ user, route }) {
           <ImportScreen
             user={user}
             onBack={() => setIsImportOpen(false)}
-            onImported={() => setIsImportOpen(false)}
+            onImported={(info) => {
+              setIsImportOpen(false);
+              // Done opens the recipe card that was just saved (in the Recipes tab), not Home.
+              if (info && info.id != null) {
+                navigation.navigate('Recipes', { openTab: 'recipes', openRecipeId: String(info.id), openRecipeTitle: info.title, requestKey: Date.now() });
+              }
+            }}
           />
         ) : isCouponWalletOpen ? (
           <CouponWalletScreen
