@@ -1486,12 +1486,27 @@ export default function HomeScreen({ user, route }) {
   // then land on the Shopping page with the sales list.
   const [flyerScan, setFlyerScan] = useState(null); // null | { phase: 'working' } | { phase: 'done', count, store }
   const runHomeFlyerScan = async (fromCamera) => {
-    const picked = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+    let picked;
+    try {
+      picked = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+    } catch (e) {
+      // A picker that throws used to vanish silently (this runs inside a setTimeout); show why.
+      console.log('[home] flyer photo picker failed', e?.message || e);
+      Alert.alert(t('scan_circular_scan_failed_title'), String(e?.message || e).slice(0, 200));
+      return;
+    }
     if (picked.permissionDenied) {
       Alert.alert(t('permission_needed_title'), t('photo_permission_denied_desc'));
       return;
     }
-    if (!picked.photo?.base64) return;
+    if (picked.canceled) return;
+    if (!picked.photo?.base64) {
+      Alert.alert(t('scan_circular_scan_failed_title'), t('scan_circular_scan_failed_desc'));
+      return;
+    }
+    // iOS silently drops a Modal opened while the camera / photo picker is still dismissing, so the
+    // "reading your flyer" pop-up never appeared. Let the picker finish closing first.
+    await new Promise((r) => setTimeout(r, 600));
     setFlyerScan({ phase: 'working' });
     const started = Date.now();
     try {
