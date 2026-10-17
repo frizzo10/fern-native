@@ -14,6 +14,7 @@ import {
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
+import { buildChapters } from '../utils/cookbookChapters';
 import { useSync } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import {
@@ -843,6 +844,9 @@ export default function RecipesScreen({ user }) {
     return filtered;
   }, [selectedBook, recipes, query]);
 
+  // Cookie-style cookbooks are laid out in chapters by cookie type (same grouping as the shared page); null = plain grid.
+  const bookChapters = useMemo(() => buildChapters(selectedBookRecipes), [selectedBookRecipes]);
+
   React.useEffect(() => {
     const debugBooks = (Array.isArray(data.books) ? data.books : []).map((book) => ({
       id: pickFirst(book?.id, book?.uuid, book?.book_id, null),
@@ -1091,6 +1095,39 @@ export default function RecipesScreen({ user }) {
 
                 <View style={styles.bookDetailPage}>
                   {selectedBookRecipes.length ? (
+                    bookChapters ? (
+                      <View>
+                        {bookChapters.map((chapter, ci) => (
+                          <View key={`chapter-${chapter.key}`} style={ci > 0 ? styles.bookChapter : null}>
+                            <Text style={styles.bookChapterLabel}>{t('ch_label', { n: ci + 1 }).toUpperCase()}</Text>
+                            <Text style={styles.bookChapterTitle}>{t(chapter.key)}</Text>
+                            <Text style={styles.bookChapterCount}>
+                              {t(chapter.items.length === 1 ? 'recipe_count_singular' : 'recipe_count_plural', { count: chapter.items.length })}
+                            </Text>
+                            <View style={styles.bookRecipeGrid}>
+                              {chapter.items.map((recipe, idx) => (
+                                <TouchableOpacity
+                                  key={`book-${selectedBook.id}-${recipe.id}`}
+                                  activeOpacity={0.9}
+                                  onPress={() => openRecipeDetail(recipe)}
+                                  style={[styles.bookRecipeCard, shadow.card, idx % 2 === 0 ? { marginRight: '4%' } : null]}
+                                >
+                                  <ImageBackground
+                                    source={recipe.image ? { uri: recipe.image } : require('../../assets/icon.png')}
+                                    style={styles.bookRecipeImage}
+                                    imageStyle={styles.bookRecipeImageInner}
+                                  />
+                                  <View style={styles.bookRecipeBody}>
+                                    <Text numberOfLines={2} style={styles.bookRecipeTitle}>{recipe.title}</Text>
+                                    <Text numberOfLines={1} style={styles.bookRecipeMeta}>{recipe.category} · {recipe.meal}</Text>
+                                  </View>
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+                    ) : (
                     <View style={styles.bookRecipeGrid}>
                       {selectedBookRecipes.map((recipe, idx) => (
                         <TouchableOpacity
@@ -1111,6 +1148,7 @@ export default function RecipesScreen({ user }) {
                         </TouchableOpacity>
                       ))}
                     </View>
+                    )
                   ) : (
                     <View style={styles.bookDetailEmpty}>
                       <Text style={styles.bookDetailEmptyTitle}>{t('no_recipes_cookbook')}</Text>
@@ -1611,6 +1649,28 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#D7D3CC',
+  },
+  bookChapter: {
+    marginTop: 26,
+  },
+  bookChapterLabel: {
+    color: '#8E6D49',
+    fontSize: 11,
+    letterSpacing: 2,
+    marginBottom: 2,
+  },
+  bookChapterTitle: {
+    color: '#9A3A1E',
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: 'PlayfairDisplay-Bold',
+  },
+  bookChapterCount: {
+    color: '#8E6D49',
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginTop: 2,
+    marginBottom: 12,
   },
   bookRecipeGrid: {
     flexDirection: 'row',
