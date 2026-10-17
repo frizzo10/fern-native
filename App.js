@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import JsHeartbeat from './src/components/JsHeartbeat';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -784,6 +785,7 @@ export default function App() {
           </AccountModalProvider>
         </LanguageProvider>
       </RevenueCatProvider>
+      <JsHeartbeat />
     </SafeAreaProvider>
   );
 }
