@@ -26,9 +26,21 @@ function PickerField({ label, value, onPress }) {
     );
 }
 
-function OptionsOverlay({ visible, title, options, selectedValue, onSelect, onClose }) {
+// inline: draw the layer as a plain View on the page instead of a native Modal, which on iOS
+// could leave the screen waiting until the app was backgrounded. Defined once here so React
+// keeps its children (e.g. a focused TextInput) mounted between renders.
+function Shell({ inline, visible, animationType, onClose, children }) {
+    if (inline) return visible ? <View style={styles.inlineLayer}>{children}</View> : null;
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <Modal visible={visible} transparent animationType={animationType} onRequestClose={onClose}>
+            {children}
+        </Modal>
+    );
+}
+
+function OptionsOverlay({ visible, title, options, selectedValue, onSelect, onClose, inline = false }) {
+    return (
+        <Shell inline={inline} visible={visible} animationType="fade" onClose={onClose}>
             <TouchableOpacity style={styles.overlayBackdrop} activeOpacity={1} onPress={onClose}>
                 <TouchableOpacity activeOpacity={1} style={styles.overlaySheet}>
                     <Text style={styles.overlayTitle}>{title}</Text>
@@ -47,7 +59,7 @@ function OptionsOverlay({ visible, title, options, selectedValue, onSelect, onCl
                     </ScrollView>
                 </TouchableOpacity>
             </TouchableOpacity>
-        </Modal>
+        </Shell>
     );
 }
 
@@ -59,6 +71,7 @@ export default function SaveToCookbookModal({
     initialMealType = '',
     isSaving = false,
     keepMounted = false,
+    inline = false,
     onCancel,
     onSave,
 }) {
@@ -82,7 +95,8 @@ export default function SaveToCookbookModal({
 
     // keepMounted: let the native Modal dismiss itself (visible=false) instead of being yanked out of
     // the tree, which on iOS can leave the screen behind it frozen until the app is reopened.
-    if (!visible && !keepMounted) return null;
+    if (!visible && !keepMounted && !inline) return null;
+    if (inline && !visible) return null;
 
     const bookOptions = [
         { value: MY_RECIPES_ID, label: t('my_recipes_option') },
@@ -106,7 +120,7 @@ export default function SaveToCookbookModal({
     };
 
     return (
-        <Modal visible={keepMounted ? visible : true} transparent animationType="slide" onRequestClose={onCancel}>
+        <Shell inline={inline} visible={keepMounted ? visible : true} animationType="slide" onClose={onCancel}>
             <View style={styles.backdrop}>
                 <View style={styles.card}>
                     <View style={styles.header}>
@@ -157,6 +171,7 @@ export default function SaveToCookbookModal({
                 selectedValue={bookId}
                 onSelect={(v) => { setBookId(v); setActiveField(null); }}
                 onClose={() => setActiveField(null)}
+                inline={inline}
             />
             <OptionsOverlay
                 visible={activeField === 'cuisine'}
@@ -165,6 +180,7 @@ export default function SaveToCookbookModal({
                 selectedValue={cuisine}
                 onSelect={(v) => { setCuisine(v); setActiveField(null); }}
                 onClose={() => setActiveField(null)}
+                inline={inline}
             />
             <OptionsOverlay
                 visible={activeField === 'mealType'}
@@ -173,12 +189,14 @@ export default function SaveToCookbookModal({
                 selectedValue={mealType}
                 onSelect={(v) => { setMealType(v); setActiveField(null); }}
                 onClose={() => setActiveField(null)}
+                inline={inline}
             />
-        </Modal>
+        </Shell>
     );
 }
 
 const styles = StyleSheet.create({
+    inlineLayer: { ...StyleSheet.absoluteFillObject, zIndex: 50, elevation: 50 },
     backdrop: {
         flex: 1,
         justifyContent: 'flex-end',

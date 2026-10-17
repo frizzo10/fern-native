@@ -60,6 +60,9 @@ export default function ImportScreen({ user, onBack, onImported }) {
   const [previewRecipe, setPreviewRecipe] = useState(null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const t0Ref = useRef(0);
+  const [trace, setTrace] = useState([]);
+  const tr = (label) => setTrace((prev) => [...prev, `${((Date.now() - t0Ref.current) / 1000).toFixed(1)}s ${label}`]);
   const pendingRef = useRef(false); // set the moment Save is tapped in the picker
   const savingRef = useRef(false); // blocks a second tap while the first save is still starting
   const [syncState, setSyncState] = useState('ok'); // 'syncing' | 'ok' | 'failed' (after a save)
@@ -148,7 +151,9 @@ export default function ImportScreen({ user, onBack, onImported }) {
           photoSearch: previewRecipe.photoSearch || '',
         },
       ];
+      tr('read done');
       await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
+      tr('written to phone');
 
       // The recipe is on the phone: show the confirmation right now. Syncing the whole library
       // to the server is slow (it was holding the screen for 30 s), so it runs in the background.
@@ -165,11 +170,13 @@ export default function ImportScreen({ user, onBack, onImported }) {
         for (let attempt = 0; attempt < 2; attempt++) {
           const pushResult = await pushChangedFromStorage();
           if (pushResult && !pushResult.error) {
+            tr('server accepted');
             setSyncState('ok');
             pull().catch(() => {});
             return;
           }
         }
+        tr('sync failed');
         setSyncState('failed');
       })();
     } catch (e) {
@@ -208,6 +215,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
               <Text style={s.savedCheck}>✓</Text>
               <Text style={s.previewTitle}>{t('import_saved_to', { book: savedInfo.book })}</Text>
               <Text style={s.previewMeta}>{savedInfo.title}</Text>
+              {trace.length ? <Text style={s.traceText}>{trace.join('\n')}</Text> : null}
               {syncState === 'syncing' ? <Text style={s.savingText}>{t('import_syncing')}</Text> : null}
               {syncState === 'failed' ? <Text style={s.saveErrorText}>{t('import_sync_failed')}</Text> : null}
               <View style={s.previewActions}>
@@ -243,6 +251,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
               ))}
               {previewRecipe.notes ? <Text style={s.listNote}>{previewRecipe.notes}</Text> : null}
               {saving ? <Text style={s.savingText}>{t('import_saving')}</Text> : null}
+              {trace.length ? <Text style={s.traceText}>{trace.join('\n')}</Text> : null}
               {saveError ? <Text style={s.saveErrorText}>{saveError}</Text> : null}
               <View style={s.previewActions}>
                 <TouchableOpacity style={s.discardBtn} onPress={() => setPreviewRecipe(null)} disabled={saving}>
@@ -353,9 +362,10 @@ export default function ImportScreen({ user, onBack, onImported }) {
         initialMealType={previewRecipe?.mealType || ''}
         isSaving={saving}
         keepMounted
+        inline
         onCancel={() => setPickerOpen(false)}
         // iOS drops an Alert shown while a Modal is still closing, so close first, then save.
-        onSave={(choice) => { if (pendingRef.current || savingRef.current) return; pendingRef.current = true; setPickerOpen(false); setSaving(true); setTimeout(() => { pendingRef.current = false; handleSave(choice); }, 450); }}
+        onSave={(choice) => { if (pendingRef.current || savingRef.current) return; pendingRef.current = true; t0Ref.current = Date.now(); setTrace([]); tr('Save tapped'); setPickerOpen(false); setSaving(true); setTimeout(() => { pendingRef.current = false; tr('timer fired'); handleSave(choice); }, 450); }}
       />
       <UpgradeGateModal
         visible={limitGate}
@@ -420,6 +430,7 @@ const s = StyleSheet.create({
   previewActions: { flexDirection: 'row', gap: 12, width: '100%' },
   discardBtn: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   discardBtnText: { color: C.brown, fontFamily: 'Jost-SemiBold', fontSize: 13 },
+  traceText: { color: C.brown, fontSize: 11, marginTop: 8, textAlign: 'center' },
   savedCheck: { fontSize: 44, color: C.forest, marginBottom: 8 },
   savingText: { color: C.brown, fontFamily: 'Jost-Bold', fontSize: 13, marginTop: 12, textAlign: 'center' },
   saveErrorText: { color: '#B8411A', fontFamily: 'Jost-Bold', fontSize: 13, marginTop: 12, textAlign: 'center' },
