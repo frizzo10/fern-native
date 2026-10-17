@@ -99,7 +99,10 @@ export default function RecipeDetailModal({
     setIsSharing(true);
     try {
       const url = await createRecipeShareLink({ recipe, senderName: user?.name || '', message: '' });
-      await Share.share({ message: t('share_recipe_message', { title: recipe.title, url }) });
+      // iOS: share the bare link (same as cookbooks) so it stays a tappable
+      // link when pasted; "Title: url" got pasted into Google as a search.
+      if (Platform.OS === 'ios') await Share.share({ url });
+      else await Share.share({ message: `${recipe.title}\n${url}` });
     } catch (e) {
       console.warn('Share recipe failed:', e);
       Alert.alert(t('share_link_error_title'), t('share_link_error'));
