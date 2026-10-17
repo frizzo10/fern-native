@@ -215,7 +215,6 @@ export default function ImportScreen({ user, onBack, onImported }) {
               <Text style={s.savedCheck}>✓</Text>
               <Text style={s.previewTitle}>{t('import_saved_to', { book: savedInfo.book })}</Text>
               <Text style={s.previewMeta}>{savedInfo.title}</Text>
-              {trace.length ? <Text style={s.traceText}>{trace.join('\n')}</Text> : null}
               {syncState === 'syncing' ? <Text style={s.savingText}>{t('import_syncing')}</Text> : null}
               {syncState === 'failed' ? <Text style={s.saveErrorText}>{t('import_sync_failed')}</Text> : null}
               <View style={s.previewActions}>
@@ -251,7 +250,6 @@ export default function ImportScreen({ user, onBack, onImported }) {
               ))}
               {previewRecipe.notes ? <Text style={s.listNote}>{previewRecipe.notes}</Text> : null}
               {saving ? <Text style={s.savingText}>{t('import_saving')}</Text> : null}
-              {trace.length ? <Text style={s.traceText}>{trace.join('\n')}</Text> : null}
               {saveError ? <Text style={s.saveErrorText}>{saveError}</Text> : null}
               <View style={s.previewActions}>
                 <TouchableOpacity style={s.discardBtn} onPress={() => setPreviewRecipe(null)} disabled={saving}>

@@ -3089,7 +3089,7 @@ export default function HomeScreen({ user, route }) {
         </KeyboardAvoidingView>
       </Modal>
 
-      {!!flyerTrace && (
+      {String(flyerTrace).startsWith('ERROR') && (
         <View pointerEvents="none" style={{ position: 'absolute', top: 64, left: 12, right: 12, zIndex: 999, elevation: 999, backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: 10, padding: 10 }}>
           <Text style={{ color: '#fff', fontSize: 13 }}>{`Photo: ${flyerTrace}`}</Text>
         </View>
