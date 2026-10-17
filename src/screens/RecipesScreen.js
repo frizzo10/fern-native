@@ -14,7 +14,8 @@ import {
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
-import { buildChapters } from '../utils/cookbookChapters';
+import { buildChapters, chapterNameById } from '../utils/cookbookChapters';
+import { loadChapterMap, needsOrganizing, organizeBook } from '../services/cookbookOrganizer';
 import { useSync } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import {
@@ -184,7 +185,7 @@ function normalizeBook(item, index) {
 }
 
 export default function RecipesScreen({ user }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const route = useRoute();
   const { maybeAutoStart } = useTour();
   const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
@@ -792,10 +793,15 @@ export default function RecipesScreen({ user }) {
     const rawBook = (Array.isArray(booksLocal) ? booksLocal : []).find(
       (book) => String(book?.id ?? book?.uuid ?? book?.book_id ?? '') === String(selectedBook.id),
     );
+    // Same chapters as the library view; recipes go out in chapter order so the page can rebuild them.
+    const all = getAllSelectedBookRecipes();
+    const chapters = buildChapters(all, chapterMap[selectedBook.id]);
+    const ordered = chapters ? chapters.flatMap((c) => c.items) : all;
     return createCookbookShareLink({
       title: selectedBook.title,
       colorId: rawBook?.colorId,
-      recipes: getAllSelectedBookRecipes(),
+      recipes: ordered,
+      chapterById: chapters ? chapterNameById(chapters, t) : null,
       coverUrl: selectedBook.cover,
       senderName,
       message,
@@ -892,6 +898,36 @@ export default function RecipesScreen({ user }) {
     }));
   }, [books, recipes]);
 
+  // Chapters made by Fern in the background (device-only layout, see cookbookOrganizer).
+  const [chapterMap, setChapterMap] = useState({});
+  const organizingRef = useRef(false);
+  const organizeTriedRef = useRef({});
+  useEffect(() => { loadChapterMap().then(setChapterMap); }, []);
+  useEffect(() => {
+    if (organizingRef.current || !user?.token || !recipes.length) return;
+    const due = booksWithMatchedCounts
+      .map((book) => ({
+        book,
+        members: recipes.filter((r) => r.bookIds.includes(book.id) || (book.recipeIds || []).includes(String(r.id))),
+      }))
+      .find(({ book, members }) => (
+        needsOrganizing(chapterMap[book.id], members.length)
+        && organizeTriedRef.current[book.id] !== members.length
+      ));
+    if (!due) return;
+    organizingRef.current = true;
+    organizeTriedRef.current[due.book.id] = due.members.length; // one try per size; a failure is not retried in a loop
+    organizeBook({
+      bookId: due.book.id,
+      recipes: due.members.map((r) => ({ id: r.id, title: r.title })),
+      locale,
+      token: user.token,
+    })
+      .then(() => loadChapterMap().then(setChapterMap))
+      .catch(() => {})
+      .finally(() => { organizingRef.current = false; });
+  }, [booksWithMatchedCounts, recipes, chapterMap, user?.token, locale]);
+
   const selectedBookRecipes = useMemo(() => {
     if (!selectedBook) return [];
 
@@ -913,7 +949,10 @@ export default function RecipesScreen({ user }) {
   }, [selectedBook, recipes, query]);
 
   // Cookie-style cookbooks are laid out in chapters by cookie type (same grouping as the shared page); null = plain grid.
-  const bookChapters = useMemo(() => buildChapters(selectedBookRecipes), [selectedBookRecipes]);
+  const bookChapters = useMemo(
+    () => buildChapters(selectedBookRecipes, selectedBook ? chapterMap[selectedBook.id] : null),
+    [selectedBookRecipes, selectedBook, chapterMap],
+  );
 
   React.useEffect(() => {
     const debugBooks = (Array.isArray(data.books) ? data.books : []).map((book) => ({
@@ -1168,7 +1207,7 @@ export default function RecipesScreen({ user }) {
                         {bookChapters.map((chapter, ci) => (
                           <View key={`chapter-${chapter.key}`} style={ci > 0 ? styles.bookChapter : null}>
                             <Text style={styles.bookChapterLabel}>{t('ch_label', { n: ci + 1 }).toUpperCase()}</Text>
-                            <Text style={styles.bookChapterTitle}>{t(chapter.key)}</Text>
+                            <Text style={styles.bookChapterTitle}>{chapter.name || t(chapter.key)}</Text>
                             <Text style={styles.bookChapterCount}>
                               {t(chapter.items.length === 1 ? 'recipe_count_singular' : 'recipe_count_plural', { count: chapter.items.length })}
                             </Text>

@@ -2,9 +2,11 @@
 // The same rules (and order) are used by the shared cookbook web page (cookbook-share.html) so the library
 // copy and the shared copy always match. Keep the two in step.
 //
-// buildChapters(recipes) -> null when the book is not a cookie collection (too few recipes or too few matches),
-// otherwise [{ key, items: [recipe, ...] }] in chapter order with empty chapters left out.
-// `key` is a translation key (ch_*), the chapter number is the position in the returned list.
+// buildChapters(recipes, saved) -> null when there is nothing to chapter, otherwise
+// [{ key | name, items: [recipe, ...] }] in chapter order with empty chapters left out.
+//  - `saved` = AI-made layout from cookbookOrganizer ({ chapters: [{ name, ids }] }); when present it wins.
+//  - otherwise the built-in cookie-type rules below (instant, no AI), only for cookie-style books.
+// `key` is a translation key (ch_*); `name` is a literal AI chapter name. Chapter number = position.
 
 const DEFAULT_KEY = 'ch_drop';
 
@@ -22,9 +24,27 @@ const RULES = [
 
 const ORDER = ['ch_drop', 'ch_meringue', 'ch_spritz', 'ch_filled', 'ch_slice', 'ch_shortbread', 'ch_decorated', 'ch_bars', 'ch_candy'];
 
-export function buildChapters(recipes) {
+export function buildChapters(recipes, saved) {
   const list = Array.isArray(recipes) ? recipes : [];
   if (list.length < 8) return null;
+
+  if (saved && Array.isArray(saved.chapters) && saved.chapters.length) {
+    const byId = new Map(list.map((r) => [String(r.id), r]));
+    const placed = new Set();
+    const out = [];
+    saved.chapters.forEach((c) => {
+      const items = [];
+      (c.ids || []).forEach((id) => {
+        const r = byId.get(String(id));
+        if (r && !placed.has(String(id))) { placed.add(String(id)); items.push(r); }
+      });
+      if (items.length) out.push({ name: c.name, items });
+    });
+    // Recipes added after the layout was made go in a trailing chapter until it is redone.
+    const extra = list.filter((r) => !placed.has(String(r.id)));
+    if (extra.length) out.push({ key: 'ch_more', items: extra });
+    if (out.length >= 2) return out;
+  }
 
   let matched = 0;
   const groups = {};
@@ -41,4 +61,14 @@ export function buildChapters(recipes) {
 
   if (matched < 4) return null; // not a cookie-style book: keep the plain grid
   return ORDER.filter((k) => groups[k]).map((key) => ({ key, items: groups[key] }));
+}
+
+// Name of the chapter each recipe sits in, for the shared page: { [recipeId]: 'Chapter name' }.
+export function chapterNameById(chapters, t) {
+  const m = {};
+  (chapters || []).forEach((c) => {
+    const name = c.name || t(c.key);
+    c.items.forEach((r) => { m[String(r.id)] = name; });
+  });
+  return m;
 }

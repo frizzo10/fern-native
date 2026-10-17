@@ -28,8 +28,9 @@ function isWebUrl(value) {
 
 // Maps a normalized native recipe (src/utils/recipeNormalize.js) to the field
 // names the web app's `share` / `share-cookbook` functions read.
-export function toSharedRecipe(recipe) {
+export function toSharedRecipe(recipe, chapter) {
     return {
+        chapter: chapter || '',
         title: String(recipe?.title || '').trim(),
         emoji: recipe?.emoji || '🍽',
         cuisine: recipe?.category || '',
@@ -82,13 +83,13 @@ export function createRecipeShareLink({ recipe, senderName, message }) {
 
 // POST /share-cookbook → { url }. The web app sends a resized base64 cover; a
 // hosted cover URL (what native keeps in rv4_cb_covers) is passed as-is.
-export function createCookbookShareLink({ title, colorId, recipes, coverUrl, senderName, message }) {
+export function createCookbookShareLink({ title, colorId, recipes, coverUrl, senderName, message, chapterById }) {
     return postJson('share-cookbook', {
         cookbook: {
             name: String(title || '').trim(),
             colorId: colorId || undefined,
             coverUrl: isWebUrl(coverUrl) ? coverUrl : '',
-            recipes: (recipes || []).map(toSharedRecipe),
+            recipes: (recipes || []).map((r) => toSharedRecipe(r, chapterById ? chapterById[String(r.id)] : '')),
         },
         message: String(message || '').trim(),
         senderName: String(senderName || '').trim(),
