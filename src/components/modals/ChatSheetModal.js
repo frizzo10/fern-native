@@ -381,7 +381,7 @@ export default function ChatSheetModal({
       if (isListening) stop();
       stopSpeaking();
       // Voice-only: every open is a fresh short session (she greets again and the counters start over).
-      if (voiceOnly) { setMessages([]); setError(false); setVoiceErr(''); emptyHeard.current = 0; micErrCount.current = 0; finishAction.current = null; }
+      if (voiceOnly) { setMessages((m) => (m.length ? [] : m)); setError(false); setVoiceErr(''); emptyHeard.current = 0; micErrCount.current = 0; finishAction.current = null; }
     }
   }, [visible, isListening, stop, stopSpeaking, voiceOnly]);
 
