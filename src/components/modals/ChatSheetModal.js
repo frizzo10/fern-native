@@ -439,7 +439,12 @@ export default function ChatSheetModal({
     if (!voiceOnly) return;
     // detail = the real problem if there is one, else what she heard (so you can see she understood you)
     const heard = [...messagesRef.current].reverse().find((m) => m.role === 'user')?.text || '';
-    onPhaseRef.current?.(!visible ? 'off' : (error ? 'error' : phase), voiceErr || (heard ? `“${heard.slice(0, 80)}”` : ''));
+    const said = [...messagesRef.current].reverse().find((m) => m.role === 'fern')?.text || '';
+    let note = heard ? `“${heard.slice(0, 80)}”` : '';
+    if (phase === 'think') note = `⏳ ${note}`;
+    else if (phase === 'talk' && said) note = `🔊 ${said.slice(0, 90)}`;
+    else if (phase === 'idle' && heard && said) note = `💬 ${said.slice(0, 90)}`;
+    onPhaseRef.current?.(!visible ? 'off' : (error ? 'error' : phase), voiceErr || note);
   }, [voiceOnly, visible, phase, error, voiceErr, messages]);
 
   if (voiceOnly) {
