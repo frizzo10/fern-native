@@ -246,3 +246,5 @@ All UI copy goes through a single i18n module, not per-screen strings:
 
 **Leaf is a small bottom chat again (2026-10-18).** Voice wasn't working reliably, so `App.js` opens `ChatSheetModal` with `mode="text" compact` (a typing card that slides up from the bottom, ~48% high, page visible above) instead of `voiceOnly`. The voice-only code in `ChatSheetModal`/`useContinuousMic` is untouched; put `mode="voice" voiceOnly` back on the App.js `ChatSheetModal` to restore it. JS-only.
 **Leaf chat makes no voice calls (2026-10-18).** `ChatSheetModal` has a `silent` prop (true = never request or play speech for replies); the App.js leaf passes it with `mode="text" compact`. Other chats are unchanged. JS-only.
+
+**Version 1.1.8 (2026-10-18).** `app.json` version 1.1.7 -> 1.1.8 (build number auto-increments remotely via EAS). Carries everything on main since build 11: leaf small text chat (silent), fern:// cookbook import, Apple/Google sign-in, reset-password wording. No new native modules. Needs `eas build --platform ios --profile production --auto-submit`.
