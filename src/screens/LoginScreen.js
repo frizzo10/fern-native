@@ -2,7 +2,7 @@
 // Sign in / Sign up with Supabase
 // Matches web app design exactly
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView
@@ -10,6 +10,11 @@ import {
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useLanguage from '../hooks/useLanguage';
+
+// Guarded: an app build without this native module simply has no Apple button.
+let AppleAuthentication = null;
+try { AppleAuthentication = require('expo-apple-authentication'); } catch (e) { AppleAuthentication = null; }
+
 // ── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
   forest: '#1C3A1A',
@@ -23,7 +28,7 @@ const C = {
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
-export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpWithSupabase, forgotPassword, resetPassword }) {
+export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpWithSupabase, forgotPassword, resetPassword, signInWithApple, signInWithGoogle, appleAvailable, googleAvailable }) {
   const { t } = useLanguage();
   const [mode, setMode] = useState('signin'); // 'signin' | 'signup' | 'forgot' | 'reset'
   const [email, setEmail] = useState('');
@@ -33,6 +38,26 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
   const [newPassword, setNewPassword] = useState('');
   const [resetStatus, setResetStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showApple, setShowApple] = useState(false);
+  const showGoogle = !!(googleAvailable && googleAvailable());
+  useEffect(() => {
+    let alive = true;
+    if (appleAvailable) appleAvailable().then((ok) => { if (alive) setShowApple(!!ok && !!AppleAuthentication); }).catch(() => {});
+    return () => { alive = false; };
+  }, [appleAvailable]);
+
+  async function handleSocial(fn) {
+    if (!fn || loading) return;
+    setLoading(true);
+    try {
+      const user = await fn();
+      if (user) onAuthSuccess(user);
+    } catch (e) {
+      Alert.alert(t('auth_social_failed'), e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleSignIn() {
     console.log('🔵 handleSignIn called');
@@ -183,6 +208,29 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
                     : <Text style={s.btnText}>{mode === 'signin' ? t('sign_in') : t('create_account')}</Text>
                   }
                 </TouchableOpacity>
+
+                {(showApple || showGoogle) ? (
+                  <>
+                    <View style={s.orRow}>
+                      <View style={s.orLine} /><Text style={s.orText}>{t('auth_or')}</Text><View style={s.orLine} />
+                    </View>
+                    {showApple ? (
+                      <AppleAuthentication.AppleAuthenticationButton
+                        buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                        buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                        cornerRadius={12}
+                        style={s.appleBtn}
+                        onPress={() => handleSocial(signInWithApple)}
+                      />
+                    ) : null}
+                    {showGoogle ? (
+                      <TouchableOpacity style={s.googleBtn} onPress={() => handleSocial(signInWithGoogle)} disabled={loading} activeOpacity={0.85}>
+                        <Text style={s.googleG}>G</Text>
+                        <Text style={s.googleText}>{t('auth_google_btn')}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </>
+                ) : null}
               </>
             )}
 
@@ -274,6 +322,16 @@ const s = StyleSheet.create({
     alignItems: 'center', marginTop: 4
   },
   btnText: { color: '#fff', fontSize: 16, fontFamily: 'Jost-Bold' },
+  orRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18, marginBottom: 14 },
+  orLine: { flex: 1, height: 1, backgroundColor: C.border },
+  orText: { marginHorizontal: 12, color: C.brown, fontSize: 12, fontFamily: 'Jost-Regular' },
+  appleBtn: { height: 48, width: '100%', marginBottom: 10 },
+  googleBtn: {
+    height: 48, borderRadius: 12, backgroundColor: '#fff', borderWidth: 1, borderColor: C.border,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+  },
+  googleG: { fontSize: 20, color: '#4285F4', fontFamily: 'Jost-Bold', marginRight: 10 },
+  googleText: { color: C.ink, fontSize: 16, fontFamily: 'Jost-SemiBold' },
   linkWrap: { alignItems: 'center', marginTop: 14 },
   link: { color: C.forest, fontSize: 13, fontFamily: 'Jost-SemiBold', textDecorationLine: 'underline' },
   helperText: { color: C.brown, fontSize: 13, fontFamily: 'Jost-Regular', lineHeight: 18, marginBottom: 12, textAlign: 'center' },

@@ -30,7 +30,8 @@
         "NSLocationAlwaysUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping.",
         "NSCameraUsageDescription": "Fern uses your camera to photograph your fridge or pantry so it can suggest recipes from what you have.",
         "NSPhotoLibraryUsageDescription": "Fern needs access to your photos so you can pick fridge or pantry photos to find recipes from what you have."
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -80,12 +81,15 @@
           "photosPermission": "Fern needs access to your photos so you can pick fridge or pantry photos to find recipes from what you have.",
           "cameraPermission": "Fern uses your camera to photograph your fridge or pantry so it can suggest recipes from what you have."
         }
-      ]
+      ],
+      "expo-apple-authentication",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {
         "projectId": "fca8fa3a-da78-4911-b7c2-df25d4957d54"
       }
-    }
+    },
+    "scheme": "fern"
   }
 }

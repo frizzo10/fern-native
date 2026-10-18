@@ -659,7 +659,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
 }
 
 function MainAppContent() {
-  const { user, loading, signInWithSupabase, signUpWithSupabase, forgotPassword, resetPassword, signOut, syncError, retrySync } = useAuth();
+  const { user, loading, signInWithSupabase, signUpWithSupabase, forgotPassword, resetPassword, signInWithApple, signInWithGoogle, appleAvailable, googleAvailable, signOut, syncError, retrySync } = useAuth();
   const { loginPurchaser, logoutPurchaser, tier: rcTier, loading: rcLoading } = useRevenueCat();
   const { pushChangedFromStorage, data: syncData } = useSync(user);
   console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
@@ -741,6 +741,10 @@ function MainAppContent() {
           signUpWithSupabase={signUpWithSupabase}
           forgotPassword={forgotPassword}
           resetPassword={resetPassword}
+          signInWithApple={signInWithApple}
+          signInWithGoogle={signInWithGoogle}
+          appleAvailable={appleAvailable}
+          googleAvailable={googleAvailable}
         />
       </>
     );

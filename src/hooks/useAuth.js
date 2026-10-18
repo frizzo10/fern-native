@@ -1,8 +1,17 @@
 import { useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { clearGrant } from '../services/grantStore';
+
+// Native modules for Apple / Google sign-in. Guarded: an OTA that reaches an app binary built before
+// these modules were added must not crash, it just hides the buttons.
+let AppleAuthentication = null;
+try { AppleAuthentication = require('expo-apple-authentication'); } catch (e) { AppleAuthentication = null; }
+let WebBrowser = null;
+try { WebBrowser = require('expo-web-browser'); } catch (e) { WebBrowser = null; }
+const OAUTH_REDIRECT = 'fern://auth';
 
 const AUTH_KEY = 'fern_user';
 const AUTH_URL = 'https://app.clickpickandcook.com/.netlify/functions/auth';
@@ -255,6 +264,93 @@ export function useAuth() {
     }
   };
 
+  // ── Apple / Google sign-in ───────────────────────────────────────────────────
+  // Both end the same way as email login: store the session, pull the cloud data, set the user.
+  const finishSocialSignIn = async (authUser) => {
+    await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+      id: authUser.id, email: authUser.email, token: authUser.token, refreshToken: authUser.refreshToken,
+    }));
+    await syncPull(authUser.id, authUser.token);
+    await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(authUser));
+    setUser(authUser);
+    return authUser;
+  };
+
+  const appleAvailable = async () => {
+    if (Platform.OS !== 'ios' || !AppleAuthentication) return false;
+    try { return await AppleAuthentication.isAvailableAsync(); } catch (e) { return false; }
+  };
+  const googleAvailable = () => !!WebBrowser;
+
+  // Apple: native sheet -> identity token -> Supabase signInWithIdToken (provider "apple").
+  // Returns null if the person cancelled.
+  const signInWithApple = async () => {
+    if (!AppleAuthentication) throw new Error('Apple sign-in is not available in this version of the app.');
+    let cred;
+    try {
+      cred = await AppleAuthentication.signInAsync({
+        requestedScopes: [
+          AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+          AppleAuthentication.AppleAuthenticationScope.EMAIL,
+        ],
+      });
+    } catch (e) {
+      if (e && e.code === 'ERR_REQUEST_CANCELED') return null;
+      throw e;
+    }
+    if (!cred?.identityToken) throw new Error('Apple did not return a sign-in token.');
+    const { data, error } = await supabase.auth.signInWithIdToken({ provider: 'apple', token: cred.identityToken });
+    if (error) throw new Error(error.message || 'Apple sign-in failed');
+    const session = data.session;
+    const fullName = [cred.fullName?.givenName, cred.fullName?.familyName].filter(Boolean).join(' ').trim();
+    const authUser = {
+      id: data.user.id,
+      email: data.user.email || cred.email || '',
+      name: fullName || data.user.user_metadata?.full_name || data.user.user_metadata?.name || (data.user.email || '').split('@')[0],
+      token: session.access_token,
+      refreshToken: session.refresh_token,
+    };
+    await finishSocialSignIn(authUser);
+    // Apple only sends the name on the very first sign-in; keep it if the profile has none (after syncPull).
+    if (fullName) {
+      try {
+        const raw = await AsyncStorage.getItem('remi_explicit');
+        const prof = raw ? JSON.parse(raw) : {};
+        if (!prof.userName) await AsyncStorage.setItem('remi_explicit', JSON.stringify({ ...prof, userName: fullName }));
+      } catch (e) {}
+    }
+    return authUser;
+  };
+
+  // Google: the existing `auth` function builds the Supabase Google URL for our own redirect; we open it in the
+  // system web sheet, Supabase sends the person back to fern://auth#access_token=..., and `oauth_user` turns the
+  // token into the same user shape email login returns. Returns null if cancelled.
+  const signInWithGoogle = async () => {
+    if (!WebBrowser) throw new Error('Google sign-in is not available in this version of the app.');
+    const startRes = await fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'google', redirectTo: OAUTH_REDIRECT }),
+    });
+    const start = await startRes.json();
+    if (!start?.url) throw new Error(start?.error || 'Could not start Google sign-in.');
+    const result = await WebBrowser.openAuthSessionAsync(start.url, OAUTH_REDIRECT);
+    if (result.type !== 'success' || !result.url) return null;
+    const frag = result.url.includes('#') ? result.url.split('#')[1] : (result.url.split('?')[1] || '');
+    const params = {};
+    frag.split('&').forEach((kv) => { const i = kv.indexOf('='); if (i > 0) params[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); });
+    if (params.error_description || params.error) throw new Error(params.error_description || params.error);
+    if (!params.access_token) throw new Error('Google did not return a sign-in token.');
+    const res = await fetch(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'oauth_user', token: params.access_token, refreshToken: params.refresh_token || '' }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error || !data.user) throw new Error(data.error || 'Google sign-in failed');
+    return finishSocialSignIn({ ...data.user, token: data.token, refreshToken: data.refreshToken });
+  };
+
   // ── Forgot password ─────────────────────────────────────────────────────────
   // Triggers the backend's Supabase-recovery-email flow. Never receives a
   // code back here -- the code only ever reaches the person via email.
@@ -319,6 +415,10 @@ export function useAuth() {
     signUpWithSupabase, 
     forgotPassword,
     resetPassword,
+    signInWithApple,
+    signInWithGoogle,
+    appleAvailable,
+    googleAvailable,
     signOut, 
     syncPull,
     tryRefreshToken,
