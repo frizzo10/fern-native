@@ -276,6 +276,24 @@ export default function RecipesScreen({ user }) {
       return { ok: false, error: 'shared_cb_err_generic' };
     }
   };
+  // Opened from a fern:// share link (App.js -> linkBus): import it straight away, no pasting.
+  const handledImportRef = useRef('');
+  useEffect(() => {
+    const link = route?.params?.importLink;
+    const nonce = String(route?.params?.importNonce || '');
+    if (!link || !nonce || handledImportRef.current === nonce) return;
+    handledImportRef.current = nonce;
+    (async () => {
+      setTab('cookbooks');
+      setSelectedBook(null);
+      if (/cookbook-share/i.test(link) && !hasAccess(TIERS.PRO) && (await cookbookCount()) >= FREE_COOKBOOK_LIMIT) { setCookbookGate(true); return; }
+      const r = await handleAddSharedCookbook(link);
+      Alert.alert(
+        t('shared_cb_title'),
+        r.ok ? (r.recipe ? t('shared_rc_added', { name: r.name }) : t('shared_cb_added', { name: r.name, count: r.count })) : t(r.error),
+      );
+    })();
+  }, [route?.params?.importLink, route?.params?.importNonce]);
   const [isCreatingCookbook, setIsCreatingCookbook] = useState(false);
   const [isEditCookbookVisible, setIsEditCookbookVisible] = useState(false);
   const [isSavingCookbookEdit, setIsSavingCookbookEdit] = useState(false);
