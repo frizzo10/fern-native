@@ -472,8 +472,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         visible={isChatOpen}
         onClose={() => setIsChatOpen(false)}
         user={user}
-        mode="voice"
-        voiceOnly
+        mode="text"
+        compact
         onPhase={(p, detail) => { setLeafPhase(p); setLeafNote(String(detail || '')); }}
         onShow={(w) => {
           // She just changed something: jump to where it is so the person watches it happen (the chat stays open and she keeps talking).
