@@ -473,6 +473,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         onClose={() => setIsChatOpen(false)}
         user={user}
         mode="text"
+        silent
         compact
         onPhase={(p, detail) => { setLeafPhase(p); setLeafNote(String(detail || '')); }}
         onShow={(w) => {

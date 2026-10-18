@@ -129,6 +129,7 @@ export default function ChatSheetModal({
   mode, // 'voice' = Fern speaks and the mic re-arms after every reply (hands-free); 'text' = typing only, no speech
   onShow, // ({ screen, dayOffset }) => void: called the moment Fern changed something, so the app can jump to where the change is
   onPhase, // (phase, detail) => void: voice-only status for the leaf button ('listen' | 'talk' | 'think' | 'idle' | 'error' | 'off')
+  silent = false, // true = never request or play speech (text chat only); other chats keep speaking their replies
   voiceOnly = false, // true = no chat window at all: a small listening card, Fern talks and listens by herself (implies mode 'voice')
 }) {
   const { t, locale } = useLanguage();
@@ -263,7 +264,7 @@ export default function ChatSheetModal({
         setSpeechPending(true);
         setTimeout(() => setSpeechPending(false), 25000); // safety: never leave the mic closed for good
         speakChunks(spokenSummary(reply)).then((uri) => { if (!uri) { setSpeechPending(false); runFinishAction(); } }).catch(() => { setSpeechPending(false); runFinishAction(); });
-      } else {
+      } else if (!silent) {
         speakText(spokenSummary(reply));
       }
 
@@ -312,7 +313,7 @@ export default function ChatSheetModal({
     } finally {
       setThinking(false);
     }
-  }, [locale, user, speakText, speakChunks, voiceOnly, pull, pushAllFromStorage, pushChangedFromStorage, t, systemPrompt, agentOn, agentExtra, onAction, onSpeechDone, mode]);
+  }, [locale, user, speakText, speakChunks, voiceOnly, pull, pushAllFromStorage, pushChangedFromStorage, t, systemPrompt, agentOn, agentExtra, onAction, onSpeechDone, mode, silent]);
 
   const { isListening, start, stop } = useContinuousMic({
     locale,
