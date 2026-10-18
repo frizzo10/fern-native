@@ -1007,6 +1007,10 @@ export const translations = {
     substitution_title: "Substitutions",
     substitution_error: "Couldn't get substitutions right now. Please try again.",
     substitution_empty: "No substitutions found for this ingredient.",
+    substitution_tap_hint: "Tap one to swap it into this recipe.",
+    substitution_swapped_title: "Swapped",
+    substitution_swapped_desc: "Now using: {item}",
+    substitution_save_failed: "The swap shows here but could not be saved to the recipe.",
 
     // Recipes / Search Screens — delete & error alerts
     delete_recipe_failed_title: "Delete failed",
@@ -3201,6 +3205,10 @@ export const translations = {
     substitution_title: "Sustituciones",
     substitution_error: "No se pudieron obtener sustituciones en este momento. Inténtalo de nuevo.",
     substitution_empty: "No se encontraron sustituciones para este ingrediente.",
+    substitution_tap_hint: "Toca una para cambiarla en esta receta.",
+    substitution_swapped_title: "Cambiado",
+    substitution_swapped_desc: "Ahora se usa: {item}",
+    substitution_save_failed: "El cambio se ve aquí pero no se pudo guardar en la receta.",
 
     // Pantallas de Recetas / Búsqueda — alertas de eliminación y error
     delete_recipe_failed_title: "Error al eliminar",

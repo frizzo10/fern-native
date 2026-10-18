@@ -77,9 +77,48 @@ export default function RecipeDetailModal({
   const [isSaveToCookbookVisible, setIsSaveToCookbookVisible] = useState(false);
   const [isSavingToCookbook, setIsSavingToCookbook] = useState(false);
   const [substitutionIngredient, setSubstitutionIngredient] = useState(null);
+  const [substitutionIdx, setSubstitutionIdx] = useState(-1);
+  // Ingredient lines the user swapped from the substitutions sheet, by index. Shown right away;
+  // also saved into the recipe when this screen allows edits (onSaveEdits).
+  const [ingredientOverrides, setIngredientOverrides] = useState({});
+  useEffect(() => { setIngredientOverrides({}); }, [recipe?.id, recipe?.title]);
   const [isSharing, setIsSharing] = useState(false);
 
+  const handleSubstitute = async (sub) => {
+    const idx = substitutionIdx;
+    const name = String(sub?.name || '').trim();
+    if (idx < 0 || !name) return;
+    const amount = String(sub?.amount || '').trim();
+    // Use the amount only when it reads like a quantity ("1 cup", "1/2 tsp"); "same amount" etc. is dropped.
+    const line = /^[\d½¼¾⅓⅔]/.test(amount) ? `${amount} ${name}` : name;
+    const nextOverrides = { ...ingredientOverrides, [idx]: line };
+    setIngredientOverrides(nextOverrides);
+    setSubstitutionIngredient(null);
+    setSubstitutionIdx(-1);
+    if (onSaveEdits) {
+      try {
+        await onSaveEdits({
+          title: (recipe.title || '').trim(),
+          category: (recipe.category || '').trim(),
+          meal: (recipe.meal || '').trim(),
+          time: String(recipe.time || '').trim(),
+          difficulty: (recipe.difficulty || '').trim(),
+          description: (recipe.description || '').trim(),
+          servings: String(recipe.servings ?? '').trim(),
+          ingredients: (recipe.ingredients || []).map((ing, i) => (nextOverrides[i] ?? ing)),
+          methodSteps: recipe.methodSteps || [],
+        });
+      } catch (e) {
+        console.warn('Save substitution failed:', e);
+        setTimeout(() => Alert.alert(t('substitution_swapped_title'), t('substitution_save_failed')), 300);
+        return;
+      }
+    }
+    setTimeout(() => Alert.alert(t('substitution_swapped_title'), t('substitution_swapped_desc', { item: line })), 300);
+  };
+
   const handleClose = () => {
+    setSubstitutionIdx(-1);
     setIsScaleModalVisible(false);
     setIsWinePairingVisible(false);
     setIsPlatingCoachVisible(false);
@@ -479,8 +518,8 @@ export default function RecipeDetailModal({
                     <View style={styles.overlayIngredientsList}>
                       {recipe.ingredients.map((ingredient, idx) => (
                         <View key={`${recipe.id}-ing-${idx}`} style={styles.overlayIngredientItem}>
-                          <TouchableOpacity activeOpacity={0.6} onPress={() => setSubstitutionIngredient(ingredient)}>
-                            <Text style={[styles.overlayIngredientText, { fontSize: 12 * textScale, lineHeight: 16 * textScale }]}>- {ingredient}</Text>
+                          <TouchableOpacity activeOpacity={0.6} onPress={() => { setSubstitutionIdx(idx); setSubstitutionIngredient(ingredientOverrides[idx] ?? ingredient); }}>
+                            <Text style={[styles.overlayIngredientText, { fontSize: 12 * textScale, lineHeight: 16 * textScale }]}>- {ingredientOverrides[idx] ?? ingredient}</Text>
                           </TouchableOpacity>
                         </View>
                       ))}
@@ -651,7 +690,8 @@ export default function RecipeDetailModal({
           recipe={recipe}
           ingredient={substitutionIngredient}
           token={user?.token}
-          onClose={() => setSubstitutionIngredient(null)}
+          onClose={() => { setSubstitutionIngredient(null); setSubstitutionIdx(-1); }}
+          onSelect={handleSubstitute}
         />
 
         <RecipeWinePairingModal

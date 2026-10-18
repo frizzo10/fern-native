@@ -16,7 +16,7 @@ import { fetchIngredientSubstitutions } from '../../services/substitutionService
 
 // Rendered as an absolute overlay (not a nested RN <Modal>) like ScaleRecipeModal,
 // because nested native modals inside RecipeDetailModal get stuck on iOS.
-export default function IngredientSubstitutionModal({ visible, recipe, ingredient, token, onClose }) {
+export default function IngredientSubstitutionModal({ visible, recipe, ingredient, token, onClose, onSelect }) {
   const { t, locale } = useLanguage();
   const { hasAccess } = useEntitlement();
   const { width, height } = useWindowDimensions();
@@ -72,12 +72,19 @@ export default function IngredientSubstitutionModal({ visible, recipe, ingredien
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
             {loading ? <ActivityIndicator color="#184029" style={styles.spinner} /> : null}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {onSelect && results.length ? <Text style={styles.hintText}>{t('substitution_tap_hint')}</Text> : null}
             {results.map((row, idx) => (
-              <View key={`sub-${idx}`} style={styles.card}>
+              <TouchableOpacity
+                key={`sub-${idx}`}
+                style={styles.card}
+                activeOpacity={onSelect ? 0.7 : 1}
+                disabled={!onSelect}
+                onPress={() => onSelect && onSelect(row)}
+              >
                 <Text style={styles.cardName}>{row.name}</Text>
                 {row.amount ? <Text style={styles.cardAmount}>{row.amount}</Text> : null}
                 {row.note ? <Text style={styles.cardNote}>{row.note}</Text> : null}
-              </View>
+              </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
@@ -123,6 +130,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30, gap: 10 },
   spinner: { marginVertical: 24 },
   errorText: { color: '#8C3B2A', fontFamily: 'Jost-Regular', fontSize: 14, textAlign: 'center', marginVertical: 16 },
+  hintText: { color: '#8C7355', fontFamily: 'Jost-Regular', fontSize: 13, marginBottom: 2 },
   card: { borderRadius: 14, backgroundColor: '#EDEAE2', padding: 14 },
   cardName: { color: '#2A1A11', fontFamily: 'Jost-Medium', fontSize: 16 },
   cardAmount: { marginTop: 3, color: '#184029', fontFamily: 'Jost-Regular', fontSize: 13 },

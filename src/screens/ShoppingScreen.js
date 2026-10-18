@@ -1247,10 +1247,6 @@ export default function ShoppingScreen({ user }) {
               );
             })}
           </View>
-        ) : items.length > 0 && checkedCount > 0 ? (
-          <TouchableOpacity style={styles.doneBtn} onPress={() => setDoneShopping(true)} activeOpacity={0.88}>
-            <Text style={styles.doneBtnText}>{`🎟 ${t('sav_done_btn')}`}</Text>
-          </TouchableOpacity>
         ) : null}
 
         <View onLayout={(e) => { sectionY.current.savings = e.nativeEvent.layout.y; }} />
@@ -1326,6 +1322,14 @@ export default function ShoppingScreen({ user }) {
             </TouchableOpacity>
           </View>
         )}
+
+        {/* "I'm done shopping" sits under the list (moved from the top, 2026-10-18). Hidden once
+            the checkout card above is showing, same condition as before. */}
+        {!(showCheckout && !guideStep) && items.length > 0 && checkedCount > 0 ? (
+          <TouchableOpacity style={styles.doneBtn} onPress={() => setDoneShopping(true)} activeOpacity={0.88}>
+            <Text style={styles.doneBtnText}>{`🎟 ${t('sav_done_btn')}`}</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {items.length ? (
           <TouchableOpacity style={[styles.shopBtn, shadow.strong]} activeOpacity={0.9} onPress={startShopping}>
