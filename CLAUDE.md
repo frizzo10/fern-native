@@ -266,3 +266,5 @@ All UI copy goes through a single i18n module, not per-screen strings:
 **Tour spotlight on a round target (2026-10-18).** `TourModal` dims the corners of the scan circle's square with a clipped ring (hole = the circle), so no lighter box shows behind it. JS-only.
 
 **Tour scan step is about saving money (2026-10-18).** `tour_home_scan` (EN+ES) is now one short sentence: scan the flyer, Fern finds the sales, matches coupons and plans dinners around them so you spend less (patent pending). JS-only.
+
+**Tour theme: saving money, automation, AI (2026-10-18).** Every Home-tour line (`tour_home_*`, `tour_tab_*`, EN+ES) now carries the same thread: Fern saves you money (sales, coupons, dinners from the sale items), automates staying organized (leaf adds to list and week, arrival greeting, Fern fills empty nights) and uses AI to help. Keep that thread when editing tour copy. JS-only.
