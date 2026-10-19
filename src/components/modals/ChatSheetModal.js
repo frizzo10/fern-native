@@ -471,7 +471,7 @@ export default function ChatSheetModal({
       : kind === 'plan'
       ? planAct
       : { type: 'save_recipe', title: recipe.title, emoji: recipe.emoji, time: recipe.time, description: recipe.description, ingredients: recipe.ingredients, instructions: recipe.instructions };
-    const done = await executeAgentActions(kind === 'plan' ? [planAct, listAct] : [action], { pushChangedFromStorage, token: user?.token, canSaveUnlimited: !isFreeRef.current });
+    const done = await executeAgentActions([action], { pushChangedFromStorage, token: user?.token, canSaveUnlimited: !isFreeRef.current });
     if (done.lines.length) setMessages(prev => [...prev, { role: 'fern', text: done.lines.join('\n') }]);
     await pull();
     emitAgentChange();

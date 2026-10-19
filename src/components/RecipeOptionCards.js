@@ -17,6 +17,7 @@ function OptionCard({ option, onAction }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState('');
   const [done, setDone] = useState({});
+  const [ask, setAsk] = useState(false); // after planning: "add the ingredients too?"
 
   useEffect(() => {
     let live = true;
@@ -32,6 +33,7 @@ function OptionCard({ option, onAction }) {
     try {
       const ok = await onAction(kind, recipe);
       if (ok) setDone((d) => ({ ...d, [kind]: true }));
+      if (ok && kind === 'plan') setAsk(true);
     } finally {
       setBusy('');
     }
@@ -74,6 +76,19 @@ function OptionCard({ option, onAction }) {
           <Text style={styles.btnAltText}>{open ? t('option_hide') : t('option_preview')}</Text>
         </TouchableOpacity>
       </View>
+      {ask && !done.list ? (
+        <View style={styles.askBox}>
+          <Text style={styles.askText}>{t('option_ask_ingredients')}</Text>
+          <View style={styles.btnRow}>
+            <TouchableOpacity style={[styles.btn, styles.btnMain]} onPress={() => run('list')} disabled={!!busy}>
+              {busy === 'list' ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnMainText}>{t('option_yes_add')}</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => setAsk(false)} disabled={!!busy}>
+              <Text style={styles.btnAltText}>{t('option_no_thanks')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -100,6 +115,8 @@ const styles = StyleSheet.create({
   desc: { color: '#444', fontSize: 13, marginBottom: 6 },
   sub: { color: colors.forest, fontWeight: '800', fontSize: 12, marginTop: 6, marginBottom: 2 },
   line: { color: '#333', fontSize: 13, lineHeight: 19 },
+  askBox: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border },
+  askText: { color: colors.forest, fontWeight: '800', fontSize: 14 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   btn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, minHeight: 34, justifyContent: 'center', alignItems: 'center' },
   btnMain: { backgroundColor: '#D86D33' },
