@@ -530,8 +530,8 @@ export default function ChatSheetModal({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.parch },
   fullBackdrop: { flex: 1 },
-  compactBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.25)' },
-  compactSheet: { height: '48%', backgroundColor: colors.parch, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
+  compactBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.12)' },
+  compactSheet: { height: '32%', backgroundColor: colors.parch, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
   headerCompact: { paddingTop: 16 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
