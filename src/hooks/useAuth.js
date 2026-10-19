@@ -334,7 +334,9 @@ export function useAuth() {
     });
     const start = await startRes.json();
     if (!start?.url) throw new Error(start?.error || 'Could not start Google sign-in.');
-    const result = await WebBrowser.openAuthSessionAsync(start.url, OAUTH_REDIRECT);
+    // Open our own address first (it forwards to Supabase) so iOS's prompt names app.clickpickandcook.com, not the Supabase project address.
+    const startAddress = `${AUTH_URL.replace(/auth$/, 'google-start')}?to=${encodeURIComponent(start.url)}`;
+    const result = await WebBrowser.openAuthSessionAsync(startAddress, OAUTH_REDIRECT);
     if (result.type !== 'success' || !result.url) return null;
     const frag = result.url.includes('#') ? result.url.split('#')[1] : (result.url.split('?')[1] || '');
     const params = {};
