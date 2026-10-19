@@ -109,6 +109,10 @@ export default function NewHome({
     return () => { cancelled = true; };
   }, [tonightTitle, user?.token]);
 
+  // One affirmation per local calendar day (same all day, changes at midnight).
+  const nowD = new Date();
+  const affirmNo = ((nowD.getFullYear() * 372 + nowD.getMonth() * 31 + nowD.getDate()) % 14) + 1;
+
   const visibleStores = stores || []; // every saved store (the page scrolls); it used to stop at 5
 
   return (
@@ -165,7 +169,7 @@ export default function NewHome({
       {/* Greeting */}
       <View style={{ paddingHorizontal: 4, marginBottom: 14 }}>
         <Text style={styles.greetTitle}>{greeting}</Text>
-        <Text style={styles.greetSub}>{t('home_greeting_sub')}</Text>
+        <Text style={styles.greetSub}>{t('home_affirm_' + affirmNo)}</Text>
       </View>
 
       {/* Fern card */}
