@@ -2694,7 +2694,7 @@ export default function HomeScreen({ user, route }) {
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
                 greeting={`${getGreeting(t)}, ${userName}`}
                 shopCount={(data.shopping || []).filter((it) => !it.checked).length}
-                onOpenList={() => navigation.navigate('Shopping')}
+                onOpenList={() => navigation.navigate('Shopping', { listOnly: Date.now() })}
                 onOpenRecipes={() => navigation.navigate('Recipes')}
                 onScan={handleHomeScanFlyer}
                 onStorePress={chooseFlyerStore}
