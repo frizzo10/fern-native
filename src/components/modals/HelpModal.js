@@ -2,6 +2,19 @@ import React from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, radius, shadow } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
+import { useTour } from '../../services/TourContext';
+
+// Each topic jumps into the Home tour at that step (index = step position in tourContent.js TOURS.home).
+const TOUR_TOPICS = [
+    { step: 0, emoji: '📰', titleKey: 'faq_t_scan', bodyKey: 'tour_home_scan' },
+    { step: 1, emoji: '🏪', titleKey: 'faq_t_stores', bodyKey: 'tour_home_stores' },
+    { step: 2, emoji: '📅', titleKey: 'faq_t_week', bodyKey: 'tour_home_step1' },
+    { step: 3, emoji: '🧰', titleKey: 'faq_t_tools', bodyKey: 'tour_home_tools' },
+    { step: 4, emoji: '🌿', titleKey: 'faq_t_leaf', bodyKey: 'tour_home_step2' },
+    { step: 5, emoji: '🧭', titleKey: 'faq_t_tabs', bodyKey: 'tour_home_step3' },
+    { step: 6, emoji: '💌', titleKey: 'faq_t_share', bodyKey: 'tour_home_share' },
+    { step: 7, emoji: '👤', titleKey: 'faq_t_profile', bodyKey: 'tour_home_step4' },
+];
 
 const HELP_ITEMS = [
     { key: 'plan_week', emoji: '📅', titleKey: 'help_plan_week_title', bodyKey: 'help_plan_week_body' },
@@ -14,6 +27,13 @@ const HELP_ITEMS = [
 
 export default function HelpModal({ visible, onClose }) {
     const { t } = useLanguage();
+    const { startTour } = useTour();
+
+    // Close the sheet first; iOS drops a Modal opened while another is still dismissing.
+    const runTour = (step) => {
+        onClose();
+        setTimeout(() => startTour('home', step), 450);
+    };
 
     return (
         <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
@@ -27,6 +47,24 @@ export default function HelpModal({ visible, onClose }) {
                             <Text style={styles.title}>{t('help_title')}</Text>
                         </View>
 
+                        <TouchableOpacity style={styles.tourAllBtn} activeOpacity={0.88} onPress={() => runTour(0)}>
+                            <Text style={styles.tourAllText}>▶  {t('faq_watch_tour')}</Text>
+                        </TouchableOpacity>
+
+                        <Text style={styles.sectionLabel}>{t('faq_jump')}</Text>
+                        <View style={[styles.list, styles.topicList]}>
+                            {TOUR_TOPICS.map((item) => (
+                                <View key={item.titleKey} style={styles.helpBlock}>
+                                    <Text style={styles.helpHeading}>{item.emoji} {t(item.titleKey)}</Text>
+                                    <Text style={styles.helpBody}>{t(item.bodyKey)}</Text>
+                                    <TouchableOpacity style={styles.showMeBtn} activeOpacity={0.85} onPress={() => runTour(item.step)}>
+                                        <Text style={styles.showMeText}>{t('faq_show_me')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                        </View>
+
+                        <Text style={styles.sectionLabel}>{t('faq_more')}</Text>
                         <View style={styles.list}>
                             {HELP_ITEMS.map((item) => (
                                 <View key={item.key} style={styles.helpBlock}>
@@ -111,6 +149,34 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 18,
     },
+    tourAllBtn: {
+        backgroundColor: colors.forest,
+        borderRadius: 16,
+        alignItems: 'center',
+        paddingVertical: 14,
+        marginBottom: 6,
+    },
+    tourAllText: { color: '#F5F0E7', fontFamily: 'Jost-Bold', fontSize: 16 },
+    sectionLabel: {
+        color: '#6b4228',
+        fontFamily: 'Jost-SemiBold',
+        fontSize: 12,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+        marginTop: 18,
+        marginBottom: 10,
+    },
+    topicList: { gap: 16 },
+    showMeBtn: {
+        alignSelf: 'flex-start',
+        marginTop: 4,
+        borderWidth: 1,
+        borderColor: colors.forest,
+        borderRadius: 999,
+        paddingVertical: 5,
+        paddingHorizontal: 12,
+    },
+    showMeText: { color: colors.forest, fontFamily: 'Jost-SemiBold', fontSize: 12 },
     gotItBtn: {
         marginTop: 30,
         backgroundColor: colors.forest,

@@ -7,6 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { formatDayLabel } from '../../utils/familyDates';
 import { tourTargetRef } from '../../services/tourTargets';
+import { openHelp } from '../../services/helpBus';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/tokens';
 import { fetchRecipeImage } from '../../utils/recipeImage';
@@ -116,7 +117,12 @@ export default function NewHome({
           <TouchableOpacity style={styles.tierPill} activeOpacity={0.85} onPress={onOpenPlans}>
             <Text style={styles.tierPillText}>{tierBadgeLabel}</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.roundBtn} activeOpacity={0.85} onPress={openHelp} accessibilityRole="button" accessibilityLabel={t('faq_a11y')}>
+            <Ionicons name="help-circle-outline" size={22} color={FOREST} />
+          </TouchableOpacity>
           <TouchableOpacity
+            ref={tourTargetRef('tools')}
+            collapsable={false}
             style={[styles.roundBtn, toolsOpen ? styles.roundBtnOn : null]}
             activeOpacity={0.85}
             onPress={() => setToolsOpen((v) => !v)}
@@ -168,7 +174,7 @@ export default function NewHome({
           </TouchableOpacity>
         ) : null}
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
-        <View style={styles.storeList}>
+        <View ref={tourTargetRef('stores')} collapsable={false} style={styles.storeList}>
           {visibleStores.map((s, i) => (
             <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={() => (onStorePress ? onStorePress(s) : onScan())}>
               <Ionicons name="location-outline" size={15} color={SAGE} />

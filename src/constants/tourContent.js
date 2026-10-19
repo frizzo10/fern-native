@@ -15,10 +15,14 @@ export const TOURS = {
     titleKey: 'tour_home_title',
     steps: [
       // `target` = name registered with tourTargetRef/setTourStaticRect (src/services/tourTargets.js); TourModal dims the rest and rings it.
-      { textKey: 'tour_home_step1', target: 'week' },
+      // Order follows the Home screen top to bottom; HOME_TOUR_STEP_TARGETS in HomeScreen has one scroll position per step (keep the lengths equal).
       { textKey: 'tour_home_scan', target: 'scan' }, // the flyer scanner: paper ad -> digital circular (patent pending)
+      { textKey: 'tour_home_stores', target: 'stores' }, // tap a store -> its circular; location; add/remove; arrival alerts
+      { textKey: 'tour_home_step1', target: 'week' }, // the week strip + add a meal / activity
+      { textKey: 'tour_home_tools', target: 'tools' }, // the grid button: every tool incl. Store Circulars
       { textKey: 'tour_home_step2', pointer: 'leaf' }, // TourModal shows the real leaf button's spot
       { textKey: 'tour_home_step3', target: 'tabs' },
+      { textKey: 'tour_home_share' }, // sharing recipes / cookbooks, adding a shared cookbook
       { textKey: 'tour_home_step4', target: 'profile' },
     ],
   },

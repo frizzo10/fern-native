@@ -19,9 +19,9 @@ export function TourProvider({ children }) {
   // only then does finishing the tour take them into the feature.
   const [startedManually, setStartedManually] = useState(false);
 
-  const startTour = useCallback((key) => {
+  const startTour = useCallback((key, startStep = 0) => {
     if (TOURS[key]) {
-      setStepIndex(0);
+      setStepIndex(startStep > 0 && startStep < TOURS[key].steps.length ? startStep : 0);
       setStartedManually(true);
       setActiveTourKey(key);
     }

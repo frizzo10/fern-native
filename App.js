@@ -39,6 +39,7 @@ import { LanguageProvider } from './src/services/LanguageContext';
 import { useLanguage } from './src/hooks/useLanguage';
 import ChatSheetModal from './src/components/modals/ChatSheetModal';
 import { subscribeOpenChat } from './src/services/chatBus';
+import { subscribeOpenHelp } from './src/services/helpBus';
 import { requestOpenTool } from './src/services/toolBus';
 import AccountScreen from './src/screens/AccountScreen';
 import PlansScreen from './src/screens/PlansScreen';
@@ -258,6 +259,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   // Lets screens (the new Home's "Ask Fern" bar) open this global chat sheet.
   useEffect(() => subscribeOpenChat(() => setIsChatOpen(true)), []);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  useEffect(() => subscribeOpenHelp(() => setIsHelpOpen(true)), []);
   const [showArrivalUpsell, setShowArrivalUpsell] = useState(false);
   const navigationRef = React.useRef(null);
 
