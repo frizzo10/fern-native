@@ -22,6 +22,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
   const [rect, setRect] = useState(null);
   // For a step with `parts` (the bottom tabs): which part Fern is on right now, so its text shows and that tab is lit.
   const [partIndex, setPartIndex] = useState(null);
+  const [cardH, setCardH] = useState(0); // height of the card block, so the More preview can sit right above it
   const runRef = useRef(0);
   const cacheRef = useRef({});
   const pulse = useRef(new Animated.Value(0)).current;
@@ -170,7 +171,25 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
           </View>
         ) : null}
 
-        <View style={[styles.cardOuter, (pointLeaf || targetName === 'tabs') && styles.cardOuterLifted]}>
+        {activePart && activePart.tab === 4 ? (
+          // While Fern talks about More, show what is inside it (same buttons as the real More sheet in App.js; keep them in step).
+          <View pointerEvents="none" style={[styles.morePreview, { bottom: cardH + 8 }]}>
+            <Text style={styles.morePreviewTitle}>{t('more_title')}</Text>
+            <View style={styles.morePreviewGrid}>
+              {[
+                ['👤', 'more_profile'], ['📚', 'more_cookbooks'], ['🎟️', 'more_coupon_wallet'],
+                ['📥', 'importNavText'], ['❓', 'more_help'], ['🚪', 'more_logout'],
+              ].map(([emoji, key]) => (
+                <View key={key} style={styles.morePreviewItem}>
+                  <Text style={styles.morePreviewEmoji}>{emoji}</Text>
+                  <Text style={styles.morePreviewText} numberOfLines={1} adjustsFontSizeToFit>{t(key)}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
+        <View onLayout={(e) => setCardH(e.nativeEvent.layout.height)} style={[styles.cardOuter, (pointLeaf || targetName === 'tabs') && styles.cardOuterLifted]}>
           <View style={styles.fernAvatar}>
             <Text style={styles.fernAvatarEmoji}>🌳</Text>
           </View>
@@ -229,6 +248,12 @@ const styles = StyleSheet.create({
   skipText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
   cardOuter: { paddingHorizontal: 16, paddingBottom: 24, position: 'relative' },
+  morePreview: { position: 'absolute', left: 16, right: 16, backgroundColor: '#fff', borderRadius: 20, padding: 14, ...shadow.strong },
+  morePreviewTitle: { color: colors.forest, fontWeight: '800', fontSize: 15, marginBottom: 10 },
+  morePreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  morePreviewItem: { width: '31%', backgroundColor: colors.forest, borderRadius: 14, paddingVertical: 10, alignItems: 'center' },
+  morePreviewEmoji: { fontSize: 22 },
+  morePreviewText: { color: '#F5F0E7', fontWeight: '700', fontSize: 11, marginTop: 4, paddingHorizontal: 4 },
   cardOuterLifted: { paddingBottom: 176 },
   // Same spot and size as App.js `chatFab` (right 18, bottom 86, 56x56); the arrow sits just above it.
   leafSpot: { position: 'absolute', right: 18, bottom: 86, width: 56, alignItems: 'center', zIndex: 5 },
