@@ -2954,6 +2954,7 @@ export default function HomeScreen({ user, route }) {
               </>
             ) : null}
 
+            {!USE_NEW_HOME ? (
             <View style={[styles.panelCard, shadow.card]}>
               <View style={styles.panelHeaderRow}>
                 <Text style={styles.panelTitle}>{t('shopping_list_title')}</Text>
@@ -2969,6 +2970,7 @@ export default function HomeScreen({ user, route }) {
                   : t('shopping_empty')}
               </Text>
             </View>
+            ) : null}
 
             {!USE_NEW_HOME ? (
               <>

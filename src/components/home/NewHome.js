@@ -170,11 +170,6 @@ export default function NewHome({
 
       {/* Fern card */}
       <View style={styles.hero}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={styles.fernDot}><Ionicons name="leaf" size={20} color={FOREST} /></View>
-          <Text style={styles.fernName}>Fern</Text>
-        </View>
-
         <TouchableOpacity style={styles.autoRow} activeOpacity={0.85} onPress={openPicker} accessibilityRole="button" accessibilityState={{ checked: autoOn }}>
           <Text style={styles.autoTitle}>{t('home_automate_short')}</Text>
           <View style={[styles.switchTrack, autoOn ? styles.switchTrackOn : null]}>
