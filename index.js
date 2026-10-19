@@ -26,22 +26,30 @@ try {
 } catch (e) { /* never block startup */ }
 
 // People with iPhone "Larger Text" / accessibility sizes on saw the layout break (text overflowing circles, headers
-// overlapping). Let text grow a little for readability, but never past 1.3x. React 19 ignores defaultProps on
-// function components, so wrap the components' render function as well (guarded: never block startup).
+// overlapping). Let text grow a little for readability, but never past 1.3x. In React Native 0.85 Text is a plain
+// function component (no .render, defaultProps ignored), so add the limit when every <Text>/<TextInput> element
+// is created, by wrapping React's element factories (guarded: never block startup).
 try {
   const RN = require('react-native');
   const MAX_FONT_SCALE = 1.3;
-  [RN.Text, RN.TextInput].forEach((Comp) => {
-    if (!Comp) return;
-    try { Comp.defaultProps = { ...(Comp.defaultProps || {}), maxFontSizeMultiplier: MAX_FONT_SCALE }; } catch (e) { /* ignore */ }
-    if (typeof Comp.render === 'function') {
-      const origRender = Comp.render;
-      Comp.render = function patchedRender(props, ref) {
-        const next = props && props.maxFontSizeMultiplier == null ? { ...props, maxFontSizeMultiplier: MAX_FONT_SCALE } : props;
-        return origRender.call(this, next, ref);
-      };
-    }
-  });
+  const targets = new Set([RN.Text, RN.TextInput].filter(Boolean));
+  const wrap = (mod, names) => {
+    names.forEach((name) => {
+      const orig = mod && mod[name];
+      if (typeof orig !== 'function') return;
+      try {
+        mod[name] = function patched(type, props, ...rest) {
+          if (targets.has(type) && props && props.maxFontSizeMultiplier == null) {
+            props = { ...props, maxFontSizeMultiplier: MAX_FONT_SCALE };
+          }
+          return orig.call(this, type, props, ...rest);
+        };
+      } catch (e) { /* read-only export: skip */ }
+    });
+  };
+  wrap(require('react'), ['createElement']);
+  wrap(require('react/jsx-runtime'), ['jsx', 'jsxs']);
+  try { wrap(require('react/jsx-dev-runtime'), ['jsxDEV']); } catch (e) { /* not bundled in release */ }
 } catch (e) { /* never block startup */ }
 
 registerRootComponent(App);
