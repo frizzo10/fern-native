@@ -3,31 +3,17 @@ import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { colors, radius, shadow } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
+import { openChat } from '../../services/chatBus';
 
-// Each topic jumps into the Home tour at that step (index = step position in tourContent.js TOURS.home).
-const TOUR_TOPICS = [
-    { step: 0, emoji: '📰', titleKey: 'faq_t_scan', bodyKey: 'tour_home_scan' },
-    { step: 1, emoji: '🏪', titleKey: 'faq_t_stores', bodyKey: 'tour_home_stores' },
-    { step: 2, emoji: '📅', titleKey: 'faq_t_week', bodyKey: 'tour_home_step1' },
-    { step: 3, emoji: '🧰', titleKey: 'faq_t_tools', bodyKey: 'tour_home_tools' },
-    { step: 4, emoji: '🌿', titleKey: 'faq_t_leaf', bodyKey: 'tour_home_step2' },
-    { step: 5, emoji: '🧭', titleKey: 'faq_t_tabs', bodyKey: 'tour_home_step3' },
-    { step: 6, emoji: '💌', titleKey: 'faq_t_share', bodyKey: 'tour_home_share' },
-    { step: 7, emoji: '👤', titleKey: 'faq_t_profile', bodyKey: 'tour_home_step4' },
-];
-
-const HELP_ITEMS = [
-    { key: 'plan_week', emoji: '📅', titleKey: 'help_plan_week_title', bodyKey: 'help_plan_week_body' },
-    { key: 'shopping_list', emoji: '🛒', titleKey: 'help_shopping_list_title', bodyKey: 'help_shopping_list_body' },
-    { key: 'find_recipes', emoji: '🔎', titleKey: 'help_find_recipes_title', bodyKey: 'help_find_recipes_body' },
-    { key: 'cook_mode', emoji: '🍳', titleKey: 'help_cook_mode_title', bodyKey: 'help_cook_mode_body' },
-    { key: 'alexa', emoji: '🎙️', titleKey: 'help_alexa_title', bodyKey: 'help_alexa_body' },
-    { key: 'cookbooks', emoji: '📖', titleKey: 'help_cookbooks_title', bodyKey: 'help_cookbooks_body' },
-];
 
 export default function HelpModal({ visible, onClose }) {
     const { t } = useLanguage();
     const { startTour } = useTour();
+
+    const askFern = () => {
+        onClose();
+        setTimeout(() => openChat(), 450);
+    };
 
     // Close the sheet first; iOS drops a Modal opened while another is still dismissing.
     const runTour = (step) => {
@@ -48,31 +34,14 @@ export default function HelpModal({ visible, onClose }) {
                         </View>
 
                         <TouchableOpacity style={styles.tourAllBtn} activeOpacity={0.88} onPress={() => runTour(0)}>
-                            <Text style={styles.tourAllText}>▶  {t('faq_watch_tour')}</Text>
+                            <Text style={styles.tourAllText}>▶  {t('faq_replay_tour')}</Text>
                         </TouchableOpacity>
+                        <Text style={styles.helpBody}>{t('faq_replay_desc')}</Text>
 
-                        <Text style={styles.sectionLabel}>{t('faq_jump')}</Text>
-                        <View style={[styles.list, styles.topicList]}>
-                            {TOUR_TOPICS.map((item) => (
-                                <View key={item.titleKey} style={styles.helpBlock}>
-                                    <Text style={styles.helpHeading}>{item.emoji} {t(item.titleKey)}</Text>
-                                    <Text style={styles.helpBody}>{t(item.bodyKey)}</Text>
-                                    <TouchableOpacity style={styles.showMeBtn} activeOpacity={0.85} onPress={() => runTour(item.step)}>
-                                        <Text style={styles.showMeText}>{t('faq_show_me')}</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </View>
-
-                        <Text style={styles.sectionLabel}>{t('faq_more')}</Text>
-                        <View style={styles.list}>
-                            {HELP_ITEMS.map((item) => (
-                                <View key={item.key} style={styles.helpBlock}>
-                                    <Text style={styles.helpHeading}>{item.emoji} {t(item.titleKey)}</Text>
-                                    <Text style={styles.helpBody}>{t(item.bodyKey)}</Text>
-                                </View>
-                            ))}
-                        </View>
+                        <TouchableOpacity style={[styles.tourAllBtn, styles.askBtn]} activeOpacity={0.88} onPress={askFern}>
+                            <Text style={styles.tourAllText}>🌿  {t('faq_ask_fern')}</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.helpBody}>{t('faq_ask_desc')}</Text>
 
                         <TouchableOpacity style={styles.gotItBtn} activeOpacity={0.88} onPress={onClose}>
                             <Text style={styles.gotItText}>{t('help_got_it_btn')}</Text>
@@ -149,12 +118,13 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 18,
     },
+    askBtn: { marginTop: 22 },
     tourAllBtn: {
         backgroundColor: colors.forest,
         borderRadius: 16,
         alignItems: 'center',
         paddingVertical: 14,
-        marginBottom: 6,
+        marginBottom: 8,
     },
     tourAllText: { color: '#F5F0E7', fontFamily: 'Jost-Bold', fontSize: 16 },
     sectionLabel: {
