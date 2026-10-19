@@ -823,6 +823,7 @@ export default function RecipesScreen({ user }) {
       coverUrl: selectedBook.cover,
       senderName,
       message,
+      token: user?.token,
     });
   };
 

@@ -1,4 +1,5 @@
 import { logApiResponse } from '../utils/apiLogger';
+import { fetchRecipeImage } from '../utils/recipeImage';
 
 const FUNCTIONS_BASE = 'https://app.clickpickandcook.com/.netlify/functions';
 const SITE_URL = 'https://app.clickpickandcook.com';
@@ -72,9 +73,15 @@ async function postJson(fn, body) {
 
 // POST /share → { url }. The backend saves the recipe to Supabase
 // (shared_recipes) and returns a share.html?id=… link.
-export function createRecipeShareLink({ recipe, senderName, message }) {
+export async function createRecipeShareLink({ recipe, senderName, message, token }) {
+    // A link preview with no picture is a blank gray card, so a recipe without a hosted photo gets one first.
+    let withPhoto = recipe;
+    if (!isWebUrl(recipe?.image)) {
+        const url = await fetchRecipeImage(recipe?.title, token);
+        if (isWebUrl(url)) withPhoto = { ...recipe, image: url };
+    }
     return postJson('share', {
-        recipe: toSharedRecipe(recipe),
+        recipe: toSharedRecipe(withPhoto),
         message: String(message || '').trim(),
         senderName: String(senderName || '').trim(),
         siteUrl: SITE_URL,
@@ -83,12 +90,22 @@ export function createRecipeShareLink({ recipe, senderName, message }) {
 
 // POST /share-cookbook → { url }. The web app sends a resized base64 cover; a
 // hosted cover URL (what native keeps in rv4_cb_covers) is passed as-is.
-export function createCookbookShareLink({ title, colorId, recipes, coverUrl, senderName, message, chapterById }) {
+export async function createCookbookShareLink({ title, colorId, recipes, coverUrl, senderName, message, chapterById, token }) {
+    // No hosted cover? Use the first recipe photo, else look one up, so the link preview is never a blank gray card.
+    let cover = isWebUrl(coverUrl) ? coverUrl : '';
+    if (!cover) {
+        const withPhoto = (recipes || []).find((r) => isWebUrl(r?.image));
+        if (withPhoto) cover = withPhoto.image;
+        else {
+            const found = await fetchRecipeImage(recipes?.[0]?.title || title, token);
+            if (isWebUrl(found)) cover = found;
+        }
+    }
     return postJson('share-cookbook', {
         cookbook: {
             name: String(title || '').trim(),
             colorId: colorId || undefined,
-            coverUrl: isWebUrl(coverUrl) ? coverUrl : '',
+            coverUrl: cover,
             recipes: (recipes || []).map((r) => toSharedRecipe(r, chapterById ? chapterById[String(r.id)] : '')),
         },
         message: String(message || '').trim(),
@@ -103,7 +120,7 @@ export function createCookbookShareLink({ title, colorId, recipes, coverUrl, sen
 // → { id, name, recipes: [native raw recipe objects without ids/_bookIds] }
 export function parseCookbookShareId(input) {
     const text = String(input || '');
-    const fromLink = text.match(/[?&#/]id=([a-z0-9]{1,16})/i);
+    const fromLink = text.match(/[?&#/]id=([a-z0-9]{1,16})/i) || text.match(/\/s\/[rc]\/([a-z0-9]{1,16})/i);
     if (fromLink) return fromLink[1];
     const bare = text.trim().match(/^[a-z0-9]{6,16}$/i);
     return bare ? bare[0] : '';
@@ -153,8 +170,8 @@ export function parseShareLink(input) {
     const text = String(input || '');
     const id = parseCookbookShareId(text);
     if (!id) return { kind: '', id: '' };
-    if (/cookbook-share/i.test(text)) return { kind: 'cookbook', id };
-    if (/share\.html/i.test(text)) return { kind: 'recipe', id };
+    if (/cookbook-share|\/s\/c\//i.test(text)) return { kind: 'cookbook', id };
+    if (/share\.html|\/s\/r\//i.test(text)) return { kind: 'recipe', id };
     return { kind: 'unknown', id }; // bare id: try cookbook first, then recipe
 }
 

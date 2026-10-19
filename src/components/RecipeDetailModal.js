@@ -139,7 +139,7 @@ export default function RecipeDetailModal({
     if (isSharing || !recipe) return;
     setIsSharing(true);
     try {
-      const url = await createRecipeShareLink({ recipe, senderName: user?.name || '', message: '' });
+      const url = await createRecipeShareLink({ recipe, senderName: user?.name || '', message: '', token: user?.token });
       // iOS: share the bare link (same as cookbooks) so it stays a tappable
       // link when pasted; "Title: url" got pasted into Google as a search.
       if (Platform.OS === 'ios') await Share.share({ url });
