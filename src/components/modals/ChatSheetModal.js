@@ -499,6 +499,7 @@ export default function ChatSheetModal({
         </ScrollView>
 
         <View style={styles.inputRow}>
+          {!silent && (
           <TouchableOpacity
             style={[styles.micBtn, isListening && styles.micBtnActive, micDisabled && styles.micBtnDisabled]}
             onPress={handleMicPress}
@@ -506,6 +507,7 @@ export default function ChatSheetModal({
           >
             <Text style={styles.micBtnText}>{isListening ? '⏹' : '🎙'}</Text>
           </TouchableOpacity>
+          )}
           <TextInput
             style={styles.textInput}
             value={inputText}
