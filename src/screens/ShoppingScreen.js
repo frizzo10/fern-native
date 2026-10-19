@@ -19,6 +19,7 @@ import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
+import { trackEvent, couponMeta } from '../services/track';
 import { sendListToInstacart, sendListToKroger, sendListToAlbertsons } from '../services/storeShoppingListService';
 import Confetti from '../components/Confetti';
 import SaleItemsList from '../components/SaleItemsList';
@@ -638,6 +639,7 @@ export default function ShoppingScreen({ user }) {
 
   const addToWallet = async (coupon) => {
     if (walletIds.has(String(coupon.id))) return;
+    trackEvent('coupon_add', coupon.id, couponMeta(coupon));
     setAddedIds((prev) => [...prev, String(coupon.id)]);
     try {
       const wallet = JSON.parse((await AsyncStorage.getItem('rv4_wallet_coupons')) || '[]');
@@ -673,6 +675,7 @@ export default function ShoppingScreen({ user }) {
     if (usedIds.has(id)) {
       setLedger(await updateLedger({ remove: [id] }));
     } else {
+      trackEvent('coupon_used', m.coupon.id, couponMeta(m.coupon));
       setLedger(await updateLedger({ upsert: [{ id, type: 'coupon', label: m.coupon.title || m.itemText, amount: m.value.amount, est: false, store: m.coupon.store }] }));
     }
   };

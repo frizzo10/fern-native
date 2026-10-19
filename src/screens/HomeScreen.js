@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { subscribeAgentChange } from '../services/fernAgent';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { setTourStaticRect } from '../services/tourTargets';
+import { trackEvent, couponMeta } from '../services/track';
 import { loadWeekDeals, couponItemName } from '../utils/savings';
 import { claimArrival, storeKey, notifyArrival } from '../services/storeGeofencing';
 import { dealsForStore, storeAtPosition } from '../utils/flyerStore';
@@ -2149,6 +2150,7 @@ export default function HomeScreen({ user, route }) {
 
   const addCouponToWallet = (coupon) => {
     if (!coupon || walletCouponsLocal.some((item) => item.id === coupon.id)) return;
+    trackEvent('coupon_add', coupon.id, couponMeta(coupon));
 
     const nextWallet = [...walletCouponsLocal, coupon];
     setWalletCouponsLocal(nextWallet);

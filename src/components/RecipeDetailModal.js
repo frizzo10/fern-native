@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRecipePhoto } from './RecipePhoto';
+import { trackEvent } from '../services/track';
 import {
   ActivityIndicator,
   Alert,
@@ -82,6 +83,7 @@ export default function RecipeDetailModal({
   // also saved into the recipe when this screen allows edits (onSaveEdits).
   const [ingredientOverrides, setIngredientOverrides] = useState({});
   useEffect(() => { setIngredientOverrides({}); }, [recipe?.id, recipe?.title]);
+  useEffect(() => { if (recipe?.title) trackEvent('recipe_view', recipe.title); }, [recipe?.id, recipe?.title]);
   const [isSharing, setIsSharing] = useState(false);
 
   const handleSubstitute = async (sub) => {

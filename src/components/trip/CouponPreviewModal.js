@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Image, Linking, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import DigitalCouponHowTo from './DigitalCouponHowTo';
+import { trackEvent, couponMeta } from '../../services/track';
 
 // Full details of one coupon, shown before the shopper accepts it (adds it to the wallet / list).
 //   preview   { coupon, itemText?, level? } — a match from ShoppingScreen's coupon cards
@@ -8,6 +9,7 @@ import DigitalCouponHowTo from './DigitalCouponHowTo';
 //   confirmLabel / doneLabel  the accept button text
 export default function CouponPreviewModal({ preview, onClose, onConfirm, confirmLabel, doneLabel, done, t, locale }) {
   const c = preview?.coupon;
+  useEffect(() => { if (c?.id) trackEvent('coupon_view', c.id, couponMeta(c)); }, [c?.id]);
   if (!c) return null;
   const expiry = c.expiresAt ? new Date(c.expiresAt) : null;
   const expiryText = expiry && !Number.isNaN(expiry.getTime())

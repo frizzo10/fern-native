@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { buildRollingWeekDateKeys, parseDateKey, formatDayLabel } from '../utils/familyDates';
 import { loadWeekDeals, couponItemName } from '../utils/savings';
 import { fetchAllCoupons } from './couponsService';
+import { trackEvent, couponMeta } from './track';
 import { normalizeCoupons } from '../utils/couponNormalize';
 import { recipeLimitReached } from '../utils/freeLimits';
 import { fetchRecipeImage } from '../utils/recipeImage';
@@ -300,6 +301,7 @@ async function addCoupon(a, env) {
   if (!coupon) return { ok: false, text: 'I could not find that coupon in the catalog.' };
   if (wallet.some((c) => c.id === coupon.id)) return { ok: true, text: `"${coupon.title}" is already in your wallet.` };
   const nextWallet = [...wallet, coupon];
+  trackEvent('coupon_add', coupon.id, couponMeta(coupon));
   await AsyncStorage.setItem('rv4_wallet_coupons', JSON.stringify(nextWallet));
   const name = couponItemName(coupon);
   const list = await readJson('rv4_master_shop', []);
