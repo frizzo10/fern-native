@@ -29,7 +29,16 @@ export default function FamilyScreen({ user }) {
     const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
   const agentPullRef = React.useRef(pull);
   agentPullRef.current = pull;
-  React.useEffect(() => subscribeAgentChange(() => { agentPullRef.current?.(); }), []);
+  React.useEffect(() => subscribeAgentChange(async () => {
+    // Show what Fern just changed straight away from the phone's own copy (she saves it there first), then sync.
+    try {
+      const mp = JSON.parse((await AsyncStorage.getItem('rv4_meal_plan')) || '{}');
+      const ac = JSON.parse((await AsyncStorage.getItem('rv4_activities')) || '[]');
+      setMealPlanLocal(mp && typeof mp === 'object' ? mp : {});
+      setActivitiesLocal(Array.isArray(ac) ? ac : []);
+    } catch (e) { /* the pull below still runs */ }
+    agentPullRef.current?.();
+  }), []);
     const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
     const { hasAccess } = useEntitlement();
     const mealPlanRecipes = useAiRecipeCollection({ source: 'family_meal_plan', data, pushAllFromStorage, pull, t, token: user?.token });
