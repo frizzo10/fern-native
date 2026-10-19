@@ -9,13 +9,24 @@ async function geocodeOnce(q, zipCode, token) {
   const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
   const url = `https://app.clickpickandcook.com/.netlify/functions/geocode?q=${query}&zip=${zip}${tokenParam}`;
 
-  const res = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'User-Agent': 'FernApp/1.0 (myaifern.com)',
-      Accept: 'application/json',
-    },
-  });
+  // 12 s limit so a slow lookup ends in "not found" instead of hanging.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12000);
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'FernApp/1.0 (myaifern.com)',
+        Accept: 'application/json',
+      },
+      signal: controller.signal,
+    });
+  } catch (e) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     return null;

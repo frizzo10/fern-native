@@ -857,6 +857,7 @@ export default function HomeScreen({ user, route }) {
   };
 
   const handleFindStore = async () => {
+    Keyboard.dismiss();
     const trimmedName = storeNameInput.trim();
     const trimmedZip = zipCodeInput.trim();
 
