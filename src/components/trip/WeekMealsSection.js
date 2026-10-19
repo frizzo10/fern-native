@@ -100,20 +100,20 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     try {
       prefs.current = await readJson('fern_shopper_prefs', {});
       const mealPlan = await readJson('rv4_meal_plan', {});
-      // The next empty weekday dinner nights (Mon-Fri), at most three.
-      const open = buildRollingWeekDateKeys()
-        .filter((k) => isWeekday(k) && !(Array.isArray(mealPlan[k]) ? mealPlan[k] : []).some((e) => normalizeSlot(e) === 'dinner'))
-        .slice(0, DINNER_COUNT);
+      // Empty dinner nights in the rolling week: weekdays (Mon-Fri) first, then the weekend, at most three.
+      // The three cards always show; only as many are ticked as there are open nights.
+      const free = buildRollingWeekDateKeys().filter((k) => !(Array.isArray(mealPlan[k]) ? mealPlan[k] : []).some((e) => normalizeSlot(e) === 'dinner'));
+      const open = [...free.filter(isWeekday), ...free.filter((k) => !isWeekday(k))].slice(0, DINNER_COUNT);
       openKeys.current = open;
       setMaxOpen(open.length);
-      if (!open.length) { setFailed(t('trip_week_no_open')); setPhase('idle'); return; }
-      const stars = pickStarDeals(weekDeals, open.length, '');
+      const stars = pickStarDeals(weekDeals, DINNER_COUNT, '');
       if (!stars.length) { setFailed(t('trip_week_failed')); setPhase('idle'); return; }
       const exclude = Object.values(mealPlan).flat().map((e) => String(e?.title || '')).filter(Boolean);
       const results = await Promise.all(stars.map((d) => fetchDealRecipeIdeas({ itemName: d.name, locale, token, exclude, note: noteFor() }).catch(() => [])));
       // One dinner per sale item (ticked); the AI's other ideas wait in `spare` for "Different dish".
-      const built = stars.map((d, i) => ({ key: `${d.name}-${i}`, deal: d, ideas: (results[i] || []).slice(0, 1).map((x) => ({ ...x, checked: true })), spare: (results[i] || []).slice(1) })).filter((c) => c.ideas.length);
+      const built = stars.map((d, i) => ({ key: `${d.name}-${i}`, deal: d, ideas: (results[i] || []).slice(0, 1).map((x) => ({ ...x, checked: false })), spare: (results[i] || []).slice(1) })).filter((c) => c.ideas.length);
       if (!built.length) { setFailed(t('trip_week_failed')); setPhase('idle'); return; }
+      built.forEach((c, i) => { if (i < open.length) c.ideas[0].checked = true; });
       setCards(built);
       setPreviews({});
       setPhase('ready');
@@ -162,7 +162,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     if (!card || card.loading) return;
     if ((card.spare || []).length) {
       const [next, ...rest] = card.spare;
-      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { ...c, ideas: [{ ...next, checked: true }], spare: rest })));
+      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { ...c, ideas: [{ ...next, checked: Boolean(c.ideas[0]?.checked) }], spare: rest })));
       setPreviews({});
       return;
     }
@@ -171,7 +171,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     try {
       const fresh = await fetchDealRecipeIdeas({ itemName: card.deal.name, locale, token, exclude: shown, note: noteFor() });
       if (!fresh.length) throw new Error('none');
-      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { ...c, loading: false, ideas: [{ ...fresh[0], checked: true }], spare: fresh.slice(1) })));
+      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { ...c, loading: false, ideas: [{ ...fresh[0], checked: Boolean(c.ideas[0]?.checked) }], spare: fresh.slice(1) })));
       setPreviews({});
     } catch (e) {
       setCards((prev) => prev.map((c, i) => (i === ci ? { ...c, loading: false } : c)));
@@ -190,7 +190,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       const exclude = cards.flatMap((c) => c.ideas.map((x) => x.title));
       const fresh = await fetchDealRecipeIdeas({ itemName: next.name, locale, token, exclude, note: noteFor() });
       if (!fresh.length) throw new Error('none');
-      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { key: `${next.name}-${Date.now()}`, deal: next, loading: false, ideas: [{ ...fresh[0], checked: true }], spare: fresh.slice(1) })));
+      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { key: `${next.name}-${Date.now()}`, deal: next, loading: false, ideas: [{ ...fresh[0], checked: Boolean(c.ideas[0]?.checked) }], spare: fresh.slice(1) })));
       setPreviews({});
     } catch (e) {
       setCards((prev) => prev.map((c, i) => (i === ci ? { ...c, loading: false } : c)));
@@ -467,10 +467,14 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
               </View>
             );
           })}
-          <Text style={styles.count}>{t('trip_week_picked', { n: total, max: maxOpen })}</Text>
-          <TouchableOpacity style={[styles.primary, !total ? { opacity: 0.5 } : null]} disabled={!total} activeOpacity={0.88} onPress={review}>
-            <Text style={styles.primaryText}>{t('trip_week_confirm', { n: total })}</Text>
-          </TouchableOpacity>
+          {maxOpen > 0 ? (
+            <View>
+              <Text style={styles.count}>{t('trip_week_picked', { n: total, max: maxOpen })}</Text>
+              <TouchableOpacity style={[styles.primary, !total ? { opacity: 0.5 } : null]} disabled={!total} activeOpacity={0.88} onPress={review}>
+                <Text style={styles.primaryText}>{t('trip_week_confirm', { n: total })}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : <Text style={styles.count}>{t('trip_week_no_open')}</Text>}
         </View>
       ) : null}
 
