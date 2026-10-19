@@ -264,3 +264,5 @@ All UI copy goes through a single i18n module, not per-screen strings:
 **Tour step for the ? button (2026-10-18).** The Home tour is now 9 steps: a `help` step (`tour_home_help`, target `help` on the ? button in `NewHome`) sits between tools and the leaf and says Help replays the tour and Fern answers any question about the app. `HOME_TOUR_STEP_TARGETS` has 9 entries; the tabs step is now step 7. JS-only.
 
 **Tour spotlight on a round target (2026-10-18).** `TourModal` dims the corners of the scan circle's square with a clipped ring (hole = the circle), so no lighter box shows behind it. JS-only.
+
+**Tour scan step is about saving money (2026-10-18).** `tour_home_scan` (EN+ES) is now one short sentence: scan the flyer, Fern finds the sales, matches coupons and plans dinners around them so you spend less (patent pending). JS-only.
