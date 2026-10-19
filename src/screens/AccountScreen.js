@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { AutopilotModePicker } from '../components/home/AutopilotCard';
 import { Alert, AppState, Linking, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -540,6 +541,8 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                         >
                             <Text style={styles.preferencesBtnText}>📅 {t('cal_btn').toUpperCase()}{calBusy ? '…' : ''}</Text>
                         </TouchableOpacity>
+
+                        <AutopilotModePicker />
 
                         {TOOL_SECTIONS.map((section) => (
                             <View key={section.titleKey} style={styles.sectionBlock}>
