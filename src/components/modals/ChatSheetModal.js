@@ -37,7 +37,8 @@ import RecipeOptionCards from '../RecipeOptionCards';
 const FREE_CHAT_KEY = 'fern_free_chat_count';
 const FREE_CHAT_PER_DAY = 5;
 // Launch period (constants/launch.js): everyone is Pro Max, but chat is capped per day to keep AI cost bounded.
-const LAUNCH_CHAT_PER_DAY = 10; // the server enforces the same cap per account (ai function, AGENT_CHAT_DAILY_LIMIT)
+const LAUNCH_CHAT_PER_DAY = 15; // the server enforces the same cap per account (ai function, AGENT_CHAT_DAILY_LIMIT)
+const CHAT_LIMIT_EXEMPT = ['frizzo1@gmail.com']; // founder/test account: no daily cap (the server exempts ADMIN_EMAILS the same way)
 function todayKey() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -203,8 +204,9 @@ export default function ChatSheetModal({
 
   const askFern = useCallback(async (text, { silent = false } = {}) => {
     if (!text || !text.trim()) return;
+    const chatExempt = CHAT_LIMIT_EXEMPT.includes(String(user?.email || '').toLowerCase());
     if (!silent && LAUNCH_ALL_FREE) {
-      if ((await freeChatUsedToday()) >= LAUNCH_CHAT_PER_DAY) {
+      if (!chatExempt && (await freeChatUsedToday()) >= LAUNCH_CHAT_PER_DAY) {
         Alert.alert(t('launch_chat_limit_title'), t('launch_chat_limit_desc'));
         return;
       }
