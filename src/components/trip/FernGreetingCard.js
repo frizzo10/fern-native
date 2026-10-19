@@ -82,6 +82,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
   // voice is on in Account), and any time via the speaker button. Stops when you leave the screen.
   const spokenText = result ? spokenSummary(`${result.greeting || ''} ${result.suggestions?.[0]?.text || ''}`) : '';
   useEffect(() => {
+    return; // Fern never speaks the AI-written greeting by herself (only scripted lines and tours speak); the speaker button still plays it on tap
     if (hold || state !== 'ready' || !focused || !spokenText) return;
     let cancelled = false;
     (async () => {
