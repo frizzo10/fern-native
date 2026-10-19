@@ -40,3 +40,17 @@ export async function discardLatestScan({ token }) {
         return false;
     }
 }
+
+// Shared-flyer stores (from fetchStoreDeals) -> the deal objects the rest of the app (fern_week_deals) uses.
+export function sharedStoresToDeals(stores) {
+    return (stores || []).flatMap((k) => (k.items || []).map((it) => ({
+        name: it.name,
+        salePrice: it.price || '',
+        originalPrice: it.originalPrice || '',
+        savings: it.savings || '',
+        category: it.category || '',
+        cookable: Boolean(it.cookable),
+        isBogo: Boolean(it.isBogo),
+        store: k.store,
+    })));
+}

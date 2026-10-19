@@ -3,9 +3,11 @@ import { subscribeAgentChange } from '../services/fernAgent';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { setTourStaticRect } from '../services/tourTargets';
 import { trackEvent, couponMeta } from '../services/track';
-import { loadWeekDeals, couponItemName } from '../utils/savings';
+import { loadWeekDeals, saveWeekDeals, couponItemName } from '../utils/savings';
 import { claimArrival, storeKey, notifyArrival } from '../services/storeGeofencing';
-import { dealsForStore, storeAtPosition } from '../utils/flyerStore';
+import { dealsForStore, splitCombinedStores, storeAtPosition } from '../utils/flyerStore';
+import { fetchStoreDeals, sharedStoresToDeals } from '../services/storeDealsService';
+import { zipsByStoreName } from '../utils/storeZip';
 import * as Location from 'expo-location';
 import {
   Alert,
@@ -729,8 +731,21 @@ export default function HomeScreen({ user, route }) {
       ? Object.values(rawStores)
       : [];
 
+  const splitStoresSavedRef = useRef(false);
   useEffect(() => {
-    setUserStoresLocal(userStores);
+    const { stores: split, changed } = splitCombinedStores(userStores);
+    setUserStoresLocal(split);
+    if (!changed || splitStoresSavedRef.current) return;
+    splitStoresSavedRef.current = true;
+    (async () => {
+      try {
+        await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(split));
+        const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+        await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, userStores: split }));
+        await pushAllFromStorage();
+      } catch (e) { console.log('[stores-sync] split combined stores failed', e?.message || e); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userStores]);
 
   useEffect(() => {
@@ -1556,11 +1571,26 @@ export default function HomeScreen({ user, route }) {
     // No auto-jump: the flyer may be an old one, so the shopper picks "use it" or "scan a new one".
   };
 
+  // Tap a store: if its circular is already on file (scanned on this phone, or by any other Fern shopper) go straight
+  // to it on Shopping; only ask for a photo when nobody has scanned it this week.
   const chooseFlyerStore = async (store) => {
+    const shortName = String(store?.name || '').split(/ - |#/)[0].trim();
+    const goToCircular = () => { setFlyerScan(null); navigation.navigate('Shopping', { guide: Date.now(), guideStore: shortName }); };
     const deals = await loadWeekDeals();
-    const mine = dealsForStore(deals, store?.name);
-    if (mine.length) showAlreadyScanned(String(store.name).split(/ - |#/)[0].trim(), mine);
-    else askFlyerPhoto();
+    if (dealsForStore(deals, store?.name).length) { goToCircular(); return; }
+    setFlyerScan({ phase: 'looking' });
+    let shared = [];
+    try {
+      shared = await fetchStoreDeals({ token: user?.token, stores: [store?.name], zips: zipsByStoreName(userStoresLocal) });
+    } catch (e) { shared = []; }
+    const sharedDeals = sharedStoresToDeals(shared);
+    if (sharedDeals.length) {
+      await saveWeekDeals(sharedDeals);
+      goToCircular();
+      return;
+    }
+    setFlyerScan(null);
+    setTimeout(askFlyerPhoto, 400); // iOS drops an Alert shown while the overlay is still closing
   };
 
   // Store-arrival notification tap: App.js navigates here with the store's name -> start that store's flyer scan,
@@ -3136,6 +3166,11 @@ export default function HomeScreen({ user, route }) {
               >
                 <Text style={{ color: '#fff', fontFamily: 'Jost-Medium', fontSize: 14 }}>{t('flyer_already_rescan')}</Text>
               </TouchableOpacity>
+            </>
+          ) : flyerScan?.phase === 'looking' ? (
+            <>
+              <ActivityIndicator size="large" color="#E8742A" />
+              <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 22, textAlign: 'center', marginTop: 20 }}>{t('flyer_looking_title')}</Text>
             </>
           ) : flyerScan?.phase === 'done' ? (
             <>

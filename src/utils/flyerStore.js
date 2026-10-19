@@ -14,6 +14,29 @@ export function dealsForStore(deals, storeName) {
   });
 }
 
+// An older "add a store" could save several chains as ONE entry ("Publix, Lowe's Foods, Walmart and Harris Teeter"),
+// so Home showed a single unclear row. Split those into one entry per store. The first keeps the saved location;
+// the others have none (no arrival alerts until "use my location" is tapped on that row) so they cannot all fire at once.
+export function splitCombinedStores(stores) {
+  let changed = false;
+  const out = [];
+  const seen = new Set();
+  (stores || []).forEach((s) => {
+    const parts = String(s?.name || '').split(/\s*,\s*|\s+and\s+/i).map((p) => p.trim()).filter(Boolean);
+    const list = parts.length >= 2 && parts.every((p) => p.length >= 3)
+      ? parts.map((p, i) => (i === 0 ? { ...s, name: p } : { name: p, address: s.address }))
+      : [s];
+    if (list.length > 1) changed = true;
+    list.forEach((e) => {
+      const k = String(e?.name || '').trim().toLowerCase();
+      if (list.length > 1 && seen.has(k)) { changed = true; return; }
+      seen.add(k);
+      out.push(e);
+    });
+  });
+  return { stores: out, changed };
+}
+
 function meters(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const rad = (x) => (x * Math.PI) / 180;
