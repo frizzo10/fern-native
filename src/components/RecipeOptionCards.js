@@ -79,7 +79,7 @@ function OptionCard({ option, onAction }) {
 }
 
 export default function RecipeOptionCards({ options, onAction }) {
-  const list = (Array.isArray(options) ? options : []).filter((o) => o && o.title).slice(0, 2);
+  const list = (Array.isArray(options) ? options : []).filter((o) => o && o.title).slice(0, 3);
   if (!list.length) return null;
   return (
     <View style={styles.wrap}>

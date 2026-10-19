@@ -279,7 +279,7 @@ export default function ChatSheetModal({
         ? parsed.add_to_shopping_list.map(item => String(item || '').trim()).filter(Boolean)
         : [];
 
-      const options = agentOn && Array.isArray(parsed?.options) ? parsed.options.filter((o) => o && o.title).slice(0, 2) : [];
+      const options = agentOn && Array.isArray(parsed?.options) ? parsed.options.filter((o) => o && o.title).slice(0, 3) : [];
       setMessages(prev => [...prev, { role: 'fern', text: reply, options }]);
       if (mode === 'voice') {
         // The audio takes a moment to arrive; until it has played, the mic stays closed (opening it early made the
