@@ -174,7 +174,7 @@ export default function HomeScreen({ user, route }) {
   // visible regardless of scroll position, so they just reset to top.
   const homeScrollRef = useRef(null);
   const homeSectionY = useRef({});
-  const HOME_TOUR_STEP_TARGETS = ['top', 'top', 'weekPanel', 'top', 'top', 'top', 'top', 'top'];
+  const HOME_TOUR_STEP_TARGETS = ['top', 'top', 'weekPanel', 'top', 'top', 'top', 'top', 'top', 'top'];
 
   useEffect(() => {
     if (activeTourKey !== 'home') return;

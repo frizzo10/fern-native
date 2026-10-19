@@ -117,7 +117,7 @@ export default function NewHome({
           <TouchableOpacity style={styles.tierPill} activeOpacity={0.85} onPress={onOpenPlans}>
             <Text style={styles.tierPillText}>{tierBadgeLabel}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.roundBtn} activeOpacity={0.85} onPress={openHelp} accessibilityRole="button" accessibilityLabel={t('faq_a11y')}>
+          <TouchableOpacity ref={tourTargetRef('help')} collapsable={false} style={styles.roundBtn} activeOpacity={0.85} onPress={openHelp} accessibilityRole="button" accessibilityLabel={t('faq_a11y')}>
             <Ionicons name="help-circle-outline" size={22} color={FOREST} />
           </TouchableOpacity>
           <TouchableOpacity

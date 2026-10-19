@@ -20,6 +20,7 @@ export const TOURS = {
       { textKey: 'tour_home_stores', target: 'stores' }, // tap a store -> its circular; location; add/remove; arrival alerts
       { textKey: 'tour_home_step1', target: 'week' }, // the week strip + add a meal / activity
       { textKey: 'tour_home_tools', target: 'tools' }, // the grid button: every tool incl. Store Circulars
+      { textKey: 'tour_home_help', target: 'help' }, // the ? button: replay the tour, or ask Fern any question about the app
       { textKey: 'tour_home_step2', pointer: 'leaf' }, // TourModal shows the real leaf button's spot
       { // The most important step: Fern names each bottom tab in turn and that tab is lit up while she says it (TourModal `parts`; tab = 0-based position in the bar).
         textKey: 'tour_home_step3',
