@@ -161,6 +161,15 @@ export default function ChatSheetModal({
   const scrollRef = useRef(null);
   // Compact chat: while the keyboard is up the card shrinks to a slim strip so the page behind (where Fern just made a change) stays visible.
   const [kbUp, setKbUp] = useState(false);
+  // 'peek': the card stays small for a moment after Fern changes something, so the change behind it can be seen.
+  const [peek, setPeek] = useState(false);
+  const peekTimer = useRef(null);
+  const startPeek = useCallback(() => {
+    setPeek(true);
+    if (peekTimer.current) clearTimeout(peekTimer.current);
+    peekTimer.current = setTimeout(() => setPeek(false), 2500);
+  }, []);
+  useEffect(() => () => { if (peekTimer.current) clearTimeout(peekTimer.current); }, []);
   useEffect(() => {
     if (!compact) return undefined;
     const showEv = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -221,6 +230,7 @@ export default function ChatSheetModal({
     setError(false);
     setVoiceErr('');
     setThinking(true);
+    if (compact) Keyboard.dismiss();
 
     try {
       // The agent sees fresh state on every turn (list, recipes, week, circular, coupons), so what she says is current.
@@ -289,7 +299,7 @@ export default function ChatSheetModal({
         await pull();
         emitAgentChange();
         if (addedCount > 0 || checkedCount > 0) {
-          if (compact) Keyboard.dismiss();
+          if (compact) { Keyboard.dismiss(); startPeek(); }
           onShowRef.current?.({ screen: 'Shopping' });
           const confirmText = t('chat_shopping_list_confirm', { items: itemsToAdd.join(', ') });
           setMessages(prev => [...prev, { role: 'fern', text: confirmText }]);
@@ -303,7 +313,7 @@ export default function ChatSheetModal({
           await pull();
           emitAgentChange();
         }
-        if (done.watch) { if (compact) Keyboard.dismiss(); onShowRef.current?.(done.watch); }
+        if (done.watch) { if (compact) { Keyboard.dismiss(); startPeek(); } onShowRef.current?.(done.watch); }
         // Hand the "open / go / close" part to the caller once her voice has finished.
         parsed.show_recipes_for = done.showRecipesFor || parsed.show_recipes_for || '';
         parsed.go_to = done.goTo || '';
@@ -326,7 +336,7 @@ export default function ChatSheetModal({
     } finally {
       setThinking(false);
     }
-  }, [locale, user, speakText, speakChunks, voiceOnly, pull, pushAllFromStorage, pushChangedFromStorage, t, systemPrompt, agentOn, agentExtra, onAction, onSpeechDone, mode, silent]);
+  }, [locale, user, speakText, speakChunks, voiceOnly, pull, pushAllFromStorage, pushChangedFromStorage, t, systemPrompt, agentOn, agentExtra, onAction, onSpeechDone, mode, silent, compact, startPeek]);
 
   const { isListening, start, stop } = useContinuousMic({
     locale,
@@ -493,7 +503,7 @@ export default function ChatSheetModal({
   return (
     <Modal visible={visible} animationType="slide" transparent={compact} onRequestClose={handleClose}>
       <KeyboardAvoidingView style={compact ? styles.compactBackdrop : styles.fullBackdrop} behavior={compact && Platform.OS === 'ios' ? 'padding' : undefined}>
-      <KeyboardAvoidingView style={compact ? [styles.compactSheet, kbUp ? { height: 190, minHeight: 0 } : (messages.some((m) => m.options?.length) ? { height: '66%' } : null)] : styles.container} behavior={!compact && Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={compact ? [styles.compactSheet, (thinking || peek) ? { height: 130, minHeight: 0 } : kbUp ? { height: 190, minHeight: 0 } : (messages.some((m) => m.options?.length) ? { height: '66%' } : null)] : styles.container} behavior={!compact && Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.header, compact ? styles.headerCompact : null]}>
           <Text style={styles.headerTitle}>{title || `🌿 ${t('ask_fern_btn')}`}</Text>
           <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
