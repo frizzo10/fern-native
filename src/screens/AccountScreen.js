@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, AppState, Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, AppState, Linking, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
@@ -13,6 +13,7 @@ import UpgradeGateModal from '../components/UpgradeGateModal';
 import ShoppingDayPicker from '../components/ShoppingDayPicker';
 import { getShoppingDay, saveShoppingDay } from '../utils/staples';
 import { LAUNCH_ALL_FREE } from '../constants/launch';
+import { fetchCalendarLink } from '../services/calendarLinkService';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { usePlansModal } from '../services/PlansModalContext';
 import * as Updates from 'expo-updates';
@@ -276,6 +277,25 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
         presentCustomerCenter();
     };
 
+    // "Add Fern to my calendar": a private subscription link (activities + planned meals), one way.
+    const [calBusy, setCalBusy] = useState(false);
+    const handleAddToCalendar = async () => {
+        if (calBusy) return;
+        setCalBusy(true);
+        try {
+            const link = await fetchCalendarLink(user?.token);
+            Alert.alert(t('cal_title'), t('cal_desc'), [
+                { text: t('cal_apple'), onPress: () => Linking.openURL(link.webcal).catch(() => Share.share({ message: link.url })) },
+                { text: t('cal_share'), onPress: () => Share.share({ message: link.url }) },
+                { text: t('cancel_btn'), style: 'cancel' },
+            ]);
+        } catch (e) {
+            Alert.alert(t('cal_title'), t('cal_failed'));
+        } finally {
+            setCalBusy(false);
+        }
+    };
+
     const handleRestore = async () => {
         setRestoring(true);
         try {
@@ -510,6 +530,15 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             onPress={startEditProfile}
                         >
                             <Text style={styles.preferencesBtnText}>🍳 {t('account_update_cooking_preferences').toUpperCase()}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={[styles.preferencesBtn, { marginTop: 10 }]}
+                            activeOpacity={0.85}
+                            onPress={handleAddToCalendar}
+                            disabled={calBusy}
+                        >
+                            <Text style={styles.preferencesBtnText}>📅 {t('cal_btn').toUpperCase()}{calBusy ? '…' : ''}</Text>
                         </TouchableOpacity>
 
                         {TOOL_SECTIONS.map((section) => (
