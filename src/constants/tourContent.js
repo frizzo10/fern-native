@@ -21,7 +21,17 @@ export const TOURS = {
       { textKey: 'tour_home_step1', target: 'week' }, // the week strip + add a meal / activity
       { textKey: 'tour_home_tools', target: 'tools' }, // the grid button: every tool incl. Store Circulars
       { textKey: 'tour_home_step2', pointer: 'leaf' }, // TourModal shows the real leaf button's spot
-      { textKey: 'tour_home_step3', target: 'tabs' },
+      { // The most important step: Fern names each bottom tab in turn and that tab is lit up while she says it (TourModal `parts`; tab = 0-based position in the bar).
+        textKey: 'tour_home_step3',
+        target: 'tabs',
+        parts: [
+          { textKey: 'tour_tab_home', tab: 0 },
+          { textKey: 'tour_tab_find', tab: 1 },
+          { textKey: 'tour_tab_family', tab: 2 },
+          { textKey: 'tour_tab_recipes', tab: 3 },
+          { textKey: 'tour_tab_more', tab: 4 },
+        ],
+      },
       { textKey: 'tour_home_share' }, // sharing recipes / cookbooks, adding a shared cookbook
       { textKey: 'tour_home_step4', target: 'profile' },
     ],

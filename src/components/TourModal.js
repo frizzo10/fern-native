@@ -11,7 +11,7 @@ const PAD = 6; // breathing room around a highlighted element
 
 export default function TourModal({ visible, tour, storageKey, onClose, onDone, token, stepIndex, setStepIndex }) {
   const { t } = useLanguage();
-  const { speakText, stopSpeaking } = useFernVoice({ token, enabled: visible, allowFree: true });
+  const { prepareSpeech, playPrepared, stopSpeaking } = useFernVoice({ token, enabled: visible, allowFree: true });
 
   const step = tour?.steps?.[stepIndex];
   // A step with `pointer: 'leaf'` shows a copy of the floating leaf button (same spot as App.js `chatFab`) with a pulsing ring and an arrow,
@@ -20,6 +20,10 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
   // A step with `target: '<name>'` (see src/services/tourTargets.js) dims everything except that real element and rings it.
   const targetName = step?.target || null;
   const [rect, setRect] = useState(null);
+  // For a step with `parts` (the bottom tabs): which part Fern is on right now, so its text shows and that tab is lit.
+  const [partIndex, setPartIndex] = useState(null);
+  const runRef = useRef(0);
+  const cacheRef = useRef({});
   const pulse = useRef(new Animated.Value(0)).current;
   const animate = pointLeaf || !!targetName;
   useEffect(() => {
@@ -42,18 +46,58 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
   }, [visible, targetName, stepIndex]);
   const isLast = tour ? stepIndex === tour.steps.length - 1 : false;
   const title = tour ? t(tour.titleKey) : '';
-  const body = step ? t(step.textKey) : '';
+  const activePart = step?.parts && partIndex != null ? step.parts[partIndex] : null;
+  const body = step ? t(activePart ? activePart.textKey : step.textKey) : '';
+  // While a part is spoken only that tab (one fifth of the bar) is lit.
+  const shownRect = rect && activePart
+    ? { x: rect.x + (activePart.tab * rect.width) / step.parts.length, y: rect.y, width: rect.width / step.parts.length, height: rect.height }
+    : rect;
 
-  // Speak the current step's text on open and every "Next" — speakText
-  // already stops any in-progress playback before starting the new one, so
-  // moving to the next step naturally cuts off the previous line. Gated on
-  // `fern_voice_enabled` inside useFernVoice, same as the rest of the app.
-  useEffect(() => {
-    if (visible && body) {
-      speakText(body);
+  // Fetch a line's speech once and remember it, so a step's voice is already waiting when the person gets there.
+  const prep = useCallback((text) => {
+    if (!text) return Promise.resolve(null);
+    if (!cacheRef.current[text]) {
+      cacheRef.current[text] = prepareSpeech(text).then((uri) => { if (!uri) delete cacheRef.current[text]; return uri; });
     }
+    return cacheRef.current[text];
+  }, [prepareSpeech]);
+
+  const textsOf = useCallback((s) => (s?.parts ? s.parts.map((p) => t(p.textKey)) : s ? [t(s.textKey)] : []), [t]);
+
+  // Start fetching speech for this step and the next two as soon as the tour opens or moves on (the first lines used to wait on a
+  // fresh network round trip each, so Fern came in late).
+  useEffect(() => {
+    if (!visible) { cacheRef.current = {}; return; }
+    const steps = tour?.steps || [];
+    for (let i = stepIndex; i < Math.min(steps.length, stepIndex + 3); i += 1) textsOf(steps[i]).forEach((x) => { prep(x); });
+  }, [visible, stepIndex, tour, prep, textsOf]);
+
+  // Speak the current step. A step with `parts` speaks them one after another (all fetched at once, so no gap) and lights the tab for each.
+  // Moving on or closing cancels via the run counter. Gated on `fern_voice_enabled` inside useFernVoice; with voice off the parts still
+  // advance on a reading timer so the highlighting works.
+  useEffect(() => {
+    if (!visible || !step) return undefined;
+    runRef.current += 1;
+    const run = runRef.current;
+    const texts = textsOf(step);
+    setPartIndex(step.parts ? 0 : null);
+    stopSpeaking();
+    (async () => {
+      for (let i = 0; i < texts.length; i += 1) {
+        if (runRef.current !== run) return;
+        if (step.parts) setPartIndex(i);
+        const uri = await prep(texts[i]);
+        if (runRef.current !== run) return;
+        await new Promise((resolve) => {
+          const ok = uri ? playPrepared(uri, resolve) : null;
+          if (!ok) setTimeout(resolve, 3500);
+          else setTimeout(resolve, 60000);
+        });
+      }
+    })();
+    return () => { runRef.current += 1; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, stepIndex, body]);
+  }, [visible, stepIndex]);
 
   const finish = useCallback((completed) => {
     stopSpeaking();
@@ -79,17 +123,17 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
           />
         )}
 
-        {rect ? (
+        {shownRect ? (
           <>
-            <View pointerEvents="none" style={[styles.dim, { left: 0, right: 0, top: 0, height: Math.max(0, rect.y - PAD) }]} />
-            <View pointerEvents="none" style={[styles.dim, { left: 0, right: 0, top: rect.y + rect.height + PAD, bottom: 0 }]} />
-            <View pointerEvents="none" style={[styles.dim, { left: 0, width: Math.max(0, rect.x - PAD), top: rect.y - PAD, height: rect.height + PAD * 2 }]} />
-            <View pointerEvents="none" style={[styles.dim, { left: rect.x + rect.width + PAD, right: 0, top: rect.y - PAD, height: rect.height + PAD * 2 }]} />
+            <View pointerEvents="none" style={[styles.dim, { left: 0, right: 0, top: 0, height: Math.max(0, shownRect.y - PAD) }]} />
+            <View pointerEvents="none" style={[styles.dim, { left: 0, right: 0, top: shownRect.y + shownRect.height + PAD, bottom: 0 }]} />
+            <View pointerEvents="none" style={[styles.dim, { left: 0, width: Math.max(0, shownRect.x - PAD), top: shownRect.y - PAD, height: shownRect.height + PAD * 2 }]} />
+            <View pointerEvents="none" style={[styles.dim, { left: shownRect.x + shownRect.width + PAD, right: 0, top: shownRect.y - PAD, height: shownRect.height + PAD * 2 }]} />
             <Animated.View
               pointerEvents="none"
               style={[
                 styles.spot,
-                { left: rect.x - PAD, top: rect.y - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2, borderRadius: Math.abs(rect.width - rect.height) < 8 ? 999 : 18 },
+                { left: shownRect.x - PAD, top: shownRect.y - PAD, width: shownRect.width + PAD * 2, height: shownRect.height + PAD * 2, borderRadius: Math.abs(shownRect.width - shownRect.height) < 8 ? 999 : 18 },
                 { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.35] }) },
               ]}
             />

@@ -193,9 +193,9 @@ export function useFernVoice({ onError, token, enabled = true, allowFree = false
     }, [onError, locale, token, isVoiceEnabled]);
 
     // Play a line made by prepareSpeech (ends whatever is playing, anywhere in the app).
-    const playPrepared = useCallback((uri) => {
+    const playPrepared = useCallback((uri, onEnd) => {
         if (!uri || !isMountedRef.current || !enabledRef.current) return null;
-        playLine(uri);
+        playLine(uri, onEnd);
         return uri;
     }, [playLine]);
 
