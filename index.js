@@ -25,4 +25,23 @@ try {
   });
 } catch (e) { /* never block startup */ }
 
+// People with iPhone "Larger Text" / accessibility sizes on saw the layout break (text overflowing circles, headers
+// overlapping). Let text grow a little for readability, but never past 1.3x. React 19 ignores defaultProps on
+// function components, so wrap the components' render function as well (guarded: never block startup).
+try {
+  const RN = require('react-native');
+  const MAX_FONT_SCALE = 1.3;
+  [RN.Text, RN.TextInput].forEach((Comp) => {
+    if (!Comp) return;
+    try { Comp.defaultProps = { ...(Comp.defaultProps || {}), maxFontSizeMultiplier: MAX_FONT_SCALE }; } catch (e) { /* ignore */ }
+    if (typeof Comp.render === 'function') {
+      const origRender = Comp.render;
+      Comp.render = function patchedRender(props, ref) {
+        const next = props && props.maxFontSizeMultiplier == null ? { ...props, maxFontSizeMultiplier: MAX_FONT_SCALE } : props;
+        return origRender.call(this, next, ref);
+      };
+    }
+  });
+} catch (e) { /* never block startup */ }
+
 registerRootComponent(App);
