@@ -5,6 +5,12 @@ import { colors, radius } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
 import { resolveOptionRecipe } from '../services/fernAgent';
 
+function dayLabel(offset) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString(undefined, { weekday: 'long' });
+}
+
 function OptionCard({ option, onAction }) {
   const { t } = useLanguage();
   const [recipe, setRecipe] = useState(null);
@@ -51,8 +57,13 @@ function OptionCard({ option, onAction }) {
         </View>
       ) : null}
       <View style={styles.btnRow}>
-        <TouchableOpacity style={[styles.btn, styles.btnMain, done.list && styles.btnDone]} onPress={() => run('list')} disabled={!!busy}>
-          {busy === 'list' ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnMainText}>{done.list ? t('option_added') : t('option_add_list')}</Text>}
+        {recipe.dayOffset !== null && recipe.dayOffset !== undefined ? (
+          <TouchableOpacity style={[styles.btn, styles.btnMain, done.plan && styles.btnDone]} onPress={() => run('plan')} disabled={!!busy}>
+            {busy === 'plan' ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnMainText}>{done.plan ? t('option_planned') : t('option_plan_day', { day: dayLabel(recipe.dayOffset) })}</Text>}
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity style={[styles.btn, recipe.dayOffset !== null && recipe.dayOffset !== undefined ? styles.btnAlt : styles.btnMain, done.list && styles.btnDone]} onPress={() => run('list')} disabled={!!busy}>
+          {busy === 'list' ? <ActivityIndicator size="small" color={colors.forest} /> : <Text style={(recipe.dayOffset !== null && recipe.dayOffset !== undefined && !done.list) ? styles.btnAltText : styles.btnMainText}>{done.list ? t('option_added') : t('option_add_list')}</Text>}
         </TouchableOpacity>
         {!recipe.isSaved ? (
           <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => run('save')} disabled={!!busy}>

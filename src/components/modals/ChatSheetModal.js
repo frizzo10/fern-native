@@ -441,14 +441,18 @@ export default function ChatSheetModal({
   }, [isListening, stop, stopSpeaking, onClose]);
   // A card Fern offered ("options") was tapped: add its ingredients to the list, or save it as a recipe.
   const handleOptionAction = useCallback(async (kind, recipe) => {
+    const planAct = { type: 'plan_meal', day_offset: recipe.dayOffset ?? 0, slot: recipe.slot || 'Dinner', title: recipe.title, emoji: recipe.emoji, sides: [] };
+    const listAct = { type: 'add_recipe_to_list', title: recipe.title, ingredients: recipe.ingredients };
     const action = kind === 'list'
-      ? { type: 'add_recipe_to_list', title: recipe.title, ingredients: recipe.ingredients }
+      ? listAct
+      : kind === 'plan'
+      ? planAct
       : { type: 'save_recipe', title: recipe.title, emoji: recipe.emoji, time: recipe.time, description: recipe.description, ingredients: recipe.ingredients, instructions: recipe.instructions };
-    const done = await executeAgentActions([action], { pushChangedFromStorage, token: user?.token, canSaveUnlimited: !isFreeRef.current });
+    const done = await executeAgentActions(kind === 'plan' ? [planAct, listAct] : [action], { pushChangedFromStorage, token: user?.token, canSaveUnlimited: !isFreeRef.current });
     if (done.lines.length) setMessages(prev => [...prev, { role: 'fern', text: done.lines.join('\n') }]);
     await pull();
     emitAgentChange();
-    if (done.watch) onShowRef.current?.(done.watch);
+    // A card button keeps you in the chat (the "✓ added" line shows right here); no jumping to another screen.
     return done.lines.length > 0 && !done.lines.some((l) => l.startsWith('✗'));
   }, [pushChangedFromStorage, user, pull]);
 
