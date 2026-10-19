@@ -3,7 +3,10 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors, radius } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveOptionRecipe } from '../services/fernAgent';
+import { ListAddPreviewBody } from './ListAddPreview';
+import { planShoppingAdditions } from '../utils/shoppingListSync';
 
 function dayLabel(offset) {
   const d = new Date();
@@ -17,6 +20,7 @@ function OptionCard({ option, onAction }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState('');
   const [done, setDone] = useState({});
+  const [review, setReview] = useState(null); // lines of the ingredient review (un-tick what you already have)
   const [ask, setAsk] = useState(false); // after planning: "add the ingredients too?"
 
   useEffect(() => {
@@ -27,11 +31,20 @@ function OptionCard({ option, onAction }) {
 
   if (!recipe) return null;
 
-  const run = async (kind) => {
+  // Adding ingredients first shows the review so you can un-tick what you already have.
+  const openReview = async () => {
+    if (busy || done.list) return;
+    let shop = [];
+    try { shop = JSON.parse((await AsyncStorage.getItem('rv4_master_shop')) || '[]'); } catch (e) { shop = []; }
+    setReview(planShoppingAdditions([{ title: recipe.title, ingredients: recipe.ingredients }], shop));
+  };
+
+  const run = async (kind, extra) => {
     if (busy || done[kind]) return;
     setBusy(kind);
     try {
-      const ok = await onAction(kind, recipe);
+      const ok = await onAction(kind, recipe, extra);
+      if (ok && kind === 'list') setReview(null);
       if (ok) setDone((d) => ({ ...d, [kind]: true }));
       if (ok && kind === 'plan') setAsk(true);
     } finally {
@@ -64,7 +77,7 @@ function OptionCard({ option, onAction }) {
             {busy === 'plan' ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnMainText}>{done.plan ? t('option_planned') : t('option_plan_day', { day: dayLabel(recipe.dayOffset) })}</Text>}
           </TouchableOpacity>
         ) : null}
-        <TouchableOpacity style={[styles.btn, recipe.dayOffset !== null && recipe.dayOffset !== undefined ? styles.btnAlt : styles.btnMain, done.list && styles.btnDone]} onPress={() => run('list')} disabled={!!busy}>
+        <TouchableOpacity style={[styles.btn, recipe.dayOffset !== null && recipe.dayOffset !== undefined ? styles.btnAlt : styles.btnMain, done.list && styles.btnDone]} onPress={openReview} disabled={!!busy}>
           {busy === 'list' ? <ActivityIndicator size="small" color={colors.forest} /> : <Text style={(recipe.dayOffset !== null && recipe.dayOffset !== undefined && !done.list) ? styles.btnAltText : styles.btnMainText}>{done.list ? t('option_added') : t('option_add_list')}</Text>}
         </TouchableOpacity>
         {!recipe.isSaved ? (
@@ -76,11 +89,20 @@ function OptionCard({ option, onAction }) {
           <Text style={styles.btnAltText}>{open ? t('option_hide') : t('option_preview')}</Text>
         </TouchableOpacity>
       </View>
-      {ask && !done.list ? (
+      {review && !done.list ? (
+        <ListAddPreviewBody
+          lines={review}
+          t={t}
+          busy={busy === 'list'}
+          onConfirm={(skip) => run('list', { skip })}
+          onCancel={() => setReview(null)}
+        />
+      ) : null}
+      {ask && !done.list && !review ? (
         <View style={styles.askBox}>
           <Text style={styles.askText}>{t('option_ask_ingredients')}</Text>
           <View style={styles.btnRow}>
-            <TouchableOpacity style={[styles.btn, styles.btnMain]} onPress={() => run('list')} disabled={!!busy}>
+            <TouchableOpacity style={[styles.btn, styles.btnMain]} onPress={openReview} disabled={!!busy}>
               {busy === 'list' ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnMainText}>{t('option_yes_add')}</Text>}
             </TouchableOpacity>
             <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => setAsk(false)} disabled={!!busy}>

@@ -15,7 +15,7 @@ import { trackEvent, couponMeta } from './track';
 import { normalizeCoupons } from '../utils/couponNormalize';
 import { recipeLimitReached } from '../utils/freeLimits';
 import { fetchRecipeImage } from '../utils/recipeImage';
-import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
+import { addRecipeIngredientsToShoppingList, addRecipesToShoppingList } from '../utils/shoppingListSync';
 
 // Screens that show list / recipes / week data listen here and re-pull after Fern changed something.
 const listeners = new Set();
@@ -210,7 +210,7 @@ async function addRecipeToList(a, env) {
   const ingredients = raw.map((x) => (typeof x === 'string' ? x : [x?.amount, x?.unit, x?.item || x?.name].filter(Boolean).join(' '))).map((x) => String(x).trim()).filter(Boolean);
   if (!ingredients.length) return { ok: false, text: `I could not find ingredients for "${title}".` };
   const list = await readJson('rv4_master_shop', []);
-  const { addedCount = 0, checkedCount = 0 } = (await addRecipeIngredientsToShoppingList({ id: `agent-${Date.now()}`, title: own?.title || title, ingredients }, list)) || {};
+  const { addedCount = 0, checkedCount = 0 } = (await addRecipesToShoppingList([{ id: `agent-${Date.now()}`, title: own?.title || title, ingredients }], list, { skip: new Set(Array.isArray(a.skip) ? a.skip : []) })) || {};
   await env.pushChangedFromStorage();
   return { ok: true, text: `Added ${addedCount + checkedCount} ingredients for ${own?.title || title} to your list`, changed: 'shopping' };
 }
