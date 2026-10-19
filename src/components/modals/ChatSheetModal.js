@@ -475,9 +475,13 @@ export default function ChatSheetModal({
     if (done.lines.length) setMessages(prev => [...prev, { role: 'fern', text: done.lines.join('\n') }]);
     await pull();
     emitAgentChange();
-    // A card button keeps you in the chat (the "✓ added" line shows right here); no jumping to another screen.
+    // Shrink the card and jump behind it to where the change happened (Family day / Shopping / Recipes); it comes back after ~2.5 s.
+    if (done.watch && !done.lines.some((l) => l.startsWith('✗'))) {
+      if (compact) { Keyboard.dismiss(); startPeek(); }
+      onShowRef.current?.(done.watch);
+    }
     return done.lines.length > 0 && !done.lines.some((l) => l.startsWith('✗'));
-  }, [pushChangedFromStorage, user, pull]);
+  }, [pushChangedFromStorage, user, pull, compact, startPeek]);
 
   closeRef.current = handleClose;
 
