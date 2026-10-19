@@ -6,10 +6,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaView, SafeAreaProvider } from 'react-native-safe-area-context';
-import { Image, Text, View, StyleSheet, TouchableOpacity, Animated, Modal, Pressable, Alert, ActivityIndicator } from 'react-native';
+import { Image, Text, View, StyleSheet, TouchableOpacity, Animated, Modal, Pressable, Alert, ActivityIndicator, AppState } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
+import { registerForPush } from './src/services/pushRegistration';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -330,7 +331,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   useEffect(() => {
     const open = (response, coldStart = false) => {
       const content = response?.notification?.request?.content;
-      if (!content?.data || !['store_arrival', 'store_exit', 'everyday_nudge'].includes(content.data.type)) return;
+      if (!content?.data || !['store_arrival', 'store_exit', 'everyday_nudge', 'deals_alert'].includes(content.data.type)) return;
       const isExit = content.data.type === 'store_exit';
       const id = response.notification.request.identifier;
       if (handledArrivalTaps.has(id)) return;
@@ -353,6 +354,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         // Arrival: Home starts that store's flyer scan (same as tapping the store on Home). Leaving a store lands on the
         // Shopping savings card, and the everyday nudge on Shopping's Everyday card.
         if (content.data.type === 'everyday_nudge') nav.navigate('Shopping', { everyday: Date.now() });
+        else if (content.data.type === 'deals_alert') nav.navigate('Home', { openCirculars: Date.now() }); // sale alert: open the store circulars list
         else if (isExit) nav.navigate('Shopping', { tripDone: Date.now() });
         else nav.navigate('Shopping', { guide: Date.now(), guideStore: store, greet: true }); // arrival: Fern starts guiding the trip
       };
@@ -734,6 +736,16 @@ function MainAppContent() {
       })
       .catch((e) => console.warn('⚠️ Failed to push tier to sync:', e.message));
   }, [user?.id, rcTier, rcLoading]);
+
+  // Tell the server this phone can receive circular sale alerts. Runs when the user signs in and
+  // again each time the app returns to the foreground (the notification permission may have been
+  // granted in between); it only talks to the server when the user or token changed.
+  useEffect(() => {
+    if (!user?.id || !user?.token) return undefined;
+    registerForPush(user);
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') registerForPush(user); });
+    return () => sub.remove();
+  }, [user?.id, user?.token]);
 
   const handleSignOut = async () => {
     await stopStoreGeofencing(); // stop the OS watching this user's stores

@@ -74,6 +74,7 @@ import FamilyWeeklyReviewModal from '../components/modals/FamilyWeeklyReviewModa
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import FamilyRecipeVaultModal from '../components/modals/FamilyRecipeVaultModal';
 import InsiderDealsModal from '../components/modals/InsiderDealsModal';
+import CircularsBrowseModal from '../components/modals/CircularsBrowseModal';
 import PersonalShopperModal from '../components/modals/PersonalShopperModal';
 import { buildWeeklyReviewData } from '../utils/buildWeeklyReviewData';
 import { buildRollingWeekDateKeys, daysBetween, dateToKey, formatDayLabel, normalizeSlot } from '../utils/familyDates';
@@ -194,7 +195,8 @@ export default function HomeScreen({ user, route }) {
     'AI Meal Planner': 'tool_ai_meal_planner',
     'Semi-Homemade': 'tool_semi_homemade',
     'Family Vault': 'tool_family_vault',
-    'Insider Deals': 'tool_insider_deals'
+    'Insider Deals': 'tool_insider_deals',
+    'Circulars': 'tool_circulars'
   };
 
   const [fernReply, setFernReply] = useState('');
@@ -213,6 +215,7 @@ export default function HomeScreen({ user, route }) {
   const [isEventPlannerOpen, setIsEventPlannerOpen] = useState(false);
   const [isFamilyVaultOpen, setIsFamilyVaultOpen] = useState(false);
   const [isInsiderDealsOpen, setIsInsiderDealsOpen] = useState(false);
+  const [isCircularsOpen, setIsCircularsOpen] = useState(false);
   const [isPersonalShopperOpen, setIsPersonalShopperOpen] = useState(false);
   // Set when Personal Shopper was opened by tapping the store-arrival notification (Pro Max).
   const [personalShopperArrival, setPersonalShopperArrival] = useState(null);
@@ -2115,6 +2118,13 @@ export default function HomeScreen({ user, route }) {
     openCouponWallet();
   }, [route?.params?.openCouponWallet]);
 
+  // Tapping a circular sale alert (push) lands here and opens the store circulars list.
+  useEffect(() => {
+    if (!route?.params?.openCirculars) return;
+    navigation.setParams({ openCirculars: undefined });
+    setIsCircularsOpen(true);
+  }, [route?.params?.openCirculars]);
+
   const openCouponDetail = (coupon) => {
     setSelectedCoupon(coupon);
   };
@@ -2559,6 +2569,7 @@ export default function HomeScreen({ user, route }) {
     { label: 'Semi-Homemade', icon: 'basket-outline', featureKey: 'semi_homemade', onPress: openSemiHomemadeModal },
     { label: 'Family Vault', icon: 'book-outline', featureKey: 'family_vault', onPress: () => setIsFamilyVaultOpen(true) },
     { label: 'Insider Deals', icon: 'diamond-outline', featureKey: 'insider_deals', onPress: () => setIsInsiderDealsOpen(true) },
+    { label: 'Circulars', icon: 'newspaper-outline', featureKey: 'circulars', onPress: () => setIsCircularsOpen(true) },
   ];
   openToolRef.current = (key) => { newHomeToolDefs.find((d) => d.featureKey === key)?.onPress?.(); };
   const newHomeTools = newHomeToolDefs.map(({ label, icon, featureKey, onPress }) => {
@@ -3325,6 +3336,12 @@ export default function HomeScreen({ user, route }) {
       <InsiderDealsModal
         visible={isInsiderDealsOpen}
         onClose={() => setIsInsiderDealsOpen(false)}
+        user={user}
+      />
+
+      <CircularsBrowseModal
+        visible={isCircularsOpen}
+        onClose={() => setIsCircularsOpen(false)}
         user={user}
       />
 
