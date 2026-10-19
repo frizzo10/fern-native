@@ -22,6 +22,8 @@ function OptionCard({ option, onAction }) {
   const [done, setDone] = useState({});
   const [review, setReview] = useState(null); // lines of the ingredient review (un-tick what you already have)
   const [ask, setAsk] = useState(false); // after planning: "add the ingredients too?"
+  const [picking, setPicking] = useState(false); // card had no day: choose meal + day
+  const [pickSlot, setPickSlot] = useState('Dinner');
 
   useEffect(() => {
     let live = true;
@@ -30,6 +32,7 @@ function OptionCard({ option, onAction }) {
   }, [option]);
 
   if (!recipe) return null;
+  const noDay = recipe.dayOffset === null || recipe.dayOffset === undefined;
 
   // Adding ingredients first shows the review so you can un-tick what you already have.
   const openReview = async () => {
@@ -46,7 +49,7 @@ function OptionCard({ option, onAction }) {
       const ok = await onAction(kind, recipe, extra);
       if (ok && kind === 'list') setReview(null);
       if (ok) setDone((d) => ({ ...d, [kind]: true }));
-      if (ok && kind === 'plan') setAsk(true);
+      if (ok && kind === 'plan') { setAsk(true); setPicking(false); }
     } finally {
       setBusy('');
     }
@@ -77,6 +80,11 @@ function OptionCard({ option, onAction }) {
             {busy === 'plan' ? <ActivityIndicator size="small" color="#fff" /> : <Text style={styles.btnMainText}>{done.plan ? t('option_planned') : t('option_plan_day', { day: dayLabel(recipe.dayOffset) })}</Text>}
           </TouchableOpacity>
         ) : null}
+        {noDay ? (
+          <TouchableOpacity style={[styles.btn, styles.btnAlt, done.plan && styles.btnDone]} onPress={() => (done.plan ? null : setPicking((v) => !v))} disabled={!!busy}>
+            {busy === 'plan' ? <ActivityIndicator size="small" color={colors.forest} /> : <Text style={done.plan ? styles.btnMainText : styles.btnAltText}>{done.plan ? t('option_planned') : t('option_plan_pick')}</Text>}
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity style={[styles.btn, recipe.dayOffset !== null && recipe.dayOffset !== undefined ? styles.btnAlt : styles.btnMain, done.list && styles.btnDone]} onPress={openReview} disabled={!!busy}>
           {busy === 'list' ? <ActivityIndicator size="small" color={colors.forest} /> : <Text style={(recipe.dayOffset !== null && recipe.dayOffset !== undefined && !done.list) ? styles.btnAltText : styles.btnMainText}>{done.list ? t('option_added') : t('option_add_list')}</Text>}
         </TouchableOpacity>
@@ -89,6 +97,25 @@ function OptionCard({ option, onAction }) {
           <Text style={styles.btnAltText}>{open ? t('option_hide') : t('option_preview')}</Text>
         </TouchableOpacity>
       </View>
+      {noDay && picking && !done.plan ? (
+        <View style={styles.askBox}>
+          <Text style={styles.askText}>{t('option_pick_day')}</Text>
+          <View style={styles.btnRow}>
+            {[['Breakfast', 'meal_planner_slot_breakfast'], ['Lunch', 'meal_planner_slot_lunch'], ['Dinner', 'meal_planner_slot_dinner']].map(([k, key]) => (
+              <TouchableOpacity key={k} style={[styles.btn, pickSlot === k ? styles.btnMain : styles.btnAlt]} onPress={() => setPickSlot(k)} disabled={!!busy}>
+                <Text style={pickSlot === k ? styles.btnMainText : styles.btnAltText}>{t(key)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <View style={styles.btnRow}>
+            {[0, 1, 2, 3, 4, 5, 6].map((n) => (
+              <TouchableOpacity key={n} style={[styles.btn, styles.btnAlt]} onPress={() => run('plan', { dayOffset: n, slot: pickSlot })} disabled={!!busy}>
+                <Text style={styles.btnAltText}>{n === 0 ? t('psp_today') : dayLabel(n)}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      ) : null}
       {review && !done.list ? (
         <ListAddPreviewBody
           lines={review}

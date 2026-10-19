@@ -464,7 +464,7 @@ export default function ChatSheetModal({
   }, [isListening, stop, stopSpeaking, onClose]);
   // A card Fern offered ("options") was tapped: add its ingredients to the list, or save it as a recipe.
   const handleOptionAction = useCallback(async (kind, recipe, extra) => {
-    const planAct = { type: 'plan_meal', day_offset: recipe.dayOffset ?? 0, slot: recipe.slot || 'Dinner', title: recipe.title, emoji: recipe.emoji, sides: [] };
+    const planAct = { type: 'plan_meal', day_offset: extra?.dayOffset ?? recipe.dayOffset ?? 0, slot: extra?.slot || recipe.slot || 'Dinner', title: recipe.title, emoji: recipe.emoji, sides: [] };
     const listAct = { type: 'add_recipe_to_list', title: recipe.title, ingredients: recipe.ingredients, skip: extra?.skip ? Array.from(extra.skip) : [] };
     const action = kind === 'list'
       ? listAct
