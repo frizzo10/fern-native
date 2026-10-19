@@ -710,6 +710,10 @@ export const translations = {
 
     // Add Activity modal
     family_add_activity_title: "Add Activity",
+    family_edit_activity_title: "Edit Activity",
+    family_activity_save_btn: "Save Changes",
+    activity_edit_a11y: "Edit this activity",
+    activity_add_time: "Add a time",
     family_activity_quick_pick_label: "QUICK PICK",
     family_activity_custom_label: "OR ENTER CUSTOM",
     family_activity_emoji_placeholder: "Emoji",
@@ -2958,6 +2962,10 @@ export const translations = {
 
     // Add Activity modal
     family_add_activity_title: "Agregar Actividad",
+    family_edit_activity_title: "Editar Actividad",
+    family_activity_save_btn: "Guardar Cambios",
+    activity_edit_a11y: "Editar esta actividad",
+    activity_add_time: "Agregar hora",
     family_activity_quick_pick_label: "SELECCIÓN RÁPIDA",
     family_activity_custom_label: "O INGRESA UNA PERSONALIZADA",
     family_activity_emoji_placeholder: "Emoji",

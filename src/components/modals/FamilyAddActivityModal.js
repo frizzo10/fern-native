@@ -63,7 +63,14 @@ function TimePicker({ hour, minute, ampm, onHour, onMinute, onAmPm }) {
     );
 }
 
-export default function FamilyAddActivityModal({ visible, dayOptions, initialDateKey, onClose, onAdd }) {
+// "5:30 PM" -> { hour: '5', minute: '30', ampm: 'PM' } (blank parts when it can't be read)
+function parseClock(str) {
+    const m = String(str || '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    return m ? { hour: String(Number(m[1])), minute: m[2], ampm: m[3].toUpperCase() } : { hour: '', minute: '', ampm: 'PM' };
+}
+
+// `editing` = an existing activity to change; then the sheet opens filled in and Save calls onSave(updated).
+export default function FamilyAddActivityModal({ visible, dayOptions, initialDateKey, onClose, onAdd, editing = null, onSave }) {
     const { t } = useLanguage();
     const [emoji, setEmoji] = useState('');
     const [name, setName] = useState('');
@@ -77,18 +84,23 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
 
     useEffect(() => {
         if (!visible) return;
-        setEmoji('');
-        setName('');
-        setStartHour('');
-        setStartMinute('');
-        setStartAmPm('PM');
-        setEndHour('');
-        setEndMinute('');
-        setEndAmPm('PM');
-        const initialIndex = (dayOptions || []).findIndex((d) => d.dateKey === initialDateKey);
+        const from = editing || {};
+        const parts = String(from.time || '').split(' - ');
+        const st = parseClock(from.startTime || parts[0]);
+        const en = parseClock(from.endTime || parts[1]);
+        setEmoji(from.emoji && from.emoji !== '🗓️' ? from.emoji : (from.emoji || ''));
+        setName(from.label || '');
+        setStartHour(st.hour);
+        setStartMinute(st.minute);
+        setStartAmPm(st.ampm);
+        setEndHour(en.hour);
+        setEndMinute(en.minute);
+        setEndAmPm(en.ampm);
+        const wantedKey = from.dateKey || initialDateKey;
+        const initialIndex = (dayOptions || []).findIndex((d) => d.dateKey === wantedKey);
         setDayIndex(initialIndex >= 0 ? initialIndex : 0);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [visible, initialDateKey]);
+    }, [visible, initialDateKey, editing]);
 
     const handleQuickPick = (item) => {
         setEmoji(item.emoji);
@@ -109,7 +121,8 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
         const endTime = (endHour && endMinute) ? `${endHour}:${endMinute} ${endAmPm}` : '';
         const time = startTime && endTime ? `${startTime} - ${endTime}` : (startTime || '');
 
-        onAdd({
+        const built = {
+            ...(editing || {}),
             day: selectedDay.label,
             time,
             emoji: emoji || '🗓️',
@@ -117,8 +130,9 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
             dateKey: selectedDay.dateKey,
             endTime,
             startTime,
-            _origLabel: trimmedName,
-        });
+            _origLabel: editing?._origLabel || trimmedName,
+        };
+        if (editing && onSave) onSave(built); else onAdd(built);
     };
 
     return (
@@ -128,7 +142,7 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
                     <View style={styles.grabber} />
 
                     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                        <Text style={styles.title}>{t('family_add_activity_title')}</Text>
+                        <Text style={styles.title}>{editing ? t('family_edit_activity_title') : t('family_add_activity_title')}</Text>
 
                         <Text style={styles.sectionLabel}>{t('family_activity_quick_pick_label')}</Text>
                         <View style={styles.quickRow}>
@@ -193,7 +207,7 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
                                 <Text style={styles.cancelBtnText}>{t('cancel_btn')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} onPress={handleAdd}>
-                                <Text style={styles.addBtnText}>{t('family_activity_add_btn')}</Text>
+                                <Text style={styles.addBtnText}>{editing ? t('family_activity_save_btn') : t('family_activity_add_btn')}</Text>
                             </TouchableOpacity>
                         </View>
                     </ScrollView>

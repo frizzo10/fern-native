@@ -42,6 +42,7 @@ export default function FamilyScreen({ user }) {
     const [isFillingWeek, setIsFillingWeek] = useState(false);
     const [addMealModal, setAddMealModal] = useState(null); // { dateKey, slot, slotLabel } | null
     const [isAddActivityOpen, setIsAddActivityOpen] = useState(false);
+    const [editingActivity, setEditingActivity] = useState(null); // an existing activity being changed
     const [isPlanWithFernOpen, setIsPlanWithFernOpen] = useState(false);
     const dayScrollRef = useRef(null);
     const imageFetchInFlight = useRef(new Set());
@@ -202,6 +203,13 @@ export default function FamilyScreen({ user }) {
 
     const handleAddActivity = (activity) => {
         persistActivities([...activitiesLocal, activity]);
+        setIsAddActivityOpen(false);
+    };
+
+    const handleSaveActivity = (updated) => {
+        const original = editingActivity;
+        persistActivities(activitiesLocal.map((item) => (item === original ? updated : item)));
+        setEditingActivity(null);
         setIsAddActivityOpen(false);
     };
 
@@ -613,15 +621,21 @@ export default function FamilyScreen({ user }) {
                                 <Text style={styles.activitiesLabel}>{t('family_hub_activities_label')}</Text>
                                 {selectedDayActivities.map((activity, idx) => (
                                     <View key={`${selectedDateKey}-activity-${idx}`} style={styles.mealCard}>
-                                        <View style={styles.mealIconWrap}>
-                                            <Text style={styles.mealIconEmoji}>{activity.emoji || '🗓️'}</Text>
-                                        </View>
-                                        <View style={styles.mealInfo}>
-                                            <Text style={styles.mealTitle}>{activity.label}</Text>
-                                            {activity.time ? (
-                                                <Text style={styles.mealAddText}>{activity.time}</Text>
-                                            ) : null}
-                                        </View>
+                                        <TouchableOpacity
+                                            style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                                            activeOpacity={0.7}
+                                            onPress={() => { setEditingActivity(activity); setIsAddActivityOpen(true); }}
+                                            accessibilityRole="button"
+                                            accessibilityLabel={t('activity_edit_a11y')}
+                                        >
+                                            <View style={styles.mealIconWrap}>
+                                                <Text style={styles.mealIconEmoji}>{activity.emoji || '🗓️'}</Text>
+                                            </View>
+                                            <View style={styles.mealInfo}>
+                                                <Text style={styles.mealTitle}>{activity.label}</Text>
+                                                <Text style={styles.mealAddText}>{activity.time ? `${activity.time}  ✎` : `${t('activity_add_time')}  ✎`}</Text>
+                                            </View>
+                                        </TouchableOpacity>
                                         <TouchableOpacity
                                             style={styles.mealActionBtn}
                                             activeOpacity={0.7}
@@ -677,8 +691,10 @@ export default function FamilyScreen({ user }) {
                 visible={isAddActivityOpen}
                 dayOptions={dayOptions}
                 initialDateKey={selectedDateKey}
-                onClose={() => setIsAddActivityOpen(false)}
+                onClose={() => { setIsAddActivityOpen(false); setEditingActivity(null); }}
                 onAdd={handleAddActivity}
+                editing={editingActivity}
+                onSave={handleSaveActivity}
             />
 
             <ChatSheetModal

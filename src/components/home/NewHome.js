@@ -68,6 +68,7 @@ export default function NewHome({
   onOpenMeal,
   mealOpening,
   onAddForDay,
+  onEditActivity,
   tools,
   libraryItems,
   notice,
@@ -223,11 +224,11 @@ export default function NewHome({
             {tonightTitle || t('home_no_dinner_tonight')}
           </Text>
           {tonightActivity ? (
-            <View style={styles.activityChip}>
+            <TouchableOpacity style={styles.activityChip} activeOpacity={0.7} onPress={() => onEditActivity?.(tonightActivity)} accessibilityRole="button" accessibilityLabel={t('activity_edit_a11y')}>
               <Text style={styles.activityChipText} numberOfLines={1}>
-                {`${tonightActivity.emoji ? tonightActivity.emoji + ' ' : ''}${tonightActivity.label || ''}${tonightActivity.time ? ' · ' + tonightActivity.time : ''}`}
+                {`${tonightActivity.emoji ? tonightActivity.emoji + ' ' : ''}${tonightActivity.label || ''}${tonightActivity.time ? ' · ' + tonightActivity.time : ''}  ✎`}
               </Text>
-            </View>
+            </TouchableOpacity>
           ) : null}
         </View>
       </TouchableOpacity>
@@ -278,10 +279,10 @@ export default function NewHome({
           </TouchableOpacity>
         ))}
         {(selectedDay.activities || []).map((a, i) => (
-          <View key={`a-${i}`} style={styles.sheetRow}>
-            <Text style={styles.sheetSlot}>{a.time || ''}</Text>
-            <Text style={styles.sheetItem} numberOfLines={2}>{`${a.emoji ? a.emoji + ' ' : ''}${a.label || ''}`}</Text>
-          </View>
+          <TouchableOpacity key={`a-${i}`} style={styles.sheetRow} activeOpacity={0.7} onPress={() => onEditActivity?.(a)} accessibilityRole="button" accessibilityLabel={t('activity_edit_a11y')}>
+            <Text style={styles.sheetSlot}>{a.time || t('activity_add_time')}</Text>
+            <Text style={styles.sheetItem} numberOfLines={2}>{`${a.emoji ? a.emoji + ' ' : ''}${a.label || ''}  ✎`}</Text>
+          </TouchableOpacity>
         ))}
       </View>
       ) : null}

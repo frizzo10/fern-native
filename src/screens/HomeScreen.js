@@ -392,6 +392,7 @@ export default function HomeScreen({ user, route }) {
   // right here (same pickers as Family Hub, same save helpers) instead of navigating away.
   const [homeAddMeal, setHomeAddMeal] = useState(null); // { dateKey, slot, slotLabel } | null
   const [homeAddActivityDateKey, setHomeAddActivityDateKey] = useState(null); // dateKey | null
+  const [homeEditActivity, setHomeEditActivity] = useState(null); // an existing activity being changed
 
   const handleHomeAddForDay = (dateKey, kind) => {
     // Wait for any sheet that was just dismissed (the day sheet) to finish closing --
@@ -468,6 +469,16 @@ export default function HomeScreen({ user, route }) {
 
   const handleHomeAddActivity = (activity) => {
     persistFamilyActivities([...(Array.isArray(data.activities) ? data.activities : []), activity]);
+    setHomeAddActivityDateKey(null);
+  };
+
+  const handleHomeSaveActivity = (updated) => {
+    const original = homeEditActivity;
+    const list = Array.isArray(data.activities) ? data.activities : [];
+    const same = (a) => a === original || (a?.dateKey === original?.dateKey && a?.label === original?.label && (a?.time || '') === (original?.time || ''));
+    let done = false;
+    persistFamilyActivities(list.map((a) => { if (!done && same(a)) { done = true; return updated; } return a; }));
+    setHomeEditActivity(null);
     setHomeAddActivityDateKey(null);
   };
 
@@ -2693,6 +2704,7 @@ export default function HomeScreen({ user, route }) {
                 onPlanTonight={() => navigation.navigate('Family')}
                 onFamilyLayout={(e) => { homeSectionY.current.weekPanel = e.nativeEvent.layout.y; }}
                 onAddForDay={handleHomeAddForDay}
+                onEditActivity={setHomeEditActivity}
                 tools={newHomeTools}
                 libraryItems={newHomeLibrary}
                 notice={<AlwaysLocationReminder />}
@@ -3202,11 +3214,13 @@ export default function HomeScreen({ user, route }) {
       />
 
       <FamilyAddActivityModal
-        visible={Boolean(homeAddActivityDateKey)}
+        visible={Boolean(homeAddActivityDateKey) || Boolean(homeEditActivity)}
         dayOptions={weekDays.map((d) => ({ dateKey: d.key, label: formatDayLabel(d.key) }))}
-        initialDateKey={homeAddActivityDateKey}
-        onClose={() => setHomeAddActivityDateKey(null)}
+        initialDateKey={homeAddActivityDateKey || homeEditActivity?.dateKey}
+        onClose={() => { setHomeAddActivityDateKey(null); setHomeEditActivity(null); }}
         onAdd={handleHomeAddActivity}
+        editing={homeEditActivity}
+        onSave={handleHomeSaveActivity}
       />
 
       <LanguageModal
