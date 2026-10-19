@@ -113,7 +113,8 @@ const USE_NEW_HOME = true;
 
 function getGreeting(t) {
   const h = new Date().getHours();
-  return h < 12 ? t('good_morning') : h < 17 ? t('good_afternoon') : t('good_evening');
+  // 5 AM-noon morning, noon-5 PM afternoon, otherwise evening (midnight to 5 AM is still night, not morning)
+  return h >= 5 && h < 12 ? t('good_morning') : h >= 12 && h < 17 ? t('good_afternoon') : t('good_evening');
 }
 
 function dateKey(d) {
