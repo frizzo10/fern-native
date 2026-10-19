@@ -33,7 +33,6 @@ export const TOURS = {
           { textKey: 'tour_tab_more', tab: 4 },
         ],
       },
-      { textKey: 'tour_home_share' }, // sharing recipes / cookbooks, adding a shared cookbook
       { textKey: 'tour_home_step4', target: 'profile' },
     ],
   },

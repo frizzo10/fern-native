@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, AppState, Linking, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, AppState, Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
@@ -86,7 +86,21 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
         setShoppingDayValue(day);
         await saveShoppingDay(day, { title: t('everyday_nudge_title'), body: t('everyday_nudge_body') });
     };
-    const { data } = useSync(user);
+    const { data, pushChangedFromStorage } = useSync(user);
+    // "About you": name (synced in remi_explicit.userName), people cooked for and diet (device-only fern_shopper_prefs, the same
+    // answers the dinner planner reads), edited inline in the profile card.
+    const [editingProfile, setEditingProfile] = useState(false);
+    const [savedName, setSavedName] = useState('');
+    const [nameInput, setNameInput] = useState('');
+    const [peopleInput, setPeopleInput] = useState('');
+    const [dietInput, setDietInput] = useState('');
+    const [aboutPrefs, setAboutPrefs] = useState({});
+    useEffect(() => {
+        if (!visible) return;
+        AsyncStorage.getItem('fern_shopper_prefs').then((raw) => {
+            try { setAboutPrefs(JSON.parse(raw || '{}') || {}); } catch (e) { setAboutPrefs({}); }
+        }).catch(() => {});
+    }, [visible]);
     const { startTour } = useTour();
     const { tier, hasAccess } = useEntitlement();
     const { presentCustomerCenter, restore } = useRevenueCat();
@@ -175,6 +189,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
     const storesCount = Array.isArray(rawStores) ? rawStores.length : 0;
 
     const profileName =
+        savedName ||
         data.userProfile?.userName ||
         data.userProfile?.name ||
         user?.name ||
@@ -187,30 +202,35 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
 
     const comingSoon = (title) => Alert.alert(title, t('coming_soon'));
 
-    // Start over as a brand-new user: Fern's welcome, the circular walkthrough, the tours and this week's scanned circular.
-    const handleReplayFern = () => {
-        Alert.alert(t('replay_fern_title'), t('replay_fern_desc'), [
-            { text: t('cancel_btn'), style: 'cancel' },
-            {
-                text: t('replay_fern_btn'),
-                style: 'destructive',
-                onPress: async () => {
-                    try {
-                        await AsyncStorage.multiRemove([
-                            'fern_shop_walkthrough_heard', 'fern_agent_intro_count', 'fern_shop_greeting', 'fern_shop_greeting_spoken',
-                            'fern_coupons_celebrated', 'fern_week_deals', 'fern_circular_seen', 'fern_leaf_welcome_heard',
-                            // arrival testing: store-arrival cooldown + trip, the arrival upsell/reminder, location setup, scan history
-                            'fern_geofence_last_notified', 'fern_trip_started', 'fern_arrival_upsell_last', 'fern_always_reminder_last',
-                            'fern_location_setup_last', 'cpc_circular_history', 'fern_shop_walkthrough_heard', ...TOUR_LIST.map((tour) => tour.storageKey),
-                        ]);
-                        setSeenTours({});
-                        Alert.alert(t('replay_fern_done'));
-                    } catch (e) {
-                        Alert.alert(t('save_error_title'), t('save_error_desc'));
-                    }
-                },
-            },
-        ]);
+    const startEditProfile = () => {
+        setNameInput(savedName || data.userProfile?.userName || data.userProfile?.name || '');
+        setPeopleInput(String(aboutPrefs.householdSize || ''));
+        setDietInput(aboutPrefs.dietary && aboutPrefs.dietary !== 'none' ? String(aboutPrefs.dietary) : '');
+        setEditingProfile(true);
+    };
+
+    const saveProfile = async () => {
+        try {
+            const name = nameInput.trim();
+            let prefsRaw = {};
+            try { prefsRaw = JSON.parse((await AsyncStorage.getItem('fern_shopper_prefs')) || '{}') || {}; } catch (e) { prefsRaw = {}; }
+            const nextPrefs = { ...prefsRaw, householdSize: peopleInput.replace(/[^0-9]/g, ''), dietary: dietInput.trim() || 'none' };
+            await AsyncStorage.setItem('fern_shopper_prefs', JSON.stringify(nextPrefs));
+            let prof = {};
+            try { prof = JSON.parse((await AsyncStorage.getItem('remi_explicit')) || '{}') || {}; } catch (e) { prof = {}; }
+            const nextProf = name ? { ...prof, userName: name } : prof;
+            await AsyncStorage.setItem('remi_explicit', JSON.stringify(nextProf));
+            try {
+                const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || 'null');
+                if (cache) await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, userProfile: nextProf }));
+            } catch (e) { /* cache patch is best effort */ }
+            setAboutPrefs(nextPrefs);
+            if (name) setSavedName(name);
+            setEditingProfile(false);
+            pushChangedFromStorage?.({ remi_explicit: nextProf });
+        } catch (e) {
+            Alert.alert(t('save_error_title'), t('save_error_desc'));
+        }
     };
 
     const handleSignOut = () => {
@@ -329,14 +349,42 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             <Text style={styles.infoValue}>{t('account_library_summary', { recipes: recipesCount, books: booksCount })}</Text>
                         </View>
 
-                        <View style={styles.rowInfoCard}>
-                            <View style={styles.rowInfoTextWrap}>
-                                <Text style={styles.rowInfoLabel}>{t('account_household_income').toUpperCase()}</Text>
-                                <Text style={styles.rowInfoValue}>{t('account_not_set')}</Text>
+                        <View style={styles.infoCard}>
+                            <View style={styles.aboutHeader}>
+                                <Text style={styles.infoLabel}>{t('profile_about_title').toUpperCase()}</Text>
+                                {editingProfile ? null : (
+                                    <TouchableOpacity activeOpacity={0.85} onPress={startEditProfile}>
+                                        <Text style={styles.rowEditText}>{t('account_edit')}</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
-                            <TouchableOpacity activeOpacity={0.85} onPress={() => comingSoon(t('account_household_income'))}>
-                                <Text style={styles.rowEditText}>{t('account_edit')}</Text>
-                            </TouchableOpacity>
+                            {editingProfile ? (
+                                <View>
+                                    <Text style={styles.aboutFieldLabel}>{t('profile_name')}</Text>
+                                    <TextInput style={styles.aboutInput} value={nameInput} onChangeText={setNameInput} autoCapitalize="words" returnKeyType="done" />
+                                    <Text style={styles.aboutFieldLabel}>{t('profile_people')}</Text>
+                                    <TextInput style={styles.aboutInput} value={peopleInput} onChangeText={setPeopleInput} keyboardType="number-pad" maxLength={2} />
+                                    <Text style={styles.aboutFieldLabel}>{t('profile_diet')}</Text>
+                                    <TextInput style={styles.aboutInput} value={dietInput} onChangeText={setDietInput} placeholder={t('profile_diet_hint')} placeholderTextColor="#A89883" returnKeyType="done" />
+                                    <View style={styles.aboutBtnRow}>
+                                        <TouchableOpacity style={styles.aboutCancel} activeOpacity={0.85} onPress={() => setEditingProfile(false)}>
+                                            <Text style={styles.aboutCancelText}>{t('profile_cancel')}</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.aboutSave} activeOpacity={0.85} onPress={saveProfile}>
+                                            <Text style={styles.aboutSaveText}>{t('profile_save')}</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : (
+                                <View>
+                                    <Text style={styles.infoValue}>{profileName}</Text>
+                                    <Text style={styles.aboutSummary}>
+                                        {aboutPrefs.householdSize ? t('profile_people_summary', { count: aboutPrefs.householdSize }) : t('account_not_set')}
+                                        {' · '}
+                                        {aboutPrefs.dietary && aboutPrefs.dietary !== 'none' ? aboutPrefs.dietary : t('profile_no_restrictions')}
+                                    </Text>
+                                </View>
+                            )}
                         </View>
 
                         <View style={styles.rowInfoCard}>
@@ -456,14 +504,10 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             ))}
                         </View>
 
-                        <TouchableOpacity style={styles.restoreLinkBtn} activeOpacity={0.8} onPress={handleReplayFern}>
-                            <Text style={styles.restoreLinkBtnText}>{`🔁 ${t('replay_fern_btn')}`}</Text>
-                        </TouchableOpacity>
-
                         <TouchableOpacity
                             style={styles.preferencesBtn}
                             activeOpacity={0.85}
-                            onPress={() => comingSoon(t('account_update_cooking_preferences'))}
+                            onPress={startEditProfile}
                         >
                             <Text style={styles.preferencesBtnText}>🍳 {t('account_update_cooking_preferences').toUpperCase()}</Text>
                         </TouchableOpacity>
@@ -610,6 +654,15 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
         marginBottom: 12,
     },
+    aboutHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    aboutFieldLabel: { color: colors.brown, fontFamily: 'Jost-Regular', fontSize: 12, marginTop: 12, marginBottom: 4 },
+    aboutInput: { borderWidth: 1, borderColor: '#D9CFBF', borderRadius: 12, backgroundColor: '#fff', paddingHorizontal: 12, paddingVertical: 10, fontFamily: 'Jost-Regular', fontSize: 15, color: '#2F2015' },
+    aboutBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 16 },
+    aboutCancel: { paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, borderColor: '#D9CFBF' },
+    aboutCancelText: { color: colors.brown, fontFamily: 'Jost-SemiBold', fontSize: 14 },
+    aboutSave: { paddingVertical: 10, paddingHorizontal: 20, borderRadius: 12, backgroundColor: colors.forest },
+    aboutSaveText: { color: '#F5F0E7', fontFamily: 'Jost-Bold', fontSize: 14 },
+    aboutSummary: { color: colors.brown, fontFamily: 'Jost-Regular', fontSize: 13, marginTop: 4 },
     infoLabel: {
         color: colors.brown,
         fontFamily: 'Jost-Regular',
