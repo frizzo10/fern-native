@@ -30,7 +30,7 @@ const DIGITAL_OK = /publix|kroger|albertsons|safeway|food lion|meijer|walgreens|
 
 export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed, onClearChecked, storeName = '' }) {
   const { t } = useLanguage();
-  const { speakText, stopSpeaking, isSpeaking } = useFernVoice({
+  const { prepareSpeech, playPrepared, stopSpeaking, isSpeaking } = useFernVoice({
     onError: (m) => console.warn('[ShoppingMode] voice error:', m),
     token: user?.token,
     enabled: Boolean(visible && voice),
@@ -88,8 +88,21 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   // waits its turn. Before, every new line stopped the one before it, so a quick tap on the next item (or a second
   // announcement) cut the section change off mid-sentence. Only the newest plain line waits; lines flagged `keep`
   // (section changes, skipped items coming back) are never dropped.
-  const speakTextRef = useRef(speakText);
-  speakTextRef.current = speakText;
+  // Spoken lines are small, stable pieces ("Checked off Milk.", "3 left in Dairy.") that are fetched ahead of time while the
+  // list is on screen, so a tap plays instantly from the phone instead of waiting on a round trip to the speech server.
+  // lineCache: text -> Promise<uri>. A line nobody prefetched is simply fetched live (same as before).
+  const prepareRef = useRef(prepareSpeech);
+  prepareRef.current = prepareSpeech;
+  const playPreparedRef = useRef(playPrepared);
+  playPreparedRef.current = playPrepared;
+  const lineCache = useRef(new Map());
+  const getLine = useCallback((text) => {
+    const cache = lineCache.current;
+    if (cache.has(text)) return cache.get(text);
+    const p = Promise.resolve(prepareRef.current(text)).then((uri) => { if (!uri) cache.delete(text); return uri; }).catch(() => { cache.delete(text); return null; });
+    cache.set(text, p);
+    return p;
+  }, []);
   const speechRef = useRef({ busy: false, heard: false, pending: [], timer: null });
   const playNext = useRef(null);
   playNext.current = () => {
@@ -100,7 +113,11 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     sp.busy = true;
     sp.heard = false;
     sp.timer = setTimeout(() => playNext.current(), 20000); // safety: never get stuck waiting on a line that did not play
-    speakTextRef.current(next.text).then((uri) => { if (!uri) playNext.current(); }).catch(() => playNext.current());
+    const gen = sp.gen || 0;
+    getLine(next.text).then((uri) => {
+      if ((sp.gen || 0) !== gen) return; // closed / reset while the line was loading
+      if (!uri || !playPreparedRef.current(uri)) playNext.current();
+    }).catch(() => playNext.current());
   };
   const resetSpeech = () => {
     const sp = speechRef.current;
@@ -108,6 +125,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     sp.busy = false;
     sp.heard = false;
     sp.pending = [];
+    sp.gen = (sp.gen || 0) + 1;
   };
   useEffect(() => {
     const sp = speechRef.current;
@@ -116,15 +134,18 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     if (sp.heard) { sp.heard = false; playNext.current(); }
   }, [isSpeaking]);
 
-  const say = useCallback((text, { keep = false } = {}) => {
+  // `lines` is one string or a list of short pieces that are spoken back to back (each piece is cached on its own).
+  const say = useCallback((lines, { keep = false } = {}) => {
+    const parts = (Array.isArray(lines) ? lines : [lines]).map((x) => String(x || '').trim()).filter(Boolean);
+    const text = parts.join(' ');
     setStatus(text);
-    if (!voice) return;
+    if (!voice || !parts.length) return;
     const sp = speechRef.current;
     if (sp.lastText === text && Date.now() - (sp.lastAt || 0) < 3000) return; // same line twice in a row: say it once
     sp.lastText = text;
     sp.lastAt = Date.now();
     sp.pending = sp.pending.filter((p) => p.keep);
-    sp.pending.push({ text, keep });
+    parts.forEach((part) => sp.pending.push({ text: part, keep }));
     if (!sp.busy) playNext.current();
   }, [voice]);
 
@@ -135,7 +156,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); setShowCoupons(false); resetSpeech(); stopSpeaking?.(); return; }
     if (announced.current || !current) return;
     announced.current = true;
-    say(`${t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length })} ${intro(current.sectionKey)}`, { keep: true });
+    say([t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length }), intro(current.sectionKey)], { keep: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, current?.id]);
 
@@ -147,6 +168,40 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, current, open.length]);
 
+  // "Read the list ahead of time": when it opens with voice on, fetch every line Fern is likely to say (opening, each
+  // section intro, each item's "checked off", the countdown, section done) a few at a time, in the order they will be needed.
+  const prefetched = useRef(false);
+  useEffect(() => {
+    if (!visible) { prefetched.current = false; lineCache.current = new Map(); return; }
+    if (!voice || prefetched.current || !flat.length) return;
+    prefetched.current = true;
+    const lines = [];
+    const add = (x) => { if (x && !lines.includes(x)) lines.push(x); };
+    const first = open[0];
+    add(t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length }));
+    if (first) add(t('shopmode_section_intro', { section: nameOf(first.sectionKey), n: openIn(first.sectionKey) }));
+    sections.forEach((s, si) => {
+      const n = s.items.filter((i) => !i.checked).length;
+      if (!n) return;
+      s.items.filter((i) => !i.checked).forEach((i) => add(t('shopmode_checked', { item: i.text })));
+      for (let k = 1; k < n; k += 1) add(t('shopmode_remaining', { n: k, section: s.name }));
+      add(t('shopmode_section_done', { section: s.name }));
+      const nextSec = sections.slice(si + 1).find((x) => x.items.some((i) => !i.checked));
+      if (nextSec) add(t('shopmode_section_intro', { section: nextSec.name, n: nextSec.items.filter((i) => !i.checked).length }));
+    });
+    add(t('shopmode_all_done'));
+    const queue = lines.slice(0, 60);
+    let idx = 0;
+    const worker = async () => {
+      while (idx < queue.length && prefetched.current) {
+        const text = queue[idx]; idx += 1;
+        await getLine(text);
+      }
+    };
+    worker(); worker(); worker();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, voice, flat.length]);
+
   const gotRef = useRef({});
   const got = async (item) => {
     // A double tap / double event on the same item must announce it once.
@@ -156,22 +211,22 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     setTimeout(() => { delete gotRef.current[key]; }, 1500);
     const others = open.filter((i) => i.id !== item.id);
     const sameSection = others.filter((i) => i.sectionKey === item.sectionKey);
-    let msg = t('shopmode_checked', { item: item.text });
+    const msg = [t('shopmode_checked', { item: item.text })];
     let sectionChange = false;
     if (sameSection.length) {
-      msg += ` ${t('shopmode_remaining', { n: sameSection.length, section: nameOf(item.sectionKey) })}`;
+      msg.push(t('shopmode_remaining', { n: sameSection.length, section: nameOf(item.sectionKey) }));
     } else {
       const next = others.find((i) => !skipped.includes(i.id));
       if (next) {
         celebrateSection(nameOf(item.sectionKey), nameOf(next.sectionKey));
         const nextCount = others.filter((i) => i.sectionKey === next.sectionKey).length;
-        msg += ` ${t('shopmode_section_done', { section: nameOf(item.sectionKey) })} ${t('shopmode_section_intro', { section: nameOf(next.sectionKey), n: nextCount })}`;
+        msg.push(t('shopmode_section_done', { section: nameOf(item.sectionKey) }), t('shopmode_section_intro', { section: nameOf(next.sectionKey), n: nextCount }));
         sectionChange = true;
       } else if (others.length) {
         // Only skipped items are left: the effect above says "now back to the ones you skipped" once, after this line.
       } else {
         celebrateSection(nameOf(item.sectionKey), '');
-        msg += ` ${t('shopmode_all_done')}`;
+        msg.push(t('shopmode_all_done'));
       }
     }
     say(msg, { keep: sectionChange });
@@ -194,7 +249,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     const next = open.find((i) => i.sectionKey !== key && !skipped.includes(i.id));
     const go = () => {
       setSkipped((prev) => [...prev, ...left.map((i) => i.id)]);
-      if (next) say(`${t('shopmode_moving', { section: nameOf(next.sectionKey) })} ${intro(next.sectionKey)}`, { keep: true });
+      if (next) say([t('shopmode_moving', { section: nameOf(next.sectionKey) }), intro(next.sectionKey)], { keep: true });
     };
     Alert.alert(
       t('shopmode_move_title'),
