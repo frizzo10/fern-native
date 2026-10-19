@@ -490,7 +490,7 @@ export default function ChatSheetModal({
           </TouchableOpacity>
         </View>
 
-        <ScrollView ref={scrollRef} style={styles.messageList} contentContainerStyle={styles.messageListContent}>
+        <ScrollView ref={scrollRef} style={styles.messageList} contentContainerStyle={styles.messageListContent} keyboardShouldPersistTaps="handled">
           {messages.length === 0 && !thinking && !error && (
             <View style={styles.emptyState}>
               <Text style={styles.emptyEmoji}>🌿</Text>
