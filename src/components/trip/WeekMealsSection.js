@@ -34,6 +34,10 @@ async function markFreePlanUsed() {
   } catch (e) { /* best effort */ }
 }
 
+// Three weekday dinners, one per sale item: the three biggest food discounts in the circular.
+const DINNER_COUNT = 3;
+const isWeekday = (key) => { const d = parseDateKey(key).getDay(); return d >= 1 && d <= 5; };
+
 async function readJson(key, fallback) {
   try {
     const raw = await AsyncStorage.getItem(key);
@@ -43,10 +47,10 @@ async function readJson(key, fallback) {
   }
 }
 
-// Step 4 of the shopping trip: a week of dinners built around the week's best sale items.
-// Several complete meals (main + sides) per star item; tick the ones you want, swap dishes or the
-// whole sale item, preview any recipe, then one tap writes the dinners to the Family Hub week and
-// every ingredient to the shopping list.
+// Step 4 of the shopping trip: three weeknight dinners built around the circular's three biggest
+// food discounts. One complete meal (main + sides) per sale item; untick one, swap the dish or the
+// whole sale item, preview any recipe, then one tap writes the dinners to the next empty weekday
+// nights in Family Hub and every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
 export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, onReady, onSaveRecipe, books }) {
@@ -54,9 +58,8 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
   const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
   const [pending, setPending] = useState(null); // { picks, recipes } waiting on the list preview
-  const [want, setWant] = useState(5);
   const [cards, setCards] = useState([]); // [{ key, deal, ideas: [{id,title,time,emoji,why,sides,checked}], loading }]
-  const [maxOpen, setMaxOpen] = useState(5);
+  const [maxOpen, setMaxOpen] = useState(DINNER_COUNT);
   const [previews, setPreviews] = useState({});
   const [sidePreviews, setSidePreviews] = useState({}); // `${idea.id}::${side}` -> { loading | failed | recipe }
   const [failed, setFailed] = useState('');
@@ -97,25 +100,20 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     try {
       prefs.current = await readJson('fern_shopper_prefs', {});
       const mealPlan = await readJson('rv4_meal_plan', {});
-      const open = buildRollingWeekDateKeys().filter((k) => !(Array.isArray(mealPlan[k]) ? mealPlan[k] : []).some((e) => normalizeSlot(e) === 'dinner'));
+      // The next empty weekday dinner nights (Mon-Fri), at most three.
+      const open = buildRollingWeekDateKeys()
+        .filter((k) => isWeekday(k) && !(Array.isArray(mealPlan[k]) ? mealPlan[k] : []).some((e) => normalizeSlot(e) === 'dinner'))
+        .slice(0, DINNER_COUNT);
       openKeys.current = open;
       setMaxOpen(open.length);
       if (!open.length) { setFailed(t('trip_week_no_open')); setPhase('idle'); return; }
-      const n = Math.max(1, Math.min(open.length, want));
-      const starCount = autoStart ? 3 : Math.min(4, Math.max(2, Math.ceil(n / 2)));
-      const stars = pickStarDeals(weekDeals, starCount, '');
+      const stars = pickStarDeals(weekDeals, open.length, '');
       if (!stars.length) { setFailed(t('trip_week_failed')); setPhase('idle'); return; }
       const exclude = Object.values(mealPlan).flat().map((e) => String(e?.title || '')).filter(Boolean);
       const results = await Promise.all(stars.map((d) => fetchDealRecipeIdeas({ itemName: d.name, locale, token, exclude, note: noteFor() }).catch(() => [])));
-      const built = stars.map((d, i) => ({ key: `${d.name}-${i}`, deal: d, ideas: (results[i] || []).map((x) => ({ ...x, checked: false })) })).filter((c) => c.ideas.length);
+      // One dinner per sale item (ticked); the AI's other ideas wait in `spare` for "Different dish".
+      const built = stars.map((d, i) => ({ key: `${d.name}-${i}`, deal: d, ideas: (results[i] || []).slice(0, 1).map((x) => ({ ...x, checked: true })), spare: (results[i] || []).slice(1) })).filter((c) => c.ideas.length);
       if (!built.length) { setFailed(t('trip_week_failed')); setPhase('idle'); return; }
-      let picked = 0;
-      for (let r = 0; r < 3 && picked < n; r += 1) {
-        for (const c of built) {
-          if (picked >= n) break;
-          if (c.ideas[r]) { c.ideas[r].checked = true; picked += 1; }
-        }
-      }
       setCards(built);
       setPreviews({});
       setPhase('ready');
@@ -158,34 +156,42 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     }
   };
 
-  // Three different dishes for one sale item (keeps whatever is ticked).
+  // A different dinner for the same sale item: the next spare idea, else ask the AI for more.
   const moreDishes = async (ci) => {
     const card = cards[ci];
     if (!card || card.loading) return;
+    if ((card.spare || []).length) {
+      const [next, ...rest] = card.spare;
+      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { ...c, ideas: [{ ...next, checked: true }], spare: rest })));
+      setPreviews({});
+      return;
+    }
     const shown = cards.flatMap((c) => c.ideas.map((x) => x.title));
     setCards((prev) => prev.map((c, i) => (i === ci ? { ...c, loading: true } : c)));
     try {
       const fresh = await fetchDealRecipeIdeas({ itemName: card.deal.name, locale, token, exclude: shown, note: noteFor() });
-      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { ...c, loading: false, ideas: [...c.ideas.filter((x) => x.checked), ...fresh.map((x) => ({ ...x, checked: false }))].slice(0, 6) })));
+      if (!fresh.length) throw new Error('none');
+      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { ...c, loading: false, ideas: [{ ...fresh[0], checked: true }], spare: fresh.slice(1) })));
+      setPreviews({});
     } catch (e) {
       setCards((prev) => prev.map((c, i) => (i === ci ? { ...c, loading: false } : c)));
     }
   };
 
-  // Swap the whole sale item for the next-best one; ticks as many dishes as were ticked before.
+  // Swap the whole sale item for the next-best one (and its dinner).
   const swapItem = async (ci) => {
     const card = cards[ci];
     if (!card || card.loading) return;
     const used = new Set(cards.map((c) => c.deal.name));
     const next = pickStarDeals(weekDeals, 14, '').find((d) => !used.has(d.name));
     if (!next) return;
-    const keep = Math.max(1, card.ideas.filter((x) => x.checked).length);
     setCards((prev) => prev.map((c, i) => (i === ci ? { ...c, loading: true } : c)));
     try {
       const exclude = cards.flatMap((c) => c.ideas.map((x) => x.title));
       const fresh = await fetchDealRecipeIdeas({ itemName: next.name, locale, token, exclude, note: noteFor() });
       if (!fresh.length) throw new Error('none');
-      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { key: `${next.name}-${Date.now()}`, deal: next, loading: false, ideas: fresh.map((x, n) => ({ ...x, checked: n < keep })) })));
+      setCards((prev) => prev.map((c, i) => (i !== ci ? c : { key: `${next.name}-${Date.now()}`, deal: next, loading: false, ideas: [{ ...fresh[0], checked: true }], spare: fresh.slice(1) })));
+      setPreviews({});
     } catch (e) {
       setCards((prev) => prev.map((c, i) => (i === ci ? { ...c, loading: false } : c)));
     }
@@ -254,14 +260,6 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       {phase === 'idle' ? (
         weekDeals.length ? (
           <View style={{ marginTop: 10 }}>
-            <View style={styles.stepRow}>
-              <Text style={styles.sub}>{t('trip_week_count')}</Text>
-              <View style={styles.stepper}>
-                <TouchableOpacity style={styles.stepBtn} onPress={() => setWant((n) => Math.max(1, n - 1))}><Text style={styles.stepBtnText}>−</Text></TouchableOpacity>
-                <Text style={styles.stepNum}>{want}</Text>
-                <TouchableOpacity style={styles.stepBtn} onPress={() => setWant((n) => Math.min(7, n + 1))}><Text style={styles.stepBtnText}>+</Text></TouchableOpacity>
-              </View>
-            </View>
             <TouchableOpacity style={styles.primary} activeOpacity={0.88} onPress={async () => {
               if (!hasAccess(TIERS.PRO) && (await freePlansUsed()) >= FREE_PLANS_PER_MONTH) { setGate(true); return; }
               setPhase('ask');
@@ -320,6 +318,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
             const sv = dealSaving(c.deal);
             return (
               <View key={c.key} style={styles.star}>
+                <Text style={styles.fromCircular}>{t('trip_week_from_circular')}</Text>
                 <Text style={styles.starName}>{t('trip_week_star_sale', { item: c.deal.name })}</Text>
                 <Text style={styles.sub}>{[c.deal.isBogo ? 'BOGO' : c.deal.salePrice, c.deal.store, sv.amount > 0 ? t('psp_save_amt', { amt: `${sv.est ? '~' : ''}${fmtMoney(sv.amount)}` }) : ''].filter(Boolean).join(' · ')}</Text>
                 {c.loading ? <ActivityIndicator color={colors.orange} style={{ marginVertical: 8 }} /> : c.ideas.map((idea, ii) => {
@@ -521,6 +520,7 @@ const styles = StyleSheet.create({
   stepBtnText: { color: colors.orange, fontSize: 18, fontWeight: '800' },
   stepNum: { fontSize: 16, fontWeight: '800', color: '#2D1B10', minWidth: 18, textAlign: 'center' },
   star: { marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E4DCD2' },
+  fromCircular: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: '#7a6d60', marginBottom: 2 },
   starName: { fontSize: 14, fontWeight: '800', color: '#2F7D4F' },
   idea: { marginTop: 10 },
   ideaTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
