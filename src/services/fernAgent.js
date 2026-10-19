@@ -153,10 +153,10 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false, topic = '' } 
       '- {"type":"go_to","screen":"Shopping|Recipes|Family|Find|Home"} — use it when they ask to be taken somewhere or after you explain where something is.\n' +
       '- {"type":"close_chat"} when they are done (that\'s all, thanks, close this): say a short goodbye.',
     wantsApp ? APP_GUIDE : 'APP HELP: the full app map is not loaded this turn. For "where is…/how do I…" questions give only what you are sure of (bottom bar: Home, Find, Family, Recipes, More; the green leaf is you; Shopping opens from a saved store on Home) and say you will walk them through it if they ask.',
-    'LET THEM CHOOSE: when they ask for a dish by a general name ("add tacos", "plan pasta Tuesday", "what about chili") and did not name one exact saved recipe, do NOT pick for them and do NOT act yet. Offer 2 or 3 options in one short spoken sentence: up to two matching recipes from SAVED RECIPES (say their exact saved titles first, because they are the family\'s own) plus one fresh idea of yours (say it is a new idea). End by asking which one. Leave add_to_shopping_list and actions EMPTY on that turn. Only when they pick (by name, or "the first one" / "the second") do what they originally asked: for the list use add_recipe_to_list; for a day use plan_meal (ask which day if they did not say) plus add_recipe_to_list if they want the ingredients; a fresh idea they like is also saved with save_recipe only if they say so. If they named one exact saved recipe or a plain grocery item (milk, salt, eggs), skip the choice and just do it.',
+    'LET THEM CHOOSE: when they ask for a dish by a general name ("add tacos", "plan pasta Tuesday", "what about chili") and did not name one exact saved recipe, do NOT pick for them and do NOT act yet. Offer ONE or TWO options (never three): a matching recipe from SAVED RECIPES first if there is one (exact saved title, because it is the family\'s own), plus, if you want, one fresh idea of yours (say it is a new idea). Say their names in one short sentence and ask which one. ALSO put each option in the top-level "options" array so the app shows tappable cards they can preview and add: {"title":"exact saved title or your new title","emoji":"🥩","time":"30 min","description":"one short line","ingredients":["1 lb ..."],"instructions":["step"]} (for a SAVED recipe give only title, the app fills in the rest; for a new idea give the full ingredients with quantities and 4-6 steps). Leave add_to_shopping_list and actions EMPTY on that turn. When they pick one by saying it, do what they asked as below. Only when they pick (by name, or "the first one" / "the second") do what they originally asked: for the list use add_recipe_to_list; for a day use plan_meal (ask which day if they did not say) plus add_recipe_to_list if they want the ingredients; a fresh idea they like is also saved with save_recipe only if they say so. If they named one exact saved recipe or a plain grocery item (milk, salt, eggs), skip the choice and just do it.',
     'SAFETY: adding is instant, but BEFORE removing list items or replacing a meal that is already planned, ask "Want me to remove/replace it?" and only emit that action after they say yes. Never claim you did something you did not put in add_to_shopping_list or actions. If a request cannot be done with the above, say so honestly and tell them where in the app to do it. If they ask for something not on sale, say it is not in this week\'s circular.',
     extra,
-    'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":[],"actions":[]}',
+    'Respond ONLY with valid JSON, no markdown: {"reply":"...","add_to_shopping_list":[],"actions":[],"options":[]}',
   ].filter(Boolean).join('\n\n');
 }
 
@@ -313,6 +313,24 @@ async function addCoupon(a, env) {
   await patchCache({ walletCoupons: nextWallet, shopping: nextList });
   await env.pushChangedFromStorage({ shopping: nextList });
   return { ok: true, text: `Added the coupon "${coupon.title}" to your wallet${nextList !== list ? ` and ${name} to your list` : ''}`, changed: 'wallet' };
+}
+
+// A recipe card Fern offered in chat ("options"): fills in a saved recipe's real ingredients/steps by title.
+export async function resolveOptionRecipe(o) {
+  const title = clip(o?.title, 120);
+  const saved = await readJson('rv4_saved', []);
+  const own = saved.find((r) => lc(r?.title) === lc(title));
+  const src = own || o || {};
+  const lines = (arr) => (Array.isArray(arr) ? arr : []).map((x) => (typeof x === 'string' ? x : [x?.amount, x?.unit, x?.item || x?.name].filter(Boolean).join(' '))).map((x) => String(x).trim()).filter(Boolean);
+  return {
+    title: own?.title || title,
+    emoji: src.emoji || '🍽️',
+    time: src.time || '',
+    description: src.description || '',
+    ingredients: lines(src.ingredients),
+    instructions: lines(src.instructions || src.directions),
+    isSaved: !!own,
+  };
 }
 
 // Runs every action she asked for. Returns { lines: [report lines], showRecipesFor, goTo, close }.

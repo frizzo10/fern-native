@@ -30,6 +30,7 @@ import { addRecipeIngredientsToShoppingList } from '../../utils/shoppingListSync
 import { LAUNCH_ALL_FREE } from '../../constants/launch';
 import { spokenSummary } from '../../utils/spokenSummary';
 import { buildAgentContext, buildAgentPrompt, executeAgentActions, emitAgentChange } from '../../services/fernAgent';
+import RecipeOptionCards from '../RecipeOptionCards';
 
 // Free plan: a small number of Ask Fern questions per local day (device-only counter). Pro and up
 // are unlimited. The auto-opener (silent) turn never counts.
@@ -256,7 +257,8 @@ export default function ChatSheetModal({
         ? parsed.add_to_shopping_list.map(item => String(item || '').trim()).filter(Boolean)
         : [];
 
-      setMessages(prev => [...prev, { role: 'fern', text: reply }]);
+      const options = agentOn && Array.isArray(parsed?.options) ? parsed.options.filter((o) => o && o.title).slice(0, 2) : [];
+      setMessages(prev => [...prev, { role: 'fern', text: reply, options }]);
       if (mode === 'voice') {
         // The audio takes a moment to arrive; until it has played, the mic stays closed (opening it early made the
         // recording go silent when playback switched the phone out of recording mode).
@@ -437,6 +439,19 @@ export default function ChatSheetModal({
     stopSpeaking();
     onClose();
   }, [isListening, stop, stopSpeaking, onClose]);
+  // A card Fern offered ("options") was tapped: add its ingredients to the list, or save it as a recipe.
+  const handleOptionAction = useCallback(async (kind, recipe) => {
+    const action = kind === 'list'
+      ? { type: 'add_recipe_to_list', title: recipe.title, ingredients: recipe.ingredients }
+      : { type: 'save_recipe', title: recipe.title, emoji: recipe.emoji, time: recipe.time, description: recipe.description, ingredients: recipe.ingredients, instructions: recipe.instructions };
+    const done = await executeAgentActions([action], { pushChangedFromStorage, token: user?.token, canSaveUnlimited: !isFreeRef.current });
+    if (done.lines.length) setMessages(prev => [...prev, { role: 'fern', text: done.lines.join('\n') }]);
+    await pull();
+    emitAgentChange();
+    if (done.watch) onShowRef.current?.(done.watch);
+    return done.lines.length > 0 && !done.lines.some((l) => l.startsWith('✗'));
+  }, [pushChangedFromStorage, user, pull]);
+
   closeRef.current = handleClose;
 
   // Voice-only: no window at all. The green leaf button (App.js) shows the state by pulsing; see onPhase.
@@ -463,7 +478,7 @@ export default function ChatSheetModal({
   return (
     <Modal visible={visible} animationType="slide" transparent={compact} onRequestClose={handleClose}>
       <View style={compact ? styles.compactBackdrop : styles.fullBackdrop}>
-      <KeyboardAvoidingView style={compact ? styles.compactSheet : styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={compact ? [styles.compactSheet, messages.some((m) => m.options?.length) ? { height: '66%' } : null] : styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.header, compact ? styles.headerCompact : null]}>
           <Text style={styles.headerTitle}>{title || `🌿 ${t('ask_fern_btn')}`}</Text>
           <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -478,7 +493,12 @@ export default function ChatSheetModal({
               <Text style={styles.emptyText}>{t(emptyHintKey)}</Text>
             </View>
           )}
-          {messages.map((m, i) => <Bubble key={i} role={m.role} text={m.text} />)}
+          {messages.map((m, i) => (
+            <React.Fragment key={i}>
+              <Bubble role={m.role} text={m.text} />
+              {m.options?.length ? <RecipeOptionCards options={m.options} onAction={handleOptionAction} /> : null}
+            </React.Fragment>
+          ))}
           {thinking && (
             <View style={[styles.bubbleRow, styles.bubbleRowFern]}>
               <View style={[styles.bubble, styles.bubbleFern, shadow.card]}>
