@@ -481,8 +481,8 @@ export default function ChatSheetModal({
 
   return (
     <Modal visible={visible} animationType="slide" transparent={compact} onRequestClose={handleClose}>
-      <View style={compact ? styles.compactBackdrop : styles.fullBackdrop}>
-      <KeyboardAvoidingView style={compact ? [styles.compactSheet, messages.some((m) => m.options?.length) ? { height: '66%' } : null] : styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={compact ? styles.compactBackdrop : styles.fullBackdrop} behavior={compact && Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={compact ? [styles.compactSheet, messages.some((m) => m.options?.length) ? { height: '66%' } : null] : styles.container} behavior={!compact && Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.header, compact ? styles.headerCompact : null]}>
           <Text style={styles.headerTitle}>{title || `🌿 ${t('ask_fern_btn')}`}</Text>
           <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -547,7 +547,7 @@ export default function ChatSheetModal({
         </View>
         {isListening && <Text style={styles.listeningHint}>{t('mic_listening')}</Text>}
       </KeyboardAvoidingView>
-      </View>
+      </KeyboardAvoidingView>
       <UpgradeGateModal visible={limitGate} onClose={() => setLimitGate(false)} tier={TIERS.PRO} title={t('chat_limit_title')} desc={t('chat_limit_desc')} />
     </Modal>
   );
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.parch },
   fullBackdrop: { flex: 1 },
   compactBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.12)' },
-  compactSheet: { height: '32%', backgroundColor: colors.parch, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
+  compactSheet: { height: '40%', minHeight: 300, backgroundColor: colors.parch, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
   headerCompact: { paddingTop: 16 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
