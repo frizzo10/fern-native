@@ -129,6 +129,18 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
             <View pointerEvents="none" style={[styles.dim, { left: 0, right: 0, top: shownRect.y + shownRect.height + PAD, bottom: 0 }]} />
             <View pointerEvents="none" style={[styles.dim, { left: 0, width: Math.max(0, shownRect.x - PAD), top: shownRect.y - PAD, height: shownRect.height + PAD * 2 }]} />
             <View pointerEvents="none" style={[styles.dim, { left: shownRect.x + shownRect.width + PAD, right: 0, top: shownRect.y - PAD, height: shownRect.height + PAD * 2 }]} />
+            {Math.abs(shownRect.width - shownRect.height) < 8 ? (() => {
+              // Round target (the scan circle): the four rectangles leave its square un-dimmed, so the corners showed as a lighter box.
+              // Dim them with a ring clipped to that square whose hole is the circle.
+              const side = shownRect.width + PAD * 2;
+              const B = Math.ceil(side * 0.5);
+              const S = side + B * 2;
+              return (
+                <View pointerEvents="none" style={{ position: 'absolute', left: shownRect.x - PAD, top: shownRect.y - PAD, width: side, height: shownRect.height + PAD * 2, overflow: 'hidden' }}>
+                  <View style={{ position: 'absolute', left: -B, top: -B, width: S, height: S, borderRadius: S / 2, borderWidth: B, borderColor: 'rgba(10,22,10,0.55)' }} />
+                </View>
+              );
+            })() : null}
             <Animated.View
               pointerEvents="none"
               style={[
