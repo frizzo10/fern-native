@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { subscribeAgentChange } from '../services/fernAgent';
-import { ActivityIndicator, Alert, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { colors, shadow } from '../constants/tokens';
@@ -57,6 +57,10 @@ export default function FamilyScreen({ user }) {
     const imageFetchInFlight = useRef(new Set());
     const pageScrollRef = useRef(null);
     const sectionY = useRef({});
+    // Fern just added something: scroll it near the top and outline + pulse it for a few seconds so it is obvious.
+    const [flash, setFlash] = useState(null); // { kind: 'activity'|'meal', label, slot } | null
+    const pulse = useRef(new Animated.Value(0)).current;
+    const flashTimer = useRef(null);
 
     // "family_hub" tour step -> scroll target. Steps 1 and 6 talk about the
     // week/mic generally (top); step 2 is about tapping an empty meal slot
@@ -142,9 +146,28 @@ export default function FamilyScreen({ user }) {
         const idx = Math.max(0, Math.min(Number(off) || 0, dateKeys.length - 1));
         goToDay(idx);
         setTimeout(() => dayScrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: false }), 350);
-        navigation.setParams({ showDayOffset: undefined });
+        const kind = route?.params?.showKind;
+        if (kind) {
+            setFlash({ kind, label: String(route?.params?.showLabel || ''), slot: String(route?.params?.showSlot || '').toLowerCase() });
+            pulse.setValue(0);
+            Animated.loop(Animated.sequence([
+                Animated.timing(pulse, { toValue: 1, duration: 450, useNativeDriver: true }),
+                Animated.timing(pulse, { toValue: 0.25, duration: 450, useNativeDriver: true }),
+            ])).start();
+            if (flashTimer.current) clearTimeout(flashTimer.current);
+            flashTimer.current = setTimeout(() => { pulse.stopAnimation(); setFlash(null); }, 6000);
+            // after the day has rendered, bring the new entry up near the top of the screen
+            setTimeout(() => {
+                const y = kind === 'activity' ? sectionY.current.activities : sectionY.current.mealCards;
+                if (y != null) pageScrollRef.current?.scrollTo({ y: Math.max(0, y - 90), animated: true });
+            }, 700);
+        }
+        navigation.setParams({ showDayOffset: undefined, showKind: undefined, showLabel: undefined, showSlot: undefined });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [route?.params?.showNonce]);
+    useEffect(() => () => { if (flashTimer.current) clearTimeout(flashTimer.current); }, []);
+    const ring = (on) => (on ? <Animated.View pointerEvents="none" style={[styles.flashRing, { opacity: pulse }]} /> : null);
+    const flashMeal = (slot) => Boolean(flash && flash.kind === 'meal' && (!flash.slot || flash.slot === slot));
 
     const dinnersPlannedCount = dateKeys.filter((key) => (
         (mealPlanLocal[key] || []).some((entry) => normalizeSlot(entry) === 'dinner')
@@ -529,6 +552,7 @@ export default function FamilyScreen({ user }) {
                             style={[styles.mealCard, !breakfastEntries.length ? styles.mealCardEmpty : null]}
                             onLayout={(e) => { sectionY.current.mealCards = e.nativeEvent.layout.y; }}
                         >
+                            {ring(flashMeal('breakfast'))}
                             <View style={styles.mealIconWrap}>
                                 {breakfastEntries[0]?.image ? (
                                     <Image source={{ uri: breakfastEntries[0].image }} style={styles.mealIconImage} />
@@ -562,6 +586,7 @@ export default function FamilyScreen({ user }) {
                         </View>
 
                         <View style={[styles.mealCard, !lunchEntries.length ? styles.mealCardEmpty : null]}>
+                            {ring(flashMeal('lunch'))}
                             <View style={styles.mealIconWrap}>
                                 {lunchEntries[0]?.image ? (
                                     <Image source={{ uri: lunchEntries[0].image }} style={styles.mealIconImage} />
@@ -597,6 +622,7 @@ export default function FamilyScreen({ user }) {
                         {dinnerEntries.length ? (
                             dinnerEntries.map((entry, idx) => (
                                 <View key={`${selectedDateKey}-dinner-${idx}`} style={styles.mealCard}>
+                                    {ring(flashMeal('dinner') && (!flash.label || String(entry.title || '').toLowerCase() === flash.label.toLowerCase() || idx === dinnerEntries.length - 1))}
                                     <View style={styles.mealIconWrap}>
                                         {entry.image ? (
                                             <Image source={{ uri: entry.image }} style={styles.mealIconImage} />
@@ -645,10 +671,11 @@ export default function FamilyScreen({ user }) {
                         )}
 
                         {selectedDayActivities.length ? (
-                            <View style={styles.activitiesSection}>
+                            <View style={styles.activitiesSection} onLayout={(e) => { sectionY.current.activities = e.nativeEvent.layout.y; }}>
                                 <Text style={styles.activitiesLabel}>{t('family_hub_activities_label')}</Text>
                                 {selectedDayActivities.map((activity, idx) => (
                                     <View key={`${selectedDateKey}-activity-${idx}`} style={styles.mealCard}>
+                                        {ring(Boolean(flash && flash.kind === 'activity' && String(activity.label || '').toLowerCase() === flash.label.toLowerCase()))}
                                         <TouchableOpacity
                                             style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
                                             activeOpacity={0.7}
@@ -934,6 +961,7 @@ const styles = StyleSheet.create({
         width: 18,
         backgroundColor: colors.forest,
     },
+    flashRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderWidth: 3, borderColor: '#D86D33', borderRadius: 19 },
     mealCard: {
         marginTop: 16,
         flexDirection: 'row',

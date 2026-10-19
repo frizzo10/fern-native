@@ -483,7 +483,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         onShow={(w) => {
           // She just changed something: jump to where it is so the person watches it happen (the chat stays open and she keeps talking).
           if (!w?.screen) return;
-          if (w.screen === 'Family') navigationRef.current?.navigate('Family', { showDayOffset: w.dayOffset || 0, showNonce: Date.now() });
+          if (w.screen === 'Family') navigationRef.current?.navigate('Family', { showDayOffset: w.dayOffset || 0, showNonce: Date.now(), showKind: w.kind, showLabel: w.label, showSlot: w.slot });
           else navigationRef.current?.navigate(w.screen);
         }}
         onSpeechDone={(p) => {

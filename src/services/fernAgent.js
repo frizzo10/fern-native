@@ -375,7 +375,7 @@ export async function executeAgentActions(actions, env) {
       if (r) out.lines.push(`${r.ok ? '✓' : '✗'} ${r.text}`);
       if (r?.ok && !out.watch) {
         if (['remove_from_list', 'check_off', 'add_coupon', 'add_recipe_to_list'].includes(type)) out.watch = { screen: 'Shopping' };
-        else if (type === 'plan_meal' || type === 'remove_meal' || type === 'add_activity') out.watch = { screen: 'Family', dayOffset: Math.max(0, Math.min(6, Number(a.day_offset) || 0)) };
+        else if (type === 'plan_meal' || type === 'remove_meal' || type === 'add_activity') out.watch = { screen: 'Family', dayOffset: Math.max(0, Math.min(6, Number(a.day_offset) || 0)), kind: type === 'add_activity' ? 'activity' : (type === 'plan_meal' ? 'meal' : undefined), label: clip(a.label || a.title, 80), slot: type === 'plan_meal' ? String(a.slot || 'Dinner') : undefined };
         else if (type === 'save_recipe') out.watch = { screen: 'Recipes' };
       }
     } catch (e) {
