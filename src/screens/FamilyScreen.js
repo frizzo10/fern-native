@@ -223,6 +223,20 @@ export default function FamilyScreen({ user }) {
         persistMealPlan({ ...mealPlanLocal, [dateKey]: nextDayMeals });
     };
 
+    // Tapping the "..." on a planned meal: change it to another saved recipe, remove it (asks first by design:
+    // this menu IS the confirmation), or cancel. The picker opens ~400 ms after the Alert closes because iOS
+    // drops a Modal presented while an Alert is still dismissing.
+    const openMealMenu = (dateKey, entry, slot, slotLabel) => {
+        Alert.alert(entry?.title || slotLabel, undefined, [
+            {
+                text: t('family_meal_change_btn'),
+                onPress: () => setTimeout(() => setAddMealModal({ dateKey, slot, slotLabel, replace: entry }), 400),
+            },
+            { text: t('family_meal_remove_btn'), style: 'destructive', onPress: () => handleRemoveMeal(dateKey, entry) },
+            { text: t('cancel_btn'), style: 'cancel' },
+        ]);
+    };
+
     // Applies whatever Plan-with-Fern's conversation decided to add. Mirrors
     // the day_offset (0-6) the AI was asked to use back onto dateKeys, since
     // asking a model to compute real calendar dates is asking for mistakes.
@@ -282,10 +296,15 @@ export default function FamilyScreen({ user }) {
 
     const handleSelectSavedMealForAdd = (recipe) => {
         if (!addMealModal) return;
-        const { dateKey, slot } = addMealModal;
+        const { dateKey, slot, replace } = addMealModal;
         const dayMeals = mealPlanLocal[dateKey] || [];
         const newEntry = { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: recipe.image || null };
-        persistMealPlan({ ...mealPlanLocal, [dateKey]: [...dayMeals, newEntry] });
+        // Changing a planned meal swaps it in the same spot; adding appends.
+        const idx = replace ? dayMeals.indexOf(replace) : -1;
+        const nextDayMeals = idx >= 0
+            ? dayMeals.map((item, i) => (i === idx ? newEntry : item))
+            : [...dayMeals, newEntry];
+        persistMealPlan({ ...mealPlanLocal, [dateKey]: nextDayMeals });
         setAddMealModal(null);
     };
 
@@ -526,10 +545,10 @@ export default function FamilyScreen({ user }) {
                                 style={styles.mealActionBtn}
                                 activeOpacity={0.7}
                                 onPress={() => (breakfastEntries.length
-                                    ? handleRemoveMeal(selectedDateKey, breakfastEntries[0])
+                                    ? openMealMenu(selectedDateKey, breakfastEntries[0], 'Breakfast', t('meal_planner_slot_breakfast'))
                                     : openAddMealModal(selectedDateKey, 'Breakfast', t('meal_planner_slot_breakfast')))}
                             >
-                                <Text style={styles.mealActionText}>{breakfastEntries.length ? '×' : '+'}</Text>
+                                <Text style={styles.mealActionText}>{breakfastEntries.length ? '⋯' : '+'}</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -559,10 +578,10 @@ export default function FamilyScreen({ user }) {
                                 style={styles.mealActionBtn}
                                 activeOpacity={0.7}
                                 onPress={() => (lunchEntries.length
-                                    ? handleRemoveMeal(selectedDateKey, lunchEntries[0])
+                                    ? openMealMenu(selectedDateKey, lunchEntries[0], 'Lunch', t('meal_planner_slot_lunch'))
                                     : openAddMealModal(selectedDateKey, 'Lunch', t('meal_planner_slot_lunch')))}
                             >
-                                <Text style={styles.mealActionText}>{lunchEntries.length ? '×' : '+'}</Text>
+                                <Text style={styles.mealActionText}>{lunchEntries.length ? '⋯' : '+'}</Text>
                             </TouchableOpacity>
                         </View>
 
@@ -587,9 +606,9 @@ export default function FamilyScreen({ user }) {
                                     <TouchableOpacity
                                         style={styles.mealActionBtn}
                                         activeOpacity={0.7}
-                                        onPress={() => handleRemoveMeal(selectedDateKey, entry)}
+                                        onPress={() => openMealMenu(selectedDateKey, entry, 'Dinner', t('meal_planner_slot_dinner'))}
                                     >
-                                        <Text style={styles.mealActionText}>×</Text>
+                                        <Text style={styles.mealActionText}>⋯</Text>
                                     </TouchableOpacity>
                                 </View>
                             ))

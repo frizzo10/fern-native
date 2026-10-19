@@ -89,7 +89,7 @@ const APP_GUIDE = [
   'HOME: a green scan card at the top. Tap a saved store row to open that store\'s flyer (this week\'s flyer if it is already scanned, otherwise it asks for a photo of the flyer); "Scan a flyer" photographs a new one. Saved-store chips have a location icon (use my location) and an X to remove a store. Below: "Family this week" with tonight\'s dinner and a 7-day strip (tap a day to see it), "Add a meal" and "Add an activity" buttons, then the Shopping List. The grid button in the top bar opens YOUR TOOLS; the ? button next to it opens Help, which can replay the app tour or open this chat.',
   'YOUR TOOLS menu (grid button on Home): Recipes, Cookbooks, Bloggers, Coupons (coupon wallet), Suggested Meals, Loyalty Card (link store loyalty cards), Alexa Skill (setup steps to use Fern on Alexa), Charcuterie (plan a board), Dinner Party (full party menu planner), Wine Pairing (type a dish, get wines), Personal Shopper (opens the shopping trip), Weekly Nutrition (set goals, get a weekly analysis), Fridge Challenge (photo or list of what is in the fridge, once a day), Leftover Magic (leftovers to new meals), 20-Min Dinner (fast recipes), Budget Planner (weekly budget to 7 dinners and a list), AI Meal Planner (a planned week with a shopping list), Semi-Homemade (store-bought shortcuts made into real dinners), Family Vault (keep family recipes and their stories; type, import a link, or scan a recipe card), Insider Deals (brand offers), Store Circulars (browse the weekly circular of any store that other Fern shoppers have scanned, grouped by store and aisle, with search). A lock badge means that tool needs Pro or Pro Max.',
   'FIND tab: search for any recipe with AI, and browse and follow Featured Food Bloggers.',
-  'FAMILY tab (Family Hub): the next 7 days of meals. Tap a meal to see its full recipe. Tap + on an empty Breakfast, Lunch or Dinner slot to add one of their saved recipes. "Add Activity" picks an activity, day and start/end time. "AI Fill Week" fills the empty dinner nights with ideas after asking first.',
+  'FAMILY tab (Family Hub): the next 7 days of meals. Tap a meal to see its full recipe. Tap + on an empty Breakfast, Lunch or Dinner slot to add one of their saved recipes. Tap the three dots on a planned meal to change it to another saved recipe or remove it (it asks first). I can also change or remove a planned meal when they ask me. "Add Activity" picks an activity, day and start/end time. "AI Fill Week" fills the empty dinner nights with ideas after asking first.',
   'RECIPES tab: two sides, Recipes (everything saved, with a count and meal-type chips, searchable) and Cookbooks (New Cookbook to make one, tap one to open it, Share to send a link). Saving any recipe asks which cookbook, cuisine and meal type; the small arrow beside Save changes that later. Inside a recipe, the small and large A buttons make the text bigger, and Share sends a link.',
   'SHOPPING screen, top to bottom: the add row and the list (tick items off as you shop); an Everyday box (usual items, ones probably due again, and the day you usually shop); "This week\'s sales", the scanned circular, opens the first time and after that folds into a bar that says "See the whole circular" (tap it to open); tapping Recipes on a sale item shows 3 dinners with Cook it on (pick meal and day), Add ingredients to my list, and Save this recipe; coupon cards "Coupons for your list" and "Too good to pass up" (tap Preview, then Add to wallet); Dinner ideas built from the sales; "I\'m done shopping" brings up "Before you check out" with the coupons to use, and a "Your savings" card shows what they saved. They can send the list to Instacart, Kroger or Safeway, and shopping mode walks the aisles out loud.',
   'MORE tab: Profile (account), Cookbooks, Help, Logout. The Account screen has the Fern voice on/off switch, Manage Subscription, Restore Purchases, "Add Fern to my calendar" (a private link that puts her activities and planned meals into Apple or Google Calendar, one way) and the About you card (name, people, diet). Plans shows what Pro and Pro Max add; right now during the launch period everything is open to everyone.',
@@ -147,6 +147,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false, topic = '' } 
       '- {"type":"check_off","items":["Milk"]} — they say they already got it / have it (instant, no confirmation needed)\n' +
       '- {"type":"save_recipe","title":"...","emoji":"🍝","time":"30 min","description":"one line","ingredients":["1 lb ground beef", "..."],"instructions":["step", "..."],"book":"exact cookbook name or empty for My Recipes"} — YOU write the full recipe (real quantities, 4-8 steps) unless it is one of their saved recipes.\n' +
       '- {"type":"plan_meal","day_offset":2,"slot":"Dinner","title":"...","emoji":"🍽️","sides":["..."],"replace":false} — slot is Breakfast, Lunch or Dinner. Also add the ingredients they would need to buy to add_to_shopping_list when they agree to a meal.\n' +
+      '- {"type":"remove_meal","day_offset":2,"slot":"Dinner","title":"..."} — takes a planned meal off the family week (title optional, use it when you know it). Only after they say yes: ASK FIRST ("Take tacos off Wednesday dinner?"). To CHANGE a planned meal use plan_meal with "replace":true (also ask first).\n' +
       '- {"type":"add_activity","day_offset":3,"label":"Soccer practice","emoji":"⚽","start":"5:30 PM","end":"6:30 PM"} — start/end optional, format "H:MM AM/PM".\n' +
       '- {"type":"show_recipes","item":"sale item name EXACTLY as in the circular list"} — opens that sale item\'s recipes on the circular page.\n' +
       '- {"type":"add_coupon","title":"coupon title EXACTLY as in the coupon lists"} — adds it to the Fern wallet (and its product to the list).\n' +
@@ -269,6 +270,22 @@ async function planMeal(a, env) {
   return { ok: true, text: `Planned ${slot.toLowerCase()} on ${formatDayLabel(dk)}: ${title}`, changed: 'mealPlan' };
 }
 
+async function removeMeal(a, env) {
+  const dk = dateKeyFor(a.day_offset);
+  const slot = ['Breakfast', 'Lunch', 'Dinner'].find((s) => lc(s) === lc(a.slot)) || 'Dinner';
+  const want = lc(a.title);
+  const plan = await readJson('rv4_meal_plan', {});
+  const day = Array.isArray(plan[dk]) ? plan[dk] : [];
+  const matches = (m) => lc(m.slot || 'Dinner') === lc(slot) && (!want || lc(m.title) === want || lc(m.title).includes(want) || want.includes(lc(m.title)));
+  const removed = day.filter(matches);
+  if (!removed.length) return { ok: false, text: `I did not find ${slot.toLowerCase()} planned on ${formatDayLabel(dk)}.` };
+  const next = { ...plan, [dk]: day.filter((m) => !matches(m)) };
+  await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
+  await patchCache({ mealPlan: next });
+  await env.pushChangedFromStorage({ meal_plan: next });
+  return { ok: true, text: `Took ${removed[0].title} off ${slot.toLowerCase()} on ${formatDayLabel(dk)}`, changed: 'mealPlan' };
+}
+
 async function addActivity(a, env) {
   const label = clip(a.label, 60);
   if (!label) return { ok: false, text: 'I could not add that activity (no name).' };
@@ -349,6 +366,7 @@ export async function executeAgentActions(actions, env) {
       else if (type === 'add_recipe_to_list') r = await addRecipeToList(a, env);
       else if (type === 'save_recipe') r = await saveRecipe(a, env);
       else if (type === 'plan_meal') r = await planMeal(a, env);
+      else if (type === 'remove_meal') r = await removeMeal(a, env);
       else if (type === 'add_activity') r = await addActivity(a, env);
       else if (type === 'add_coupon') r = await addCoupon(a, env);
       else if (type === 'show_recipes') out.showRecipesFor = clip(a.item, 120);
@@ -357,7 +375,7 @@ export async function executeAgentActions(actions, env) {
       if (r) out.lines.push(`${r.ok ? '✓' : '✗'} ${r.text}`);
       if (r?.ok && !out.watch) {
         if (['remove_from_list', 'check_off', 'add_coupon', 'add_recipe_to_list'].includes(type)) out.watch = { screen: 'Shopping' };
-        else if (type === 'plan_meal' || type === 'add_activity') out.watch = { screen: 'Family', dayOffset: Math.max(0, Math.min(6, Number(a.day_offset) || 0)) };
+        else if (type === 'plan_meal' || type === 'remove_meal' || type === 'add_activity') out.watch = { screen: 'Family', dayOffset: Math.max(0, Math.min(6, Number(a.day_offset) || 0)) };
         else if (type === 'save_recipe') out.watch = { screen: 'Recipes' };
       }
     } catch (e) {
