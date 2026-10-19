@@ -143,7 +143,10 @@ export async function notifyArrival(name) {
 export async function notifyDeparture(name) {
   if (!(await hasProMax())) return;
   const trip = await readJson(TRIP_KEY, null);
-  const since = trip && typeof trip.at === 'number' && Date.now() - trip.at < 12 * 60 * 60 * 1000 ? trip.at : Date.now() - 6 * 60 * 60 * 1000;
+  // Only report savings for a trip we actually saw begin at THIS store (arrival recorded in the last 12 hours).
+  // Without that, any stray exit event (e.g. when regions are re-registered on app open) sent a "you saved" alert per store.
+  if (!trip || trip.store !== name || typeof trip.at !== 'number' || Date.now() - trip.at >= 12 * 60 * 60 * 1000) return;
+  const since = trip.at;
   const sum = summarizeSince(await loadLedger(), since);
   if (!sum.count || sum.total <= 0) return;
   let locale = 'en';

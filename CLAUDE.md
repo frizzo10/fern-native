@@ -300,3 +300,5 @@ All UI copy goes through a single i18n module, not per-screen strings:
 **Home: no duplicate Shopping list or Fern label (2026-10-19).** The old "Shopping List" panel at the bottom of Home is now only rendered when `USE_NEW_HOME` is false (the Shopping list row in the green Fern card is the only one). The leaf + "Fern" label row at the top of that card is removed too (the dark header above already shows the logo). JS-only.
 
 **Home Shopping list row opens the list only (2026-10-19).** `onOpenList` now navigates to `Shopping` with `{ listOnly: Date.now() }` (the existing list-only mode: title, add row and list; no Fern greeting, circular, Everyday, coupons or dinners). Trip entries (store tap, scan, arrival) still show the full trip. JS-only.
+
+**"You saved" alert only after a real trip (2026-10-19).** `notifyDeparture` in `storeGeofencing.js` now returns early unless `fern_trip_started` holds an arrival at this same store within the last 12 hours. Before, any exit event fell back to "savings in the last 6 hours", so opening the app (regions re-registered) could fire one "🎉 <store> saved you $X" alert per saved store. No new strings, so no translation keys.
