@@ -383,9 +383,15 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
                   <View style={[styles.checkbox, it.checked && styles.checkboxChecked]}>
                     {it.checked ? <Text style={styles.checkmark}>✓</Text> : null}
                   </View>
-                  <Text style={[styles.rowText, it.checked && styles.rowTextChecked]} numberOfLines={2}>
-                    {it.ids && it.ids.length > 1 ? `${it.text} ×${it.ids.length}` : it.text}
-                  </Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.rowText, it.checked && styles.rowTextChecked]} numberOfLines={2}>
+                      {it.ids && it.ids.length > 1 ? `${it.text} ×${it.ids.length}` : it.text}
+                    </Text>
+                    {/* Where it came from: the recipe(s) that need it (not for plain manual adds). */}
+                    {it.recipe && !/^(manual add|fern starter|fern suggestion|coupon deal)$/i.test(String(it.recipe).trim()) ? (
+                      <Text style={styles.rowFor} numberOfLines={1}>{t('shopmode_for', { recipe: it.recipe })}</Text>
+                    ) : null}
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
@@ -417,7 +423,8 @@ const styles = StyleSheet.create({
   checkbox: { width: 28, height: 28, borderRadius: radius.sm, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   checkboxChecked: { backgroundColor: colors.bright, borderColor: colors.bright },
   checkmark: { color: '#fff', fontSize: 16, fontWeight: '900' },
-  rowText: { flex: 1, fontSize: 18, color: colors.ink },
+  rowText: { fontSize: 18, color: colors.ink },
+  rowFor: { fontSize: 13, color: colors.muted, marginTop: 2 },
   rowTextChecked: { color: colors.muted, textDecorationLine: 'line-through' },
   celebrate: { alignItems: 'center', justifyContent: 'center', paddingVertical: 70 },
   celebrateEmoji: { fontSize: 56 },
