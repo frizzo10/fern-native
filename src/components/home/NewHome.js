@@ -119,10 +119,6 @@ export default function NewHome({
     <View>
       {/* Top bar */}
       <View style={styles.topBar}>
-        <View style={styles.brand}>
-          <Ionicons name="leaf" size={24} color="#2D5A27" />
-          <Text style={styles.brandText}>fern</Text>
-        </View>
         <View style={styles.topActions}>
           <TouchableOpacity style={styles.tierPill} activeOpacity={0.85} onPress={onOpenPlans}>
             <Text style={styles.tierPillText}>{tierBadgeLabel}</Text>
@@ -179,11 +175,8 @@ export default function NewHome({
           <Text style={styles.fernName}>Fern</Text>
         </View>
 
-        <TouchableOpacity style={styles.autoRow} activeOpacity={0.85} onPress={openPicker} accessibilityRole="button">
-          <View style={{ flex: 1 }}>
-            <Text style={styles.autoTitle}>{t('home_automate_title')}</Text>
-            <Text style={styles.autoSub}>{autoOn ? t(autoMode === 'auto' ? 'home_automate_on_all' : 'home_automate_on_help') : t('home_automate_off')}</Text>
-          </View>
+        <TouchableOpacity style={styles.autoRow} activeOpacity={0.85} onPress={openPicker} accessibilityRole="button" accessibilityState={{ checked: autoOn }}>
+          <Text style={styles.autoTitle}>{t('home_automate_short')}</Text>
           <View style={[styles.switchTrack, autoOn ? styles.switchTrackOn : null]}>
             <View style={[styles.switchKnob, autoOn ? { alignSelf: 'flex-end' } : null]} />
           </View>
@@ -377,7 +370,7 @@ export default function NewHome({
 }
 
 const styles = StyleSheet.create({
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandText: { fontFamily: 'Playfair-Bold', fontSize: 24, color: FOREST },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -471,12 +464,12 @@ const styles = StyleSheet.create({
   greetSub: { fontFamily: 'Jost-Regular', fontSize: 16, color: '#6B5F4E', marginTop: 4 },
   fernDot: { width: 40, height: 40, borderRadius: 20, backgroundColor: SAGE, alignItems: 'center', justifyContent: 'center' },
   fernName: { fontFamily: 'Jost-SemiBold', fontSize: 19, color: '#fff' },
-  autoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14 },
-  autoTitle: { fontFamily: 'Jost-SemiBold', fontSize: 17, color: '#fff' },
+  autoRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 10, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 999, paddingVertical: 6, paddingLeft: 14, paddingRight: 8 },
+  autoTitle: { fontFamily: 'Jost-SemiBold', fontSize: 15, color: '#fff' },
   autoSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#C9E3C4', marginTop: 2 },
-  switchTrack: { width: 56, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.25)', padding: 3, justifyContent: 'center' },
+  switchTrack: { width: 42, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.25)', padding: 3, justifyContent: 'center' },
   switchTrackOn: { backgroundColor: ORANGE },
-  switchKnob: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#fff', alignSelf: 'flex-start' },
+  switchKnob: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff', alignSelf: 'flex-start' },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, backgroundColor: '#F3EEDC', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16 },
   listTitle: { fontFamily: 'Jost-SemiBold', fontSize: 18, color: FOREST },
   listSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#5B4F3E' },
