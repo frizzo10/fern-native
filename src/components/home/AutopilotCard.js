@@ -46,7 +46,7 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
   const check = useCallback(async () => {
     if (!ready || !user?.token || running.current) return;
     const mode = await getAutopilotMode();
-    if (mode === null) { setPhase((p) => (p === 'idle' ? 'offer' : p)); return; }
+    if (mode === null) return; // the Home toggle is how people turn it on
     if (mode === 'off') return;
     if (await autopilotRanToday()) return;
     run(mode);

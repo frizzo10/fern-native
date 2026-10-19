@@ -4,7 +4,8 @@
 // Purely presentational: HomeScreen owns all state, handlers and tier checks and
 // passes them in, so no feature, gate or label logic lives (or can drift) here.
 import React, { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { getAutopilotMode, setAutopilotMode } from '../../services/autopilot';
 import { formatDayLabel } from '../../utils/familyDates';
 import { tourTargetRef } from '../../services/tourTargets';
 import { openHelp } from '../../services/helpBus';
@@ -54,7 +55,10 @@ export default function NewHome({
   onOpenAccount,
   onOpenLanguage,
   onScan,
-  onGuide,
+  greeting,
+  shopCount,
+  onOpenList,
+  onOpenRecipes,
   stores,
   onStorePress,
   onFixStoreLocation,
@@ -86,13 +90,14 @@ export default function NewHome({
 
   // Photo for tonight's dinner, looked up by title like every other recipe photo
   // in the app. Emoji stays as the fallback when there is none.
-  // The scan button pulses gently: it is where every week starts.
-  const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const loop = Animated.loop(Animated.timing(pulse, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true }));
-    loop.start();
-    return () => loop.stop();
-  }, [pulse]);
+  const [autoMode, setAutoMode] = useState(null); // null/'off' | 'ask' | 'auto'
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pick, setPick] = useState('ask');
+  useEffect(() => { getAutopilotMode().then(setAutoMode).catch(() => {}); }, []);
+  const autoOn = autoMode === 'ask' || autoMode === 'auto';
+  const openPicker = () => { setPick(autoMode === 'auto' ? 'auto' : 'ask'); setPickerOpen(true); };
+  const turnOn = async () => { await setAutopilotMode(pick); setAutoMode(pick); setPickerOpen(false); };
+  const keepOff = async () => { await setAutopilotMode('off'); setAutoMode('off'); setPickerOpen(false); };
 
   useEffect(() => {
     let cancelled = false;
@@ -157,24 +162,51 @@ export default function NewHome({
 
       {notice || null}
 
-      {/* Scan card */}
+      {/* Greeting */}
+      <View style={{ paddingHorizontal: 4, marginBottom: 14 }}>
+        <Text style={styles.greetTitle}>{greeting}</Text>
+        <Text style={styles.greetSub}>{t('home_greeting_sub')}</Text>
+      </View>
+
+      {/* Fern card */}
       <View style={styles.hero}>
-        <View style={styles.scanWrap}>
-          <Animated.View pointerEvents="none" style={[styles.scanHalo, { opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.55, 0] }), transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] }) }] }]} />
-          <Animated.View style={{ transform: [{ scale: pulse.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 1.05, 1] }) }] }}>
-            <TouchableOpacity ref={tourTargetRef('scan')} collapsable={false} style={styles.scanBtn} activeOpacity={0.88} onPress={onScan} accessibilityRole="button">
-              <Ionicons name="camera-outline" size={40} color="#fff" />
-              <Text style={styles.scanBtnText}>{t('home_scan_flyer')}</Text>
-            </TouchableOpacity>
-          </Animated.View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <View style={styles.fernDot}><Ionicons name="leaf" size={20} color={FOREST} /></View>
+          <Text style={styles.fernName}>Fern</Text>
         </View>
 
-        {onGuide ? (
-          <TouchableOpacity style={styles.guideBtn} activeOpacity={0.88} onPress={onGuide} accessibilityRole="button">
-            <Text style={styles.guideBtnText}>{`🌿 ${t('guide_home_btn')}`}</Text>
+        <TouchableOpacity style={styles.autoRow} activeOpacity={0.85} onPress={openPicker} accessibilityRole="button">
+          <View style={{ flex: 1 }}>
+            <Text style={styles.autoTitle}>{t('home_automate_title')}</Text>
+            <Text style={styles.autoSub}>{autoOn ? t(autoMode === 'auto' ? 'home_automate_on_all' : 'home_automate_on_help') : t('home_automate_off')}</Text>
+          </View>
+          <View style={[styles.switchTrack, autoOn ? styles.switchTrackOn : null]}>
+            <View style={[styles.switchKnob, autoOn ? { alignSelf: 'flex-end' } : null]} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.listRow} activeOpacity={0.85} onPress={onOpenList} accessibilityRole="button">
+          <Ionicons name="cart-outline" size={26} color={FOREST} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.listTitle}>{t('home_shopping_list')}</Text>
+            <Text style={styles.listSub}>{t(shopCount === 1 ? 'home_list_count_one' : 'home_list_count_other', { count: shopCount || 0 })}</Text>
+          </View>
+          <Text style={styles.listOpen}>{t('home_open')}</Text>
+        </TouchableOpacity>
+
+        <View style={styles.quickRow}>
+          <TouchableOpacity style={styles.quickBtn} activeOpacity={0.85} onPress={onOpenRecipes} accessibilityRole="button">
+            <Ionicons name="book-outline" size={22} color={FOREST} />
+            <Text style={styles.quickText}>{t('home_my_recipes')}</Text>
           </TouchableOpacity>
-        ) : null}
+          <TouchableOpacity ref={tourTargetRef('scan')} collapsable={false} style={styles.quickBtn} activeOpacity={0.85} onPress={onScan} accessibilityRole="button">
+            <Ionicons name="camera-outline" size={22} color={FOREST} />
+            <Text style={styles.quickText}>{t('home_scan_flyer')}</Text>
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
+        <Text style={styles.storeHint}>{t('home_stores_tap_hint')}</Text>
         <View ref={tourTargetRef('stores')} collapsable={false} style={styles.storeList}>
           {visibleStores.map((s, i) => (
             <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={() => (onStorePress ? onStorePress(s) : onScan())}>
@@ -193,13 +225,40 @@ export default function NewHome({
               <Ionicons name="chevron-forward" size={14} color={SAGE} />
             </TouchableOpacity>
           ))}
-          <TouchableOpacity style={styles.storeLine} activeOpacity={0.8} onPress={onAddStore} accessibilityRole="button">
-            <Ionicons name="add" size={16} color={SAGE} />
-            <Text style={[styles.storeLineText, { color: SAGE }]} numberOfLines={1}>{t('home_add_store_a11y')}</Text>
-          </TouchableOpacity>
         </View>
+        <TouchableOpacity style={styles.addStoreBtn} activeOpacity={0.85} onPress={onAddStore} accessibilityRole="button">
+          <Ionicons name="add" size={18} color="#fff" />
+          <Text style={styles.addStoreText}>{t('home_add_store_a11y')}</Text>
+        </TouchableOpacity>
         {!visibleStores.length ? <Text style={styles.heroHint}>{t('home_no_stores_hint')}</Text> : null}
       </View>
+
+      <Modal visible={pickerOpen} animationType="slide" onRequestClose={() => setPickerOpen(false)}>
+        <View style={styles.pickPage}>
+          <TouchableOpacity onPress={() => setPickerOpen(false)} style={{ height: 44, justifyContent: 'center' }} accessibilityRole="button">
+            <Text style={styles.pickBack}>{'‹ ' + t('automate_back')}</Text>
+          </TouchableOpacity>
+          <Text style={styles.pickTitle}>{t('automate_page_title')}</Text>
+          <Text style={styles.pickSub}>{t('automate_page_sub')}</Text>
+          {[['ask', 'automate_help'], ['auto', 'automate_all']].map(([k, base]) => (
+            <TouchableOpacity key={k} activeOpacity={0.9} onPress={() => setPick(k)} style={[styles.pickCard, pick === k ? styles.pickCardOn : null]} accessibilityRole="button" accessibilityState={{ selected: pick === k }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <Text style={styles.pickCardTitle}>{t(base + '_title')}</Text>
+                <Ionicons name={pick === k ? 'checkmark-circle' : 'ellipse-outline'} size={28} color={pick === k ? FOREST : '#BDB093'} />
+              </View>
+              <Text style={styles.pickCardBody}>{t(base + '_desc')}</Text>
+              <View style={styles.pickEx}><Text style={styles.pickExText}>{t(base + '_example')}</Text></View>
+            </TouchableOpacity>
+          ))}
+          <View style={{ flex: 1 }} />
+          <TouchableOpacity style={styles.pickGo} activeOpacity={0.9} onPress={turnOn} accessibilityRole="button">
+            <Text style={styles.pickGoText}>{t(pick === 'auto' ? 'automate_turn_on_all' : 'automate_turn_on_help')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ height: 48, alignItems: 'center', justifyContent: 'center' }} onPress={keepOff} accessibilityRole="button">
+            <Text style={styles.pickOff}>{t('automate_keep_off')}</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
 
       {/* Family this week */}
       <View onLayout={onFamilyLayout}>
@@ -404,4 +463,37 @@ const styles = StyleSheet.create({
   lockBadgeMax: { backgroundColor: '#F6E3C4' },
   lockBadgeText: { fontFamily: 'Jost-Bold', fontSize: 10, letterSpacing: 0.6, color: '#2D5A27' },
   lockBadgeTextMax: { color: '#8A4A0E' },
+  greetTitle: { fontFamily: 'Playfair-Bold', fontSize: 28, color: FOREST },
+  greetSub: { fontFamily: 'Jost-Regular', fontSize: 16, color: '#6B5F4E', marginTop: 4 },
+  fernDot: { width: 40, height: 40, borderRadius: 20, backgroundColor: SAGE, alignItems: 'center', justifyContent: 'center' },
+  fernName: { fontFamily: 'Jost-SemiBold', fontSize: 19, color: '#fff' },
+  autoRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 14, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 16, paddingVertical: 12, paddingHorizontal: 14 },
+  autoTitle: { fontFamily: 'Jost-SemiBold', fontSize: 17, color: '#fff' },
+  autoSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#C9E3C4', marginTop: 2 },
+  switchTrack: { width: 56, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.25)', padding: 3, justifyContent: 'center' },
+  switchTrackOn: { backgroundColor: ORANGE },
+  switchKnob: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#fff', alignSelf: 'flex-start' },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, backgroundColor: '#F3EEDC', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16 },
+  listTitle: { fontFamily: 'Jost-SemiBold', fontSize: 18, color: FOREST },
+  listSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#5B4F3E' },
+  listOpen: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: '#B84A0C' },
+  quickRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  quickBtn: { flex: 1, height: 72, borderRadius: 18, backgroundColor: '#F3EEDC', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  quickText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: FOREST },
+  storeHint: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#C9E3C4', marginTop: -6, marginBottom: 6, marginLeft: 2 },
+  addStoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: SAGE, marginTop: 10 },
+  addStoreText: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: '#fff' },
+  pickPage: { flex: 1, backgroundColor: '#FBF8F1', paddingTop: 56, paddingHorizontal: 20, paddingBottom: 28 },
+  pickBack: { fontFamily: 'Jost-SemiBold', fontSize: 17, color: FOREST },
+  pickTitle: { fontFamily: 'Playfair-Bold', fontSize: 28, color: FOREST, marginTop: 8 },
+  pickSub: { fontFamily: 'Jost-Regular', fontSize: 17, color: '#6B5F4E', marginTop: 8, lineHeight: 24 },
+  pickCard: { marginTop: 16, backgroundColor: '#fff', borderWidth: 1, borderColor: '#E7DEC8', borderRadius: 24, padding: 18 },
+  pickCardOn: { borderWidth: 2, borderColor: FOREST },
+  pickCardTitle: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 21, color: FOREST },
+  pickCardBody: { fontFamily: 'Jost-Regular', fontSize: 16, lineHeight: 23, color: '#2A2118', marginTop: 12 },
+  pickEx: { marginTop: 12, backgroundColor: '#F6F1E3', borderRadius: 14, padding: 12 },
+  pickExText: { fontFamily: 'Jost-Regular', fontSize: 15, lineHeight: 21, color: '#5B4F3E' },
+  pickGo: { height: 56, borderRadius: 28, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center' },
+  pickGoText: { fontFamily: 'Jost-SemiBold', fontSize: 18, color: '#fff' },
+  pickOff: { fontFamily: 'Jost-Medium', fontSize: 16, color: '#6B5F4E' },
 });

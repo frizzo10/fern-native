@@ -2691,6 +2691,10 @@ export default function HomeScreen({ user, route }) {
                 onOpenPlans={openPlans}
                 onOpenAccount={openAccount}
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
+                greeting={`${getGreeting(t)}, ${userName}`}
+                shopCount={(data.shopping || []).filter((it) => !it.checked).length}
+                onOpenList={() => navigation.navigate('Shopping')}
+                onOpenRecipes={() => navigation.navigate('Recipes')}
                 onScan={handleHomeScanFlyer}
                 onStorePress={chooseFlyerStore}
                 stores={userStoresLocal}
