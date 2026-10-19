@@ -839,14 +839,13 @@ export default function ShoppingScreen({ user }) {
     await persistShopping(nextItems);
   };
 
-  // Clear the list: remove only what is ticked off, or everything.
-  const clearList = () => {
-    const buttons = [{ text: t('cancel_btn'), style: 'cancel' }];
-    if (checkedCount > 0 && checkedCount < items.length) {
-      buttons.push({ text: t('clear_checked_btn', { n: checkedCount }), onPress: () => persistShopping(items.filter((i) => !i.checked)) });
-    }
-    buttons.push({ text: t('clear_all_btn'), style: 'destructive', onPress: () => persistShopping([]) });
-    Alert.alert(t('clear_list_title'), t('clear_list_body'), buttons);
+  // Two separate buttons (2026-10-19): clear only ticked items, or clear the whole list (confirmed).
+  const clearChecked = () => persistShopping(items.filter((i) => !i.checked));
+  const clearWholeList = () => {
+    Alert.alert(t('clear_list_title'), t('clear_list_body'), [
+      { text: t('cancel_btn'), style: 'cancel' },
+      { text: t('clear_all_btn'), style: 'destructive', onPress: () => persistShopping([]) },
+    ]);
   };
 
   const buildWithFern = async () => {
@@ -1264,9 +1263,19 @@ export default function ShoppingScreen({ user }) {
                 ? t('items_remaining_singular', { count: remainingCount })
                 : t('items_remaining_plural', { count: remainingCount })}
             </Text>
-            <TouchableOpacity onPress={clearList} activeOpacity={0.8} style={styles.clearListBtn}>
-              <Text style={styles.clearListText}>{`🗑 ${t('clear_list_btn')}`}</Text>
+            <TouchableOpacity onPress={shareList} activeOpacity={0.88} style={styles.shareListBtn}>
+              <Text style={styles.shareListText}>{`📤 ${t('share_list_btn')}`}</Text>
             </TouchableOpacity>
+            <View style={styles.clearRow}>
+              {checkedCount > 0 ? (
+                <TouchableOpacity onPress={clearChecked} activeOpacity={0.8} style={styles.clearListBtn}>
+                  <Text style={styles.clearListText}>{`✓ ${t('clear_checked_btn', { n: checkedCount })}`}</Text>
+                </TouchableOpacity>
+              ) : null}
+              <TouchableOpacity onPress={clearWholeList} activeOpacity={0.8} style={styles.clearListBtn}>
+                <Text style={styles.clearListText}>{`🗑 ${t('clear_whole_btn')}`}</Text>
+              </TouchableOpacity>
+            </View>
             {aisleSections.map((section) => (
               <View key={section.aisle.key} style={styles.recipeSectionWrap}>
                 <View style={styles.recipeSectionHeader}>
@@ -1843,7 +1852,10 @@ const styles = StyleSheet.create({
   savingsWeekName: { color: colors.muted, fontSize: 12, fontFamily: 'Jost-Regular' },
   savingsWeekAmt: { color: '#F3EEE4', fontSize: 12, fontFamily: 'Jost-Bold' },
   savingsNote: { color: colors.muted, fontSize: 11, lineHeight: 15, fontFamily: 'Jost-Regular', marginTop: 10 },
-  clearListBtn: { alignSelf: 'flex-start', marginTop: 8, marginBottom: 4, borderWidth: 1.5, borderColor: '#B23A2A', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
+  shareListBtn: { marginTop: 8, backgroundColor: '#1C3A1A', borderRadius: 14, paddingVertical: 12, alignItems: 'center' },
+  shareListText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Jost-Bold' },
+  clearRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8, marginBottom: 4 },
+  clearListBtn: { alignSelf: 'flex-start', borderWidth: 1.5, borderColor: '#B23A2A', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 14 },
   clearListText: { color: '#B23A2A', fontSize: 13, fontFamily: 'Jost-Bold' },
   listMeta: {
     color: '#7A5C3A',
