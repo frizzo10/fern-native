@@ -171,6 +171,28 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
           </View>
         ) : null}
 
+        {targetName === 'tools' ? (
+          // While Fern summarizes the tools button, show everything the menu holds (same tools as Home's menu; keep in step).
+          <View pointerEvents="none" style={[styles.morePreview, { top: rect ? rect.y + rect.height + 10 : 120 }]}>
+            <Text style={styles.morePreviewTitle}>{t('tour_tools_list_title')}</Text>
+            <View style={styles.morePreviewGrid}>
+              {[
+                ['📖', 'stat_recipes_saved'], ['📚', 'stat_cookbooks'], ['👥', 'stat_bloggers'], ['🎟️', 'stat_coupons'],
+                ['💡', 'suggested_meals_title'], ['💳', 'loyalty_card_title'], ['📰', 'tool_circulars'], ['🛒', 'tool_personal_shopper'],
+                ['🧊', 'tool_fridge_challenge'], ['🧙', 'tool_leftover_magic'], ['⚡', 'tool_20min_dinner'], ['💰', 'tool_budget_planner'],
+                ['🗓️', 'tool_ai_meal_planner'], ['🥫', 'tool_semi_homemade'], ['🎉', 'tool_dinner_party'], ['🧀', 'tool_charcuterie'],
+                ['🍷', 'tool_wine_pairing'], ['🥗', 'tool_weekly_nutrition'], ['🔊', 'tool_alexa'], ['📔', 'tool_family_vault'],
+                ['💎', 'tool_insider_deals'],
+              ].map(([emoji, key]) => (
+                <View key={key} style={styles.toolsPreviewItem}>
+                  <Text style={styles.toolsPreviewEmoji}>{emoji}</Text>
+                  <Text style={styles.toolsPreviewText} numberOfLines={1} adjustsFontSizeToFit>{t(key)}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         {activePart && activePart.tab === 4 ? (
           // While Fern talks about More, show what is inside it (same buttons as the real More sheet in App.js; keep them in step).
           <View pointerEvents="none" style={[styles.morePreview, { bottom: cardH + 8 }]}>
@@ -253,6 +275,9 @@ const styles = StyleSheet.create({
   morePreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   morePreviewItem: { width: '31%', backgroundColor: colors.forest, borderRadius: 14, paddingVertical: 10, alignItems: 'center' },
   morePreviewEmoji: { fontSize: 22 },
+  toolsPreviewItem: { width: '31%', backgroundColor: colors.forest, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center' },
+  toolsPreviewEmoji: { fontSize: 14, marginRight: 4 },
+  toolsPreviewText: { flex: 1, color: '#F5F0E7', fontWeight: '700', fontSize: 10 },
   morePreviewText: { color: '#F5F0E7', fontWeight: '700', fontSize: 11, marginTop: 4, paddingHorizontal: 4 },
   cardOuterLifted: { paddingBottom: 176 },
   // Same spot and size as App.js `chatFab` (right 18, bottom 86, 56x56); the arrow sits just above it.
