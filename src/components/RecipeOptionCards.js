@@ -49,7 +49,7 @@ function OptionCard({ option, onAction }) {
       const ok = await onAction(kind, recipe, extra);
       if (ok && kind === 'list') setReview(null);
       if (ok) setDone((d) => ({ ...d, [kind]: true }));
-      if (ok && kind === 'plan') { setAsk(true); setPicking(false); }
+      if (ok && kind === 'plan') { setPicking(false); }
     } finally {
       setBusy('');
     }
