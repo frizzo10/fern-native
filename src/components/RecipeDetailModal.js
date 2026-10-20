@@ -22,6 +22,7 @@ import useLanguage from '../hooks/useLanguage';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { uploadPhoto } from '../services/uploadPhotoService';
 import { createRecipeShareLink } from '../services/shareService';
+import { translateRecipes } from '../services/translateService';
 import ScaleRecipeModal from './modals/ScaleRecipeModal';
 import RecipeWinePairingModal from './modals/RecipeWinePairingModal';
 import RecipePlatingCoachModal from './modals/RecipePlatingCoachModal';
@@ -135,21 +136,33 @@ export default function RecipeDetailModal({
   // Creates a hosted share link (same `share` function the web app uses) and
   // hands it to the OS share sheet. No second <Modal> here on purpose —
   // nesting one inside this Modal is what broke touch handling on iOS before.
-  const handleShareRecipe = async () => {
+  const doShareRecipe = async (lang) => {
     if (isSharing || !recipe) return;
     setIsSharing(true);
     try {
-      const url = await createRecipeShareLink({ recipe, senderName: user?.name || '', message: '', token: user?.token });
+      // Spanish: only the shared copy is translated; the saved recipe is untouched.
+      const toShare = lang === 'es' ? (await translateRecipes([recipe], 'es', user?.token))[0] : recipe;
+      const url = await createRecipeShareLink({ recipe: toShare, senderName: user?.name || '', message: '', token: user?.token });
       // iOS: share the bare link (same as cookbooks) so it stays a tappable
       // link when pasted; "Title: url" got pasted into Google as a search.
       if (Platform.OS === 'ios') await Share.share({ url });
-      else await Share.share({ message: `${recipe.title}\n${url}` });
+      else await Share.share({ message: `${toShare.title}\n${url}` });
     } catch (e) {
       console.warn('Share recipe failed:', e);
       Alert.alert(t('share_link_error_title'), t('share_link_error'));
     } finally {
       setIsSharing(false);
     }
+  };
+
+  // Asks the language first with a native Alert (not a second Modal, see above).
+  const handleShareRecipe = () => {
+    if (isSharing || !recipe) return;
+    Alert.alert(t('share_recipe_lang_title'), '', [
+      { text: t('share_lang_orig'), onPress: () => doShareRecipe('') },
+      { text: t('share_lang_es'), onPress: () => doShareRecipe('es') },
+      { text: t('cancel_btn'), style: 'cancel' },
+    ]);
   };
 
   // Free plan: a recipe that isn't saved yet can't be added once the box holds 20.
