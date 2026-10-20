@@ -32,6 +32,7 @@ import { uploadPhoto } from '../services/uploadPhotoService';
 import NewCookbookModal from '../components/modals/NewCookbookModal';
 import AddRecipesToCookbookModal from '../components/modals/AddRecipesToCookbookModal';
 import ShareLinkModal from '../components/modals/ShareLinkModal';
+import { translateRecipes, translateStrings } from '../services/translateService';
 import AddSharedCookbookModal from '../components/modals/AddSharedCookbookModal';
 import { createCookbookShareLink, fetchSharedCookbook, fetchSharedRecipe, parseShareLink } from '../services/shareService';
 import useLanguage from '../hooks/useLanguage';
@@ -807,7 +808,7 @@ export default function RecipesScreen({ user }) {
     setIsShareCookbookVisible(true);
   };
 
-  const handleCreateCookbookShareLink = ({ senderName, message }) => {
+  const handleCreateCookbookShareLink = async ({ senderName, message, translateTo }) => {
     const rawBook = (Array.isArray(booksLocal) ? booksLocal : []).find(
       (book) => String(book?.id ?? book?.uuid ?? book?.book_id ?? '') === String(selectedBook.id),
     );
@@ -815,11 +816,26 @@ export default function RecipesScreen({ user }) {
     const all = getAllSelectedBookRecipes();
     const chapters = buildChapters(all, chapterMap[selectedBook.id]);
     const ordered = chapters ? chapters.flatMap((c) => c.items) : all;
+    let outTitle = selectedBook.title;
+    let outRecipes = ordered;
+    let outChapterById = chapters ? chapterNameById(chapters, t) : null;
+    if (translateTo === 'es') {
+      // Only the shared copy is translated; the library is untouched. Any failure throws, so nothing half-translated is sent.
+      outRecipes = await translateRecipes(ordered, 'es', user?.token);
+      const names = outChapterById ? Array.from(new Set(Object.values(outChapterById))) : [];
+      const tr = await translateStrings([selectedBook.title, ...names], 'es', user?.token);
+      outTitle = tr[0];
+      if (outChapterById) {
+        const map = {};
+        names.forEach((n, i) => { map[n] = tr[i + 1]; });
+        outChapterById = Object.fromEntries(Object.entries(outChapterById).map(([id, n]) => [id, map[n] || n]));
+      }
+    }
     return createCookbookShareLink({
-      title: selectedBook.title,
+      title: outTitle,
       colorId: rawBook?.colorId,
-      recipes: ordered,
-      chapterById: chapters ? chapterNameById(chapters, t) : null,
+      recipes: outRecipes,
+      chapterById: outChapterById,
       coverUrl: selectedBook.cover,
       senderName,
       message,
@@ -1471,6 +1487,7 @@ export default function RecipesScreen({ user }) {
         title={selectedBook ? t('share_cookbook_title', { title: selectedBook.title }) : ''}
         defaultSenderName={user?.name || ''}
         onCreateLink={handleCreateCookbookShareLink}
+        allowTranslate
         buildShareText={(url) => t('share_cookbook_message', {
           title: selectedBook?.title || '',
           count: getAllSelectedBookRecipes().length,

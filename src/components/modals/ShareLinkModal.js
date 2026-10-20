@@ -20,7 +20,7 @@ import useLanguage from '../../hooks/useLanguage';
 // Generic "make a share link" sheet: optional personal note + sender name, then
 // the OS share sheet (which covers Mail, Messages, WhatsApp, Copy…) in place of
 // the web app's hand-built Gmail/Email/SMS buttons.
-//   onCreateLink({ senderName, message }) → Promise<string>   (the share URL)
+//   onCreateLink({ senderName, message, translateTo: lang === 'es' ? 'es' : '' }) → Promise<string>   (the share URL)
 //   buildShareText(url) → string                              (what gets sent)
 export default function ShareLinkModal({
     visible,
@@ -29,12 +29,14 @@ export default function ShareLinkModal({
     defaultSenderName = '',
     onCreateLink,
     buildShareText,
+    allowTranslate = false,
 }) {
     const { t } = useLanguage();
     const [senderName, setSenderName] = useState(defaultSenderName);
     const [message, setMessage] = useState('');
     const [status, setStatus] = useState('form'); // form | creating | ready | error
     const [url, setUrl] = useState('');
+    const [lang, setLang] = useState('orig'); // orig | es
 
     useEffect(() => {
         if (visible) {
@@ -42,6 +44,7 @@ export default function ShareLinkModal({
             setMessage('');
             setStatus('form');
             setUrl('');
+            setLang('orig');
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
@@ -121,6 +124,25 @@ export default function ShareLinkModal({
                                         editable={status !== 'creating'}
                                     />
 
+                                    {allowTranslate ? (
+                                        <View>
+                                            <Text style={styles.fieldLabel}>{t('share_lang_label')}</Text>
+                                            <View style={styles.langRow}>
+                                                {[['orig', t('share_lang_orig')], ['es', t('share_lang_es')]].map(([k, label]) => (
+                                                    <TouchableOpacity
+                                                        key={k}
+                                                        style={[styles.langChip, lang === k ? styles.langChipOn : null]}
+                                                        activeOpacity={0.85}
+                                                        onPress={() => setLang(k)}
+                                                        disabled={status === 'creating'}
+                                                    >
+                                                        <Text style={[styles.langChipText, lang === k ? styles.langChipTextOn : null]}>{label}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
+                                    ) : null}
+
                                     {status === 'error' ? (
                                         <Text style={styles.errorText}>{t('share_link_error')}</Text>
                                     ) : null}
@@ -137,6 +159,9 @@ export default function ShareLinkModal({
                                             <Text style={styles.primaryBtnText}>{t('share_link_create_btn')}</Text>
                                         )}
                                     </TouchableOpacity>
+                                    {status === 'creating' && lang === 'es' ? (
+                                        <Text style={styles.translatingText}>{t('share_translating')}</Text>
+                                    ) : null}
                                 </View>
                             )}
                         </ScrollView>
@@ -244,6 +269,26 @@ const styles = StyleSheet.create({
         fontFamily: 'Jost-Bold',
         fontSize: 14,
         color: '#21150D',
+    },
+    langRow: { flexDirection: 'row', gap: 8 },
+    langChip: {
+        flex: 1,
+        paddingVertical: 11,
+        alignItems: 'center',
+        borderRadius: radius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: '#FFFFFF',
+    },
+    langChipOn: { backgroundColor: colors.forest, borderColor: colors.forest },
+    langChipText: { fontFamily: 'Jost-Bold', fontSize: 13, color: colors.ink },
+    langChipTextOn: { color: colors.sage },
+    translatingText: {
+        fontFamily: 'Jost-Regular',
+        fontSize: 13,
+        color: colors.brown,
+        textAlign: 'center',
+        marginTop: 10,
     },
     readyLabel: {
         fontFamily: 'Jost-Bold',

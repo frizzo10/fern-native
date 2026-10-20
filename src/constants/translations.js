@@ -1786,6 +1786,10 @@ export const translations = {
     share_link_creating: "Creating link…",
     share_link_ready: "Link ready",
     share_link_share_btn: "Share…",
+    share_lang_label: "LANGUAGE",
+    share_lang_orig: "As written",
+    share_lang_es: "Spanish (Español)",
+    share_translating: "Translating to Spanish… a big cookbook can take a minute or two.",
     share_link_error_title: "Couldn't create link",
     share_link_error: "Something went wrong creating the share link. Please try again.",
 
@@ -4072,6 +4076,10 @@ export const translations = {
     share_link_creating: "Creando enlace…",
     share_link_ready: "Enlace listo",
     share_link_share_btn: "Compartir…",
+    share_lang_label: "IDIOMA",
+    share_lang_orig: "Como está escrito",
+    share_lang_es: "Español (Spanish)",
+    share_translating: "Traduciendo al español… un recetario grande puede tardar uno o dos minutos.",
     share_link_error_title: "No se pudo crear el enlace",
     share_link_error: "Algo salió mal al crear el enlace. Inténtalo de nuevo.",
 
