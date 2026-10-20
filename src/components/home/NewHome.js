@@ -54,7 +54,6 @@ export default function NewHome({
   onOpenPlans,
   onOpenAccount,
   onOpenLanguage,
-  onScan,
   greeting,
   shopCount,
   onOpenList,
@@ -191,17 +190,13 @@ export default function NewHome({
             <Ionicons name="book-outline" size={22} color={FOREST} />
             <Text style={styles.quickText}>{t('home_my_recipes')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity ref={tourTargetRef('scan')} collapsable={false} style={styles.quickBtn} activeOpacity={0.85} onPress={onScan} accessibilityRole="button">
-            <Ionicons name="camera-outline" size={22} color={FOREST} />
-            <Text style={styles.quickText}>{t('home_scan_flyer')}</Text>
-          </TouchableOpacity>
         </View>
 
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <Text style={styles.storeHint}>{t('home_stores_tap_hint')}</Text>
         <View ref={tourTargetRef('stores')} collapsable={false} style={styles.storeList}>
           {visibleStores.map((s, i) => (
-            <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={() => (onStorePress ? onStorePress(s) : onScan())}>
+            <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={() => onStorePress && onStorePress(s)}>
               <Ionicons name="location-outline" size={15} color={SAGE} />
               <Text style={styles.storeLineText} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
               {onFixStoreLocation ? (
@@ -349,7 +344,7 @@ export default function NewHome({
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity activeOpacity={0.8} onPress={openDinners ? onScan : onOpenFamily} style={styles.openLine}>
+      <TouchableOpacity activeOpacity={0.8} onPress={onOpenFamily} style={styles.openLine}>
         {openDinners ? <Ionicons name="add" size={16} color="#C4521A" /> : <Ionicons name="checkmark" size={16} color="#2D5A27" />}
         <Text style={styles.openLineText}>
           {openDinners

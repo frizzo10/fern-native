@@ -1520,7 +1520,7 @@ export default function HomeScreen({ user, route }) {
   const [flyerScan, setFlyerScan] = useState(null); // null | { phase: 'working' } | { phase: 'done', count, store }
   // Diagnostic: shows which step the flyer photo picker reached (a plain banner, not a Modal, so iOS can't drop it).
   const [flyerTrace, setFlyerTrace] = useState('');
-  const runHomeFlyerScan = async (fromCamera) => {
+  const runHomeFlyerScan = async (fromCamera, forStore) => {
     let picked;
     setFlyerTrace('1. tapped, starting');
     try {
@@ -1549,7 +1549,7 @@ export default function HomeScreen({ user, route }) {
     setFlyerScan({ phase: 'working' });
     const started = Date.now();
     try {
-      const result = await scanCircular({ userId: user?.id, base64: picked.photo.base64, mimeType: picked.photo.mimeType, token: user?.token });
+      const result = await scanCircular({ userId: user?.id, base64: picked.photo.base64, mimeType: picked.photo.mimeType, token: user?.token, storeName: String(forStore?.name || '').split(/ - |#/)[0].trim() });
       const items = (result.items || []).filter((i) => i.name);
       await new Promise((r) => setTimeout(r, Math.max(0, 3000 - (Date.now() - started))));
       if (!items.length) {
@@ -1569,10 +1569,10 @@ export default function HomeScreen({ user, route }) {
   };
 
   const flyerSkipRef = useRef(false);
-  const askFlyerPhoto = () => {
+  const askFlyerPhoto = (store) => {
     Alert.alert(t('trip_flyer_title'), undefined, [
-      { text: t('trip_flyer_camera'), onPress: () => { setFlyerTrace('0. camera button pressed'); runHomeFlyerScan(true); } },
-      { text: t('trip_flyer_library'), onPress: () => { setFlyerTrace('0. photos button pressed'); runHomeFlyerScan(false); } },
+      { text: t('trip_flyer_camera'), onPress: () => { setFlyerTrace('0. camera button pressed'); runHomeFlyerScan(true, store); } },
+      { text: t('trip_flyer_library'), onPress: () => { setFlyerTrace('0. photos button pressed'); runHomeFlyerScan(false, store); } },
       { text: t('cancel_btn'), style: 'cancel' },
     ]);
   };
@@ -1604,7 +1604,7 @@ export default function HomeScreen({ user, route }) {
       return;
     }
     setFlyerScan(null);
-    setTimeout(askFlyerPhoto, 400); // iOS drops an Alert shown while the overlay is still closing
+    setTimeout(() => askFlyerPhoto(store), 400); // iOS drops an Alert shown while the overlay is still closing
   };
 
   // Store-arrival notification tap: App.js navigates here with the store's name -> start that store's flyer scan,
@@ -2694,7 +2694,6 @@ export default function HomeScreen({ user, route }) {
                 shopCount={(data.shopping || []).filter((it) => !it.checked).length}
                 onOpenList={() => navigation.navigate('Shopping', { listOnly: Date.now() })}
                 onOpenRecipes={() => navigation.navigate('Recipes')}
-                onScan={handleHomeScanFlyer}
                 onStorePress={chooseFlyerStore}
                 stores={userStoresLocal}
                 onFixStoreLocation={handleFixStoreLocation}

@@ -186,7 +186,7 @@ function computeTotalSavings(items) {
     return hasNumericSavings ? total : null;
 }
 
-export async function scanCircular({ userId, base64, mimeType, token, zipCode }) {
+export async function scanCircular({ userId, base64, mimeType, token, zipCode, storeName: pickedStore }) {
     const zip = zipCode || (await defaultScanZip());
     const send = () => fetch(SCAN_CIRCULAR_URL, {
         method: 'POST',
@@ -200,6 +200,7 @@ export async function scanCircular({ userId, base64, mimeType, token, zipCode })
             token,
             imageData: base64,
             ...(zip ? { zipCode: zip } : {}),
+            ...(pickedStore ? { store: pickedStore } : {}),
         }),
     });
 
@@ -226,7 +227,8 @@ export async function scanCircular({ userId, base64, mimeType, token, zipCode })
     console.log(`[api] scan-circular → store="${json?.store}" items=${Array.isArray(json?.items) ? json.items.length : 0}`);
 
     const items = Array.isArray(json?.items) ? json.items.map(normalizeItem) : [];
-    const storeName = json?.store ? String(json.store).trim() : '';
+    // A store the shopper picked first wins over the name read off the photo, so the flyer is filed under that store.
+    const storeName = pickedStore ? String(pickedStore).trim() : (json?.store ? String(json.store).trim() : '');
 
     // Fire-and-forget: archive into per-store scan history (shown in the Scan
     // Circular sheet). Never blocks or fails the scan itself.

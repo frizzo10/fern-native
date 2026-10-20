@@ -16,7 +16,7 @@ export const TOURS = {
     steps: [
       // `target` = name registered with tourTargetRef/setTourStaticRect (src/services/tourTargets.js); TourModal dims the rest and rings it.
       // Order follows the Home screen top to bottom; HOME_TOUR_STEP_TARGETS in HomeScreen has one scroll position per step (keep the lengths equal).
-      { textKey: 'tour_home_scan', target: 'scan' }, // the flyer scanner: paper ad -> digital circular (patent pending)
+      { textKey: 'tour_home_scan', target: 'stores' }, // the flyer scanner: paper ad -> digital circular (patent pending); the Home 'Scan a flyer' tile is gone, so this points at the stores list
       { textKey: 'tour_home_stores', target: 'stores' }, // tap a store -> its circular; location; add/remove; arrival alerts
       { textKey: 'tour_home_step1', target: 'week' }, // the week strip + add a meal / activity
       { textKey: 'tour_home_tools', target: 'tools' }, // the grid button: every tool incl. Store Circulars

@@ -52,7 +52,7 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
     setBusy(true);
     const before = await loadWeekDeals();
     try {
-      const result = await scanCircular({ userId: user?.id, base64: picked.photo.base64, mimeType: picked.photo.mimeType, token: user?.token });
+      const result = await scanCircular({ userId: user?.id, base64: picked.photo.base64, mimeType: picked.photo.mimeType, token: user?.token, storeName: stores?.length === 1 ? String(stores[0]?.name || '').split(/ - |#/)[0].trim() : undefined });
       const items = (result.items || []).filter((i) => i.name);
       if (!items.length) {
         Alert.alert(t('trip_flyer_none'));
