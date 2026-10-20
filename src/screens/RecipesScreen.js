@@ -407,6 +407,31 @@ export default function RecipesScreen({ user }) {
         };
       });
 
+      // A recipe opened here that is not in the library yet (e.g. from a share link): Save adds it.
+      const wasFound = baseSaved.some((item, index) => {
+        const itemId = getRawRecipeId(item, index);
+        const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+        return itemId === selectedId || (selectedTitle && itemTitle === selectedTitle);
+      });
+      if (!wasFound) {
+        if (!hasAccess(TIERS.PRO) && (await recipeLimitReached())) { setCookbookGate(false); Alert.alert(t('shared_cb_title'), t('shared_rc_err_limit')); setIsSaving(false); return; }
+        updatedSaved.push({
+          title: selectedRecipe.title,
+          emoji: selectedRecipe.emoji,
+          cuisine: selectedRecipe.category || selectedRecipe.cuisine || '',
+          mealType: selectedRecipe.meal || selectedRecipe.mealType || '',
+          time: selectedRecipe.time || '',
+          difficulty: selectedRecipe.difficulty || '',
+          description: selectedRecipe.description || '',
+          ingredients: selectedRecipe.ingredients || [],
+          instructions: selectedRecipe.methodSteps || selectedRecipe.instructions || [],
+          _cloudPhotos: selectedRecipe._cloudPhotos || [],
+          id: `shared-${Date.now()}`,
+          note: trimmed,
+          _bookIds: [],
+        });
+      }
+
       await AsyncStorage.setItem('rv4_saved', JSON.stringify(updatedSaved));
       await syncRecipeCache(updatedSaved);
 
