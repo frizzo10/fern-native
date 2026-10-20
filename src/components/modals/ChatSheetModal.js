@@ -76,18 +76,23 @@ const DEFAULT_SYSTEM_PROMPT = `You are Fern, a warm and decisive AI family assis
 const DEFAULT_AUTO_OPENER_PROMPT = 'Greet me warmly in one short sentence, then briefly ask what I need help with today — dinner, a recipe, or my shopping list.';
 
 function parseChatResponse(text) {
-  const raw = String(text || '').trim();
+  let raw = String(text || '').trim();
   if (!raw) return null;
+  // Strip a ```json ... ``` fence (closed or cut off).
+  raw = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
   try {
     return JSON.parse(raw);
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
-    if (!match) return null;
-    try {
-      return JSON.parse(match[0]);
-    } catch {
-      return null;
+    if (match) {
+      try { return JSON.parse(match[0]); } catch { /* fall through */ }
     }
+    // Cut-off JSON: pull out just the reply sentence so raw JSON is never shown.
+    const r = raw.match(/"reply"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    if (r) {
+      try { return { reply: JSON.parse(`"${r[1]}"`), add_to_shopping_list: [], actions: [], options: [] }; } catch { /* ignore */ }
+    }
+    return null;
   }
 }
 
@@ -280,7 +285,7 @@ export default function ChatSheetModal({
       if (!rawText) throw new Error('ai response had no content');
 
       const parsed = parseChatResponse(rawText);
-      const reply = parsed?.reply || rawText;
+      const reply = parsed?.reply || (/^\s*(```|\{)/.test(rawText) ? t('generic_error_message') : rawText);
       const itemsToAdd = Array.isArray(parsed?.add_to_shopping_list)
         ? parsed.add_to_shopping_list.map(item => String(item || '').trim()).filter(Boolean)
         : [];
