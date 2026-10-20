@@ -40,6 +40,7 @@ import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import UpgradeGateModal from '../components/UpgradeGateModal';
+import SaveToCookbookModal from '../components/modals/SaveToCookbookModal';
 import { cookbookCount, FREE_COOKBOOK_LIMIT, recipeLimitReached } from '../utils/freeLimits';
 
 function resolveCoverUri(cover) {
@@ -288,6 +289,29 @@ export default function RecipesScreen({ user }) {
       setTab('cookbooks');
       setSelectedBook(null);
       if (/cookbook-share/i.test(link) && !hasAccess(TIERS.PRO) && (await cookbookCount()) >= FREE_COOKBOOK_LIMIT) { setCookbookGate(true); return; }
+      // A shared RECIPE: ask where to keep it (My Recipes or a cookbook), then open it.
+      try {
+        const parsed = parseShareLink(link);
+        if (parsed.kind === 'recipe' || parsed.kind === 'unknown') {
+          let shared = null;
+          try { shared = await fetchSharedRecipe(parsed.id); } catch (e) {
+            if (parsed.kind === 'recipe' || String(e?.message) !== 'not_found') throw e;
+          }
+          if (shared) {
+            const stored = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+            const list = Array.isArray(stored) ? stored : [];
+            const key = shared.title.trim().toLowerCase();
+            const dup = list.find((r) => String(r?.title || r?.name || '').trim().toLowerCase() === key);
+            if (dup) { setTab('recipes'); setTimeout(() => setSelectedRecipe(normalizeRecipe(dup)), 400); return; }
+            if (!hasAccess(TIERS.PRO) && (await recipeLimitReached())) { Alert.alert(t('shared_cb_title'), t('shared_rc_err_limit')); return; }
+            setPendingShared(shared);
+            return;
+          }
+        }
+      } catch (e) {
+        Alert.alert(t('shared_cb_title'), t('shared_cb_err_generic'));
+        return;
+      }
       const r = await handleAddSharedCookbook(link);
       Alert.alert(
         t('shared_cb_title'),
@@ -295,6 +319,33 @@ export default function RecipesScreen({ user }) {
       );
     })();
   }, [route?.params?.importLink, route?.params?.importNonce]);
+  // Recipe that arrived from a share link, waiting for the person to pick where to save it.
+  const [pendingShared, setPendingShared] = useState(null);
+  const confirmPendingShared = async ({ bookId, cuisine, mealType }) => {
+    const shared = pendingShared;
+    if (!shared) return;
+    try {
+      const stored = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+      const base = Array.isArray(stored) ? stored : [];
+      const entry = {
+        ...shared, id: `shared-${Date.now()}`, _bookIds: bookId ? [bookId] : [],
+        cuisine: cuisine || shared.cuisine, mealType: mealType || shared.mealType,
+      };
+      const next = [...base, entry];
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(next));
+      const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: next }));
+      setPendingShared(null);
+      setTab('recipes');
+      // iOS drops a Modal opened while another is still closing.
+      setTimeout(() => setSelectedRecipe(normalizeRecipe(entry)), 500);
+      await pushChangedFromStorage({ saved: next });
+      await pull();
+    } catch (e) {
+      setPendingShared(null);
+      Alert.alert(t('shared_cb_title'), t('shared_cb_err_generic'));
+    }
+  };
   const [isCreatingCookbook, setIsCreatingCookbook] = useState(false);
   const [isEditCookbookVisible, setIsEditCookbookVisible] = useState(false);
   const [isSavingCookbookEdit, setIsSavingCookbookEdit] = useState(false);
@@ -1427,6 +1478,16 @@ export default function RecipesScreen({ user }) {
         )}
       </ScrollView>
 
+      <SaveToCookbookModal
+        visible={!!pendingShared}
+        books={data.books}
+        initialBookId=""
+        initialCuisine={pendingShared?.cuisine || ''}
+        initialMealType={pendingShared?.mealType || ''}
+        isSaving={false}
+        onCancel={() => setPendingShared(null)}
+        onSave={confirmPendingShared}
+      />
       <RecipeDetailModal
         recipe={selectedRecipe}
         onClose={() => setSelectedRecipe(null)}
