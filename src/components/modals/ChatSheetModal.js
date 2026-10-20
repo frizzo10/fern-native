@@ -239,26 +239,32 @@ export default function ChatSheetModal({
       const system = agentOn
         ? buildAgentPrompt(await buildAgentContext(), { extra: agentExtra, voice: mode === 'voice', topic: requestMessages.slice(-4).map((m) => m.text).join(' ') })
         : systemPrompt;
-      // Never wait forever on a stalled connection: give up after 25 s and say so.
-      const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const ctlTimer = ctl ? setTimeout(() => ctl.abort(), 25000) : null;
+      // Never wait forever on a stalled connection: give up after 25 s and say so. A server error (5xx, e.g. both AI
+      // providers failing at once) is retried one time after a short pause before it is shown.
+      const reqBody = JSON.stringify({
+        system,
+        ...(agentOn && !silent ? { feature: 'agent_chat' } : {}),
+        messages: requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
+        locale,
+        userId: user?.id,
+        token: user?.token,
+      });
       let res;
-      try {
-        res = await fetch(AI_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system,
-            ...(agentOn && !silent ? { feature: 'agent_chat' } : {}),
-            messages: requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
-            locale,
-            userId: user?.id,
-            token: user?.token,
-          }),
-          ...(ctl ? { signal: ctl.signal } : {}),
-        });
-      } finally {
-        if (ctlTimer) clearTimeout(ctlTimer);
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const ctlTimer = ctl ? setTimeout(() => ctl.abort(), 25000) : null;
+        try {
+          res = await fetch(AI_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: reqBody,
+            ...(ctl ? { signal: ctl.signal } : {}),
+          });
+        } finally {
+          if (ctlTimer) clearTimeout(ctlTimer);
+        }
+        if (res.status < 500) break;
+        if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
       }
       if (res.status === 429) {
         // The server's per-account daily cap (counted on the account, so reinstalling does not reset it).
@@ -538,7 +544,7 @@ export default function ChatSheetModal({
             </View>
           )}
           {!!voiceErr && (
-            <Text style={{ color: '#B3261E', fontSize: 12, marginHorizontal: 16, marginTop: 6 }}>Voice problem: {voiceErr}</Text>
+            <Text style={{ color: '#B3261E', fontSize: 12, marginHorizontal: 16, marginTop: 6 }}>{String(voiceErr).startsWith('answer failed') ? voiceErr : `Voice problem: ${voiceErr}`}</Text>
           )}
           {error && (
             <View style={[styles.bubbleRow, styles.bubbleRowFern]}>
