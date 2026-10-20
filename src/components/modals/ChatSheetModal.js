@@ -209,6 +209,13 @@ export default function ChatSheetModal({
 
   const askFern = useCallback(async (text, { silent = false } = {}) => {
     if (!text || !text.trim()) return;
+    // Typing or saying just "clear" / "new chat" wipes this conversation on the phone (no AI call, not counted).
+    if (!silent && /^\/?\s*(clear|new chat|start over)[.!]?$/i.test(text.trim())) {
+      messagesRef.current = [];
+      setMessages([]);
+      setInputText('');
+      return;
+    }
     const chatExempt = CHAT_LIMIT_EXEMPT.includes(String(user?.email || '').toLowerCase());
     if (!silent && LAUNCH_ALL_FREE) {
       if (!chatExempt && (await freeChatUsedToday()) >= LAUNCH_CHAT_PER_DAY) {
