@@ -1035,12 +1035,6 @@ export default function SearchScreen({ user }) {
 
                             <View style={styles.quickActionsRow}>
                                 <ActionButton
-                                    label={t('circular_scanner')}
-                                    icon="📸"
-                                    onPress={openScanCircularModal}
-                                    style={styles.quickActionLeft}
-                                />
-                                <ActionButton
                                     label={t('suggest_something')}
                                     icon="🤔"
                                     dark

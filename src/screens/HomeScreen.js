@@ -1637,11 +1637,8 @@ export default function HomeScreen({ user, route }) {
       }
     } catch (e) { /* no location: fall through to asking */ }
     if (here) { chooseFlyerStore(here); return; }
-    // Not at a saved store: ask which one this flyer is for.
-    Alert.alert(t('flyer_which_store'), undefined, [
-      ...stores.slice(0, 8).map((s) => ({ text: s.name, onPress: () => setTimeout(() => chooseFlyerStore(s), 400) })),
-      { text: t('cancel_btn'), style: 'cancel' },
-    ]);
+    // Not at a saved store: go straight to the photo prompt (the stores are already listed on Home to tap; the scan reads the store's name off the flyer).
+    askFlyerPhoto();
   };
 
   const closeScanCircularModal = () => {
