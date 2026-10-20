@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fern",
     "slug": "fern-native",
-    "version": "1.1.9",
+    "version": "1.1.10",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.clickpickandcook.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking — say recipes, add items, and plan your week without touching your phone.",
+        "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking \u2014 say recipes, add items, and plan your week without touching your phone.",
         "NSSpeechRecognitionUsageDescription": "Fern listens for your voice commands to plan meals and navigate the app hands-free.",
         "NSLocationWhenInUseUsageDescription": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping.",
@@ -31,7 +31,10 @@
         "NSCameraUsageDescription": "Fern uses your camera to photograph your fridge or pantry so it can suggest recipes from what you have.",
         "NSPhotoLibraryUsageDescription": "Fern needs access to your photos so you can pick fridge or pantry photos to find recipes from what you have."
       },
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "associatedDomains": [
+        "applinks:app.clickpickandcook.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {

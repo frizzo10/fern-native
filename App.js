@@ -51,7 +51,7 @@ import TourModal from './src/components/TourModal';
 import { TOUR_PREVIEW_ROUTE } from './src/constants/tourContent';
 import { RevenueCatProvider, useRevenueCat } from './src/services/RevenueCatContext';
 import { useSync } from './src/hooks/useSync';
-import { startLinkListener, subscribeLink } from './src/services/linkBus';
+import { startLinkListener, subscribeLink, checkShareClipboardOnce } from './src/services/linkBus';
 
 startLinkListener(); // fern://cookbook?id=... links: listen from the very first moment (cold start included)
 
@@ -274,6 +274,8 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
     };
     go();
   }), []);
+  // First launch after installing from a share link: pick up the cookbook the share page copied.
+  useEffect(() => { const t = setTimeout(() => checkShareClipboardOnce(AsyncStorage), 3000); return () => clearTimeout(t); }, []);
 
   // Plan checks for the arrival-notification tap. Refs, because that handler is
   // registered once and must see the current plan (RevenueCat can still be
