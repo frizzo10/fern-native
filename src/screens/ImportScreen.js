@@ -205,10 +205,10 @@ export default function ImportScreen({ user, onBack, onImported }) {
     <SafeAreaView style={s.safe} edges={['top']}>
       <View style={s.header}>
         <TouchableOpacity onPress={onBack} style={s.backBtn}>
-          <Text style={s.backText}>{'‹ ' + t('back')}</Text>
+          <Text style={s.backText} numberOfLines={1}>{'‹ ' + t('back')}</Text>
         </TouchableOpacity>
         <Text style={s.headerTitle}>{t('import_page_title')}</Text>
-        <View style={{ width: 50 }} />
+        <View style={{ width: 72 }} />
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
@@ -385,7 +385,7 @@ const s = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: C.border,
   },
-  backBtn: { width: 50 },
+  backBtn: { minWidth: 72 },
   backText: { color: C.forest, fontSize: 15, fontFamily: 'Jost-SemiBold' },
   headerTitle: { color: C.ink, fontSize: 16, fontFamily: 'Playfair-Bold' },
   content: { padding: 20, paddingBottom: 60 },
