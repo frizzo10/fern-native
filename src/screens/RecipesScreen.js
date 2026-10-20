@@ -1164,7 +1164,7 @@ export default function RecipesScreen({ user }) {
                 onPress={() => setTab('recipes')}
                 style={[styles.tabButton, tab === 'recipes' ? styles.tabButtonActive : null]}
               >
-                <Text style={[styles.tabButtonText, tab === 'recipes' ? styles.tabButtonTextActive : null]}>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.tabButtonText, tab === 'recipes' ? styles.tabButtonTextActive : null]}>
                   {t('recipes_tab')}
                 </Text>
               </TouchableOpacity>
@@ -1173,7 +1173,7 @@ export default function RecipesScreen({ user }) {
                 onPress={() => setTab('cookbooks')}
                 style={[styles.tabButton, tab === 'cookbooks' ? styles.tabButtonActive : null]}
               >
-                <Text style={[styles.tabButtonText, tab === 'cookbooks' ? styles.tabButtonTextActive : null]}>
+                <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[styles.tabButtonText, tab === 'cookbooks' ? styles.tabButtonTextActive : null]}>
                   {t('cookbooks_tab')}
                 </Text>
               </TouchableOpacity>
@@ -1596,11 +1596,11 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     flexDirection: 'row',
-    gap: 20,
+    gap: 12,
     alignItems: 'center',
   },
   tabsPill: {
-    flex: 1,
+    flex: 1.5,
     flexDirection: 'row',
     backgroundColor: '#EFE4D2',
     borderColor: '#D9C9AF',
@@ -1612,6 +1612,7 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     paddingVertical: 5,
+    paddingHorizontal: 4,
     borderRadius: 8,
     alignItems: 'center',
   },
@@ -1627,7 +1628,6 @@ const styles = StyleSheet.create({
     color: '#F5EFE6',
   },
   searchBox: {
-    width: 160,
     flex: 1,
     borderWidth: 1,
     borderColor: '#D9C9AF',
