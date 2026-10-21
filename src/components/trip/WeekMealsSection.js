@@ -14,6 +14,7 @@ import { planShoppingAdditions } from '../../utils/shoppingListSync';
 import useEntitlement from '../../hooks/useEntitlement';
 import { TIERS } from '../../constants/tiers';
 import UpgradeGateModal from '../UpgradeGateModal';
+import { onePerSlot } from '../../utils/onePerSlot';
 
 // Free plan: one week of dinners built from the sales per calendar month (device-only counter).
 // Counted when the dinners are actually added to the week, not when they are only previewed.
@@ -233,7 +234,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
         const key = keys[i];
         if (!key) return;
         const dayMeals = Array.isArray(next[key]) ? next[key] : [];
-        next = { ...next, [key]: [...dayMeals, { slot: 'Dinner', title: p.title, emoji: p.emoji || '🍽️', ...((p.sides || []).length ? { sides: p.sides } : {}) }] };
+        next = { ...next, [key]: onePerSlot([...dayMeals, { slot: 'Dinner', title: p.title, emoji: p.emoji || '🍽️', ...((p.sides || []).length ? { sides: p.sides } : {}) }]) };
         lines.push({ day: parseDateKey(key).toLocaleDateString(locale === 'es' ? 'es' : 'en-US', { weekday: 'long' }), title: p.title, emoji: p.emoji, sides: p.sides || [], star: p.star?.name || '' });
       });
       await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));

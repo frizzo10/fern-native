@@ -67,6 +67,7 @@ import {
   weekKeyFor,
   weekLabel,
 } from '../utils/savings';
+import { onePerSlot } from '../utils/onePerSlot';
 
 const QUICK_ADD_ITEMS = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Butter', 'Pasta'];
 const FERN_STARTER_ITEMS = ['Olive oil', 'Garlic', 'Onion', 'Chicken', 'Rice'];
@@ -706,7 +707,7 @@ export default function ShoppingScreen({ user }) {
     let plan = {};
     try { plan = JSON.parse((await AsyncStorage.getItem('rv4_meal_plan')) || '{}'); } catch (e) { plan = {}; }
     const dayMeals = Array.isArray(plan[dateKey]) ? plan[dateKey] : [];
-    const next = { ...plan, [dateKey]: [...dayMeals, { slot: recipe.slot || 'Dinner', title: recipe.title, emoji: recipe.emoji || '🍽️', ...((recipe.sides || []).length ? { sides: recipe.sides } : {}) }] };
+    const next = { ...plan, [dateKey]: onePerSlot([...dayMeals, { slot: recipe.slot || 'Dinner', title: recipe.title, emoji: recipe.emoji || '🍽️', ...((recipe.sides || []).length ? { sides: recipe.sides } : {}) }]) };
     await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
     try {
       const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');

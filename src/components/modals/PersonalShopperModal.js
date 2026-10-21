@@ -42,6 +42,7 @@ import { toShoppingName } from '../../utils/shoppingName';
 import { NOT_FOOD, PANTRY_SKIP, pickStarDeals } from '../../utils/starDeals';
 import UpgradeGateModal from '../UpgradeGateModal';
 import SaleItemsList from '../SaleItemsList';
+import { onePerSlot } from '../../utils/onePerSlot';
 
 // Grocery names are stored/synced in English on purpose (see CLAUDE.md →
 // Translations), so these are not run through t().
@@ -1251,7 +1252,7 @@ export default function PersonalShopperModal({
                 p.dateKey = key;
                 p.dayLabel = weekdayName(key);
                 const dayMeals = Array.isArray(next[key]) ? next[key] : [];
-                next = { ...next, [key]: [...dayMeals, { slot: 'Dinner', title: p.title, emoji: p.emoji || '🍽️', ...((p.sides || []).length ? { sides: p.sides } : {}) }] };
+                next = { ...next, [key]: onePerSlot([...dayMeals, { slot: 'Dinner', title: p.title, emoji: p.emoji || '🍽️', ...((p.sides || []).length ? { sides: p.sides } : {}) }]) };
             });
             await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
             await pushChangedFromStorage?.({ meal_plan: next });

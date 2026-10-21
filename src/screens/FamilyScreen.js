@@ -20,6 +20,7 @@ import { fetchMealPlanRecipeDetail, fetchDinnerIdeas } from '../services/mealPla
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { DAY_ABBREVIATIONS, parseDateKey, buildRollingWeekDateKeys, normalizeSlot, formatDayLabel } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
+import { onePerSlot } from '../utils/onePerSlot';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const MONTH_ABBREVIATIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -286,7 +287,7 @@ export default function FamilyScreen({ user }) {
                 const title = String(m?.title || '').trim();
                 if (!dateKey || !title) return;
                 const dayMeals = nextMealPlan[dateKey] || [];
-                nextMealPlan = { ...nextMealPlan, [dateKey]: [...dayMeals, { slot: m?.slot || 'Dinner', title, emoji: m?.emoji || '🍽️' }] };
+                nextMealPlan = { ...nextMealPlan, [dateKey]: onePerSlot([...dayMeals, { slot: m?.slot || 'Dinner', title, emoji: m?.emoji || '🍽️' }]) };
             });
             persistMealPlan(nextMealPlan);
         }
@@ -335,7 +336,7 @@ export default function FamilyScreen({ user }) {
         const idx = replace ? dayMeals.indexOf(replace) : -1;
         const nextDayMeals = idx >= 0
             ? dayMeals.map((item, i) => (i === idx ? newEntry : item))
-            : [...dayMeals, newEntry];
+            : onePerSlot([...dayMeals, newEntry]);
         persistMealPlan({ ...mealPlanLocal, [dateKey]: nextDayMeals });
         setAddMealModal(null);
     };
@@ -368,7 +369,7 @@ export default function FamilyScreen({ user }) {
                                 const dayMeals = nextMealPlan[dateKey] || [];
                                 nextMealPlan = {
                                     ...nextMealPlan,
-                                    [dateKey]: [...dayMeals, { slot: 'Dinner', title: idea.title, emoji: idea.emoji }],
+                                    [dateKey]: onePerSlot([...dayMeals, { slot: 'Dinner', title: idea.title, emoji: idea.emoji }]),
                                 };
                             });
                             persistMealPlan(nextMealPlan);
