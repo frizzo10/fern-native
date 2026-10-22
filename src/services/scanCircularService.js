@@ -53,23 +53,33 @@ async function postToAi(payload) {
 export async function fetchDealRecipeIdeas({ itemName, locale, token, exclude = [], note = '' }) {
     const skip = (Array.isArray(exclude) ? exclude : []).map((x) => String(x || '').trim()).filter(Boolean).slice(0, 30);
     const skipLine = skip.length ? ` Do NOT suggest any of these dishes or close variations of them: ${skip.join('; ')}. Make the 3 ideas clearly different from each other (different cuisines or cooking methods).` : ' Make the 3 ideas clearly different from each other (different cuisines or cooking methods).';
-    const json = await postToAi({
-        system: 'Return ONLY a JSON array of 3 dinner objects. No text before or after. Each is a COMPLETE meal: a main dish that uses the given ingredient as the star, plus 1-2 simple sides. Example: [{"title":"Chicken Stir Fry","time":"25 min","emoji":"🍳","why":"Uses the chicken as the star","sides":["Steamed rice","Cucumber salad"]},{"title":"Lemon Herb Sheet-Pan Chicken","time":"40 min","emoji":"🍗","why":"One pan, minimal cleanup","sides":["Roasted potatoes","Green beans"]}]',
-        messages: [
-            {
-                role: 'user',
-                content: `Give me 3 dinner ideas (main + 1-2 sides each) using ${itemName}.${note ? ` ${note}` : ''}${skipLine} Return ONLY the JSON array, nothing else.`,
-            },
-        ],
-        feature: 'fern_chat',
-        locale: locale || 'en',
-        token,
-    });
+    const ask = async () => {
+        const json = await postToAi({
+            system: 'Return ONLY a JSON array of 3 dinner objects. No text before or after. Each is a COMPLETE meal: a main dish that uses the given ingredient as the star, plus 1-2 simple sides. Example: [{"title":"Chicken Stir Fry","time":"25 min","emoji":"🍳","why":"Uses the chicken as the star","sides":["Steamed rice","Cucumber salad"]},{"title":"Lemon Herb Sheet-Pan Chicken","time":"40 min","emoji":"🍗","why":"One pan, minimal cleanup","sides":["Roasted potatoes","Green beans"]}]',
+            messages: [
+                {
+                    role: 'user',
+                    content: `Give me 3 dinner ideas (main + 1-2 sides each) using ${itemName}.${note ? ` ${note}` : ''}${skipLine} Return ONLY the JSON array, nothing else.`,
+                },
+            ],
+            feature: 'fern_chat',
+            locale: locale || 'en',
+            token,
+        });
+        logApiResponse('ai (fern_chat, deal-ideas)', json);
+        const text = extractResponseText(json);
+        let parsed = parseJsonLoose(text);
+        // The model sometimes wraps the list ({"ideas":[...]}) or answers with a single dish object.
+        if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') {
+            const inner = Object.values(parsed).find((v) => Array.isArray(v));
+            parsed = inner || (parsed.title ? [parsed] : []);
+        }
+        if (!Array.isArray(parsed) || !parsed.length) console.log('[deal-ideas] unreadable reply:', String(text).slice(0, 300));
+        return Array.isArray(parsed) ? parsed : [];
+    };
 
-    logApiResponse('ai (fern_chat, deal-ideas)', json);
-
-    const parsed = parseJsonLoose(extractResponseText(json));
-    const list = Array.isArray(parsed) ? parsed : [];
+    let list = await ask();
+    if (!list.length) list = await ask(); // one quiet retry: an odd reply is usually a one-off
 
     const skipSet = new Set(skip.map((x) => x.toLowerCase()));
     return list
