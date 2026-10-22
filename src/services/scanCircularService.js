@@ -186,6 +186,67 @@ function computeTotalSavings(items) {
     return hasNumericSavings ? total : null;
 }
 
+const SCAN_BG_URL = 'https://app.clickpickandcook.com/.netlify/functions/scan-flyer-background';
+const SCAN_STATUS_URL = 'https://app.clickpickandcook.com/.netlify/functions/scan-circular-status';
+
+// A dense flyer page can take the AI longer than the ~30 s request limit (every try came back 504),
+// so the scan runs as a background job and the phone checks on it. Returns null if the job can't be
+// started (an older server), so the caller falls back to the plain request.
+async function scanViaBackground(payload) {
+    const jobId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
+    let started;
+    try {
+        started = await fetch(SCAN_BG_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+            body: JSON.stringify({ ...payload, jobId }),
+        });
+    } catch (e) {
+        return null;
+    }
+    if (!started.ok && started.status !== 202) return null;
+
+    const t0 = Date.now();
+    let misses = 0;
+    while (Date.now() - t0 < 140000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        let st;
+        try {
+            const r = await fetch(`${SCAN_STATUS_URL}?jobId=${encodeURIComponent(jobId)}`);
+            if (!r.ok) continue;
+            st = await r.json();
+        } catch (e) {
+            continue;
+        }
+        if (st?.status === 'done' && st.result) return st.result;
+        if (st?.status === 'error') throw new Error(st.error || 'Scan failed');
+        if (st?.status === 'not_found') {
+            // The job row is written a moment after the start; if it never shows up, use the plain request.
+            if (++misses > 8) return null;
+        }
+    }
+    throw new Error('Scan took too long');
+}
+
+async function scanDirect(send) {
+    // A dropped connection or a gateway timeout can happen after the server already
+    // finished reading the flyer (the server caches the result by photo), so one quiet
+    // retry usually returns instantly instead of showing "couldn't read that circular".
+    let res;
+    try {
+        res = await send();
+        if (res.status >= 502) throw new Error(`Scan Circular API failed (${res.status})`);
+    } catch (firstErr) {
+        console.log('[scan-circular] first try failed, retrying once:', firstErr?.message || firstErr);
+        await new Promise((r) => setTimeout(r, 1500));
+        res = await send();
+    }
+    if (!res.ok) {
+        throw new Error(`Scan Circular API failed (${res.status})`);
+    }
+    return res.json();
+}
+
 export async function scanCircular({ userId, base64, mimeType, token, zipCode, storeName: pickedStore }) {
     const zip = zipCode || (await defaultScanZip());
     const send = () => fetch(SCAN_CIRCULAR_URL, {
@@ -204,24 +265,15 @@ export async function scanCircular({ userId, base64, mimeType, token, zipCode, s
         }),
     });
 
-    // A dropped connection or a gateway timeout can happen after the server already
-    // finished reading the flyer (the server caches the result by photo), so one quiet
-    // retry usually returns instantly instead of showing "couldn't read that circular".
-    let res;
-    try {
-        res = await send();
-        if (res.status >= 502) throw new Error(`Scan Circular API failed (${res.status})`);
-    } catch (firstErr) {
-        console.log('[scan-circular] first try failed, retrying once:', firstErr?.message || firstErr);
-        await new Promise((r) => setTimeout(r, 1500));
-        res = await send();
-    }
-
-    if (!res.ok) {
-        throw new Error(`Scan Circular API failed (${res.status})`);
-    }
-
-    const json = await res.json();
+    const payload = {
+        mediaType: mimeType || 'image/jpeg',
+        userId,
+        token,
+        imageData: base64,
+        ...(zip ? { zipCode: zip } : {}),
+        ...(pickedStore ? { store: pickedStore } : {}),
+    };
+    const json = await scanViaBackground(payload) || await scanDirect(send);
     // Skipped: this response can carry dozens of flyer items — logApiResponse's
     // truncation would just cut it mid-item. Log a summary instead.
     console.log(`[api] scan-circular → store="${json?.store}" items=${Array.isArray(json?.items) ? json.items.length : 0}`);
