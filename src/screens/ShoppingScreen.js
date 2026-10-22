@@ -58,6 +58,7 @@ import {
   loadLedger,
   loadWeekDeals,
   replaceWeekDeals,
+  markStoreCleared,
   matchListItems,
   summarizeLedger,
   syncCircularSavings,
@@ -455,6 +456,7 @@ export default function ShoppingScreen({ user }) {
           const all = await loadWeekDeals();
           const gone = new Set(guideStoreName && chainKey(guideStoreName) ? dealsForStore(all, guideStoreName) : all);
           await replaceWeekDeals(all.filter((d) => !gone.has(d)));
+          await markStoreCleared(guideStoreName);
           reloadDeals();
           setMealCards(null);
           setMealsKey((k) => k + 1);

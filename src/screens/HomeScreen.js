@@ -3,7 +3,7 @@ import { subscribeAgentChange } from '../services/fernAgent';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { setTourStaticRect } from '../services/tourTargets';
 import { trackEvent, couponMeta } from '../services/track';
-import { loadWeekDeals, saveWeekDeals, couponItemName } from '../utils/savings';
+import { loadWeekDeals, saveWeekDeals, isStoreCleared, couponItemName } from '../utils/savings';
 import { claimArrival, storeKey, notifyArrival } from '../services/storeGeofencing';
 import { dealsForStore, splitCombinedStores, storeAtPosition } from '../utils/flyerStore';
 import { fetchStoreDeals, sharedStoresToDeals } from '../services/storeDealsService';
@@ -1601,6 +1601,8 @@ export default function HomeScreen({ user, route }) {
     const goToCircular = () => { setFlyerScan(null); navigation.navigate('Shopping', { guide: Date.now(), guideStore: shortName }); };
     const deals = await loadWeekDeals();
     if (dealsForStore(deals, store?.name).length) { goToCircular(); return; }
+    // The shopper cleared this store's items on purpose: don't quietly bring another shopper's scan back, ask for a photo.
+    if (await isStoreCleared(store?.name)) { setFlyerScan(null); setTimeout(() => askFlyerPhoto(store), 400); return; }
     setFlyerScan({ phase: 'looking' });
     let shared = [];
     try {

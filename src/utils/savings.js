@@ -154,7 +154,11 @@ export function dedupeDeals(list) {
     return out;
 }
 
-export async function saveWeekDeals(deals) {
+export async function saveWeekDeals(deals, opts = {}) {
+    if (!opts.keepCleared) {
+        const names = Array.from(new Set((deals || []).map((d) => d?.store).filter(Boolean)));
+        for (const n of names) await unmarkStoreCleared(n);
+    }
     try {
         const wk = weekKeyFor();
         const raw = JSON.parse((await AsyncStorage.getItem(WEEK_DEALS_KEY)) || 'null');
@@ -169,6 +173,37 @@ export async function replaceWeekDeals(deals) {
     try {
         await AsyncStorage.setItem(WEEK_DEALS_KEY, JSON.stringify({ weekKey: weekKeyFor(), deals: Array.isArray(deals) ? deals : [] }));
     } catch (e) { /* best effort */ }
+}
+
+// Stores whose sale items the shopper cleared this week: Home must not quietly re-import another shopper's scan for them
+// (that made "Clear" look like it did nothing). A fresh scan, or choosing a shared ad on purpose, lifts the mark.
+const CLEARED_KEY = 'fern_cleared_stores';
+const clearedChain = (n) => String(n || '').toLowerCase().split(/ - |#/)[0].replace(/[^a-z0-9]/g, '');
+async function readCleared() {
+    try {
+        const raw = JSON.parse((await AsyncStorage.getItem(CLEARED_KEY)) || 'null');
+        return raw && raw.weekKey === weekKeyFor() && raw.chains ? raw : { weekKey: weekKeyFor(), chains: {} };
+    } catch (e) { return { weekKey: weekKeyFor(), chains: {} }; }
+}
+export async function markStoreCleared(name) {
+    const k = clearedChain(name);
+    if (!k) return;
+    const cur = await readCleared();
+    cur.chains[k] = Date.now();
+    try { await AsyncStorage.setItem(CLEARED_KEY, JSON.stringify(cur)); } catch (e) { /* best effort */ }
+}
+export async function unmarkStoreCleared(name) {
+    const k = clearedChain(name);
+    if (!k) return;
+    const cur = await readCleared();
+    if (!cur.chains[k]) return;
+    delete cur.chains[k];
+    try { await AsyncStorage.setItem(CLEARED_KEY, JSON.stringify(cur)); } catch (e) { /* best effort */ }
+}
+export async function isStoreCleared(name) {
+    const k = clearedChain(name);
+    if (!k) return false;
+    return Boolean((await readCleared()).chains[k]);
 }
 
 export async function loadWeekDeals() {
