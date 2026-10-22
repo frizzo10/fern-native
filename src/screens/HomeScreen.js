@@ -1533,7 +1533,7 @@ export default function HomeScreen({ user, route }) {
     let picked;
     setFlyerTrace('1. tapped, starting');
     try {
-      const traceOpts = { quality: 0.35, onStage: (s) => setFlyerTrace(s) };
+      const traceOpts = { quality: 0.5, maxWidth: 1800, onStage: (s) => setFlyerTrace(s) };
       picked = fromCamera ? await pickPhotoFromCamera(traceOpts) : await pickPhotoFromLibrary(traceOpts);
     } catch (e) {
       setFlyerTrace(`ERROR: ${String(e?.message || e).slice(0, 120)}`);

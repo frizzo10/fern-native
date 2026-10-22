@@ -58,7 +58,7 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
   };
 
   const scan = async (fromCamera) => {
-    const picked = fromCamera ? await pickPhotoFromCamera({ quality: 0.35 }) : await pickPhotoFromLibrary({ quality: 0.35 });
+    const picked = fromCamera ? await pickPhotoFromCamera({ quality: 0.5, maxWidth: 1800 }) : await pickPhotoFromLibrary({ quality: 0.5, maxWidth: 1800 });
     if (picked.permissionDenied) {
       Alert.alert(t('permission_needed_title'), t('photo_permission_denied_desc'));
       return;
