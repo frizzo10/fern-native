@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { subscribeAgentChange } from '../services/fernAgent';
-import { ActivityIndicator, Alert, Animated, Dimensions, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Image, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { colors, shadow } from '../constants/tokens';
@@ -21,6 +21,7 @@ import { fetchRecipeImage } from '../utils/recipeImage';
 import { DAY_ABBREVIATIONS, parseDateKey, buildRollingWeekDateKeys, normalizeSlot, formatDayLabel } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
 import { onePerSlot } from '../utils/onePerSlot';
+import { createPlanShareLink } from '../services/shareService';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const MONTH_ABBREVIATIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -341,6 +342,33 @@ export default function FamilyScreen({ user }) {
         setAddMealModal(null);
     };
 
+    const [isSharingWeek, setIsSharingWeek] = useState(false);
+    const handleShareWeek = async () => {
+        if (isSharingWeek) return;
+        const days = dateKeys.map((key) => {
+            const d = parseDateKey(key);
+            const meals = (mealPlanLocal[key] || [])
+                .filter((m) => m && m.title)
+                .map((m) => ({ slot: m.slot || 'Dinner', title: m.title, emoji: m.emoji || '' }));
+            return { label: `${DAY_ABBREVIATIONS[d.getDay()]} ${d.getDate()}`, meals };
+        }).filter((d) => d.meals.length);
+        if (!days.length) {
+            Alert.alert(t('share_week_empty'));
+            return;
+        }
+        setIsSharingWeek(true);
+        try {
+            const store = String(data?.userStores?.[0]?.name || '').split(/ - |#/)[0].trim();
+            const url = await createPlanShareLink({ days, senderName: String(data?.userProfile?.userName || user?.name || '').trim(), store });
+            if (!url) throw new Error('no link');
+            await Share.share({ message: t('share_week_msg', { url }) });
+        } catch (e) {
+            Alert.alert(t('share_week_failed'));
+        } finally {
+            setIsSharingWeek(false);
+        }
+    };
+
     const handleAiFillWeek = async () => {
         const emptyDinnerDays = dateKeys.filter((key) => (
             !(mealPlanLocal[key] || []).some((entry) => normalizeSlot(entry) === 'dinner')
@@ -478,9 +506,9 @@ export default function FamilyScreen({ user }) {
                     </TouchableOpacity> */}
                 </View>
 
-                {/* <TouchableOpacity style={styles.shareBtn} activeOpacity={0.85} onPress={() => showComingSoon('family_hub_share_btn')}>
-                    <Text style={styles.shareBtnText}>{t('family_hub_share_btn')}</Text>
-                </TouchableOpacity> */}
+                <TouchableOpacity style={styles.shareBtn} activeOpacity={0.85} onPress={handleShareWeek} disabled={isSharingWeek}>
+                    <Text style={styles.shareBtnText}>{isSharingWeek ? t('share_week_creating') : `📤 ${t('family_hub_share_week_btn')}`}</Text>
+                </TouchableOpacity>
 
                 <View style={styles.statsRow}>
                     <View style={[styles.statCard, shadow.card]}>
