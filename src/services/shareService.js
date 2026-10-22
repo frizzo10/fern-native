@@ -117,12 +117,12 @@ export async function createCookbookShareLink({ title, colorId, recipes, coverUr
 // POST /share-plan → { url } — a public "my week of dinners" page that opens without an account.
 // days: [{ label, meals: [{ slot, title, emoji }] }] (meal names only; nothing personal is sent).
 export async function createPlanShareLink({ days, senderName, store }) {
-    const json = await postJson('share-plan', {
+    const url = await postJson('share-plan', {
         days: days || [],
         senderName: String(senderName || '').trim(),
         store: String(store || '').trim(),
     });
-    return json?.url;
+    return url;
 }
 
 // Reads a shared cookbook back from the server so it can be added to this
