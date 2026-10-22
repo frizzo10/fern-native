@@ -68,9 +68,11 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
         Alert.alert(t('trip_flyer_none'));
         return;
       }
-      setLast({ store: String(result.store || '').trim(), validDates: String(result.validDates || '').trim(), count: items.length, before });
       setShared([]);
       await onDealsChanged?.();
+      const after = await loadWeekDeals();
+      const added = Math.max(0, after.length - before.length); // items this page really added (repeats are merged away)
+      setLast({ store: String(result.store || '').trim(), validDates: String(result.validDates || '').trim(), count: items.length, before, added, total: after.length });
       onScanned?.();
     } catch (e) {
       console.log('[trip] flyer scan failed', e?.message || e);
@@ -136,6 +138,9 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
       {last ? (
         <View style={styles.readBox}>
           <Text style={styles.readText}>{t('trip_flyer_read', { n: last.count, store: last.store || t('trip_flyer_unknown_store') })}{last.validDates ? ` · ${last.validDates}` : ''}</Text>
+          {typeof last.added === 'number' ? (
+            <Text style={styles.addedText}>{last.added > 0 ? `✓ ${t('trip_flyer_added', { added: last.added, total: last.total })}` : t('trip_flyer_added_none')}</Text>
+          ) : null}
           <TouchableOpacity onPress={retake} activeOpacity={0.8}>
             <Text style={styles.retake}>{t('trip_flyer_wrong')}</Text>
           </TouchableOpacity>
@@ -164,5 +169,6 @@ const styles = StyleSheet.create({
   busyHint: { fontSize: 13, color: '#7a6d60', textAlign: 'center', lineHeight: 18 },
   readBox: { marginTop: 10, gap: 4 },
   readText: { fontSize: 13, color: '#2D1B10', fontWeight: '600' },
+  addedText: { fontSize: 14, color: '#1d7a46', fontWeight: '800' },
   retake: { fontSize: 13, color: colors.orange, fontWeight: '700' },
 });
