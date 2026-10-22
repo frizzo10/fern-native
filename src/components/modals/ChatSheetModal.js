@@ -297,7 +297,13 @@ export default function ChatSheetModal({
         ? parsed.add_to_shopping_list.map(item => String(item || '').trim()).filter(Boolean)
         : [];
 
-      const options = agentOn && Array.isArray(parsed?.options) ? parsed.options.filter((o) => o && o.title).slice(0, 3) : [];
+      // The model sometimes sends bare names ("Baja Fish Tacos") or uses name/recipe instead of title: accept those so the cards still show.
+      const options = agentOn && Array.isArray(parsed?.options)
+        ? parsed.options
+            .map((o) => (typeof o === 'string' ? { title: o } : o && typeof o === 'object' ? { ...o, title: o.title || o.name || o.recipe || o.dish } : null))
+            .filter((o) => o && typeof o.title === 'string' && o.title.trim())
+            .slice(0, 3)
+        : [];
       setMessages(prev => [...prev, { role: 'fern', text: reply, options }]);
       if (mode === 'voice') {
         // The audio takes a moment to arrive; until it has played, the mic stays closed (opening it early made the
