@@ -57,6 +57,7 @@ import {
   priceNum,
   loadLedger,
   loadWeekDeals,
+  replaceWeekDeals,
   matchListItems,
   summarizeLedger,
   syncCircularSavings,
@@ -441,6 +442,23 @@ export default function ShoppingScreen({ user }) {
   }, [weekDeals.length]);
 
   const reloadDeals = () => loadWeekDeals().then(setWeekDeals);
+  // Remove this store's sale items from the phone (wrong-store mix-ups); other stores' items stay.
+  const clearStoreDeals = () => {
+    const label = String(guideStoreName || '').split(/ - |#/)[0].trim() || t('trip_flyer_unknown_store');
+    Alert.alert(t('trip_clear_store_title'), t('trip_clear_store_desc', { store: label }), [
+      { text: t('cancel_btn'), style: 'cancel' },
+      {
+        text: t('trip_clear_store_yes'),
+        style: 'destructive',
+        onPress: async () => {
+          const all = await loadWeekDeals();
+          const gone = new Set(guideStoreName && chainKey(guideStoreName) ? dealsForStore(all, guideStoreName) : all);
+          await replaceWeekDeals(all.filter((d) => !gone.has(d)));
+          reloadDeals();
+        },
+      },
+    ]);
+  };
 
   // Arriving at the store (notification tap / Home's "Scan a flyer") lands here: jump to the flyer.
   // Leaving the store (savings notification tap) lands on the savings card.
@@ -1084,6 +1102,9 @@ export default function ShoppingScreen({ user }) {
                   <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
                   <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
                   <FlyerSection embedded user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
+                  <TouchableOpacity onPress={clearStoreDeals} activeOpacity={0.8} style={{ marginTop: 8 }}>
+                    <Text style={{ color: '#C0392B', fontSize: 13, fontFamily: 'Jost-Regular' }}>{t('trip_clear_store_btn', { store: String(guideStoreName || '').split(/ - |#/)[0].trim() || t('trip_flyer_unknown_store') })}</Text>
+                  </TouchableOpacity>
                 </View>
               )}              deals={weekDeals}
               collapsed={!showSales}
