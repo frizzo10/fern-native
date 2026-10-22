@@ -1034,7 +1034,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {guideStep === 'list' && !weekDeals.length ? (
+        {guideStep === 'list' ? (
           <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
             <FlyerSection user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
           </View>
