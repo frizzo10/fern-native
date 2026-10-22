@@ -304,6 +304,13 @@ export default function ChatSheetModal({
             .filter((o) => o && typeof o.title === 'string' && o.title.trim())
             .slice(0, 3)
         : [];
+      // Sometimes the model repeats the cards from an earlier request (hot dogs) under a sentence about a new one (sausage and eggs).
+      // When the sentence names dishes, keep only the cards whose title is in it; if none are, the follow-up below fetches the right ones.
+      if (agentOn && options.length && /New ideas from me|From your recipes:/i.test(reply)) {
+        const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const replyN = norm(reply);
+        options = options.filter((o) => replyN.includes(norm(o.title)));
+      }
       // Sometimes the model names the dishes in her sentence but leaves "options" empty, so no cards show.
       // Ask once more, only for the cards (same context, so the day and meal are read the same way).
       if (agentOn && !silent && !options.length && /New ideas from me|From your recipes:/i.test(reply)) {
