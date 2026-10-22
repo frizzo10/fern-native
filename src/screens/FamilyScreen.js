@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { subscribeAgentChange } from '../services/fernAgent';
-import { ActivityIndicator, Alert, Animated, Dimensions, Image, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, Image, Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { colors, shadow } from '../constants/tokens';
@@ -361,7 +361,7 @@ export default function FamilyScreen({ user }) {
             const store = String(data?.userStores?.[0]?.name || '').split(/ - |#/)[0].trim();
             const url = await createPlanShareLink({ days, senderName: String(data?.userProfile?.userName || user?.name || '').trim(), store });
             if (!url) throw new Error('no link');
-            await Share.share({ message: t('share_week_msg', { url }) });
+            await Share.share(Platform.OS === 'ios' ? { url } : { message: url });
         } catch (e) {
             Alert.alert(t('share_week_failed'));
         } finally {
