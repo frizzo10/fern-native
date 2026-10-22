@@ -298,12 +298,52 @@ export default function ChatSheetModal({
         : [];
 
       // The model sometimes sends bare names ("Baja Fish Tacos") or uses name/recipe instead of title: accept those so the cards still show.
-      const options = agentOn && Array.isArray(parsed?.options)
+      let options = agentOn && Array.isArray(parsed?.options)
         ? parsed.options
             .map((o) => (typeof o === 'string' ? { title: o } : o && typeof o === 'object' ? { ...o, title: o.title || o.name || o.recipe || o.dish } : null))
             .filter((o) => o && typeof o.title === 'string' && o.title.trim())
             .slice(0, 3)
         : [];
+      // Sometimes the model names the dishes in her sentence but leaves "options" empty, so no cards show.
+      // Ask once more, only for the cards (same context, so the day and meal are read the same way).
+      if (agentOn && !silent && !options.length && /New ideas from me|From your recipes:/i.test(reply)) {
+        try {
+          const ctl2 = typeof AbortController !== 'undefined' ? new AbortController() : null;
+          const timer2 = ctl2 ? setTimeout(() => ctl2.abort(), 25000) : null;
+          let r2;
+          try {
+            r2 = await fetch(AI_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                system,
+                feature: 'recipe_search',
+                messages: [
+                  ...requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
+                  { role: 'assistant', content: rawText },
+                  { role: 'user', content: 'You named the dishes but left "options" empty. Reply ONLY with JSON {"reply":"<same reply>","add_to_shopping_list":[],"actions":[],"options":[...]} with one full card for EACH dish you named (title, emoji, time, description, ingredients with quantities, 4-6 instructions; saved recipes only the exact title), and day_offset and slot when the request named a day or meal.' },
+                ],
+                locale,
+                userId: user?.id,
+                token: user?.token,
+              }),
+              ...(ctl2 ? { signal: ctl2.signal } : {}),
+            });
+          } finally {
+            if (timer2) clearTimeout(timer2);
+          }
+          if (r2 && r2.ok) {
+            const d2 = await r2.json();
+            const p2 = parseChatResponse(d2?.content?.[0]?.text ?? d2?.data?.content?.[0]?.text ?? '');
+            if (Array.isArray(p2?.options)) {
+              options = p2.options
+                .map((o) => (typeof o === 'string' ? { title: o } : o && typeof o === 'object' ? { ...o, title: o.title || o.name || o.recipe || o.dish } : null))
+                .filter((o) => o && typeof o.title === 'string' && o.title.trim())
+                .slice(0, 3);
+            }
+          }
+        } catch { /* no cards this time; her sentence still shows */ }
+      }
       setMessages(prev => [...prev, { role: 'fern', text: reply, options }]);
       if (mode === 'voice') {
         // The audio takes a moment to arrive; until it has played, the mic stays closed (opening it early made the
