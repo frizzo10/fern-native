@@ -480,13 +480,14 @@ export const translations = {
     how_to_connect: "HOW TO CONNECT",
     alexa_step_1: "Open the Alexa app",
     alexa_step_1_sub: "On your iPhone or Android",
-    alexa_step_2: "Search for Fern",
+    alexa_step_2: "Search for \"Fern Recipes\"",
     alexa_step_2_sub: "Skills & Games → Search",
     alexa_step_3: "Enable skill & link account",
     alexa_step_3_sub: "Sign in with your Fern credentials",
-    alexa_step_4: "Say \"Alexa, open Fern\"",
+    alexa_step_4: "Say \"Alexa, open Fern Recipes\"",
     alexa_step_4_sub: "On any Echo or Echo Show device",
     skill_id_label: "SKILL ID",
+    alexa_open_app_btn: "Open the Alexa app",
     got_it_btn: "Got it — Connected now",
 
     // Recipe Detail Modal
@@ -2816,13 +2817,14 @@ export const translations = {
     how_to_connect: "CÓMO CONECTAR",
     alexa_step_1: "Abre la app de Alexa",
     alexa_step_1_sub: "En tu iPhone o Android",
-    alexa_step_2: "Busca \"Fern\"",
+    alexa_step_2: "Busca \"Fern Recipes\"",
     alexa_step_2_sub: "Habilidades y juegos → Buscar",
     alexa_step_3: "Activa la habilidad y vincula tu cuenta",
     alexa_step_3_sub: "Inicia sesión con tus credenciales de Fern",
-    alexa_step_4: "Di \"Alexa, abre Fern\"",
+    alexa_step_4: "Di \"Alexa, abre Fern Recipes\"",
     alexa_step_4_sub: "En cualquier dispositivo Echo o Echo Show",
     skill_id_label: "ID DE HABILIDAD",
+    alexa_open_app_btn: "Abrir la app de Alexa",
     got_it_btn: "Entendido — Conectado ahora",
 
     // Recipe Detail Modal

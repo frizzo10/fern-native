@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
@@ -20,6 +20,17 @@ export default function AlexaSkillModal({ visible, onClose }) {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
+
+    const openAlexaApp = async () => {
+        try {
+            await Linking.openURL('alexa://');
+        } catch (e) {
+            const store = Platform.OS === 'ios'
+                ? 'https://apps.apple.com/app/amazon-alexa/id944011620'
+                : 'https://play.google.com/store/apps/details?id=com.amazon.dee.app';
+            Linking.openURL(store).catch(() => {});
+        }
+    };
 
     if (visible && !hasAccess(FEATURE_TIERS.alexa_skill)) {
         return <UpgradeGateModal visible={visible} onClose={onClose} tier={FEATURE_TIERS.alexa_skill} />;
@@ -81,6 +92,10 @@ export default function AlexaSkillModal({ visible, onClose }) {
                                 {idx < 3 ? <View style={styles.alexaStepDivider} /> : null}
                             </View>
                         ))}
+
+                        <TouchableOpacity style={styles.alexaConnectBtn} activeOpacity={0.85} onPress={openAlexaApp}>
+                            <Text style={styles.alexaConnectBtnText}>{t('alexa_open_app_btn')}</Text>
+                        </TouchableOpacity>
 
                         <View style={styles.alexaSkillIdCard}>
                             <Text style={styles.alexaSkillIdLabel}>{t('skill_id_label')}</Text>
