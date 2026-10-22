@@ -282,7 +282,13 @@ export async function scanCircular({ userId, base64, mimeType, token, zipCode, s
 
     const items = Array.isArray(json?.items) ? json.items.map(normalizeItem) : [];
     // A store the shopper picked first wins over the name read off the photo, so the flyer is filed under that store.
-    const storeName = pickedStore ? String(pickedStore).trim() : (json?.store ? String(json.store).trim() : '');
+    // But if the flyer clearly says it is a DIFFERENT chain (a Harris Teeter page scanned while Publix was open), believe the flyer.
+    const chainOf = (n) => String(n || '').toLowerCase().split(/ - |#/)[0].replace(/[^a-z0-9]/g, '');
+    const readStore = json?.store ? String(json.store).trim() : '';
+    const pk = chainOf(pickedStore);
+    const rk = chainOf(readStore);
+    const differs = pk && rk.length >= 4 && !pk.includes(rk) && !rk.includes(pk);
+    const storeName = pickedStore && !differs ? String(pickedStore).trim() : (readStore || (pickedStore ? String(pickedStore).trim() : ''));
 
     // Fire-and-forget: archive into per-store scan history (shown in the Scan
     // Circular sheet). Never blocks or fails the scan itself.
