@@ -123,6 +123,15 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
     return Array.from(map.entries());
   }, [deals, query, t, pinned]);
 
+  // What tells two look-alike items apart (grade, brand, size): the flyer's brand and unit, when the name doesn't already say it.
+  const dealDetail = (deal) => {
+    const name = String(deal?.name || '').toLowerCase();
+    return [deal?.brand, deal?.unit]
+      .map((x) => String(x || '').trim())
+      .filter((x) => x && !name.includes(x.toLowerCase()))
+      .join(' · ');
+  };
+
   const renderRow = ({ deal, key }) => {
             const done = Boolean(added[key]) || Boolean(isOnList?.(deal));
             const saving = dealSaving(deal);
@@ -133,6 +142,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
               <View style={styles.row}>
                 <View style={styles.rowText}>
                   <Text style={styles.name} numberOfLines={2}>{`${deal.emoji ? `${deal.emoji} ` : ''}${deal.name}`}</Text>
+                  {dealDetail(deal) ? <Text style={styles.sub} numberOfLines={2}>{dealDetail(deal)}</Text> : null}
                   <Text style={styles.sub} numberOfLines={1}>
                     {[price, deal.originalPrice ? t('sale_list_was', { price: deal.originalPrice }) : '', deal.store].filter(Boolean).join(' · ')}
                   </Text>
