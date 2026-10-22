@@ -18,6 +18,10 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
   const [busy, setBusy] = useState(false);
   const [last, setLastState] = useState(lastScanMemo); // { store, validDates, count, before }
   const setLast = (v) => { lastScanMemo = v; setLastState(v); };
+  // The remembered scan line belongs to one store; never show Publix's "Read 8 items" while looking at Harris Teeter.
+  const chainOf = (n) => String(n || '').toLowerCase().split(/ - |#/)[0].replace(/[^a-z0-9]/g, '');
+  const hereKeys = Array.from(new Set((stores || []).map((x) => chainOf(x?.name)).filter(Boolean)));
+  const lastHere = last && (hereKeys.length !== 1 || !chainOf(last.store) || chainOf(last.store).includes(hereKeys[0]) || hereKeys[0].includes(chainOf(last.store))) ? last : null;
   const [secs, setSecs] = useState(0); // seconds since the scan started, shown while Fern reads the flyer
   useEffect(() => {
     if (!busy) { setSecs(0); return undefined; }
@@ -135,11 +139,11 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
         </View>
       )}
 
-      {last ? (
+      {lastHere ? (
         <View style={styles.readBox}>
-          <Text style={styles.readText}>{t('trip_flyer_read', { n: last.count, store: last.store || t('trip_flyer_unknown_store') })}{last.validDates ? ` · ${last.validDates}` : ''}</Text>
-          {typeof last.added === 'number' ? (
-            <Text style={styles.addedText}>{last.added > 0 ? `✓ ${t('trip_flyer_added', { added: last.added, total: last.total })}` : t('trip_flyer_added_none')}</Text>
+          <Text style={styles.readText}>{t('trip_flyer_read', { n: lastHere.count, store: lastHere.store || t('trip_flyer_unknown_store') })}{lastHere.validDates ? ` · ${lastHere.validDates}` : ''}</Text>
+          {typeof lastHere.added === 'number' ? (
+            <Text style={styles.addedText}>{lastHere.added > 0 ? `✓ ${t('trip_flyer_added', { added: lastHere.added, total: lastHere.total })}` : t('trip_flyer_added_none')}</Text>
           ) : null}
           <TouchableOpacity onPress={retake} activeOpacity={0.8}>
             <Text style={styles.retake}>{t('trip_flyer_wrong')}</Text>
