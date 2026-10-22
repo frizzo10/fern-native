@@ -5,6 +5,7 @@ import { scanCircular } from '../../services/scanCircularService';
 import { discardLatestScan, fetchStoreDeals } from '../../services/storeDealsService';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../../services/photoPickerService';
 import { zipsByStoreName } from '../../utils/storeZip';
+import { dealsForStore } from '../../utils/flyerStore';
 import { loadWeekDeals, replaceWeekDeals, saveWeekDeals } from '../../utils/savings';
 
 // Step 2 of the shopping trip: get this week's flyer into the app. Either reuse the ad other
@@ -75,8 +76,13 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
       setShared([]);
       await onDealsChanged?.();
       const after = await loadWeekDeals();
-      const added = Math.max(0, after.length - before.length); // items this page really added (repeats are merged away)
-      setLast({ store: String(result.store || '').trim(), validDates: String(result.validDates || '').trim(), count: items.length, before, added, total: after.length });
+      // Count only the scanned store's items (week deals hold every store), so "in all" matches that store's circular.
+      const scanStore = String(result.store || '').trim() || String(stores?.[0]?.name || '').trim();
+      const sameStore = (list) => (scanStore ? dealsForStore(list, scanStore) : list);
+      const beforeN = sameStore(before).length;
+      const afterN = sameStore(after).length;
+      const added = Math.max(0, afterN - beforeN); // items this page really added (repeats are merged away)
+      setLast({ store: String(result.store || '').trim(), validDates: String(result.validDates || '').trim(), count: items.length, before, added, total: afterN });
       onScanned?.();
     } catch (e) {
       console.log('[trip] flyer scan failed', e?.message || e);
