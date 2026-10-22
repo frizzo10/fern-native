@@ -194,6 +194,8 @@ const SCAN_STATUS_URL = 'https://app.clickpickandcook.com/.netlify/functions/sca
 // started (an older server), so the caller falls back to the plain request.
 async function scanViaBackground(payload) {
     const jobId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
+    // Netlify background functions refuse bodies over ~256 KB (413); a flyer photo is far bigger, so skip straight to the direct request.
+    if (JSON.stringify(payload).length > 240000) return null;
     let started;
     try {
         started = await fetch(SCAN_BG_URL, {
