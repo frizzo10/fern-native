@@ -1034,7 +1034,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {guideStep === 'list' ? (
+        {guideStep === 'list' && !weekDeals.length ? (
           <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
             <FlyerSection user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
           </View>
@@ -1083,6 +1083,7 @@ export default function ShoppingScreen({ user }) {
                 <View>
                   <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
                   <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
+                  <FlyerSection embedded user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
                 </View>
               )}              deals={weekDeals}
               collapsed={!showSales}

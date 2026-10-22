@@ -10,10 +10,14 @@ import { loadWeekDeals, replaceWeekDeals, saveWeekDeals } from '../../utils/savi
 // Step 2 of the shopping trip: get this week's flyer into the app. Either reuse the ad other
 // Fern shoppers already scanned for the user's saved stores, or scan a photo of the paper/online flyer.
 // Whatever is read is remembered for the week (fern_week_deals) and shown in "This week's sales".
-export default function FlyerSection({ user, stores, t, weekDeals, onDealsChanged, onScanned }) {
+// Kept at module level so the "Read N items / Wrong photo" line survives the card swapping into the circular.
+let lastScanMemo = null;
+
+export default function FlyerSection({ user, stores, t, weekDeals, onDealsChanged, onScanned, embedded }) {
   const [shared, setShared] = useState([]); // [{ store, scannedAt, itemCount, items }]
   const [busy, setBusy] = useState(false);
-  const [last, setLast] = useState(null); // { store, validDates, count, before }
+  const [last, setLastState] = useState(lastScanMemo); // { store, validDates, count, before }
+  const setLast = (v) => { lastScanMemo = v; setLastState(v); };
   const triedShared = useRef(false);
 
   // Look for a flyer that is already on file, once per visit, when nothing is loaded yet.
@@ -84,11 +88,17 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
   };
 
   return (
-    <View style={[styles.card, shadow.card]}>
-      <Text style={styles.title}>{`📰 ${t('trip_flyer_title')}`}</Text>
-      <Text style={styles.sub}>{weekDeals.length ? t('trip_flyer_have', { n: weekDeals.length }) : t('trip_flyer_sub')}</Text>
+    <View style={embedded ? styles.embedded : [styles.card, shadow.card]}>
+      {embedded ? (
+        <Text style={styles.moreTitle}>{`📷 ${t('trip_flyer_more')}`}</Text>
+      ) : (
+        <>
+          <Text style={styles.title}>{`📰 ${t('trip_flyer_title')}`}</Text>
+          <Text style={styles.sub}>{weekDeals.length ? t('trip_flyer_have', { n: weekDeals.length }) : t('trip_flyer_sub')}</Text>
+        </>
+      )}
 
-      {shared.length && !weekDeals.length ? (
+      {shared.length > 0 && !weekDeals.length ? (
         <View style={styles.sharedBox}>
           <Text style={styles.sharedText}>
             {t('trip_flyer_shared', { stores: shared.map((k) => k.store).join(', '), n: shared.reduce((a, k) => a + (k.itemCount || k.items.length), 0), when: whenText(shared[0].scannedAt) })}
@@ -129,6 +139,8 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
 
 const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: radius.lg || 16, padding: 16, marginBottom: 14 },
+  embedded: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F0E3D2' },
+  moreTitle: { fontSize: 14, fontWeight: '800', color: '#2D1B10' },
   title: { fontSize: 16, fontWeight: '800', color: '#2D1B10' },
   sub: { fontSize: 13, color: '#7a6d60', marginTop: 3 },
   sharedBox: { backgroundColor: '#E6F1EA', borderRadius: 12, padding: 12, marginTop: 10, gap: 8 },
