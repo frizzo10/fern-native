@@ -14,6 +14,13 @@ function dayLabel(offset) {
   return d.toLocaleDateString(undefined, { weekday: 'long' });
 }
 
+// Short label for the day picker: "Fri 23" so the date you asked for is easy to find.
+function dayChipLabel(offset) {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString(undefined, { weekday: 'short' }) + ' ' + d.getDate();
+}
+
 function OptionCard({ option, onAction }) {
   const { t } = useLanguage();
   const [recipe, setRecipe] = useState(null);
@@ -107,10 +114,11 @@ function OptionCard({ option, onAction }) {
               </TouchableOpacity>
             ))}
           </View>
+          <Text style={styles.askText}>{t('option_pick_tapday')}</Text>
           <View style={styles.btnRow}>
             {[0, 1, 2, 3, 4, 5, 6].map((n) => (
               <TouchableOpacity key={n} style={[styles.btn, styles.btnAlt]} onPress={() => run('plan', { dayOffset: n, slot: pickSlot })} disabled={!!busy}>
-                <Text style={styles.btnAltText}>{n === 0 ? t('psp_today') : dayLabel(n)}</Text>
+                <Text style={styles.btnAltText}>{n === 0 ? t('psp_today') + ' ' + new Date().getDate() : dayChipLabel(n)}</Text>
               </TouchableOpacity>
             ))}
           </View>
