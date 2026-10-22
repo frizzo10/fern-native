@@ -1519,6 +1519,14 @@ export default function HomeScreen({ user, route }) {
   // Scan a flyer right here: pick a photo, show Fern "reading" it for at least 3 seconds, say what was found,
   // then land on the Shopping page with the sales list.
   const [flyerScan, setFlyerScan] = useState(null); // null | { phase: 'working' } | { phase: 'done', count, store }
+  // Seconds since the "reading your flyer" overlay started (same m:ss timer as the Shopping scan box).
+  const [flyerSecs, setFlyerSecs] = useState(0);
+  const flyerReading = Boolean(flyerScan) && !['already', 'looking', 'done'].includes(flyerScan?.phase);
+  useEffect(() => {
+    if (!flyerReading) { setFlyerSecs(0); return undefined; }
+    const id = setInterval(() => setFlyerSecs((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [flyerReading]);
   // Diagnostic: shows which step the flyer photo picker reached (a plain banner, not a Modal, so iOS can't drop it).
   const [flyerTrace, setFlyerTrace] = useState('');
   const runHomeFlyerScan = async (fromCamera, forStore) => {
@@ -3202,7 +3210,9 @@ export default function HomeScreen({ user, route }) {
             <>
               <ActivityIndicator size="large" color="#E8742A" />
               <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 22, textAlign: 'center', marginTop: 20 }}>{t('flyer_scanning_title')}</Text>
+              <Text style={{ color: '#E8742A', fontFamily: 'Jost-Bold', fontSize: 28, textAlign: 'center', marginTop: 10 }}>{`${Math.floor(flyerSecs / 60)}:${String(flyerSecs % 60).padStart(2, '0')}`}</Text>
               <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 15, textAlign: 'center', marginTop: 8 }}>{t('flyer_scanning_sub')}</Text>
+              <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 13, textAlign: 'center', marginTop: 14, paddingHorizontal: 30 }}>{t('trip_flyer_scanning_hint')}</Text>
             </>
           )}
         </View>
