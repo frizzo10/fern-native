@@ -18,6 +18,12 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
   const [busy, setBusy] = useState(false);
   const [last, setLastState] = useState(lastScanMemo); // { store, validDates, count, before }
   const setLast = (v) => { lastScanMemo = v; setLastState(v); };
+  const [secs, setSecs] = useState(0); // seconds since the scan started, shown while Fern reads the flyer
+  useEffect(() => {
+    if (!busy) { setSecs(0); return undefined; }
+    const id = setInterval(() => setSecs((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [busy]);
   const triedShared = useRef(false);
 
   // Look for a flyer that is already on file, once per visit, when nothing is loaded yet.
@@ -110,9 +116,11 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
       ) : null}
 
       {busy ? (
-        <View style={styles.busy}>
-          <ActivityIndicator color={colors.orange} />
-          <Text style={styles.sub}>{t('trip_flyer_scanning')}</Text>
+        <View style={styles.busyBox}>
+          <ActivityIndicator size="large" color={colors.orange} />
+          <Text style={styles.busyTitle}>{t('trip_flyer_scanning_title')}</Text>
+          <Text style={styles.busyTime}>{`${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`}</Text>
+          <Text style={styles.busyHint}>{t('trip_flyer_scanning_hint')}</Text>
         </View>
       ) : (
         <View style={styles.btnRow}>
@@ -150,7 +158,10 @@ const styles = StyleSheet.create({
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
   ghost: { flex: 1, borderWidth: 1, borderColor: colors.orange, borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
   ghostText: { color: colors.orange, fontWeight: '700', fontSize: 14 },
-  busy: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  busyBox: { alignItems: 'center', gap: 6, marginTop: 12, paddingVertical: 18, paddingHorizontal: 14, borderRadius: 14, borderWidth: 2, borderColor: colors.orange, backgroundColor: '#FFF4E8' },
+  busyTitle: { fontSize: 17, fontWeight: '800', color: '#2D1B10', textAlign: 'center' },
+  busyTime: { fontSize: 22, fontWeight: '800', color: colors.orange },
+  busyHint: { fontSize: 13, color: '#7a6d60', textAlign: 'center', lineHeight: 18 },
   readBox: { marginTop: 10, gap: 4 },
   readText: { fontSize: 13, color: '#2D1B10', fontWeight: '600' },
   retake: { fontSize: 13, color: colors.orange, fontWeight: '700' },

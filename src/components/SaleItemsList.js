@@ -289,8 +289,15 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
         </View>
       ) : null}
       <View style={cardStyle}>
+      {onToggle && !collapsed ? (
+        <View style={{ alignItems: 'flex-end', marginBottom: 6 }}>
+          <TouchableOpacity style={styles.closePill} activeOpacity={0.85} onPress={onToggle}>
+            <Text style={styles.closePillText}>{`${t('sale_list_close')} ▴`}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
       {header}
-      {onToggle ? (
+      {onToggle && collapsed ? (
         <TouchableOpacity style={styles.toggleBar} activeOpacity={0.85} onPress={onToggle}>
           <Text style={styles.toggleText}>{`📰 ${collapsed ? t('sale_list_week_open', { n: dedupeDeals(deals).length }) : t('sale_list_week_close')}`}</Text>
           <Text style={styles.toggleChevron}>{collapsed ? '▸' : '▾'}</Text>
@@ -337,6 +344,8 @@ const styles = StyleSheet.create({
   pinned: { backgroundColor: '#fff', borderRadius: 16, borderWidth: 1.5, borderColor: '#2A6A2A', padding: 14, marginBottom: 12 },
   pinnedHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 },
   pinnedTitle: { flex: 1, fontSize: 13, fontWeight: '800', color: '#2D1B10' },
+  closePill: { borderWidth: 1.5, borderColor: '#E8742A', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5, backgroundColor: '#fff' },
+  closePillText: { fontSize: 13, fontWeight: '800', color: '#E8742A' },
   toggleBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#E8742A', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginTop: 10 },
   toggleText: { fontSize: 15, fontWeight: '800', color: '#2D1B10', flex: 1 },
   toggleChevron: { fontSize: 18, color: '#E8742A', fontWeight: '800' },
