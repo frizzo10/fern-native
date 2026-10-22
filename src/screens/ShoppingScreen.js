@@ -168,6 +168,7 @@ export default function ShoppingScreen({ user }) {
   const qaHeard = useRef(false);
   const qaStage = useRef('intro'); // 'intro' walkthrough -> 'why' dinners explained -> 'qa' any questions
   const [whyGo, setWhyGo] = useState(false); // the walkthrough ended: scroll to the dinners and explain them
+  const [mealsKey, setMealsKey] = useState(0); // bumped when the sale items are cleared, so the dinners built from them reset too
   const [mealCards, setMealCards] = useState(null); // the dinner ideas WeekMealsSection built, with the sale item behind each
   const [listChat, setListChat] = useState(false); // the leaf button: talk to Fern about the list
   const [tripChatMode, setTripChatMode] = useState(null); // null | 'choose' | 'voice' | 'text'
@@ -455,6 +456,8 @@ export default function ShoppingScreen({ user }) {
           const gone = new Set(guideStoreName && chainKey(guideStoreName) ? dealsForStore(all, guideStoreName) : all);
           await replaceWeekDeals(all.filter((d) => !gone.has(d)));
           reloadDeals();
+          setMealCards(null);
+          setMealsKey((k) => k + 1);
         },
       },
     ]);
@@ -1144,6 +1147,7 @@ export default function ShoppingScreen({ user }) {
         {(!guideStep || guideStep === 'meals' || guideStep === 'list') && !listOnly ? (
         <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
           <WeekMealsSection
+            key={`meals-${mealsKey}`}
             autoStart={guideStep === 'list'}
             onReady={setMealCards}
             t={t}
