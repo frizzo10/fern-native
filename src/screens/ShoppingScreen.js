@@ -70,6 +70,8 @@ import {
   weekLabel,
 } from '../utils/savings';
 import { onePerSlot } from '../utils/onePerSlot';
+import AlexaHint from '../components/AlexaHint';
+import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 
 const QUICK_ADD_ITEMS = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Butter', 'Pasta'];
 const FERN_STARTER_ITEMS = ['Olive oil', 'Garlic', 'Onion', 'Chicken', 'Rice'];
@@ -122,6 +124,7 @@ export default function ShoppingScreen({ user }) {
   const [items, setItems] = useState([]);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
+  const [alexaOpen, setAlexaOpen] = useState(false);
   const [sendingToStore, setSendingToStore] = useState(null);
   const [remainingItemsModal, setRemainingItemsModal] = useState(null);
   const [couponPreview, setCouponPreview] = useState(null); // { coupon, itemText?, level?, kind: 'list' | 'great', match? }
@@ -1047,6 +1050,7 @@ export default function ShoppingScreen({ user }) {
             <Text style={styles.addBtnText}>+</Text>
           </TouchableOpacity>
         </View>
+        <AlexaHint text={t('alexa_hint_list')} onPress={() => setAlexaOpen(true)} />
 
         </>
         ) : null}
@@ -1427,6 +1431,7 @@ export default function ShoppingScreen({ user }) {
         </>
         ) : null}
       </ScrollView>
+      <AlexaSkillModal visible={alexaOpen} onClose={() => setAlexaOpen(false)} />
 
       {celebration ? (
         <>

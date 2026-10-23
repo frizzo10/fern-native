@@ -30,6 +30,8 @@ import CookModeModal from './modals/CookModeModal';
 import SaveToCookbookModal from './modals/SaveToCookbookModal';
 import IngredientSubstitutionModal from './modals/IngredientSubstitutionModal';
 import UpgradeGateModal from './UpgradeGateModal';
+import AlexaHint from './AlexaHint';
+import { copyAlexaPhrase } from '../services/alexaPromo';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import { recipeLimitReached } from '../utils/freeLimits';
@@ -515,6 +517,12 @@ export default function RecipeDetailModal({
                       <Text style={styles.overlayActionText}>{t('action_cook')}</Text>
                     </TouchableOpacity>
                   </View>
+
+                  {/* Not a second Modal: tapping copies the phrase and shows a native Alert (nested modals stick on iOS). */}
+                  <AlexaHint
+                    text={t('alexa_hint_cook')}
+                    onPress={async () => { await copyAlexaPhrase(); Alert.alert(t('alexa_copied')); }}
+                  />
 
                   <View style={styles.overlayDivider} />
 

@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../constants/tokens';
 import useLanguage from '../../hooks/useLanguage';
 import { useTour } from '../../services/TourContext';
 import useEntitlement from '../../hooks/useEntitlement';
 import { FEATURE_TIERS } from '../../constants/featureAccess';
 import UpgradeGateModal from '../UpgradeGateModal';
+import { copyAlexaPhrase } from '../../services/alexaPromo';
 
 export default function AlexaSkillModal({ visible, onClose }) {
     const { t } = useLanguage();
@@ -30,6 +31,11 @@ export default function AlexaSkillModal({ visible, onClose }) {
                 : 'https://play.google.com/store/apps/details?id=com.amazon.dee.app';
             Linking.openURL(store).catch(() => {});
         }
+    };
+
+    const copyPhrase = async () => {
+        await copyAlexaPhrase();
+        Alert.alert(t('alexa_copied'));
     };
 
     if (visible && !hasAccess(FEATURE_TIERS.alexa_skill)) {
@@ -95,6 +101,10 @@ export default function AlexaSkillModal({ visible, onClose }) {
 
                         <TouchableOpacity style={styles.alexaConnectBtn} activeOpacity={0.85} onPress={openAlexaApp}>
                             <Text style={styles.alexaConnectBtnText}>{t('alexa_open_app_btn')}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.alexaConnectBtn} activeOpacity={0.85} onPress={copyPhrase}>
+                            <Text style={styles.alexaConnectBtnText}>{t('alexa_copy_btn')}</Text>
                         </TouchableOpacity>
 
                         <View style={styles.alexaSkillIdCard}>

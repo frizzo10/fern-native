@@ -96,6 +96,7 @@ import { TIERS } from '../constants/tiers';
 import { FEATURE_TIERS } from '../constants/featureAccess';
 import AlwaysLocationReminder from '../components/home/AlwaysLocationReminder';
 import AutopilotCard from '../components/home/AutopilotCard';
+import AlexaCard from '../components/home/AlexaCard';
 import { FREE_RECIPE_LIMIT } from '../utils/freeLimits';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
@@ -177,7 +178,7 @@ export default function HomeScreen({ user, route }) {
   // visible regardless of scroll position, so they just reset to top.
   const homeScrollRef = useRef(null);
   const homeSectionY = useRef({});
-  const HOME_TOUR_STEP_TARGETS = ['top', 'top', 'weekPanel', 'top', 'top', 'top', 'top', 'top'];
+  const HOME_TOUR_STEP_TARGETS = ['top', 'top', 'weekPanel', 'top', 'top', 'top', 'top', 'top', 'top'];
 
   useEffect(() => {
     if (activeTourKey !== 'home') return;
@@ -2721,7 +2722,7 @@ export default function HomeScreen({ user, route }) {
                 onEditActivity={setHomeEditActivity}
                 tools={newHomeTools}
                 libraryItems={newHomeLibrary}
-                notice={<><AutopilotCard user={user} ready={!loading} pushChangedFromStorage={pushChangedFromStorage} pull={pull} /><AlwaysLocationReminder /></>}
+                notice={<><AutopilotCard user={user} ready={!loading} pushChangedFromStorage={pushChangedFromStorage} pull={pull} /><AlwaysLocationReminder /><AlexaCard shopCount={(data.shopping || []).filter((it) => !it.checked).length} onSetup={() => setIsAlexaModalOpen(true)} /></>}
               />
             ) : (
               <>
