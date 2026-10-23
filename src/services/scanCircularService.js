@@ -2,6 +2,7 @@ import { defaultScanZip } from '../utils/storeZip';
 import { logApiResponse } from '../utils/apiLogger';
 import { archiveCircularScan } from '../utils/circularHistory';
 import { saveWeekDeals } from '../utils/savings';
+import { uploadPhoto } from './uploadPhotoService';
 
 const SCAN_CIRCULAR_URL = 'https://app.clickpickandcook.com/.netlify/functions/scan-circular';
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
@@ -204,14 +205,28 @@ const SCAN_STATUS_URL = 'https://app.clickpickandcook.com/.netlify/functions/sca
 // started (an older server), so the caller falls back to the plain request.
 async function scanViaBackground(payload) {
     const jobId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
-    // Netlify background functions refuse bodies over ~256 KB (413); a flyer photo is far bigger, so skip straight to the direct request.
-    if (JSON.stringify(payload).length > 240000) return null;
+    let bgBody = { ...payload, jobId };
+    // Netlify background functions refuse bodies over ~256 KB (413) and a flyer photo is far bigger. So the photo goes up
+    // first through upload-photo and the background job gets a link to it (the server fetches it, scans it, deletes it).
+    // If the upload fails we return null and the caller uses the plain request, as before.
+    if (JSON.stringify(payload).length > 240000) {
+        let url = null;
+        try {
+            const png = payload.mediaType === 'image/png';
+            url = await uploadPhoto(`data:${png ? 'image/png' : 'image/jpeg'};base64,${payload.imageData}`, `scanjob_${jobId}.${png ? 'png' : 'jpg'}`);
+        } catch (e) {
+            console.log('[scan-circular] photo upload failed, using the direct request:', e?.message || e);
+        }
+        if (!url) return null;
+        const { imageData, ...rest } = payload;
+        bgBody = { ...rest, imageUrl: url, jobId };
+    }
     let started;
     try {
         started = await fetch(SCAN_BG_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
-            body: JSON.stringify({ ...payload, jobId }),
+            body: JSON.stringify(bgBody),
         });
     } catch (e) {
         return null;
