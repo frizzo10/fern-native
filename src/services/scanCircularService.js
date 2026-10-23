@@ -204,7 +204,11 @@ const SCAN_STATUS_URL = 'https://app.clickpickandcook.com/.netlify/functions/sca
 // so the scan runs as a background job and the phone checks on it. Returns null if the job can't be
 // started (an older server), so the caller falls back to the plain request.
 async function scanViaBackground(payload) {
-    const jobId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`;
+    // scan_jobs.job_id is a Postgres uuid column: any other format is rejected by the database (and the job silently never exists).
+    const jobId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = Math.floor(Math.random() * 16);
+        return (c === 'x' ? r : (r % 4) + 8).toString(16);
+    });
     let bgBody = { ...payload, jobId };
     // Netlify background functions refuse bodies over ~256 KB (413) and a flyer photo is far bigger. So the photo goes up
     // first through upload-photo and the background job gets a link to it (the server fetches it, scans it, deletes it).
