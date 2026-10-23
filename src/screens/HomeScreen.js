@@ -333,6 +333,14 @@ export default function HomeScreen({ user, route }) {
   const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState([]);
   const [quickSuggestions, setQuickSuggestions] = useState([]);
   const { data, loading, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
+  // Meals/activities added or changed here show at once (the pull that follows can lag or come back stale);
+  // the override is dropped as soon as freshly pulled data arrives.
+  const [planOverride, setPlanOverride] = useState(null);
+  const [actsOverride, setActsOverride] = useState(null);
+  useEffect(() => { setPlanOverride(null); }, [data.mealPlan]);
+  useEffect(() => { setActsOverride(null); }, [data.activities]);
+  const planNow = planOverride || data.mealPlan;
+  const actsNow = actsOverride || data.activities;
   const agentPullRef = React.useRef(pull);
   agentPullRef.current = pull;
   React.useEffect(() => subscribeAgentChange(() => { agentPullRef.current?.(); }), []);
@@ -363,8 +371,8 @@ export default function HomeScreen({ user, route }) {
         if (!lastShown || daysBetween(lastShown, todayKey) >= 7) {
           setWeeklyReviewData(buildWeeklyReviewData(
             data.recipes,
-            data.mealPlan || {},
-            Array.isArray(data.activities) ? data.activities : [],
+            planNow || {},
+            Array.isArray(actsNow) ? actsNow : [],
             weeklyReviewDateKeys
           ));
           setAddedReviewMealIds(new Set());
@@ -379,16 +387,16 @@ export default function HomeScreen({ user, route }) {
   }, [loading]);
 
   const persistFamilyMealPlan = (nextMealPlan) => {
+    setPlanOverride(nextMealPlan);
     AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(nextMealPlan))
       .then(() => pushChangedFromStorage({ meal_plan: nextMealPlan }))
-      .then(() => pull())
       .catch((e) => console.log('[home] failed to sync meal plan', e?.message || e));
   };
 
   const persistFamilyActivities = (nextActivities) => {
+    setActsOverride(nextActivities);
     AsyncStorage.setItem('rv4_activities', JSON.stringify(nextActivities))
       .then(() => pushChangedFromStorage({ activities: nextActivities }))
-      .then(() => pull())
       .catch((e) => console.log('[home] failed to sync activities', e?.message || e));
   };
 
@@ -419,7 +427,7 @@ export default function HomeScreen({ user, route }) {
   const handleHomeSelectSavedMeal = (recipe) => {
     if (!homeAddMeal) return;
     const { dateKey, slot } = homeAddMeal;
-    const mealPlan = data.mealPlan || {};
+    const mealPlan = planNow || {};
     const dayMeals = mealPlan[dateKey] || [];
     const newEntry = { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: recipe.image || null };
     persistFamilyMealPlan({ ...mealPlan, [dateKey]: onePerSlot([...dayMeals, newEntry]) });
@@ -458,9 +466,10 @@ export default function HomeScreen({ user, route }) {
           await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: saved }));
         } catch (e) { /* cache is best effort */ }
       }
-      const mealPlan = data.mealPlan || {};
+      const mealPlan = planNow || {};
       const dayMeals = mealPlan[dateKey] || [];
       const nextPlan = { ...mealPlan, [dateKey]: onePerSlot([...dayMeals, { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: null }]) };
+      setPlanOverride(nextPlan);
       await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(nextPlan));
       await pushChangedFromStorage({ saved, meal_plan: nextPlan });
       setHomeAddMeal(null);
@@ -472,13 +481,13 @@ export default function HomeScreen({ user, route }) {
   };
 
   const handleHomeAddActivity = (activity) => {
-    persistFamilyActivities([...(Array.isArray(data.activities) ? data.activities : []), activity]);
+    persistFamilyActivities([...(Array.isArray(actsNow) ? actsNow : []), activity]);
     setHomeAddActivityDateKey(null);
   };
 
   const handleHomeSaveActivity = (updated) => {
     const original = homeEditActivity;
-    const list = Array.isArray(data.activities) ? data.activities : [];
+    const list = Array.isArray(actsNow) ? actsNow : [];
     const same = (a) => a === original || (a?.dateKey === original?.dateKey && a?.label === original?.label && (a?.time || '') === (original?.time || ''));
     let done = false;
     persistFamilyActivities(list.map((a) => { if (!done && same(a)) { done = true; return updated; } return a; }));
@@ -500,7 +509,7 @@ export default function HomeScreen({ user, route }) {
     // No slot picker in the review card (matches the mockup) — drop it into
     // the first upcoming day that doesn't have a Dinner yet, or today if
     // the whole week's already got dinners planned.
-    const mealPlan = data.mealPlan || {};
+    const mealPlan = planNow || {};
     const targetDateKey = weeklyReviewDateKeys.find((key) => (
       !(mealPlan[key] || []).some((entry) => normalizeSlot(entry) === 'dinner')
     )) || weeklyReviewDateKeys[0];
@@ -523,7 +532,7 @@ export default function HomeScreen({ user, route }) {
       startTime: '',
       _origLabel: activity.label,
     };
-    const nextActivities = [...(Array.isArray(data.activities) ? data.activities : []), newActivity];
+    const nextActivities = [...(Array.isArray(actsNow) ? actsNow : []), newActivity];
     persistFamilyActivities(nextActivities);
     setAddedReviewActivityKeys((prev) => new Set(prev).add(activity.key));
   };
@@ -550,7 +559,7 @@ export default function HomeScreen({ user, route }) {
     const dayOffsetToDateKey = (offset) => weeklyReviewDateKeys[Math.max(0, Math.min(weeklyReviewDateKeys.length - 1, Number(offset) || 0))];
 
     if (mealsToAdd.length) {
-      let nextMealPlan = data.mealPlan || {};
+      let nextMealPlan = planNow || {};
       mealsToAdd.forEach((m) => {
         const dateKey = dayOffsetToDateKey(m?.day_offset);
         const title = String(m?.title || '').trim();
@@ -579,7 +588,7 @@ export default function HomeScreen({ user, route }) {
           };
         })
         .filter(Boolean);
-      if (newActivities.length) persistFamilyActivities([...(Array.isArray(data.activities) ? data.activities : []), ...newActivities]);
+      if (newActivities.length) persistFamilyActivities([...(Array.isArray(actsNow) ? actsNow : []), ...newActivities]);
     }
 
     const parts = [];
@@ -704,7 +713,7 @@ export default function HomeScreen({ user, route }) {
     const dayMealEmojis = {};
 
     // Extract meals from mealPlan
-    const planDay = data.mealPlan?.[key] || [];
+    const planDay = planNow?.[key] || [];
     planDay.forEach(m => {
       if (m.slot) {
         const slotKey = m.slot.toLowerCase();
@@ -714,7 +723,7 @@ export default function HomeScreen({ user, route }) {
     });
 
     // Activities for this day
-    const dayActivities = (data.activities || []).filter(a => a.dateKey === key);
+    const dayActivities = (actsNow || []).filter(a => a.dateKey === key);
 
     return {
       key,
@@ -3224,6 +3233,8 @@ export default function HomeScreen({ user, route }) {
       <FamilyAddSavedMealModal
         visible={Boolean(homeAddMeal)}
         slotLabel={homeAddMeal?.slotLabel}
+        dayActivities={homeAddMeal ? (Array.isArray(actsNow) ? actsNow : []).filter((a) => a.dateKey === homeAddMeal.dateKey) : []}
+        dayLabel={homeAddMeal ? formatDayLabel(homeAddMeal.dateKey) : ''}
         savedRecipes={data.recipes}
         token={user?.token}
         userId={user?.id}

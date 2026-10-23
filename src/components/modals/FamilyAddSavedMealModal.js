@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
 import { normalizeRecipe } from '../../utils/recipeNormalize';
 import { fetchRecipeImage } from '../../utils/recipeImage';
@@ -32,13 +32,14 @@ function RecipeThumb({ recipe, token }) {
     );
 }
 
-export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecipes, token, userId, onClose, onSelect, onAddFound }) {
+export default function FamilyAddSavedMealModal({ visible, slotLabel, dayActivities, dayLabel, savedRecipes, token, userId, onClose, onSelect, onAddFound }) {
     const { t, locale } = useLanguage();
     const [search, setSearch] = useState('');
     const [heard, setHeard] = useState('');
     const [finding, setFinding] = useState(false);
     const [found, setFound] = useState(null); // null = nothing searched yet, [] = nothing found
     const [addingTitle, setAddingTitle] = useState('');
+    const [preview, setPreview] = useState(null); // { recipe, found } | null: look at a recipe before adding it
 
     const runFind = async (query) => {
         const q = String(query || '').trim();
@@ -67,6 +68,7 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecip
         setFound(null);
         setHeard('');
         setSearch('');
+        setPreview(null);
         onClose();
     };
 
@@ -75,6 +77,7 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecip
         setAddingTitle(recipe.title);
         try {
             await onAddFound?.(recipe);
+            setPreview(null);
             setFound(null);
             setHeard('');
             setSearch('');
@@ -109,6 +112,47 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecip
                         </TouchableOpacity>
                     </View>
 
+                    {Array.isArray(dayActivities) && dayActivities.length ? (
+                        <View style={styles.dayStrip}>
+                            <Text style={styles.dayStripTitle}>{t('meal_day_activities', { day: dayLabel || '' })}</Text>
+                            {dayActivities.map((a, i) => (
+                                <Text key={`${a.label}-${i}`} style={styles.dayStripLine} numberOfLines={1}>
+                                    {`${a.emoji || '•'} ${a.label}${a.time ? ` · ${a.time}` : ''}`}
+                                </Text>
+                            ))}
+                        </View>
+                    ) : null}
+
+                    {preview ? (
+                        <View style={{ flex: 1 }}>
+                            <ScrollView contentContainerStyle={styles.previewContent} showsVerticalScrollIndicator={false}>
+                                <TouchableOpacity onPress={() => setPreview(null)} accessibilityRole="button">
+                                    <Text style={styles.previewBack}>{t('meal_preview_back')}</Text>
+                                </TouchableOpacity>
+                                <Text style={styles.previewTitle}>{`${preview.recipe.emoji || '🍽️'} ${preview.recipe.title}`}</Text>
+                                <Text style={styles.rowMeta}>{[preview.recipe.category, preview.recipe.time].filter(Boolean).join(' · ')}</Text>
+                                <Text style={styles.previewHead}>{t('meal_preview_ingredients')}</Text>
+                                {(preview.recipe.ingredients || []).map((ing, i) => (
+                                    <Text key={`i${i}`} style={styles.previewLine}>{`• ${typeof ing === 'string' ? ing : (ing?.text || ing?.item || '')}`}</Text>
+                                ))}
+                                <Text style={styles.previewHead}>{t('meal_preview_steps')}</Text>
+                                {(preview.recipe.methodSteps || []).map((step, i) => (
+                                    <Text key={`s${i}`} style={styles.previewLine}>{`${i + 1}. ${typeof step === 'string' ? step : (step?.text || '')}`}</Text>
+                                ))}
+                            </ScrollView>
+                            <View style={styles.previewFooter}>
+                                <TouchableOpacity
+                                    style={styles.previewAddBtn}
+                                    activeOpacity={0.88}
+                                    disabled={Boolean(addingTitle)}
+                                    onPress={() => (preview.found ? addFound(preview.recipe) : (setPreview(null), onSelect(preview.recipe)))}
+                                >
+                                    <Text style={styles.previewAddText}>{addingTitle ? '…' : t('meal_preview_add', { slot: slotLabel || '' })}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    ) : (
+                    <>
                     {onAddFound ? (
                         <View style={styles.findWrap}>
                             <TouchableOpacity
@@ -126,6 +170,7 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecip
                             {found && !found.length ? <Text style={styles.heard}>{t('find_recipe_none')}</Text> : null}
                             {(found || []).map((r) => (
                                 <View key={r.id} style={styles.row}>
+                                    <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }} activeOpacity={0.85} onPress={() => setPreview({ recipe: r, found: true })}>
                                     <View style={styles.rowIconWrap}>
                                         <RecipePhoto title={r.title} image={r.image} style={styles.rowImage} fallback={<Text style={styles.rowIconEmoji}>{r.emoji}</Text>} />
                                     </View>
@@ -133,6 +178,7 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecip
                                         <Text style={styles.rowTitle} numberOfLines={2}>{r.title}</Text>
                                         <Text style={styles.rowMeta} numberOfLines={2}>{[r.time, r.description].filter(Boolean).join(' · ')}</Text>
                                     </View>
+                                    </TouchableOpacity>
                                     <TouchableOpacity style={styles.addBtn} activeOpacity={0.85} disabled={Boolean(addingTitle)} onPress={() => addFound(r)}>
                                         <Text style={styles.addBtnText}>{addingTitle === r.title ? '…' : t('find_recipe_add')}</Text>
                                     </TouchableOpacity>
@@ -165,7 +211,7 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecip
                             <TouchableOpacity
                                 style={styles.row}
                                 activeOpacity={0.85}
-                                onPress={() => onSelect(recipe)}
+                                onPress={() => setPreview({ recipe, found: false })}
                             >
                                 <RecipeThumb recipe={recipe} token={token} />
                                 <View style={styles.rowInfo}>
@@ -184,6 +230,8 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, savedRecip
                             </View>
                         )}
                     />
+                    </>
+                    )}
                 </View>
             </View>
         </Modal>
@@ -309,6 +357,17 @@ const styles = StyleSheet.create({
         fontFamily: 'Jost-Bold',
         fontSize: 16,
     },
+    dayStrip: { backgroundColor: '#EEF5EC', borderBottomWidth: 1, borderBottomColor: '#D3E3CF', paddingHorizontal: 18, paddingVertical: 10 },
+    dayStripTitle: { color: '#1E391E', fontFamily: 'Jost-Bold', fontSize: 13, marginBottom: 2 },
+    dayStripLine: { color: '#3F5B3F', fontFamily: 'Jost-Medium', fontSize: 13, marginTop: 1 },
+    previewContent: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 20 },
+    previewBack: { color: '#E8742A', fontFamily: 'Jost-Bold', fontSize: 15, marginBottom: 10 },
+    previewTitle: { color: '#2A1A11', fontFamily: 'PlayfairDisplay-Bold', fontSize: 20, marginBottom: 4 },
+    previewHead: { color: '#2A1A11', fontFamily: 'Jost-Bold', fontSize: 14, marginTop: 16, marginBottom: 6, textTransform: 'uppercase' },
+    previewLine: { color: '#4A3B2E', fontFamily: 'Jost-Regular', fontSize: 15, lineHeight: 22, marginBottom: 4 },
+    previewFooter: { padding: 14, borderTopWidth: 1, borderTopColor: '#E0D4C4', backgroundColor: '#FBF8F2' },
+    previewAddBtn: { backgroundColor: '#E8742A', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+    previewAddText: { color: '#fff', fontFamily: 'Jost-Bold', fontSize: 16 },
     emptyState: {
         marginTop: 40,
         alignItems: 'center',

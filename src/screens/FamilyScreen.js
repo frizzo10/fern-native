@@ -765,6 +765,8 @@ export default function FamilyScreen({ user }) {
             <FamilyAddSavedMealModal
                 visible={Boolean(addMealModal)}
                 slotLabel={addMealModal?.slotLabel}
+                dayActivities={addMealModal ? (activitiesLocal || []).filter((a) => a.dateKey === addMealModal.dateKey) : []}
+                dayLabel={addMealModal ? formatDayLabel(addMealModal.dateKey) : ''}
                 savedRecipes={data.recipes}
                 token={user?.token}
                 onClose={() => setAddMealModal(null)}
