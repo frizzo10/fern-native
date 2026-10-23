@@ -14,6 +14,7 @@ export const FEATURE_TIERS = {
   recipes: TIERS.FREE,
   shopping: TIERS.FREE,
   scan_circular: TIERS.FREE,
+  more: TIERS.FREE,
   ask_fern: TIERS.FREE,
   instacart: TIERS.FREE,
   end_to_end: TIERS.FREE,

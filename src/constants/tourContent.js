@@ -4,7 +4,8 @@
 // the app's i18n approach.
 //
 // home/find/recipes/shopping auto-show once each, the first time their
-// screen mounts (see TourProvider.maybeAutoStart). scan_circular has no
+// screen mounts (see TourProvider.maybeAutoStart); `more` auto-shows the first
+// time the More sheet opens (MoreSheet in App.js). scan_circular has no
 // dedicated screen of its own — it's only reachable from the "Take a Tour"
 // list in AccountScreen.js.
 
@@ -58,6 +59,16 @@ export const TOURS = {
       { textKey: 'tour_shopping_step1' },
       { textKey: 'tour_shopping_step2' },
       { textKey: 'tour_shopping_step3' },
+    ],
+  },
+  more: {
+    titleKey: 'tour_more_title',
+    steps: [
+      { textKey: 'tour_more_step1' },
+      { textKey: 'tour_more_step2' },
+      { textKey: 'tour_more_step3' },
+      { textKey: 'tour_more_step4' },
+      { textKey: 'tour_more_step5' },
     ],
   },
   scan_circular: {
@@ -314,6 +325,7 @@ export const TOUR_LIST = [
   { key: 'find', labelKey: 'account_tour_find', icon: '🔍', storageKey: 'fern_tour_seen_find', tier: FEATURE_TIERS.find },
   { key: 'recipes', labelKey: 'account_tour_recipes', icon: '📖', storageKey: 'fern_tour_seen_recipes', tier: FEATURE_TIERS.recipes },
   { key: 'shopping', labelKey: 'account_tour_shopping', icon: '🛒', storageKey: 'fern_tour_seen_shopping', tier: FEATURE_TIERS.shopping },
+  { key: 'more', labelKey: 'account_tour_more', icon: '⋯', storageKey: 'fern_tour_seen_more', tier: FEATURE_TIERS.more },
   { key: 'scan_circular', labelKey: 'account_tour_scan_circular', icon: '📷', storageKey: 'fern_tour_seen_scan_circular', tier: FEATURE_TIERS.scan_circular },
   { key: 'shopping_mode', labelKey: 'account_tour_shopping_mode', icon: '🛒', storageKey: 'fern_tour_seen_shopping_mode', tier: FEATURE_TIERS.shopping_mode, planDescKey: 'plan_desc_shopping_mode' },
   { key: 'cook_mode', labelKey: 'account_tour_cook_mode', icon: '🎙️', storageKey: 'fern_tour_seen_cook_mode', tier: FEATURE_TIERS.cook_mode, planDescKey: 'plan_desc_cook_mode' },

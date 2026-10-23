@@ -155,6 +155,17 @@ function SyncFailedBanner({ onRetry, onDismiss }) {
 
 function MoreSheet({ visible, onClose, onProfile, onCookbooks, onCouponWallet, onImport, onHelp, onLogout }) {
   const { t } = useLanguage();
+  const { maybeAutoStart, tourKey, closeTour } = useTour();
+
+  // The first time the sheet opens, Fern walks through its six shortcuts (replayable from Profile > Take a Tour).
+  useEffect(() => {
+    if (visible) {
+      maybeAutoStart('more');
+    } else if (tourKey === 'more') {
+      closeTour();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   const items = [
     { key: 'profile', label: t('more_profile'), emoji: '👤', onPress: onProfile },
