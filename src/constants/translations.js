@@ -3889,7 +3889,7 @@ export const translations = {
     option_ask_ingredients: "¡Planeado! ¿Quieres también los ingredientes en tu lista de compras?",
     option_yes_add: "Sí, añádelos",
     option_no_thanks: "No, gracias",
-    tour_home_stores: "Empieza tocando Agregar una tienda: escribe el nombre y el código postal y Fern la encuentra. Luego toca una tienda para abrir su folleto al instante, si alguien lo escaneó esta semana. Pon la ubicación en Siempre y Fern te saluda cuando llegues, con las ofertas de esa tienda listas. La flecha fija la ubicación de la tienda y la ✕ la quita.",
+    tour_home_stores: "Empieza tocando Añadir una tienda: escribe el nombre y el código postal y Fern la encuentra. Luego toca una tienda para abrir su folleto al instante, si alguien lo escaneó esta semana. Pon la ubicación en Siempre y Fern te saluda cuando llegues, con las ofertas de esa tienda listas. La flecha fija la ubicación de la tienda y la ✕ la quita.",
     tour_find_title: "Encuentra Tu Próxima Receta",
     tour_find_step1: "Dile a Fern qué se te antoja, o qué tienes en el refrigerador — \"algo con pollo y arroz\" funciona tan bien como \"pollo tikka masala.\"",
     tour_find_step2: "La IA de Fern crea ideas de recetas reales desde cero, según lo que pediste — listas completas de ingredientes e instrucciones paso a paso, no solo enlaces para buscar en otro lado.",
