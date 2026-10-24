@@ -12,6 +12,8 @@ import { openHelp } from '../../services/helpBus';
 import { Ionicons } from '@expo/vector-icons';
 import { colors } from '../../constants/tokens';
 import { fetchRecipeImage } from '../../utils/recipeImage';
+import { chainKey } from '../../utils/flyerStore';
+import { streakWeeks, pagesThisWeek } from '../../utils/scanStats';
 import MealPlannerImage from '../MealPlannerImage';
 
 const FOREST = '#1C3A1A';
@@ -59,6 +61,8 @@ export default function NewHome({
   onOpenList,
   onOpenRecipes,
   stores,
+  sharedChains,
+  scanStats,
   onStorePress,
   onFixStoreLocation,
   onRemoveStore,
@@ -112,7 +116,18 @@ export default function NewHome({
   const nowD = new Date();
   const affirmNo = ((nowD.getFullYear() * 372 + nowD.getMonth() * 31 + nowD.getDate()) % 14) + 1;
 
-  const visibleStores = stores || []; // every saved store (the page scrolls); it used to stop at 5
+  const visibleStores = stores || [];
+  // Scan game: a one-line status under each saved store (nobody has scanned it yet this week -> "be the first").
+  const scanBadge = (s) => {
+    const key = chainKey(s?.name);
+    if (!key) return '';
+    const pages = pagesThisWeek(scanStats, s?.name);
+    if (pages > 0) return t('scan_game_row_mine', { n: pages });
+    if (sharedChains && sharedChains.has(key)) return t('scan_game_row_shared');
+    if (sharedChains) return t('scan_game_row_first');
+    return '';
+  };
+  const streak = scanStats ? streakWeeks(scanStats) : 0; // every saved store (the page scrolls); it used to stop at 5
 
   return (
     <View>
@@ -198,7 +213,10 @@ export default function NewHome({
           {visibleStores.map((s, i) => (
             <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={() => onStorePress && onStorePress(s)}>
               <Ionicons name="location-outline" size={15} color={SAGE} />
-              <Text style={styles.storeLineText} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.storeLineText, { flex: 0 }]} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
+                {scanBadge(s) ? <Text style={styles.scanBadge} numberOfLines={1}>{scanBadge(s)}</Text> : null}
+              </View>
               {onFixStoreLocation ? (
                 <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 6 }} onPress={() => onFixStoreLocation(i)} accessibilityRole="button" accessibilityLabel={t('store_here_btn')}>
                   <Ionicons name="navigate-circle-outline" size={20} color={SAGE} />
@@ -217,6 +235,9 @@ export default function NewHome({
           <Ionicons name="add" size={18} color="#fff" />
           <Text style={styles.addStoreText}>{t('home_add_store_a11y')}</Text>
         </TouchableOpacity>
+        {scanStats && scanStats.total > 0 ? (
+          <Text style={styles.scanStatsLine}>{`📷 ${t('scan_game_stats', { pages: scanStats.total, items: scanStats.items })}${streak > 1 ? `  ·  🔥 ${t('scan_game_streak_short', { n: streak })}` : ''}`}</Text>
+        ) : null}
         {!visibleStores.length ? <Text style={styles.heroHint}>{t('home_no_stores_hint')}</Text> : null}
       </View>
 
@@ -380,6 +401,8 @@ const styles = StyleSheet.create({
   heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: SAGE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
   storeList: { marginTop: 2 },
   storeLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(168,213,162,0.25)' },
+  scanBadge: { fontFamily: 'Jost-Medium', fontSize: 11, color: '#F5C98B', marginTop: 1 },
+  scanStatsLine: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#F5C98B', marginTop: 10, marginLeft: 2 },
   storeLineText: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 14, color: CREAM },
   storeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   storeChip: { height: 44, maxWidth: 170, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(168,213,162,0.35)', backgroundColor: 'rgba(255,255,255,0.08)', flexDirection: 'row', alignItems: 'center', gap: 7 },

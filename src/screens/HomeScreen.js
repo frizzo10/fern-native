@@ -5,8 +5,10 @@ import { setTourStaticRect } from '../services/tourTargets';
 import { trackEvent, couponMeta } from '../services/track';
 import { loadWeekDeals, saveWeekDeals, isStoreCleared, couponItemName } from '../utils/savings';
 import { claimArrival, storeKey, notifyArrival } from '../services/storeGeofencing';
-import { dealsForStore, splitCombinedStores, storeAtPosition } from '../utils/flyerStore';
+import { dealsForStore, splitCombinedStores, storeAtPosition, chainKey } from '../utils/flyerStore';
 import { fetchStoreDeals, sharedStoresToDeals } from '../services/storeDealsService';
+import { fetchCircularStores } from '../services/circularsService';
+import { loadScanStats, streakWeeks, pagesThisWeek } from '../utils/scanStats';
 import { zipsByStoreName } from '../utils/storeZip';
 import * as Location from 'expo-location';
 import {
@@ -209,6 +211,10 @@ export default function HomeScreen({ user, route }) {
   const [lastTranscript, setLastTranscript] = useState('');
   const [voiceHistory, setVoiceHistory] = useState([]); // {role:'user'|'assistant', content}[] — last few turns, so a follow-up like "what about tomorrow?" has something to refer back to
   const [userStoresLocal, setUserStoresLocal] = useState([]);
+  // Scan game: which saved stores already have a shared circular this week, and this shopper's scan stats.
+  const [scanTick, setScanTick] = useState(0);
+  const [sharedChains, setSharedChains] = useState(null); // null = not known yet
+  const [scanStatsState, setScanStatsState] = useState(null);
   const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
   const [storeNameInput, setStoreNameInput] = useState('');
   const [zipCodeInput, setZipCodeInput] = useState('');
@@ -804,6 +810,20 @@ export default function HomeScreen({ user, route }) {
   };
 
   // New Home: ask before removing (the ✕ is small and easy to hit by accident).
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try { const st = await loadScanStats(); if (live) setScanStatsState(st); } catch (e) { /* ignore */ }
+      if (!user?.token || !userStoresLocal.length) return;
+      try {
+        const zip = Object.values(zipsByStoreName(userStoresLocal))[0] || '';
+        const list = await fetchCircularStores({ token: user.token, zip });
+        if (live) setSharedChains(new Set(list.map((x) => chainKey(x.store)).filter(Boolean)));
+      } catch (e) { /* offline: no badges */ }
+    })();
+    return () => { live = false; };
+  }, [user?.token, userStoresLocal.length, scanTick]);
+
   const confirmDeleteStore = (index) => {
     const store = userStoresLocal[index];
     if (!store) return;
@@ -1576,7 +1596,8 @@ export default function HomeScreen({ user, route }) {
         Alert.alert(t('trip_flyer_none'));
         return;
       }
-      setFlyerScan({ phase: 'done', count: items.length, store: String(result.store || '').trim() });
+      setScanTick((n) => n + 1);
+      setFlyerScan({ phase: 'done', count: items.length, store: String(result.store || '').trim(), game: result.game || null });
       await new Promise((r) => setTimeout(r, 1800));
       setFlyerScan(null);
       navigation.navigate('Shopping', { guide: Date.now(), guideStore: String(result.store || '').trim() });
@@ -2717,6 +2738,8 @@ export default function HomeScreen({ user, route }) {
                 onOpenRecipes={() => navigation.navigate('Recipes')}
                 onStorePress={chooseFlyerStore}
                 stores={userStoresLocal}
+                sharedChains={sharedChains}
+                scanStats={scanStatsState}
                 onFixStoreLocation={handleFixStoreLocation}
                 onRemoveStore={confirmDeleteStore}
                 onAddStore={openAddStoreModal}
@@ -3191,6 +3214,12 @@ export default function HomeScreen({ user, route }) {
               <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 16, textAlign: 'center', marginTop: 8 }}>
                 {flyerScan.store ? t('flyer_scanned_found_store', { n: flyerScan.count, store: flyerScan.store }) : t('flyer_scanned_found', { n: flyerScan.count })}
               </Text>
+              {flyerScan.game ? (
+                <Text style={{ color: '#F5C98B', fontFamily: 'Jost-Bold', fontSize: 16, textAlign: 'center', marginTop: 14, paddingHorizontal: 24 }}>
+                  {flyerScan.game.streak > 1 ? t('scan_game_streak', { n: flyerScan.game.streak }) : t('scan_game_thanks')}
+                  {flyerScan.game.pages > 1 ? `  ·  ${t('scan_game_pages', { n: flyerScan.game.pages })}` : ''}
+                </Text>
+              ) : null}
               <Text style={{ color: '#E6EFE0', fontFamily: 'Jost-Medium', fontSize: 14, textAlign: 'center', marginTop: 14 }}>{t('flyer_already_sub')}</Text>
               <TouchableOpacity
                 style={{ marginTop: 28, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 24, backgroundColor: '#DE6F2F' }}
