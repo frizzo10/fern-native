@@ -1173,6 +1173,10 @@ export const translations = {
     cook_mode_help_video_btn: "▶ Help video",
     cook_mode_next_btn: "Next →",
     cook_mode_finish_btn: "Finish 🎉",
+    cook_music_jazz: "Jazz",
+    cook_music_acoustic: "Acoustic",
+    cook_music_lofi: "Lo-fi",
+    cook_music_off: "Music off",
 
     // Recipe Detail — Technique Help sheet
     technique_help_title: "Technique Help",
@@ -3541,6 +3545,10 @@ export const translations = {
     cook_mode_help_video_btn: "▶ Video de ayuda",
     cook_mode_next_btn: "Siguiente →",
     cook_mode_finish_btn: "Terminar 🎉",
+    cook_music_jazz: "Jazz",
+    cook_music_acoustic: "Acústica",
+    cook_music_lofi: "Lo-fi",
+    cook_music_off: "Sin música",
 
     // Recipe Detail — Technique Help sheet
     technique_help_title: "Ayuda de Técnica",

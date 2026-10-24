@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ImageBackground,
   Modal,
@@ -9,8 +9,15 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import useLanguage from '../../hooks/useLanguage';
 import TechniqueHelpModal from './TechniqueHelpModal';
+
+// Quiet background music while cooking (same three loops as the Alexa Cook Mode).
+const MUSIC_BASE = 'https://app.clickpickandcook.com/assets/music/';
+const MUSIC_ORDER = ['jazz', 'acoustic', 'lofi', 'off'];
+const MUSIC_KEY = 'fern_cook_music';
 
 export default function CookModeModal({ visible, recipe, user, onClose }) {
   const { t } = useLanguage();
@@ -18,6 +25,57 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [isIngredientsOpen, setIsIngredientsOpen] = useState(false);
   const [isHelpVisible, setIsHelpVisible] = useState(false);
+  const [music, setMusic] = useState('jazz');
+  const [musicLoaded, setMusicLoaded] = useState(false);
+  const playerRef = useRef(null);
+
+  // Remembered choice (device-only)
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(MUSIC_KEY)
+      .then((v) => { if (alive && MUSIC_ORDER.includes(v)) setMusic(v); })
+      .catch(() => {})
+      .finally(() => { if (alive) setMusicLoaded(true); });
+    return () => { alive = false; };
+  }, []);
+
+  // Play the chosen loop while Cook Mode is open; stop on close, switch or off.
+  useEffect(() => {
+    const stopPlayer = () => {
+      const pl = playerRef.current;
+      playerRef.current = null;
+      if (pl) {
+        try { pl.pause(); } catch (e) {}
+        try { pl.remove(); } catch (e) {}
+      }
+    };
+    if (!visible || !musicLoaded || music === 'off') {
+      stopPlayer();
+      return undefined;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false, interruptionMode: 'mixWithOthers' });
+        if (cancelled) return;
+        stopPlayer();
+        const pl = createAudioPlayer({ uri: MUSIC_BASE + music + '.mp3' });
+        pl.loop = true;
+        pl.volume = 0.3;
+        playerRef.current = pl;
+        pl.play();
+      } catch (e) {
+        // Music is a nicety: never break Cook Mode if it can't load.
+      }
+    })();
+    return () => { cancelled = true; stopPlayer(); };
+  }, [visible, music, musicLoaded]);
+
+  const cycleMusic = () => {
+    const next = MUSIC_ORDER[(MUSIC_ORDER.indexOf(music) + 1) % MUSIC_ORDER.length];
+    setMusic(next);
+    AsyncStorage.setItem(MUSIC_KEY, next).catch(() => {});
+  };
 
   useEffect(() => {
     if (visible) {
@@ -49,6 +107,9 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
         <View style={[styles.darkPanel, { paddingTop: insets.top + 12 }]}>
           <View style={styles.headerRow}>
             <Text style={styles.headerTitle} numberOfLines={1}>{recipe.title}</Text>
+            <TouchableOpacity style={styles.musicBtn} activeOpacity={0.85} onPress={cycleMusic}>
+              <Text style={styles.musicBtnText}>{music === 'off' ? '🔇' : '🎵'} {t('cook_music_' + music)}</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.closeBtn} activeOpacity={0.85} onPress={handleClose}>
               <Text style={styles.closeText}>×</Text>
             </TouchableOpacity>
@@ -129,6 +190,19 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
 }
 
 const styles = StyleSheet.create({
+  musicBtn: {
+    paddingHorizontal: 12,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  musicBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
   background: {
     flex: 1,
     backgroundColor: '#000000',
