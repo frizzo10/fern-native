@@ -997,6 +997,11 @@ export default function ShoppingScreen({ user }) {
         </View>
       ) : null}
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {guideStep && guideStoreName ? (
+          <View style={styles.headerRow}>
+            <Text style={styles.title} numberOfLines={1}>{`🛒 ${guideStoreName.split(/ - |#/)[0].trim()}`}</Text>
+          </View>
+        ) : null}
         {!guideStep ? (
         <View style={styles.headerRow}>
           <Text style={styles.title}>{t('shopping_screen_title')}</Text>

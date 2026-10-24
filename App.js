@@ -370,7 +370,11 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         // Arrival: Home starts that store's flyer scan (same as tapping the store on Home). Leaving a store lands on the
         // Shopping savings card, and the everyday nudge on Shopping's Everyday card.
         if (content.data.type === 'everyday_nudge') nav.navigate('Shopping', { everyday: Date.now() });
-        else if (content.data.type === 'deals_alert') nav.navigate('Home', { openCirculars: Date.now() }); // sale alert: open the store circulars list
+        else if (content.data.type === 'deals_alert') {
+          // sale alert: that store's circular on Shopping when the push names a store, else the circulars list
+          if (store) nav.navigate('Shopping', { guide: Date.now(), guideStore: store });
+          else nav.navigate('Home', { openCirculars: Date.now() });
+        }
         else if (isExit) nav.navigate('Shopping', { tripDone: Date.now() });
         else nav.navigate('Shopping', { guide: Date.now(), guideStore: store, greet: true }); // arrival: Fern starts guiding the trip
       };
