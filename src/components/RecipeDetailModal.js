@@ -183,6 +183,7 @@ export default function RecipeDetailModal({
     setListReview(planShoppingAdditions([{ id: recipe?.id, title: recipe?.title, ingredients }], existing));
   };
   const confirmListReview = async (skip) => {
+    if (listBusy) return;
     setListBusy(true);
     try {
       setPendingSkip(skip);
