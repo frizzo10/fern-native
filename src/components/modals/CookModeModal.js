@@ -13,11 +13,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import useLanguage from '../../hooks/useLanguage';
 import TechniqueHelpModal from './TechniqueHelpModal';
+import { useFernVoice } from '../../hooks/useFernVoice';
 
 // Quiet background music while cooking (same three loops as the Alexa Cook Mode).
 const MUSIC_BASE = 'https://app.clickpickandcook.com/assets/music/';
 const MUSIC_ORDER = ['jazz', 'acoustic', 'lofi', 'off'];
 const MUSIC_KEY = 'fern_cook_music';
+const VOICE_KEY = 'fern_cook_voice'; // 'on' | 'off' (device-only): Fern reads each step aloud
+const MUSIC_VOL = 0.3;
+const MUSIC_VOL_DUCKED = 0.07;
 
 export default function CookModeModal({ visible, recipe, user, onClose }) {
   const { t } = useLanguage();
@@ -28,6 +32,43 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
   const [music, setMusic] = useState('jazz');
   const [musicLoaded, setMusicLoaded] = useState(false);
   const playerRef = useRef(null);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [voiceLoaded, setVoiceLoaded] = useState(false);
+  const voice = useFernVoice({});
+  const voiceRef = useRef(voice);
+  voiceRef.current = voice;
+  const rampRef = useRef(null);
+  const prepCacheRef = useRef({});
+  const volRef = useRef(MUSIC_VOL);
+
+  // Smoothly move the music volume (fade down when Fern talks, back up after).
+  const rampMusic = (target) => {
+    if (rampRef.current) clearInterval(rampRef.current);
+    rampRef.current = setInterval(() => {
+      const pl = playerRef.current;
+      const cur = volRef.current;
+      const diff = target - cur;
+      const next = Math.abs(diff) < 0.02 ? target : cur + diff * 0.35;
+      volRef.current = next;
+      if (pl) { try { pl.volume = next; } catch (e) {} }
+      if (next === target) { clearInterval(rampRef.current); rampRef.current = null; }
+    }, 80);
+  };
+
+  useEffect(() => {
+    let alive = true;
+    AsyncStorage.getItem(VOICE_KEY)
+      .then((v) => { if (alive && v === 'off') setVoiceOn(false); })
+      .catch(() => {})
+      .finally(() => { if (alive) setVoiceLoaded(true); });
+    return () => { alive = false; };
+  }, []);
+
+  const toggleVoice = () => {
+    const next = !voiceOn;
+    setVoiceOn(next);
+    AsyncStorage.setItem(VOICE_KEY, next ? 'on' : 'off').catch(() => {});
+  };
 
   // Remembered choice (device-only)
   useEffect(() => {
@@ -61,7 +102,7 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
         stopPlayer();
         const pl = createAudioPlayer({ uri: MUSIC_BASE + music + '.mp3' });
         pl.loop = true;
-        pl.volume = 0.3;
+        pl.volume = volRef.current;
         playerRef.current = pl;
         pl.play();
       } catch (e) {
@@ -70,6 +111,53 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
     })();
     return () => { cancelled = true; stopPlayer(); };
   }, [visible, music, musicLoaded]);
+
+  // Fern reads the current step aloud; the music fades down while she talks and back up when she is done.
+  const recipeId = recipe?.id;
+  const recipeTitle = recipe?.title;
+  const stepsKey = Array.isArray(recipe?.methodSteps) ? recipe.methodSteps.join('|') : '';
+  useEffect(() => {
+    const stepList = Array.isArray(recipe?.methodSteps) ? recipe.methodSteps : [];
+    if (!visible || !voiceLoaded || !voiceOn || !stepList.length) return undefined;
+    let cancelled = false;
+    const lineFor = (i) => {
+      const body = String(stepList[i] || '').trim();
+      if (!body) return '';
+      const parts = [];
+      if (i === 0) parts.push(t('cook_voice_start', { title: recipeTitle || '' }));
+      parts.push(t('cook_voice_step', { n: i + 1 }));
+      parts.push(body);
+      if (i === stepList.length - 1) parts.push(t('cook_voice_done'));
+      return parts.join(' ');
+    };
+    const getUri = (i) => {
+      if (i < 0 || i >= stepList.length) return Promise.resolve(null);
+      const cache = prepCacheRef.current;
+      if (!cache[i]) cache[i] = voiceRef.current.prepareSpeech(lineFor(i)).catch(() => null);
+      return cache[i];
+    };
+    (async () => {
+      const uri = await getUri(stepIndex);
+      getUri(stepIndex + 1); // have the next one ready
+      if (cancelled || !uri) return;
+      rampMusic(MUSIC_VOL_DUCKED);
+      const started = voiceRef.current.playPrepared(uri, () => { if (!cancelled) rampMusic(MUSIC_VOL); });
+      if (!started) rampMusic(MUSIC_VOL);
+    })();
+    return () => {
+      cancelled = true;
+      try { voiceRef.current.stopSpeaking(); } catch (e) {}
+      rampMusic(MUSIC_VOL);
+    };
+  }, [visible, voiceLoaded, voiceOn, stepIndex, recipeId, recipeTitle, stepsKey]);
+
+  // Fresh cache per recipe / each time Cook Mode opens; make sure the ramp timer never outlives the modal.
+  useEffect(() => {
+    prepCacheRef.current = {};
+    return () => {
+      if (rampRef.current) { clearInterval(rampRef.current); rampRef.current = null; }
+    };
+  }, [visible, recipeId]);
 
   const cycleMusic = () => {
     const next = MUSIC_ORDER[(MUSIC_ORDER.indexOf(music) + 1) % MUSIC_ORDER.length];
@@ -107,6 +195,9 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
         <View style={[styles.darkPanel, { paddingTop: insets.top + 12 }]}>
           <View style={styles.headerRow}>
             <Text style={styles.headerTitle} numberOfLines={1}>{recipe.title}</Text>
+            <TouchableOpacity style={styles.musicBtn} activeOpacity={0.85} onPress={toggleVoice}>
+              <Text style={styles.musicBtnText}>{voiceOn ? '🗣' : '🔇'} {t(voiceOn ? 'cook_voice_on' : 'cook_voice_off')}</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.musicBtn} activeOpacity={0.85} onPress={cycleMusic}>
               <Text style={styles.musicBtnText}>{music === 'off' ? '🔇' : '🎵'} {t('cook_music_' + music)}</Text>
             </TouchableOpacity>
