@@ -156,6 +156,7 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
     prepCacheRef.current = {};
     return () => {
       if (rampRef.current) { clearInterval(rampRef.current); rampRef.current = null; }
+      volRef.current = MUSIC_VOL;
     };
   }, [visible, recipeId]);
 
