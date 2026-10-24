@@ -1233,7 +1233,7 @@ export default function SearchScreen({ user }) {
 
                                             return (
                                                 <View key={`following-${blogger.id}`}>
-                                                    <View style={styles.manageRowCard}>
+                                                    <View style={[styles.manageRowCard, { flexWrap: 'wrap' }]}>
                                                         <View style={[styles.manageAvatar, { backgroundColor: blogger.color }]}>
                                                             <Text style={styles.manageAvatarEmoji}>{blogger.emoji}</Text>
                                                         </View>
@@ -1759,28 +1759,32 @@ const styles = StyleSheet.create({
     manageSpecialty: {
         marginTop: 2,
         fontFamily: 'Jost-Regular',
-        fontSize: 10,
-        lineHeight: 12,
+        fontSize: 12,
+        lineHeight: 15,
         color: '#7D6040',
     },
     followingActions: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginLeft: 8,
+        width: '100%',
+        marginTop: 12,
         gap: 8,
     },
     followingActionBtn: {
+        flex: 1,
+        minHeight: 44,
         borderWidth: 1,
-        borderColor: '#D1C0A6',
-        backgroundColor: '#F4EEE4',
-        borderRadius: 8,
-        paddingHorizontal: 10,
-        paddingVertical: 8,
+        borderColor: '#2D5016',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 10,
+        paddingHorizontal: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     followingActionText: {
-        color: '#8A6C4B',
-        fontFamily: 'Jost-SemiBold',
-        fontSize: 8,
+        color: '#2D5016',
+        fontFamily: 'Jost-Bold',
+        fontSize: 15,
     },
     followingActionBtnHot: {
         borderColor: colors.orange,
@@ -1871,23 +1875,22 @@ const styles = StyleSheet.create({
         marginLeft: 4,
     },
     followingRecipesText: {
-        color: '#2E92F4',
-        fontFamily: 'Jost-SemiBold',
-        fontSize: 8,
+        color: '#2D5016',
+        fontFamily: 'Jost-Bold',
+        fontSize: 15,
     },
     followingRemoveBtn: {
         backgroundColor: '#F5DDE1',
-        borderRadius: 6,
-        width: 30,
-        height: 30,
+        borderRadius: 10,
+        width: 44,
+        height: 44,
         alignItems: 'center',
         justifyContent: 'center',
     },
     followingRemoveText: {
-        fontSize: 12,
-        color: '#D5464E',
-        lineHeight: 14,
-        marginTop: -1,
+        fontSize: 24,
+        color: '#B3202A',
+        lineHeight: 26,
     },
     addBlogRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
     addBlogBtn: { height: 46, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#2D5016', alignItems: 'center', justifyContent: 'center' },
