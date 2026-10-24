@@ -31,7 +31,7 @@ import { fetchRecipeImage } from '../utils/recipeImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
-import { fetchBloggerFeeds, fetchRecipeFromUrl } from '../services/bloggerFeedService';
+import { fetchBloggerFeeds, fetchRecipeFromUrl, checkBloggerSite } from '../services/bloggerFeedService';
 import ScanCircularModal from '../components/modals/ScanCircularModal';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
@@ -192,6 +192,8 @@ export default function SearchScreen({ user }) {
     const [cravingText, setCravingText] = useState('');
     const [isBloggersModalOpen, setIsBloggersModalOpen] = useState(false);
     const [bloggerQuery, setBloggerQuery] = useState('');
+    const [customBlogUrl, setCustomBlogUrl] = useState('');
+    const [addingBlog, setAddingBlog] = useState(false);
     const [followingBloggersLocal, setFollowingBloggersLocal] = useState([]);
     const [expandedBloggerId, setExpandedBloggerId] = useState(null);
     const [bloggerFeedItemsById, setBloggerFeedItemsById] = useState({});
@@ -351,7 +353,7 @@ export default function SearchScreen({ user }) {
         [followingBloggers]
     );
 
-    const visibleBloggers = FEATURED_BLOGGERS.filter((blogger) => {
+    const visibleBloggers = [...followingBloggers.filter((b) => String(b.id).startsWith('c_')), ...FEATURED_BLOGGERS].filter((blogger) => {
         const q = bloggerQuery.trim().toLowerCase();
         if (!q) return true;
         return blogger.name.toLowerCase().includes(q) || blogger.specialty.toLowerCase().includes(q);
@@ -765,6 +767,42 @@ export default function SearchScreen({ user }) {
             scheduleBloggersSync(next, removing ? 'delete' : 'add');
         } catch {
             Alert.alert(t('sync_error'), t('sync_bloggers_error_desc'));
+        }
+    };
+
+    // "Add your own blogger": paste a site address, we confirm it has a feed, then follow it like any other blogger.
+    const addCustomBlogger = async () => {
+        if (addingBlog) return;
+        let raw = customBlogUrl.trim();
+        if (!raw) return;
+        if (!/^https?:\/\//i.test(raw)) raw = `https://${raw}`;
+        let host = '';
+        try { host = new URL(raw).hostname.replace(/^www\./i, ''); } catch (e) { host = ''; }
+        if (!host || !host.includes('.')) {
+            Alert.alert(t('blogger_add_failed_title'), t('blogger_add_failed_desc'));
+            return;
+        }
+        const origin = `https://${host}`;
+        const id = `c_${host.replace(/[^a-z0-9]/gi, '_')}`;
+        if (followingIds.has(id)) {
+            Alert.alert(t('blogger_add_failed_title'), t('blogger_add_already'));
+            return;
+        }
+        setAddingBlog(true);
+        try {
+            const result = await checkBloggerSite(origin);
+            if (!result?.ok) {
+                Alert.alert(t('blogger_add_failed_title'), t('blogger_add_failed_desc'));
+                return;
+            }
+            const base = host.split('.')[0].replace(/[-_]+/g, ' ');
+            const name = base.replace(/\b\w/g, (c) => c.toUpperCase());
+            await toggleFollow({ id, url: origin, name, color: '#4A7C2F', emoji: '📰', specialty: host });
+            setCustomBlogUrl('');
+        } catch (e) {
+            Alert.alert(t('blogger_add_failed_title'), t('blogger_add_failed_desc'));
+        } finally {
+            setAddingBlog(false);
         }
     };
 
@@ -1263,6 +1301,24 @@ export default function SearchScreen({ user }) {
                                                 placeholderTextColor="#AAA39A"
                                                 style={styles.modalSearchInput}
                                             />
+                                        </View>
+
+                                        <View style={styles.addBlogRow}>
+                                            <TextInput
+                                                value={customBlogUrl}
+                                                onChangeText={setCustomBlogUrl}
+                                                placeholder={t('blogger_add_placeholder')}
+                                                placeholderTextColor="#AAA39A"
+                                                autoCapitalize="none"
+                                                autoCorrect={false}
+                                                keyboardType="url"
+                                                returnKeyType="go"
+                                                onSubmitEditing={addCustomBlogger}
+                                                style={[styles.modalSearchInput, { flex: 1 }]}
+                                            />
+                                            <TouchableOpacity activeOpacity={0.85} style={styles.addBlogBtn} onPress={addCustomBlogger} disabled={addingBlog}>
+                                                {addingBlog ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.addBlogBtnText}>{t('blogger_add_btn')}</Text>}
+                                            </TouchableOpacity>
                                         </View>
 
                                         {visibleBloggers.map((blogger) => {
@@ -1833,6 +1889,9 @@ const styles = StyleSheet.create({
         lineHeight: 14,
         marginTop: -1,
     },
+    addBlogRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+    addBlogBtn: { height: 46, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#2D5016', alignItems: 'center', justifyContent: 'center' },
+    addBlogBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
     modalSearchWrap: {
         marginTop: 6,
         marginBottom: 10,

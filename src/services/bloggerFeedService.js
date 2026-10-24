@@ -78,3 +78,15 @@ export async function fetchBloggerFeeds(bloggers) {
   const feeds = Array.isArray(responseJson?.feeds) ? responseJson.feeds.map(normalizeFeed) : [];
   return feeds;
 }
+
+// Is there a readable feed at this site? (`check` mode of blogger-feed: same discovery the "New posts" list uses.)
+// Resolves { ok, items, sample, error }.
+export async function checkBloggerSite(url) {
+  const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/blogger-feed', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+    body: JSON.stringify({ check: [{ id: 'check', url }] }),
+  });
+  const json = await res.json();
+  return json?.results?.[0] || { ok: false, items: 0, error: 'no answer' };
+}
