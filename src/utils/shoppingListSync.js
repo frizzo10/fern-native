@@ -88,9 +88,19 @@ export function planShoppingAdditions(recipes, existingShopping) {
 // ticked off, since there is more to get). Only genuinely new ingredients are appended.
 // `skip` (a Set of lower-cased names) leaves those out — the items un-ticked in the preview.
 // Persists to AsyncStorage (rv4_master_shop + sync cache) so callers just need to push/pull afterwards.
+// The recipe viewer's List button reviews the ingredients first and cannot pass the un-ticked names through every
+// screen's own handler, so it parks them here for a few seconds; the next add picks them up (and clears them).
+let pendingSkip = null;
+export function setPendingSkip(skip) { pendingSkip = skip instanceof Set ? { skip, at: Date.now() } : null; }
+function takePendingSkip() {
+    const p = pendingSkip;
+    pendingSkip = null;
+    return p && Date.now() - p.at < 15000 ? p.skip : null;
+}
+
 export async function addRecipesToShoppingList(recipes, existingShopping, { skip } = {}) {
     const baseShopping = Array.isArray(existingShopping) ? existingShopping : [];
-    const skipSet = skip instanceof Set ? skip : new Set();
+    const skipSet = skip instanceof Set ? skip : (takePendingSkip() || new Set());
     const lists = (Array.isArray(recipes) ? recipes : []).map((recipe) => ({
         recipe,
         label: recipeLabelFor(recipe),

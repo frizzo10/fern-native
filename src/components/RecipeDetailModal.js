@@ -30,6 +30,8 @@ import CookModeModal from './modals/CookModeModal';
 import SaveToCookbookModal from './modals/SaveToCookbookModal';
 import IngredientSubstitutionModal from './modals/IngredientSubstitutionModal';
 import UpgradeGateModal from './UpgradeGateModal';
+import { ListAddPreviewBody } from './ListAddPreview';
+import { planShoppingAdditions, setPendingSkip } from '../utils/shoppingListSync';
 import AlexaHint from './AlexaHint';
 import { copyAlexaPhrase } from '../services/alexaPromo';
 import useEntitlement from '../hooks/useEntitlement';
@@ -170,6 +172,28 @@ export default function RecipeDetailModal({
   // Free plan: a recipe that isn't saved yet can't be added once the box holds 20.
   const { hasAccess } = useEntitlement();
   const [limitGate, setLimitGate] = useState(false);
+  // "List" button: show which ingredients will be added (un-tick what you already have) before anything is written.
+  const [listReview, setListReview] = useState(null); // lines, or null
+  const [listBusy, setListBusy] = useState(false);
+  const openListReview = async () => {
+    const ingredients = (Array.isArray(recipe?.ingredients) ? recipe.ingredients : []).map((ing, idx) => ingredientOverrides[idx] ?? ing);
+    if (!ingredients.length) { onAddToList?.(); return; }
+    let existing = [];
+    try { existing = JSON.parse((await AsyncStorage.getItem('rv4_master_shop')) || '[]'); } catch (e) { existing = []; }
+    setListReview(planShoppingAdditions([{ id: recipe?.id, title: recipe?.title, ingredients }], existing));
+  };
+  const confirmListReview = async (skip) => {
+    setListBusy(true);
+    try {
+      setPendingSkip(skip);
+      await Promise.resolve(onAddToList?.());
+    } finally {
+      setPendingSkip(null);
+      setListBusy(false);
+      setListReview(null);
+    }
+  };
+  useEffect(() => { setListReview(null); }, [recipe?.id, recipe?.title]);
   const blockedByLimit = async () => {
     if (isAlreadySaved || hasAccess(TIERS.PRO)) return false;
     if (!(await recipeLimitReached())) return false;
@@ -624,6 +648,16 @@ export default function RecipeDetailModal({
 
                   <View style={styles.overlayDivider} />
 
+                  {listReview ? (
+                    <ListAddPreviewBody
+                      lines={listReview}
+                      t={t}
+                      busy={listBusy}
+                      onConfirm={confirmListReview}
+                      onCancel={() => setListReview(null)}
+                    />
+                  ) : null}
+
                   <View style={styles.overlayBottomActionsWrap}>
                     <TouchableOpacity
                       style={[
@@ -664,7 +698,7 @@ export default function RecipeDetailModal({
                         {isSharing ? t('share_link_creating') : t('share_sparkle_btn')}
                       </Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]} onPress={onAddToList}>
+                    <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark]} onPress={openListReview}>
                       <Text style={styles.overlayBottomBtnTextLight}>{t('list_btn')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity style={[styles.overlayBottomBtn, styles.overlayBottomBtnInstacart]}><Text style={styles.overlayBottomBtnTextLight}>{t('instacart_btn')}</Text></TouchableOpacity>
