@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AutopilotModePicker } from '../components/home/AutopilotCard';
 import { Alert, AppState, Linking, Modal, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
@@ -16,6 +16,8 @@ import { getShoppingDay, saveShoppingDay } from '../utils/staples';
 import { LAUNCH_ALL_FREE } from '../constants/launch';
 import { fetchCalendarLink } from '../services/calendarLinkService';
 import { useRevenueCat } from '../services/RevenueCatContext';
+import { consumeToursScroll } from '../services/helpBus';
+import { openChat } from '../services/chatBus';
 import { usePlansModal } from '../services/PlansModalContext';
 import * as Updates from 'expo-updates';
 import appJson from '../../app.json';
@@ -104,6 +106,13 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
         }).catch(() => {});
     }, [visible]);
     const { startTour } = useTour();
+    const scrollRef = useRef(null);
+    const toursY = useRef(0);
+    useEffect(() => {
+        if (!visible || !consumeToursScroll()) return undefined;
+        const id = setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, toursY.current - 8), animated: true }), 600);
+        return () => clearTimeout(id);
+    }, [visible]);
     const { tier, hasAccess } = useEntitlement();
     const { presentCustomerCenter, restore } = useRevenueCat();
     const { open: openPlans } = usePlansModal();
@@ -348,7 +357,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                         <Text style={styles.closeText}>×</Text>
                     </TouchableOpacity>
 
-                    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                         <Text style={styles.headerTitle}>{t('my_account_title')}</Text>
 
                         <View style={styles.profileWrap}>
@@ -543,6 +552,17 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                         </TouchableOpacity>
 
                         <AutopilotModePicker />
+
+                        <View onLayout={(e) => { toursY.current = e.nativeEvent.layout.y; }} style={styles.toursHeadBlock}>
+                            <Text style={styles.toursTitle}>{t('tours_title')}</Text>
+                            <Text style={styles.toursSub}>{t('tours_sub')}</Text>
+                            <TouchableOpacity style={styles.toursBtn} activeOpacity={0.88} onPress={() => { onClose(); setTimeout(() => startTour('home', 0), 450); }}>
+                                <Text style={styles.toursBtnText}>▶  {t('faq_replay_tour')}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.toursBtn, { marginTop: 8 }]} activeOpacity={0.88} onPress={() => { onClose(); setTimeout(() => openChat(), 450); }}>
+                                <Text style={styles.toursBtnText}>🌿  {t('faq_ask_fern')}</Text>
+                            </TouchableOpacity>
+                        </View>
 
                         {TOOL_SECTIONS.map((section) => (
                             <View key={section.titleKey} style={styles.sectionBlock}>
@@ -885,6 +905,11 @@ const styles = StyleSheet.create({
         letterSpacing: 0.8,
     },
 
+    toursHeadBlock: { marginTop: 26 },
+    toursTitle: { color: '#5d361c', fontFamily: 'Jost-Bold', fontSize: 24, marginBottom: 4 },
+    toursSub: { color: '#2C241B', fontFamily: 'Jost-Regular', fontSize: 13, lineHeight: 18, marginBottom: 12 },
+    toursBtn: { backgroundColor: colors.forest, borderRadius: 16, alignItems: 'center', paddingVertical: 13 },
+    toursBtnText: { color: '#F5F0E7', fontFamily: 'Jost-Bold', fontSize: 15 },
     sectionBlock: {
         marginTop: 18,
     },

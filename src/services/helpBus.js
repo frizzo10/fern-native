@@ -9,3 +9,8 @@ export function subscribeOpenHelp(fn) {
 export function openHelp() {
   if (listener) listener();
 }
+
+// Help now lives in Account -> Tours; this flag tells AccountScreen to scroll there when it opens.
+let wantTours = false;
+export function requestToursScroll() { wantTours = true; }
+export function consumeToursScroll() { const v = wantTours; wantTours = false; return v; }
