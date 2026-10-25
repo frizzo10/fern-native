@@ -12,7 +12,7 @@ import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import { registerForPush } from './src/services/pushRegistration';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import { Platform } from 'react-native';
+import { Platform, Keyboard } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import HomeScreen from './src/screens/HomeScreen';
@@ -581,7 +581,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           // tour bubble (and its narration audio) was open no longer matches
           // what's on screen once the tab changes, so close it immediately
           // rather than leaving it floating over the new screen.
-          tabPress: () => closeTour(),
+          tabPress: () => { Keyboard.dismiss(); closeTour(); },
           focus: (e) => setActiveTabName(String(e?.target || '').split('-')[0]),
         }}
         screenOptions={{
@@ -603,7 +603,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
             paddingTop: 6,
             height: 70,
           },
-          tabBarHideOnKeyboard: true,
+          tabBarHideOnKeyboard: Platform.OS === 'android',
           tabBarActiveTintColor: colors.orange,
           tabBarInactiveTintColor: 'rgba(168,213,162,0.45)',
           tabBarLabelStyle: {

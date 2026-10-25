@@ -1186,6 +1186,8 @@ export default function RecipesScreen({ user }) {
                   placeholderTextColor="#AA9D8C"
                   value={query}
                   onChangeText={setQuery}
+                  returnKeyType="search"
+                  blurOnSubmit
                   style={styles.searchInput}
                 />
               </View>
