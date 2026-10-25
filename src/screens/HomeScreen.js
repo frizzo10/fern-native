@@ -79,6 +79,7 @@ import ChatSheetModal from '../components/modals/ChatSheetModal';
 import FamilyRecipeVaultModal from '../components/modals/FamilyRecipeVaultModal';
 import InsiderDealsModal from '../components/modals/InsiderDealsModal';
 import CircularsBrowseModal from '../components/modals/CircularsBrowseModal';
+import ScanBoardModal from '../components/modals/ScanBoardModal';
 import PersonalShopperModal from '../components/modals/PersonalShopperModal';
 import { onePerSlot } from '../utils/onePerSlot';
 import { buildWeeklyReviewData } from '../utils/buildWeeklyReviewData';
@@ -228,6 +229,7 @@ export default function HomeScreen({ user, route }) {
   const [isFamilyVaultOpen, setIsFamilyVaultOpen] = useState(false);
   const [isInsiderDealsOpen, setIsInsiderDealsOpen] = useState(false);
   const [isCircularsOpen, setIsCircularsOpen] = useState(false);
+  const [isScanBoardOpen, setIsScanBoardOpen] = useState(false);
   const [isPersonalShopperOpen, setIsPersonalShopperOpen] = useState(false);
   // Set when Personal Shopper was opened by tapping the store-arrival notification (Pro Max).
   const [personalShopperArrival, setPersonalShopperArrival] = useState(null);
@@ -2740,6 +2742,7 @@ export default function HomeScreen({ user, route }) {
                 stores={userStoresLocal}
                 sharedChains={sharedChains}
                 scanStats={scanStatsState}
+                onOpenScanBoard={() => setIsScanBoardOpen(true)}
                 onFixStoreLocation={handleFixStoreLocation}
                 onRemoveStore={confirmDeleteStore}
                 onAddStore={openAddStoreModal}
@@ -3446,6 +3449,8 @@ export default function HomeScreen({ user, route }) {
         onClose={() => setIsInsiderDealsOpen(false)}
         user={user}
       />
+
+      <ScanBoardModal visible={isScanBoardOpen} onClose={() => setIsScanBoardOpen(false)} user={user} />
 
       <CircularsBrowseModal
         visible={isCircularsOpen}

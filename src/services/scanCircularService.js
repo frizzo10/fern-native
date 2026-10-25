@@ -2,6 +2,7 @@ import { defaultScanZip } from '../utils/storeZip';
 import { logApiResponse } from '../utils/apiLogger';
 import { archiveCircularScan } from '../utils/circularHistory';
 import { recordScan, streakWeeks, pagesThisWeek } from '../utils/scanStats';
+import { reportScan } from './scanBoardService';
 import { saveWeekDeals } from '../utils/savings';
 import { uploadPhoto } from './uploadPhotoService';
 
@@ -329,7 +330,10 @@ export async function scanCircular({ userId, base64, mimeType, token, zipCode, s
     let game = null;
     try {
         const stats = await recordScan(storeName, items.length);
-        if (stats) game = { streak: streakWeeks(stats), pages: pagesThisWeek(stats, storeName), total: stats.total };
+        if (stats) {
+            game = { streak: streakWeeks(stats), pages: pagesThisWeek(stats, storeName), total: stats.total };
+            reportScan({ token, stats, addItems: items.length });
+        }
     } catch (e) { game = null; }
 
     return {

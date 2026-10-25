@@ -63,6 +63,7 @@ export default function NewHome({
   stores,
   sharedChains,
   scanStats,
+  onOpenScanBoard,
   onStorePress,
   onFixStoreLocation,
   onRemoveStore,
@@ -238,6 +239,11 @@ export default function NewHome({
         {scanStats && scanStats.total > 0 ? (
           <Text style={styles.scanStatsLine}>{`📷 ${t('scan_game_stats', { pages: scanStats.total, items: scanStats.items })}${streak > 1 ? `  ·  🔥 ${t('scan_game_streak_short', { n: streak })}` : ''}`}</Text>
         ) : null}
+        {onOpenScanBoard && visibleStores.length > 0 ? (
+          <TouchableOpacity style={styles.boardBtn} activeOpacity={0.85} onPress={onOpenScanBoard} accessibilityRole="button">
+            <Text style={styles.boardBtnText}>{`🏆 ${t('scan_board_btn')}`}</Text>
+          </TouchableOpacity>
+        ) : null}
         {!visibleStores.length ? <Text style={styles.heroHint}>{t('home_no_stores_hint')}</Text> : null}
       </View>
 
@@ -402,6 +408,8 @@ const styles = StyleSheet.create({
   storeList: { marginTop: 2 },
   storeLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(168,213,162,0.25)' },
   scanBadge: { fontFamily: 'Jost-Medium', fontSize: 11, color: '#F5C98B', marginTop: 1 },
+  boardBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#F5C98B', alignItems: 'center', justifyContent: 'center' },
+  boardBtnText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: '#F5C98B' },
   scanStatsLine: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#F5C98B', marginTop: 10, marginLeft: 2 },
   storeLineText: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 14, color: CREAM },
   storeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
