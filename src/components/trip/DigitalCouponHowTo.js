@@ -1,5 +1,8 @@
 import React from 'react';
 import { Alert, Linking, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { storeCouponUrl } from '../../utils/storeCouponLinks';
+
+export { storeCouponUrl };
 
 // A digital coupon (no barcode, no code, no link) only takes money off if the shopper
 // first loads it to their own store account. Fern cannot do that for them, and adding
@@ -10,14 +13,6 @@ export function isDigitalCoupon(c) {
 
 export function isWalmartCoupon(c) {
   return isDigitalCoupon(c) && /walmart/i.test(String(c.store || ''));
-}
-
-// Where to sign up / clip for a store. Publix has a stable help page for its digital coupons; every other
-// store goes to a web search for its own coupon sign-up page (so a changed store address never gives a dead link).
-export function storeCouponUrl(store) {
-  const name = String(store || '').split(/ - |#/)[0].trim();
-  if (/publix/i.test(name)) return 'https://www.publix.com/publix-app/faqs/digital-coupons';
-  return `https://www.google.com/search?q=${encodeURIComponent(`${name} digital coupons sign up`)}`;
 }
 
 export default function DigitalCouponHowTo({ coupon, t }) {
