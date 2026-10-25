@@ -14,7 +14,7 @@ export function isWalmartCoupon(c) {
 
 // Where to sign up / clip for a store. Publix has a stable help page for its digital coupons; every other
 // store goes to a web search for its own coupon sign-up page (so a changed store address never gives a dead link).
-function storeCouponUrl(store) {
+export function storeCouponUrl(store) {
   const name = String(store || '').split(/ - |#/)[0].trim();
   if (/publix/i.test(name)) return 'https://www.publix.com/publix-app/faqs/digital-coupons';
   return `https://www.google.com/search?q=${encodeURIComponent(`${name} digital coupons sign up`)}`;

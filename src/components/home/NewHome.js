@@ -4,7 +4,7 @@
 // Purely presentational: HomeScreen owns all state, handlers and tier checks and
 // passes them in, so no feature, gate or label logic lives (or can drift) here.
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getAutopilotMode, setAutopilotMode } from '../../services/autopilot';
 import { formatDayLabel } from '../../utils/familyDates';
 import { tourTargetRef } from '../../services/tourTargets';
@@ -14,6 +14,7 @@ import { colors } from '../../constants/tokens';
 import { fetchRecipeImage } from '../../utils/recipeImage';
 import { chainKey } from '../../utils/flyerStore';
 import { streakWeeks, pagesThisWeek } from '../../utils/scanStats';
+import { storeCouponUrl } from '../trip/DigitalCouponHowTo';
 import MealPlannerImage from '../MealPlannerImage';
 
 const FOREST = '#1C3A1A';
@@ -218,6 +219,9 @@ export default function NewHome({
                 <Text style={[styles.storeLineText, { flex: 0 }]} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
                 {scanBadge(s) ? <Text style={styles.scanBadge} numberOfLines={1}>{scanBadge(s)}</Text> : null}
               </View>
+              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 8, right: 6 }} onPress={() => Linking.openURL(storeCouponUrl(s.name)).catch(() => {})} accessibilityRole="link" accessibilityLabel={t('store_coupons_a11y')}>
+                <Ionicons name="ticket-outline" size={20} color={SAGE} />
+              </TouchableOpacity>
               {onFixStoreLocation ? (
                 <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 6 }} onPress={() => onFixStoreLocation(i)} accessibilityRole="button" accessibilityLabel={t('store_here_btn')}>
                   <Ionicons name="navigate-circle-outline" size={20} color={SAGE} />

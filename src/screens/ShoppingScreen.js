@@ -26,6 +26,7 @@ import SaleItemsList from '../components/SaleItemsList';
 import FlyerSection from '../components/trip/FlyerSection';
 import WeekMealsSection from '../components/trip/WeekMealsSection';
 import CouponPreviewModal from '../components/trip/CouponPreviewModal';
+import { storeCouponUrl } from '../components/trip/DigitalCouponHowTo';
 import { isDigitalCoupon, isWalmartCoupon } from '../components/trip/DigitalCouponHowTo';
 import { addRecipesToShoppingList, buyCount } from '../utils/shoppingListSync';
 import { AISLES, aisleFor } from '../utils/aisles';
@@ -999,7 +1000,10 @@ export default function ShoppingScreen({ user }) {
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {guideStep && guideStoreName ? (
           <View style={styles.headerRow}>
-            <Text style={styles.title} numberOfLines={1}>{`🛒 ${guideStoreName.split(/ - |#/)[0].trim()}`}</Text>
+            <TouchableOpacity activeOpacity={0.8} accessibilityRole="link" onPress={() => Linking.openURL(storeCouponUrl(guideStoreName)).catch(() => {})}>
+              <Text style={styles.title} numberOfLines={1}>{`🛒 ${guideStoreName.split(/ - |#/)[0].trim()}`}</Text>
+              <Text style={{ fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#E8833A', marginTop: 2 }}>{t('store_coupons_link')}</Text>
+            </TouchableOpacity>
           </View>
         ) : null}
         {!guideStep ? (
