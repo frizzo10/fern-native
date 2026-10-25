@@ -230,7 +230,7 @@ function shortStoreName(name) {
 
 function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, retrySync }) {
   const { t } = useLanguage();
-  const { visible: isAccountOpen, open: openAccount, close: closeAccount } = useAccountModal();
+  const { visible: isAccountOpen, close: closeAccount } = useAccountModal();
   const { visible: isPlansOpen, open: openPlans, close: closePlans } = usePlansModal();
   const {
     tour: activeTour,
