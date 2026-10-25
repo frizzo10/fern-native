@@ -1188,8 +1188,18 @@ export default function RecipesScreen({ user }) {
                   onChangeText={setQuery}
                   returnKeyType="search"
                   blurOnSubmit
-                  style={styles.searchInput}
+                  style={[styles.searchInput, { flex: 1 }]}
                 />
+                {query.length > 0 ? (
+                  <TouchableOpacity
+                    onPress={() => setQuery('')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    accessibilityLabel={t('search_clear_a11y')}
+                    style={styles.searchClearBtn}
+                  >
+                    <Text style={styles.searchClearText}>✕</Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             ) : null}
           </View>
@@ -1637,7 +1647,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 16,
     height: 35,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchClearBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#E6D9C2',
+    alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 6,
+  },
+  searchClearText: {
+    color: colors.ink,
+    fontSize: 11,
+    fontWeight: '800',
   },
   searchInput: {
     color: colors.ink,
