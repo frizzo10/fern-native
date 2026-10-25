@@ -4,7 +4,7 @@
 // Purely presentational: HomeScreen owns all state, handlers and tier checks and
 // passes them in, so no feature, gate or label logic lives (or can drift) here.
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getAutopilotMode, setAutopilotMode } from '../../services/autopilot';
 import { formatDayLabel } from '../../utils/familyDates';
 import { tourTargetRef } from '../../services/tourTargets';
@@ -120,14 +120,22 @@ export default function NewHome({
 
   const visibleStores = stores || [];
   // Scan game: a one-line status under each saved store (nobody has scanned it yet this week -> "be the first").
-  const scanBadge = (s) => {
+  // One short status per store: 'mine' (you scanned pages), 'shared' (someone scanned it), 'first' (nobody yet), or '' while unknown.
+  const storeStatus = (s) => {
     const key = chainKey(s?.name);
-    if (!key) return '';
+    if (!key) return null;
     const pages = pagesThisWeek(scanStats, s?.name);
-    if (pages > 0) return t('scan_game_row_mine', { n: pages });
-    if (sharedChains && sharedChains.has(key)) return t('scan_game_row_shared');
-    if (sharedChains) return t('scan_game_row_first');
-    return '';
+    if (pages > 0) return { kind: 'ready', text: t('store_status_mine', { n: pages }) };
+    if (sharedChains && sharedChains.has(key)) return { kind: 'ready', text: t('store_status_ready') };
+    if (sharedChains) return { kind: 'empty', text: t('store_status_empty') };
+    return null;
+  };
+  const openStoreMenu = (s, i) => {
+    const buttons = [{ text: t('store_coupons_link').replace(' ↗', ''), onPress: () => Linking.openURL(storeCouponUrl(s.name)).catch(() => {}) }];
+    if (onFixStoreLocation) buttons.push({ text: t('store_here_btn'), onPress: () => setTimeout(() => onFixStoreLocation(i), 400) });
+    if (onRemoveStore) buttons.push({ text: t('store_remove_a11y'), style: 'destructive', onPress: () => setTimeout(() => onRemoveStore(i), 400) });
+    buttons.push({ text: t('cancel_btn'), style: 'cancel' });
+    Alert.alert(String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label'), undefined, buttons);
   };
   const streak = scanStats ? streakWeeks(scanStats) : 0; // every saved store (the page scrolls); it used to stop at 5
 
@@ -212,29 +220,27 @@ export default function NewHome({
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <Text style={styles.storeHint}>{t('home_stores_tap_hint')}</Text>
         <View ref={tourTargetRef('stores')} collapsable={false} style={styles.storeList}>
-          {visibleStores.map((s, i) => (
-            <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeLine} activeOpacity={0.8} onPress={() => onStorePress && onStorePress(s)}>
-              <Ionicons name="location-outline" size={15} color={SAGE} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.storeLineText, { flex: 0 }]} numberOfLines={1}>{s.name || t('store_fallback_label')}</Text>
-                {scanBadge(s) ? <Text style={styles.scanBadge} numberOfLines={1}>{scanBadge(s)}</Text> : null}
-              </View>
-              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 8, right: 6 }} onPress={() => Linking.openURL(storeCouponUrl(s.name)).catch(() => {})} accessibilityRole="link" accessibilityLabel={t('store_coupons_a11y')}>
-                <Ionicons name="ticket-outline" size={20} color={SAGE} />
+          {visibleStores.map((s, i) => {
+            const st = storeStatus(s);
+            const shortName = String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label');
+            return (
+              <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeCard} activeOpacity={0.85} onPress={() => onStorePress && onStorePress(s)} accessibilityRole="button">
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.storeCardName} numberOfLines={1}>{shortName}</Text>
+                  {st ? (
+                    <View style={styles.storeStatusRow}>
+                      <View style={[styles.storeDot, { backgroundColor: st.kind === 'ready' ? '#8FD18A' : '#F5C98B' }]} />
+                      <Text style={[styles.storeStatusText, { color: st.kind === 'ready' ? '#C9E6C4' : '#F5C98B' }]} numberOfLines={1}>{st.text}</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <TouchableOpacity style={styles.storeMoreBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} onPress={() => openStoreMenu(s, i)} accessibilityRole="button" accessibilityLabel={t('store_more_a11y')}>
+                  <Ionicons name="ellipsis-horizontal" size={20} color={CREAM} />
+                </TouchableOpacity>
+                <Ionicons name="chevron-forward" size={18} color={SAGE} />
               </TouchableOpacity>
-              {onFixStoreLocation ? (
-                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 10, right: 6 }} onPress={() => onFixStoreLocation(i)} accessibilityRole="button" accessibilityLabel={t('store_here_btn')}>
-                  <Ionicons name="navigate-circle-outline" size={20} color={SAGE} />
-                </TouchableOpacity>
-              ) : null}
-              {onRemoveStore ? (
-                <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }} onPress={() => onRemoveStore(i)} accessibilityRole="button" accessibilityLabel={t('store_remove_a11y')}>
-                  <Ionicons name="close-circle-outline" size={20} color={SAGE} />
-                </TouchableOpacity>
-              ) : null}
-              <Ionicons name="chevron-forward" size={14} color={SAGE} />
-            </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
         <TouchableOpacity style={styles.addStoreBtn} activeOpacity={0.85} onPress={onAddStore} accessibilityRole="button">
           <Ionicons name="add" size={18} color="#fff" />
@@ -409,7 +415,13 @@ const styles = StyleSheet.create({
   guideBtn: { marginTop: 16, height: 50, borderRadius: 25, backgroundColor: CREAM, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   guideBtnText: { fontFamily: 'Jost-Bold', fontSize: 16, color: FOREST },
   heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: SAGE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
-  storeList: { marginTop: 2 },
+  storeList: { marginTop: 2, gap: 10 },
+  storeCard: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 68, paddingVertical: 12, paddingLeft: 16, paddingRight: 12, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 1, borderColor: 'rgba(168,213,162,0.22)' },
+  storeCardName: { fontFamily: 'Jost-Bold', fontSize: 19, color: CREAM },
+  storeStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 },
+  storeDot: { width: 8, height: 8, borderRadius: 4 },
+  storeStatusText: { fontFamily: 'Jost-Medium', fontSize: 14, flexShrink: 1 },
+  storeMoreBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
   storeLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(168,213,162,0.25)' },
   scanBadge: { fontFamily: 'Jost-Medium', fontSize: 11, color: '#F5C98B', marginTop: 1 },
   boardBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#F5C98B', alignItems: 'center', justifyContent: 'center' },
