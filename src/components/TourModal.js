@@ -193,7 +193,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
           </View>
         ) : null}
 
-        {activePart && activePart.tab === 4 ? (
+        {(step?.morePreview || (activePart && activePart.tab === 4)) ? (
           // While Fern talks about More, show what is inside it (same buttons as the real More sheet in App.js; keep them in step).
           <View pointerEvents="none" style={[styles.morePreview, { bottom: cardH + 8 }]}>
             <Text style={styles.morePreviewTitle}>{t('more_title')}</Text>
@@ -201,8 +201,16 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
               {[
                 ['👤', 'more_profile'], ['📚', 'more_cookbooks'], ['🎟️', 'more_coupon_wallet'],
                 ['📥', 'importNavText'], ['❓', 'more_help'], ['🚪', 'more_logout'],
-              ].map(([emoji, key]) => (
-                <View key={key} style={styles.morePreviewItem}>
+              ].map(([emoji, key], idx) => (
+                <View
+                  key={key}
+                  style={[
+                    styles.morePreviewItem,
+                    step?.morePreview && step.morePreview.length > 0 && (step.morePreview.includes(idx)
+                      ? styles.morePreviewItemLit
+                      : styles.morePreviewItemDim),
+                  ]}
+                >
                   <Text style={styles.morePreviewEmoji}>{emoji}</Text>
                   <Text style={styles.morePreviewText} numberOfLines={1} adjustsFontSizeToFit>{t(key)}</Text>
                 </View>
@@ -274,6 +282,8 @@ const styles = StyleSheet.create({
   morePreviewTitle: { color: colors.forest, fontWeight: '800', fontSize: 15, marginBottom: 10 },
   morePreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   morePreviewItem: { width: '31%', backgroundColor: colors.forest, borderRadius: 14, paddingVertical: 10, alignItems: 'center' },
+  morePreviewItemLit: { borderWidth: 3, borderColor: '#F28C28' },
+  morePreviewItemDim: { opacity: 0.35 },
   morePreviewEmoji: { fontSize: 22 },
   toolsPreviewItem: { width: '31%', backgroundColor: colors.forest, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center' },
   toolsPreviewEmoji: { fontSize: 14, marginRight: 4 },

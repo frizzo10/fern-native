@@ -159,11 +159,14 @@ function MoreSheet({ visible, onClose, onProfile, onCookbooks, onCouponWallet, o
 
   // The first time the sheet opens, Fern walks through its six shortcuts (replayable from Profile > Take a Tour).
   useEffect(() => {
+    let timer = null;
     if (visible) {
-      maybeAutoStart('more');
+      // Wait for the sheet to finish sliding up so the person sees it before Fern starts talking.
+      timer = setTimeout(() => maybeAutoStart('more'), 1100);
     } else if (tourKey === 'more') {
       closeTour();
     }
+    return () => { if (timer) clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
