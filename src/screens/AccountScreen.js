@@ -566,7 +566,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
 
                         {TOOL_SECTIONS.map((section) => (
                             <View key={section.titleKey} style={styles.sectionBlock}>
-                                <Text style={styles.sectionTitle}>{section.icon} {t(section.titleKey).toUpperCase()}</Text>
+                                
                                 <View style={styles.toolsGrid}>
                                     {section.items.map((item) => {
                                         const done = isCardDone(item);
