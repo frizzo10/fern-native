@@ -153,7 +153,7 @@ function SyncFailedBanner({ onRetry, onDismiss }) {
   );
 }
 
-function MoreSheet({ visible, onClose, onProfile, onCookbooks, onCouponWallet, onImport, onHelp, onLogout }) {
+function MoreSheet({ visible, onClose, onCouponWallet, onImport, onHelp }) {
   const { t } = useLanguage();
   const { maybeAutoStart, tourKey, closeTour } = useTour();
 
@@ -171,12 +171,9 @@ function MoreSheet({ visible, onClose, onProfile, onCookbooks, onCouponWallet, o
   }, [visible]);
 
   const items = [
-    { key: 'profile', label: t('more_profile'), emoji: '👤', onPress: onProfile },
-    { key: 'cookbooks', label: t('more_cookbooks'), emoji: '📚', onPress: onCookbooks },
     { key: 'coupons', label: t('more_coupon_wallet'), emoji: '🎟️', onPress: onCouponWallet },
     { key: 'import', label: t('importNavText'), emoji: '📥', onPress: onImport },
     { key: 'help', label: t('more_help'), emoji: '❓', onPress: onHelp },
-    { key: 'logout', label: t('more_logout'), emoji: '🚪', onPress: onLogout },
   ];
 
   return (
@@ -467,14 +464,6 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
       <MoreSheet
         visible={isMoreOpen}
         onClose={() => setIsMoreOpen(false)}
-        onProfile={() => {
-          setIsMoreOpen(false);
-          openAccount();
-        }}
-        onCookbooks={() => {
-          setIsMoreOpen(false);
-          navigationRef.current?.navigate('Recipes', { openTab: 'cookbooks', requestKey: String(Date.now()) });
-        }}
         onCouponWallet={() => {
           setIsMoreOpen(false);
           navigationRef.current?.navigate('Home', { openCouponWallet: Date.now() });
@@ -486,10 +475,6 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         onHelp={() => {
           setIsMoreOpen(false);
           setIsHelpOpen(true);
-        }}
-        onLogout={() => {
-          setIsMoreOpen(false);
-          signOut();
         }}
       />
 

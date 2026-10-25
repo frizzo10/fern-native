@@ -199,8 +199,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
             <Text style={styles.morePreviewTitle}>{t('more_title')}</Text>
             <View style={styles.morePreviewGrid}>
               {[
-                ['👤', 'more_profile'], ['📚', 'more_cookbooks'], ['🎟️', 'more_coupon_wallet'],
-                ['📥', 'importNavText'], ['❓', 'more_help'], ['🚪', 'more_logout'],
+                ['🎟️', 'more_coupon_wallet'], ['📥', 'importNavText'], ['❓', 'more_help'],
               ].map(([emoji, key], idx) => (
                 <View
                   key={key}

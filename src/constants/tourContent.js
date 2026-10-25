@@ -66,10 +66,9 @@ export const TOURS = {
     titleKey: 'tour_more_title',
     steps: [
       { textKey: 'tour_more_step1', morePreview: [] },
-      { textKey: 'tour_more_step2', morePreview: [0, 1] },
-      { textKey: 'tour_more_step3', morePreview: [2] },
-      { textKey: 'tour_more_step4', morePreview: [3] },
-      { textKey: 'tour_more_step5', morePreview: [4, 5] },
+      { textKey: 'tour_more_step3', morePreview: [0] },
+      { textKey: 'tour_more_step4', morePreview: [1] },
+      { textKey: 'tour_more_step5', morePreview: [2] },
     ],
   },
   scan_circular: {
