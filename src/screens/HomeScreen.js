@@ -3250,7 +3250,7 @@ export default function HomeScreen({ user, route }) {
                 {flyerScan.store ? t('flyer_scanned_found_store', { n: flyerScan.count, store: flyerScan.store }) : t('flyer_scanned_found', { n: flyerScan.count })}
               </Text>
             </>
-          ) : (
+          ) : !flyerScan ? null : (
             <>
               <ActivityIndicator size="large" color="#E8742A" />
               <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 22, textAlign: 'center', marginTop: 20 }}>{t('flyer_scanning_title')}</Text>
