@@ -153,20 +153,54 @@ function SyncFailedBanner({ onRetry, onDismiss }) {
   );
 }
 
-function MoreSheet({ visible, onClose, onCouponWallet, onImport, onHelp }) {
+function MoreSheet({ visible, onClose, token, onCouponWallet, onImport, onHelp }) {
   const { t } = useLanguage();
-  const { maybeAutoStart, tourKey, closeTour } = useTour();
+  const { prepareSpeech, playPrepared, stopSpeaking } = useFernVoice({ token, enabled: visible, allowFree: true });
+  // Fern's short walkthrough lives inside the sheet itself (a second Modal over this one is dropped by iOS). It plays once ever:
+  // the first time the sheet opens, one line per button, lighting that button and showing the line as a caption.
+  const [lit, setLit] = useState(-1); // index of the lit button, -1 = none
+  const [caption, setCaption] = useState('');
+  const runRef = useRef(0);
 
-  // The first time the sheet opens, Fern walks through its six shortcuts (replayable from Profile > Take a Tour).
   useEffect(() => {
-    let timer = null;
-    if (visible) {
-      // Wait for the sheet to finish sliding up so the person sees it before Fern starts talking.
-      timer = setTimeout(() => maybeAutoStart('more'), 1100);
-    } else if (tourKey === 'more') {
-      closeTour();
+    if (!visible) {
+      runRef.current += 1;
+      stopSpeaking();
+      setLit(-1);
+      setCaption('');
+      return undefined;
     }
-    return () => { if (timer) clearTimeout(timer); };
+    runRef.current += 1;
+    const run = runRef.current;
+    let timer = null;
+    (async () => {
+      let heard = null;
+      try { heard = await AsyncStorage.getItem('fern_more_intro_heard'); } catch (e) { /* ignore */ }
+      if (heard || runRef.current !== run) return;
+      try { await AsyncStorage.setItem('fern_more_intro_heard', '1'); } catch (e) { /* ignore */ }
+      // Wait for the sheet to finish sliding up.
+      await new Promise((resolve) => { timer = setTimeout(resolve, 900); });
+      const segs = [
+        { key: 'tour_more_step1', idx: -1 },
+        { key: 'tour_more_step3', idx: 0 },
+        { key: 'tour_more_step4', idx: 1 },
+        { key: 'tour_more_step5', idx: 2 },
+      ];
+      const uris = segs.map((sg) => prepareSpeech(t(sg.key)));
+      for (let i = 0; i < segs.length; i += 1) {
+        if (runRef.current !== run) return;
+        setLit(segs[i].idx);
+        setCaption(t(segs[i].key));
+        const uri = await uris[i];
+        if (runRef.current !== run) return;
+        await new Promise((resolve) => {
+          const ok = uri ? playPrepared(uri, resolve) : null;
+          setTimeout(resolve, ok ? 60000 : 4500);
+        });
+      }
+      if (runRef.current === run) { setLit(-1); setCaption(''); }
+    })();
+    return () => { runRef.current += 1; if (timer) clearTimeout(timer); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
@@ -191,13 +225,15 @@ function MoreSheet({ visible, onClose, onCouponWallet, onImport, onHelp }) {
             </TouchableOpacity>
           </View>
 
+          {caption ? <Text style={styles.moreCaption}>{caption}</Text> : null}
+
           <View style={styles.moreGrid}>
-            {items.map((item) => (
+            {items.map((item, idx) => (
               <TouchableOpacity
                 key={item.key}
                 activeOpacity={0.85}
                 onPress={item.onPress}
-                style={styles.moreAction}
+                style={[styles.moreAction, lit === idx && styles.moreActionLit, lit >= 0 && lit !== idx && styles.moreActionDim]}
               >
                 <Text style={styles.moreActionEmoji}>{item.emoji}</Text>
                 <Text style={styles.moreActionText} numberOfLines={1} adjustsFontSizeToFit>{item.label}</Text>
@@ -463,6 +499,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
 
       <MoreSheet
         visible={isMoreOpen}
+        token={user?.token}
         onClose={() => setIsMoreOpen(false)}
         onCouponWallet={() => {
           setIsMoreOpen(false);
@@ -955,6 +992,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 2,
   },
+  moreCaption: { color: '#F5F0E7', fontSize: 15, lineHeight: 21, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10 },
+  moreActionLit: { borderWidth: 3, borderColor: '#F28C28', borderRadius: 14, backgroundColor: 'rgba(242,140,40,0.18)' },
+  moreActionDim: { opacity: 0.35 },
   moreAction: {
     flex: 1,
     height: 70,
