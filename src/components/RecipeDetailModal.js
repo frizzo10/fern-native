@@ -509,7 +509,18 @@ export default function RecipeDetailModal({
                             source={{ uri }}
                             style={styles.overlayThumbImage}
                             imageStyle={styles.overlayThumbImageInner}
-                          />
+                          >
+                            {photoIdx === 0 && recipe.photos.length > 1 ? (
+                              <View style={styles.photoMainTag}>
+                                <Text style={styles.photoMainTagText}>{t('photo_main_tag')}</Text>
+                              </View>
+                            ) : null}
+                            {onSetPhotos ? (
+                              <View style={styles.photoMoreBtn}>
+                                <Text style={styles.photoMoreBtnText}>⋯</Text>
+                              </View>
+                            ) : null}
+                          </ImageBackground>
                         </TouchableOpacity>
                       ))
                     ) : (
@@ -532,6 +543,10 @@ export default function RecipeDetailModal({
                       )}
                     </TouchableOpacity>
                   </View>
+
+                  {onSetPhotos && Array.isArray(recipe?.photos) && recipe.photos.length > 0 ? (
+                    <Text style={styles.photoHint}>{t('photo_hint')}</Text>
+                  ) : null}
 
                   <View style={styles.textSizeRow}>
                     <TouchableOpacity
@@ -1063,6 +1078,29 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
   },
+  photoMainTag: {
+    position: 'absolute',
+    left: 6,
+    bottom: 6,
+    backgroundColor: 'rgba(138,74,78,0.9)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  photoMainTagText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700' },
+  photoMoreBtn: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoMoreBtnText: { color: '#8A4A4E', fontSize: 18, fontWeight: '800', marginTop: -6 },
+  photoHint: { marginTop: 8, color: '#A9756F', fontSize: 12 },
   overlayThumbImageInner: {
     borderRadius: 10,
   },
