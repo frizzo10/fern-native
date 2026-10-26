@@ -1277,6 +1277,13 @@ export default function ShoppingScreen({ user }) {
           </View>
         ) : null}
 
+        {guideStep !== 'meals' && !listOnly ? (
+          <TouchableOpacity style={[styles.browseAllBtn, shadow.card]} activeOpacity={0.85} onPress={() => navigation.navigate('Home', { openCouponWallet: Date.now() })}>
+            <Text style={styles.browseAllText}>{`🎟 ${t('sav_browse_all')}`}</Text>
+            <Text style={styles.browseAllSub}>{t('sav_browse_all_sub')}</Text>
+          </TouchableOpacity>
+        ) : null}
+
         {showCheckout && !guideStep ? (
           <View style={[styles.checkoutCard, shadow.card]}>
             <View style={styles.checkoutHead}>
@@ -1952,6 +1959,9 @@ const styles = StyleSheet.create({
   couponMeta: { color: '#7A5C3A', fontSize: 11, lineHeight: 15, fontFamily: 'Jost-Regular', marginTop: 2 },
   couponPossible: { color: '#C25A12', fontSize: 11, fontFamily: 'Jost-Bold', marginTop: 2 },
   couponCode: { color: '#2B1E13', fontSize: 13, fontFamily: 'Jost-Bold', marginTop: 3, letterSpacing: 1 },
+  browseAllBtn: { backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#2A6A2A', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 14, marginTop: 4, marginBottom: 12 },
+  browseAllText: { color: '#2A6A2A', fontSize: 15, fontFamily: 'Jost-Bold' },
+  browseAllSub: { color: '#5A6A5A', fontSize: 12, marginTop: 2 },
   couponLink: { color: '#2A6A2A', fontSize: 12, fontFamily: 'Jost-Bold', marginTop: 3, textDecorationLine: 'underline' },
   usedBtn: {
     borderWidth: 1.5,
