@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   Clipboard,
   Linking,
   Share,
@@ -1064,6 +1065,11 @@ export default function ShoppingScreen({ user }) {
           <View style={styles.bagWrap}>
             <View style={styles.bagPic}>
               <Image source={require('../../assets/bag/bag-full.png')} style={styles.bagImg} resizeMode="contain" />
+              {bagStore ? (
+                <View style={styles.bagSideAnchor} pointerEvents="none">
+                  <Text style={styles.bagSideText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5}>{bagStore}</Text>
+                </View>
+              ) : null}
               <View style={styles.bagFront} pointerEvents="box-none">
                 <View style={styles.bagGrid}>
                   {[
@@ -1075,6 +1081,7 @@ export default function ShoppingScreen({ user }) {
                     <TouchableOpacity key={chip.key} style={[styles.bagChip, chip.n > 0 ? styles.bagChipOn : null]} activeOpacity={0.85} onPress={() => goTo(sectionY.current[chip.target] != null ? chip.target : (chip.target === 'couponCard' ? 'coupons' : chip.target))}>
                       <Text style={styles.bagChipEmoji}>{chip.emoji}</Text>
                       <Text style={[styles.bagChipText, chip.n > 0 ? styles.bagChipTextOn : null]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75}>{chip.n > 0 ? chip.full : chip.empty}</Text>
+                      <Text style={styles.bagChipArrow}>›</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -1949,8 +1956,11 @@ const styles = StyleSheet.create({
   bagLabelText: { color: '#1F3D2B', fontSize: 14, fontFamily: 'Jost-Bold', textAlign: 'center' },
   bagSub: { color: '#4A3418', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginBottom: 8, textAlign: 'center' },
   bagGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  bagChip: { width: '48.5%', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.6)', borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(120,84,36,0.4)', borderStyle: 'dashed', paddingVertical: 6, paddingHorizontal: 4, marginBottom: 8, height: 72, justifyContent: 'center' },
-  bagChipOn: { backgroundColor: '#FFF9EE', borderStyle: 'solid', borderColor: '#1F3D2B' },
+  bagChip: { width: '48.5%', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.6)', borderRadius: 12, borderWidth: 1.5, borderBottomWidth: 4, borderColor: 'rgba(120,84,36,0.5)', paddingVertical: 6, paddingLeft: 4, paddingRight: 14, marginBottom: 10, height: 72, justifyContent: 'center', shadowColor: '#3C280A', shadowOpacity: 0.35, shadowRadius: 4, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  bagChipArrow: { position: 'absolute', right: 5, top: 20, fontSize: 22, lineHeight: 26, color: '#E8742A', fontFamily: 'Jost-Bold' },
+  bagSideAnchor: { position: 'absolute', left: '14%', top: '62%', width: 0, height: 0 },
+  bagSideText: { position: 'absolute', left: -100, top: -16, width: 200, height: 32, textAlign: 'center', fontSize: 25, letterSpacing: 3, fontWeight: '700', color: '#5A3D1C', opacity: 0.85, fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', transform: [{ rotate: '-90deg' }, { skewX: '-8deg' }] },
+  bagChipOn: { backgroundColor: '#FFF9EE', borderColor: '#1F3D2B' },
   bagChipEmoji: { fontSize: 18, marginBottom: 2 },
   bagChipText: { color: '#6B5230', fontSize: 12, lineHeight: 15, fontFamily: 'Jost-SemiBold', textAlign: 'center' },
   bagChipTextOn: { color: '#1F3D2B' },
