@@ -542,3 +542,5 @@ All UI copy goes through a single i18n module, not per-screen strings:
 **Tour in peach (2026-10-26).** `TourModal` (spotlight ring, leaf pointer/ring/button, progress dots, buttons, More/tools preview panels, dim rectangles and bottom scrim) now uses berry `#D8607C` instead of orange, rose ink `#8A4A4E` instead of forest and a rose-tinted dark `rgba(60,30,35,..)` for the dimming. Supersedes the earlier note that left `TourModal` unpainted. JS-only.
 
 **Tour cards are one grid (2026-10-26).** The Account screen's tour cards used to be two grids (the old Pro tools and Pro Max tools sections), which left a blank gap between Ask Fern and Charcuterie once the section titles were gone. `AccountScreen` now flattens `TOOL_SECTIONS` into one grid (`TOOL_SECTIONS` itself is unchanged). "Replay the tour" stays: it is the only way to replay the main Home tour (the cards below are the per-feature tours). JS-only.
+
+**"Replay the tour" renamed (2026-10-26).** `faq_replay_tour` now reads "Tour the whole app" (ES "Recorre toda la app") so it isn't confused with the per-feature tour cards below it on Account. Copy only. JS-only.
