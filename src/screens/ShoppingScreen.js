@@ -165,6 +165,7 @@ export default function ShoppingScreen({ user }) {
   const guideTimerRef = useRef(null); // pending "Fern starts talking in a few seconds"
   useEffect(() => () => clearTimeout(guideTimerRef.current), []);
   const [guideSpeechGo, setGuideSpeechGo] = useState(0); // a guide arrival wants Fern to speak; held until any open tour is closed
+  const [pillWillSpeak, setPillWillSpeak] = useState(false); // only show "about to talk" when a line will really play
   const [introBusy, setIntroBusy] = useState(false); // Fern's arrival speech / walkthrough is still going; the celebration waits
   const [qaArmed, setQaArmed] = useState(false); // Fern's scripted walkthrough is playing; ask "any questions?" when it ends
   const [qaOpen, setQaOpen] = useState(false);
@@ -280,6 +281,9 @@ export default function ShoppingScreen({ user }) {
     // Fern's speech itself starts in the effect below, once any open tour has closed (so two voices never overlap).
     clearTimeout(guideTimerRef.current); // a newer arrival replaces a speech that was still waiting
     setShowSales(true); // tapping a scanned circular takes you to it, open
+    setPillWillSpeak(false);
+    const greetNow = !!route?.params?.greet;
+    AsyncStorage.getItem(WALKTHROUGH_KEY).catch(() => null).then((h) => setPillWillSpeak(!h || greetNow));
     setIntroBusy(true);
     setGuideSpeechGo(Date.now());
     const safety = setTimeout(() => setIntroBusy(false), 120000); // never hold the celebration forever
@@ -1008,10 +1012,12 @@ export default function ShoppingScreen({ user }) {
           onExit={() => setGuideStep(null)}
         />
       ) : null}
-      {(isSpeaking || introBusy) ? (
-        <View style={styles.fernSpeakPill} pointerEvents="none">
-          <Text style={styles.fernSpeakText}>{isSpeaking ? t('fern_talking') : t('fern_talk_soon')}</Text>
-          {voiceErr && !isSpeaking ? <Text style={[styles.fernSpeakText, { fontSize: 11, fontWeight: '500', marginTop: 2 }]}>{`Voice problem: ${voiceErr}`}</Text> : null}
+      {(isSpeaking || (introBusy && pillWillSpeak)) ? (
+        <View style={styles.fernSpeakWrap} pointerEvents="none">
+          <View style={styles.fernSpeakPill}>
+            <Text style={styles.fernSpeakText}>{isSpeaking ? t('fern_talking') : t('fern_talk_soon')}</Text>
+            {voiceErr && !isSpeaking ? <Text style={[styles.fernSpeakText, { fontSize: 11, fontWeight: '500', marginTop: 2 }]}>{`Voice problem: ${voiceErr}`}</Text> : null}
+          </View>
         </View>
       ) : null}
       {addedNote ? (
@@ -1680,6 +1686,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F4F1ED',
   },
+  fernSpeakWrap: { position: 'absolute', top: 6, left: 0, right: 0, alignItems: 'center', zIndex: 30 },
   fernSpeakPill: { alignSelf: 'center', backgroundColor: '#1f3d1f', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 8, marginTop: 6, marginBottom: 2 },
   fernSpeakText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   spotBox: { borderWidth: 3, borderColor: '#F28C28', borderRadius: 18 },
