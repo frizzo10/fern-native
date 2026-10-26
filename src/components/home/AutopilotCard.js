@@ -95,7 +95,7 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
         </>
       ) : null}
       {phase === 'planning' ? (
-        <View style={s.rowCenter}><ActivityIndicator color="#2D5016" /><Text style={[s.body, { marginLeft: 10, marginTop: 0 }]}>{t('autopilot_planning')}</Text></View>
+        <View style={s.rowCenter}><ActivityIndicator color="#8A4A4E" /><Text style={[s.body, { marginLeft: 10, marginTop: 0 }]}>{t('autopilot_planning')}</Text></View>
       ) : null}
       {phase === 'proposal' || phase === 'done' ? (
         <>
@@ -144,19 +144,19 @@ export function AutopilotModePicker() {
 }
 
 const s = StyleSheet.create({
-  chip: { borderRadius: 10, borderWidth: 1, borderColor: '#B9CFA5', paddingVertical: 9, paddingHorizontal: 12, marginRight: 8, marginBottom: 4, backgroundColor: '#fff' },
-  chipOn: { backgroundColor: '#2D5016', borderColor: '#2D5016' },
-  chipText: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#2D5016' },
+  chip: { borderRadius: 10, borderWidth: 1, borderColor: '#F3C9BD', paddingVertical: 9, paddingHorizontal: 12, marginRight: 8, marginBottom: 4, backgroundColor: '#fff' },
+  chipOn: { backgroundColor: '#8A4A4E', borderColor: '#8A4A4E' },
+  chipText: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#8A4A4E' },
   chipTextOn: { color: '#fff' },
-  card: { backgroundColor: '#EEF5E6', borderRadius: 14, borderWidth: 1, borderColor: '#CFE0BD', padding: 14, marginBottom: 12 },
-  title: { fontSize: 16, fontFamily: 'Jost-Bold', color: '#1A0E05' },
-  body: { fontSize: 14, fontFamily: 'Jost-Regular', color: '#4A5A3A', marginTop: 4, lineHeight: 20 },
-  meal: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#1A0E05', marginTop: 6 },
+  card: { backgroundColor: '#FDE8E0', borderRadius: 14, borderWidth: 1, borderColor: '#F3C9BD', padding: 14, marginBottom: 12 },
+  title: { fontSize: 16, fontFamily: 'Jost-Bold', color: '#5A3236' },
+  body: { fontSize: 14, fontFamily: 'Jost-Regular', color: '#8A5A5C', marginTop: 4, lineHeight: 20 },
+  meal: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#5A3236', marginTop: 6 },
   row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 10 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
-  primary: { backgroundColor: '#2D5016', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginRight: 8, marginBottom: 4 },
-  second: { backgroundColor: '#E8651A' },
+  primary: { backgroundColor: '#8A4A4E', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 14, marginRight: 8, marginBottom: 4 },
+  second: { backgroundColor: '#D8607C' },
   primaryText: { color: '#fff', fontSize: 14, fontFamily: 'Jost-Bold' },
   later: { paddingVertical: 10, paddingHorizontal: 10 },
-  laterText: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#6B7A5A' },
+  laterText: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#9A7872' },
 });

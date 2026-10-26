@@ -60,12 +60,12 @@ export default function AlwaysLocationReminder() {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: '#FFF4E8', borderRadius: 14, borderWidth: 1, borderColor: '#F0D9BF', padding: 14, marginBottom: 12 },
-  title: { fontSize: 16, fontFamily: 'Jost-Bold', color: '#1A0E05' },
-  body: { fontSize: 14, fontFamily: 'Jost-Regular', color: '#7A5C3A', marginTop: 4, lineHeight: 20 },
+  card: { backgroundColor: '#FDE8E0', borderRadius: 14, borderWidth: 1, borderColor: '#F0D9BF', padding: 14, marginBottom: 12 },
+  title: { fontSize: 16, fontFamily: 'Jost-Bold', color: '#5A3236' },
+  body: { fontSize: 14, fontFamily: 'Jost-Regular', color: '#8A5A5C', marginTop: 4, lineHeight: 20 },
   row: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  primary: { backgroundColor: '#E8651A', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16 },
+  primary: { backgroundColor: '#D8607C', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16 },
   primaryText: { color: '#fff', fontSize: 14, fontFamily: 'Jost-Bold' },
   later: { paddingVertical: 10, paddingHorizontal: 14 },
-  laterText: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#8C7A5F' },
+  laterText: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#9A7872' },
 });

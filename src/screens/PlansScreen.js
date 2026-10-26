@@ -10,7 +10,7 @@ import { useTour } from '../services/TourContext';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { PAYWALL_RESULT } from '../services/purchasesService';
 
-const ICON_PALETTE = ['#1C3A1A', '#2D5A27', '#E8651A'];
+const ICON_PALETTE = ['#8A4A4E', '#C0475F', '#D8607C'];
 const ICON_OVERRIDES = { alexa_skill: '#16324F' };
 
 function iconColorFor(key, index) {
@@ -144,7 +144,7 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
 
                         <TouchableOpacity style={styles.restoreBtn} activeOpacity={0.8} onPress={handleRestore} disabled={restoring}>
                             {restoring
-                                ? <ActivityIndicator color={colors.brown} />
+                                ? <ActivityIndicator color={'#8A5A5C'} />
                                 : <Text style={styles.restoreBtnText}>{t('account_restore_purchases')}</Text>}
                         </TouchableOpacity>
                     </View>
@@ -163,15 +163,15 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
 const styles = StyleSheet.create({
     screen: {
         flex: 1,
-        backgroundColor: colors.forest,
+        backgroundColor: '#8A4A4E',
     },
     scrollContent: {
         paddingBottom: 40,
-        backgroundColor: colors.parch,
+        backgroundColor: '#FFFAF6',
     },
 
     banner: {
-        backgroundColor: colors.forest,
+        backgroundColor: '#8A4A4E',
         paddingTop: 64,
         paddingBottom: 28,
         paddingHorizontal: 24,
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
         marginTop: -2,
     },
     bannerEyebrow: {
-        color: colors.orange,
+        color: '#D8607C',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         letterSpacing: 1.5,
@@ -239,22 +239,22 @@ const styles = StyleSheet.create({
         paddingVertical: 5,
     },
     tierPillGreen: {
-        backgroundColor: '#EEF6EA',
-        borderColor: colors.bright,
+        backgroundColor: '#FDE8E0',
+        borderColor: '#C0475F',
     },
     tierPillOrange: {
         backgroundColor: 'rgba(232,101,26,0.10)',
-        borderColor: colors.orange,
+        borderColor: '#D8607C',
     },
     tierPillText: {
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         letterSpacing: 0.6,
     },
-    tierPillTextGreen: { color: colors.bright },
-    tierPillTextOrange: { color: colors.orange },
+    tierPillTextGreen: { color: '#C0475F' },
+    tierPillTextOrange: { color: '#D8607C' },
     tierPrice: {
-        color: colors.brown,
+        color: '#8A5A5C',
         fontFamily: 'Jost-SemiBold',
         fontSize: 13,
     },
@@ -262,10 +262,10 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.paper,
+        backgroundColor: '#FDE8E0',
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: '#EEE3D1',
+        borderColor: '#F3C9BD',
         padding: 12,
         marginBottom: 10,
     },
@@ -280,14 +280,14 @@ const styles = StyleSheet.create({
     cardIconEmoji: { fontSize: 22 },
     cardTextWrap: { flex: 1, paddingRight: 10 },
     cardTitle: {
-        color: '#2F2015',
+        color: '#5A3236',
         fontFamily: 'Jost-Bold',
         fontSize: 15,
         lineHeight: 19,
         marginBottom: 3,
     },
     cardDesc: {
-        color: colors.brown,
+        color: '#8A5A5C',
         fontFamily: 'Jost-Regular',
         fontSize: 12,
         lineHeight: 17,
@@ -297,12 +297,12 @@ const styles = StyleSheet.create({
         fontSize: 13,
         alignSelf: 'center',
     },
-    cardStartGreen: { color: '#2F2015' },
-    cardStartOrange: { color: colors.orange },
+    cardStartGreen: { color: '#5A3236' },
+    cardStartOrange: { color: '#D8607C' },
 
     manageBtn: {
         borderWidth: 2,
-        borderColor: colors.border,
+        borderColor: '#F3C9BD',
         borderRadius: 16,
         paddingVertical: 14,
         alignItems: 'center',
@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
         marginTop: 12,
     },
     manageBtnText: {
-        color: colors.brown,
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
     },
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
     },
     restoreBtnText: {
-        color: colors.brown,
+        color: '#8A5A5C',
         fontFamily: 'Jost-SemiBold',
         fontSize: 13,
         textDecorationLine: 'underline',
