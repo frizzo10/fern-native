@@ -744,7 +744,16 @@ export default function ShoppingScreen({ user }) {
 
   const remainingCount = useMemo(() => items.filter((item) => !item.checked).length, [items]);
   const showBag = !listOnly && (!guideStep || guideStep === 'list');
-  const bagStore = guideStoreName ? guideStoreName.split(/ - |#/)[0].trim() : '';
+  // Store shown on the title and bag: the trip's store, else the last one used, else the first saved store.
+  const [lastTripStore, setLastTripStore] = useState('');
+  useEffect(() => {
+    AsyncStorage.getItem('fern_last_trip_store').then((v) => { if (v) setLastTripStore(v); }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (guideStoreName) AsyncStorage.setItem('fern_last_trip_store', guideStoreName).catch(() => {});
+  }, [guideStoreName]);
+  const displayStoreName = guideStoreName || lastTripStore || String((data.userStores || [])[0]?.name || '');
+  const bagStore = displayStoreName ? displayStoreName.split(/ - |#/)[0].trim() : '';
   // The list grouped by store section, in the order you walk the store.
   const aisleSections = useMemo(() => {
     const byAisle = new Map();
@@ -1083,6 +1092,9 @@ export default function ShoppingScreen({ user }) {
               <Text style={{ fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#D8607C', marginTop: 2 }}>{t('store_coupons_link')}</Text>
             </TouchableOpacity>
           </View>
+        ) : null}
+        {!guideStep && !listOnly && bagStore ? (
+          <Text style={[styles.title, { marginBottom: 2 }]} numberOfLines={1}>{`🛒 ${bagStore}`}</Text>
         ) : null}
         {!guideStep ? (
         <View style={styles.headerRow}>
