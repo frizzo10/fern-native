@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRecipePhoto } from './RecipePhoto';
 import { trackEvent } from '../services/track';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ImageBackground,
   KeyboardAvoidingView,
   Modal,
@@ -102,6 +103,9 @@ export default function RecipeDetailModal({
   const gallery = Array.isArray(recipe?.photos) && recipe.photos.length > 0
     ? recipe.photos
     : (photoUrl ? [photoUrl] : []);
+  const gallerySources = useMemo(() => gallery.map((uri) => ({ uri })), [gallery.join('|')]); // eslint-disable-line
+  // Download every photo up front so swiping never shows a blank flash while one loads.
+  useEffect(() => { gallery.forEach((uri) => { try { Image.prefetch(uri); } catch (e) {} }); }, [gallery.join('|')]); // eslint-disable-line
   const openViewer = (index) => { if (gallery.length) setViewer({ index: Math.max(0, Math.min(gallery.length - 1, index)), grid: false }); };
 
   const handleSubstitute = async (sub) => {
@@ -400,7 +404,7 @@ export default function RecipeDetailModal({
                       {gallery.map((uri, i) => (
                         <TouchableOpacity key={`hero-${i}`} activeOpacity={0.95} onPress={() => openViewer(i)}>
                           <ImageBackground
-                            source={{ uri }}
+                            source={gallerySources[i]}
                             style={{ width: screenW, height: 300 }}
                             imageStyle={styles.overlayImageInner}
                           />
@@ -421,6 +425,15 @@ export default function RecipeDetailModal({
                       />
                     </TouchableOpacity>
                   )}
+                  {gallery.length > 1 ? (
+                    <TouchableOpacity
+                      style={styles.heroGridPill}
+                      activeOpacity={0.85}
+                      onPress={() => setViewer({ index: heroIdx, grid: true })}
+                    >
+                      <Text style={styles.heroGridPillText}>▦  {t('photo_view_grid')}</Text>
+                    </TouchableOpacity>
+                  ) : null}
                   {gallery.length > 1 ? (
                     <View style={styles.heroDots} pointerEvents="none">
                       {gallery.map((_, i) => (
@@ -860,14 +873,13 @@ export default function RecipeDetailModal({
                       onPress={() => setViewer({ index: i, grid: false })}
                       style={{ width: cell, height: i === 0 ? cell * 1.1 : cell, marginBottom: 8 }}
                     >
-                      <ImageBackground source={{ uri }} style={styles.viewerGridImg} imageStyle={styles.viewerGridImgInner} />
+                      <ImageBackground source={gallerySources[i]} style={styles.viewerGridImg} imageStyle={styles.viewerGridImgInner} />
                     </TouchableOpacity>
                   );
                 })}
               </ScrollView>
             ) : (
               <ScrollView
-                key={`viewer-${viewer.index}`}
                 horizontal
                 pagingEnabled
                 showsHorizontalScrollIndicator={false}
@@ -889,7 +901,7 @@ export default function RecipeDetailModal({
                     showsHorizontalScrollIndicator={false}
                     centerContent
                   >
-                    <ImageBackground source={{ uri }} style={{ width: screenW, height: screenH * 0.8 }} imageStyle={{ resizeMode: 'contain' }} />
+                    <ImageBackground source={gallerySources[i]} style={{ width: screenW, height: screenH * 0.8 }} imageStyle={{ resizeMode: 'contain' }} />
                   </ScrollView>
                 ))}
               </ScrollView>
@@ -900,7 +912,7 @@ export default function RecipeDetailModal({
                 onPress={() => setViewer((v) => (v ? { ...v, grid: !v.grid } : v))}
                 accessibilityLabel={t(viewer.grid ? 'photo_view_swipe' : 'photo_view_grid')}
               >
-                <Text style={styles.viewerBtnText}>{viewer.grid ? '▭' : '▦'}</Text>
+                <Text style={styles.viewerBtnText}>{viewer.grid ? `▭  ${t('photo_view_swipe')}` : `▦  ${t('photo_view_grid')}`}</Text>
               </TouchableOpacity>
               {!viewer.grid ? <Text style={styles.viewerCount}>{viewer.index + 1} / {gallery.length}</Text> : <View />}
               <TouchableOpacity style={styles.viewerBtn} onPress={() => setViewer(null)} accessibilityLabel={t('photo_viewer_close')}>
@@ -1221,6 +1233,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoMoreBtnText: { color: '#8A4A4E', fontSize: 18, fontWeight: '800', marginTop: -6 },
+  heroGridPill: {
+    position: 'absolute',
+    left: 14,
+    bottom: 26,
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(26,14,16,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroGridPillText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   heroDots: {
     position: 'absolute',
     bottom: 10,
@@ -1256,14 +1280,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   viewerBtn: {
-    width: 40,
+    minWidth: 40,
     height: 40,
+    paddingHorizontal: 14,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  viewerBtnText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
+  viewerBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   viewerCount: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   viewerGrid: {
     flexDirection: 'row',
