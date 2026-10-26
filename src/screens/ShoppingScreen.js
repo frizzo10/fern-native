@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { chainKey, dealsForStore } from '../utils/flyerStore';
+import { STATIONERY, STATIONERY_KEY, stationeryById, firstName } from '../constants/stationery';
 import {
   ActivityIndicator,
   Alert,
@@ -156,6 +157,19 @@ export default function ShoppingScreen({ user }) {
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
+  // Stationery: one of ten fixed paper looks for the list (device-only fern_stationery; none = plain).
+  const [stationeryId, setStationeryId] = useState(null);
+  const [stationeryOpen, setStationeryOpen] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(STATIONERY_KEY).then((v) => { if (v) setStationeryId(v); }).catch(() => {});
+  }, []);
+  const pickStationery = (id) => {
+    setStationeryId(id);
+    AsyncStorage.setItem(STATIONERY_KEY, id || '').catch(() => {});
+  };
+  const stat = stationeryById(stationeryId);
+  const statName = firstName(data?.userProfile, user);
+  const statTitle = stat ? (statName ? t(`stat_${stat.id}_t`, { name: statName }) : t(`stat_${stat.id}_tn`)) : '';
   const [dinnerMood, setDinnerMood] = useState(''); // key from DINNER_MOODS ('' = anything)
   const [moodOpen, setMoodOpen] = useState(false);
   // The very first time a circular is on screen it is open so the person sees what's in it; after that it stays a closed accordion.
@@ -934,7 +948,7 @@ export default function ShoppingScreen({ user }) {
       `\n${t(section.aisle.labelKey).toUpperCase()}`,
       ...section.items.map((item) => `${item.checked ? '✓' : '•'} ${item.text}${buyCount(item) > 1 ? ` ×${buyCount(item)}` : ''}`),
     ]);
-    return lines.length ? `${t('share_list_header')}\n\n${lines.join('\n')}` : t('share_list_empty');
+    return lines.length ? `${statTitle || t('share_list_header')}\n\n${lines.join('\n')}` : t('share_list_empty');
   };
 
   // The 📋 button next to Share: copy the whole list as text so it can be pasted into Notes, a text, etc.
@@ -1412,8 +1426,36 @@ export default function ShoppingScreen({ user }) {
         {showBag && items.length ? <Text style={styles.stepHead}>{t('step_ready')}</Text> : null}
         {items.length ? (
           <View style={[styles.listWrap, hl('list')]} onLayout={(e) => { sectionY.current.list = e.nativeEvent.layout.y; }}>
-            {guideStep ? <Text style={styles.bigListTitle}>{t('shopping_list_title')}</Text> : null}
-            <Text style={styles.listMeta}>
+            <TouchableOpacity onPress={() => setStationeryOpen((v) => !v)} activeOpacity={0.85} style={styles.statBtn}>
+              <Text style={styles.statBtnText}>{stationeryOpen ? t('stat_close') : t('stat_choose_btn')}</Text>
+            </TouchableOpacity>
+            {stationeryOpen ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={styles.statPicker} contentContainerStyle={styles.statPickerRow}>
+                <TouchableOpacity onPress={() => pickStationery('')} activeOpacity={0.85} style={[styles.statChip, !stat ? styles.statChipOn : null]}>
+                  <View style={[styles.statSwatch, { backgroundColor: '#FDE8E0', borderColor: '#D8607C' }]} />
+                  <Text style={styles.statChipText}>{t('stat_plain')}</Text>
+                </TouchableOpacity>
+                {STATIONERY.map((st) => (
+                  <TouchableOpacity key={st.id} onPress={() => pickStationery(st.id)} activeOpacity={0.85} style={[styles.statChip, stat && stat.id === st.id ? styles.statChipOn : null]}>
+                    <View style={[styles.statSwatch, { backgroundColor: st.bg, borderColor: st.accent }]}>
+                      <Text style={{ fontSize: 12, color: st.accent }}>{st.icon}</Text>
+                    </View>
+                    <Text style={styles.statChipText} numberOfLines={1}>{t(`stat_${st.id}_label`)}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            ) : null}
+            <View style={stat ? [styles.statPaper, { backgroundColor: stat.bg }, stat.frame] : null}>
+            {stat ? (
+              <View style={styles.statHead}>
+                {stat.icon ? <Text style={[styles.statIcon, { color: stat.accent }]}>{stat.icon}</Text> : null}
+                <Text style={[styles.statTitle, { color: stat.title, fontFamily: stat.font }]} numberOfLines={2}>{statTitle}</Text>
+                <Text style={[styles.statSub, { color: stat.sub }]}>{t(`stat_${stat.id}_s`).toUpperCase()}</Text>
+                <View style={[styles.statRule, { backgroundColor: stat.accent }]} />
+              </View>
+            ) : null}
+            {guideStep && !stat ? <Text style={styles.bigListTitle}>{t('shopping_list_title')}</Text> : null}
+            <Text style={[styles.listMeta, stat ? { color: stat.sub } : null]}>
               {remainingCount === 1
                 ? t('items_remaining_singular', { count: remainingCount })
                 : t('items_remaining_plural', { count: remainingCount })}
@@ -1434,24 +1476,24 @@ export default function ShoppingScreen({ user }) {
             {aisleSections.map((section) => (
               <View key={section.aisle.key} style={styles.recipeSectionWrap}>
                 <View style={styles.recipeSectionHeader}>
-                  <Text style={styles.recipeSectionTitle}>{`${section.aisle.emoji} ${t(section.aisle.labelKey)}`.toUpperCase()}</Text>
-                  <Text style={[styles.recipeSectionCount, section.checkedCount === section.total ? styles.recipeSectionCountDone : null]}>
+                  <Text style={[styles.recipeSectionTitle, stat ? { color: stat.accent } : null]}>{`${section.aisle.emoji} ${t(section.aisle.labelKey)}`.toUpperCase()}</Text>
+                  <Text style={[styles.recipeSectionCount, section.checkedCount === section.total ? styles.recipeSectionCountDone : null, stat ? { color: stat.sub } : null]}>
                     {section.checkedCount}/{section.total}
                   </Text>
                 </View>
 
                 {section.items.map((item) => (
-                  <View key={item.id} style={styles.listRow}>
+                  <View key={item.id} style={[styles.listRow, stat ? { backgroundColor: 'transparent', borderTopColor: 'transparent', borderBottomColor: `${stat.accent}66` } : null]}>
                     <TouchableOpacity
-                      style={[styles.checkBtn, item.checked ? styles.checkBtnOn : null]}
+                      style={[styles.checkBtn, item.checked ? styles.checkBtnOn : null, stat ? { borderColor: stat.accent, backgroundColor: item.checked ? stat.accent : 'transparent' } : null]}
                       onPress={() => toggleItem(item.id)}
                       activeOpacity={0.88}
                     >
                       <Text style={styles.checkBtnText}>{item.checked ? '✓' : ''}</Text>
                     </TouchableOpacity>
                     <View style={styles.listTextWrap}>
-                      <Text style={[styles.listText, item.checked ? styles.listTextDone : null]}>{buyCount(item) > 1 ? `${item.text}  ×${buyCount(item)}` : item.text}</Text>
-                      <Text style={styles.listRecipeLabel}>{item.recipe}</Text>
+                      <Text style={[styles.listText, item.checked ? styles.listTextDone : null, stat ? { color: item.checked ? stat.sub : stat.ink } : null]}>{buyCount(item) > 1 ? `${item.text}  ×${buyCount(item)}` : item.text}</Text>
+                      <Text style={[styles.listRecipeLabel, stat ? { color: stat.sub } : null]}>{item.recipe}</Text>
                       {matches[item.id]?.deal ? (() => {
                         const sv = dealSaving(matches[item.id].deal);
                         return (
@@ -1475,6 +1517,7 @@ export default function ShoppingScreen({ user }) {
                 ))}
               </View>
             ))}
+            </View>
           </View>
         ) : (
           <View style={styles.emptyWrap}>
@@ -1919,6 +1962,20 @@ const styles = StyleSheet.create({
     fontFamily: 'Jost-SemiBold',
   },
   bigListTitle: { fontSize: 30, lineHeight: 36, color: '#8A4A4E', fontFamily: 'Jost-Bold', letterSpacing: 0.5, marginBottom: 4 },
+  statBtn: { alignSelf: 'flex-end', borderWidth: 1.5, borderColor: '#D8607C', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14, marginBottom: 8 },
+  statBtnText: { color: '#C0475F', fontSize: 13, fontFamily: 'Jost-Bold' },
+  statPicker: { marginBottom: 10 },
+  statPickerRow: { gap: 10, paddingRight: 8 },
+  statChip: { alignItems: 'center', width: 78, paddingVertical: 6, borderRadius: 12, borderWidth: 2, borderColor: 'transparent' },
+  statChipOn: { borderColor: '#C0475F', backgroundColor: '#FDE8E0' },
+  statSwatch: { width: 48, height: 58, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  statChipText: { color: '#5A3236', fontSize: 11, fontFamily: 'Jost-SemiBold', marginTop: 4 },
+  statPaper: { borderRadius: 8, padding: 14, marginBottom: 6 },
+  statHead: { alignItems: 'center', marginBottom: 10 },
+  statIcon: { fontSize: 20, marginBottom: 2 },
+  statTitle: { fontSize: 28, lineHeight: 34, textAlign: 'center', fontStyle: 'italic' },
+  statSub: { fontSize: 11, letterSpacing: 2.5, marginTop: 4, fontFamily: 'Jost-SemiBold' },
+  statRule: { height: 2, width: 80, borderRadius: 1, marginTop: 10, opacity: 0.7 },
   listWrap: {
     marginTop: 14,
     paddingVertical: 4,
