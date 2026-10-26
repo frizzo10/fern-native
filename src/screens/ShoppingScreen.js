@@ -315,10 +315,10 @@ export default function ShoppingScreen({ user }) {
   // Fern's walkthrough: each line scrolls to the part of the screen she is talking about and outlines it.
   const runWalkthrough = async (greeting) => {
     const segs = [
-      { key: 'addRow', text: t('guide_seg_add') },
-      { key: 'everyday', text: t('guide_seg_everyday') },
       { key: 'sales', text: t('guide_seg_sales'), when: () => hasDealsRef.current },
       { key: 'couponCard', text: t('guide_seg_coupons'), when: () => hasCouponsRef.current },
+      { key: 'addRow', text: t('guide_seg_add') },
+      { key: 'everyday', text: t('guide_seg_everyday') },
       { key: 'list', text: t('guide_seg_list'), when: () => hasListRef.current },
     ];
     // Only the parts that exist, fetched all at once now: the next line is already on the phone when this one ends.
@@ -789,8 +789,23 @@ export default function ShoppingScreen({ user }) {
     return 'saved';
   };
 
+  // Confirmation: when something new lands on the list (from a sale item, a dinner, a coupon, the add box...), say so.
+  const [addedNote, setAddedNote] = useState(null);
+  const addedTimer = useRef(null);
+  const flashAdded = (added) => {
+    if (!added.length) return;
+    setAddedNote(added.length === 1 ? t('added_toast_one', { item: added[0].text }) : t('added_toast_many', { n: added.length }));
+    if (addedTimer.current) clearTimeout(addedTimer.current);
+    addedTimer.current = setTimeout(() => setAddedNote(null), 4000);
+  };
+  useEffect(() => () => { if (addedTimer.current) clearTimeout(addedTimer.current); }, []);
+
   const persistShopping = async (nextItems) => {
     const canonical = toSyncPayload(nextItems);
+    {
+      const had = new Set((items || []).map((it) => it.id));
+      flashAdded(canonical.filter((it) => !had.has(it.id)));
+    }
     setItems(canonical);
     setSaving(true);
     try {
@@ -999,6 +1014,12 @@ export default function ShoppingScreen({ user }) {
           {voiceErr && !isSpeaking ? <Text style={[styles.fernSpeakText, { fontSize: 11, fontWeight: '500', marginTop: 2 }]}>{`Voice problem: ${voiceErr}`}</Text> : null}
         </View>
       ) : null}
+      {addedNote ? (
+        <TouchableOpacity style={styles.addedToast} activeOpacity={0.9} onPress={() => { setAddedNote(null); goTo('list'); }}>
+          <Text style={styles.addedToastText} numberOfLines={2}>{`✓ ${addedNote}`}</Text>
+          <Text style={styles.addedToastLink}>{t('added_toast_view')}</Text>
+        </TouchableOpacity>
+      ) : null}
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {guideStep && guideStoreName ? (
           <View style={styles.headerRow}>
@@ -1023,21 +1044,32 @@ export default function ShoppingScreen({ user }) {
         ) : null}
 
         {showBag ? (
-          <View style={[styles.bagCard, shadow.card]}>
-            <Text style={styles.bagTitle}>{`🛍 ${bagStore ? t('bag_title', { store: bagStore }) : t('bag_title_generic')}`}</Text>
-            <Text style={styles.bagSub}>{t('bag_sub')}</Text>
-            <View style={styles.bagGrid}>
-              {[
-                { key: 'list', emoji: '📝', n: remainingCount, full: t('bag_list', { n: remainingCount }), empty: t('bag_empty_list'), target: items.length ? 'list' : 'addRow' },
-                { key: 'sales', emoji: '🏷', n: weekDeals.length, full: t('bag_sales', { n: weekDeals.length }), empty: t('bag_empty_sales'), target: 'sales' },
-                { key: 'dinners', emoji: '🍽', n: Array.isArray(mealCards) ? mealCards.length : 0, full: t('bag_dinners', { n: Array.isArray(mealCards) ? mealCards.length : 0 }), empty: t('bag_empty_dinners'), target: 'meals' },
-                { key: 'coupons', emoji: '🎟', n: listCoupons.length + greatDeals.length, full: t('bag_coupons', { n: listCoupons.length + greatDeals.length }), empty: t('bag_empty_coupons'), target: 'couponCard' },
-              ].map((chip) => (
-                <TouchableOpacity key={chip.key} style={[styles.bagChip, chip.n > 0 ? styles.bagChipOn : null]} activeOpacity={0.85} onPress={() => goTo(sectionY.current[chip.target] != null ? chip.target : (chip.target === 'couponCard' ? 'coupons' : chip.target))}>
-                  <Text style={styles.bagChipEmoji}>{chip.emoji}</Text>
-                  <Text style={[styles.bagChipText, chip.n > 0 ? styles.bagChipTextOn : null]} numberOfLines={2}>{chip.n > 0 ? chip.full : chip.empty}</Text>
-                </TouchableOpacity>
-              ))}
+          <View style={styles.bagWrap}>
+            <View style={styles.bagHandles}>
+              <View style={styles.bagHandle} />
+              <View style={styles.bagHandle} />
+            </View>
+            <View style={[styles.bagCard, shadow.card]}>
+              <View style={styles.bagRim} />
+              <View style={styles.bagBody}>
+                <View style={styles.bagLabel}>
+                  <Text style={styles.bagLabelText}>{`🌿 ${bagStore ? t('bag_title', { store: bagStore }) : t('bag_title_generic')}`}</Text>
+                </View>
+                <Text style={styles.bagSub}>{t('bag_sub')}</Text>
+                <View style={styles.bagGrid}>
+                  {[
+                    { key: 'sales', emoji: '🏷', n: weekDeals.length, full: t('bag_sales', { n: weekDeals.length }), empty: t('bag_empty_sales'), target: 'sales' },
+                    { key: 'dinners', emoji: '🍽', n: Array.isArray(mealCards) ? mealCards.length : 0, full: t('bag_dinners', { n: Array.isArray(mealCards) ? mealCards.length : 0 }), empty: t('bag_empty_dinners'), target: 'meals' },
+                    { key: 'coupons', emoji: '🎟', n: listCoupons.length + greatDeals.length, full: t('bag_coupons', { n: listCoupons.length + greatDeals.length }), empty: t('bag_empty_coupons'), target: 'couponCard' },
+                    { key: 'list', emoji: '📝', n: remainingCount, full: t('bag_list', { n: remainingCount }), empty: t('bag_empty_list'), target: items.length ? 'list' : 'addRow' },
+                  ].map((chip) => (
+                    <TouchableOpacity key={chip.key} style={[styles.bagChip, chip.n > 0 ? styles.bagChipOn : null]} activeOpacity={0.85} onPress={() => goTo(sectionY.current[chip.target] != null ? chip.target : (chip.target === 'couponCard' ? 'coupons' : chip.target))}>
+                      <Text style={styles.bagChipEmoji}>{chip.emoji}</Text>
+                      <Text style={[styles.bagChipText, chip.n > 0 ? styles.bagChipTextOn : null]} numberOfLines={2}>{chip.n > 0 ? chip.full : chip.empty}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
             </View>
           </View>
         ) : null}
@@ -1062,36 +1094,10 @@ export default function ShoppingScreen({ user }) {
         />
         ) : null}
 
-        {showBag ? <Text style={styles.stepHead}>{t('step_build_list')}</Text> : null}
-        <View style={[styles.addRow, hl('addRow')]} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={t('type_item_placeholder')}
-            placeholderTextColor="#AAA39A"
-            style={styles.input}
-            returnKeyType="done"
-            onSubmitEditing={() => addItem(draft)}
-          />
-          <TouchableOpacity
-            style={[styles.addBtn, saving ? styles.addBtnDisabled : null]}
-            activeOpacity={0.88}
-            onPress={() => addItem(draft)}
-            disabled={saving}
-          >
-            <Text style={styles.addBtnText}>+</Text>
-          </TouchableOpacity>
-        </View>
-        <AlexaHint text={t('alexa_hint_list')} onPress={() => setAlexaOpen(true)} />
 
         </>
         ) : null}
 
-        {(!guideStep || guideStep === 'list') && !listOnly ? (
-        <View style={hl('everyday')} onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
-          <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
-        </View>
-        ) : null}
 
         {guideStep === 'list' && !weekDeals.length ? (
           <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
@@ -1173,16 +1179,6 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
-        {!greatDeals.length && !listCoupons.length && guideStep !== 'meals' && !listOnly ? (
-          <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
-            {catalogState === 'loading' ? t('sav_status_loading')
-              : coupons.length ? t('sav_status_none', { n: coupons.length })
-              : `${t('sav_status_empty')} (${catalogError || '…'})`}
-          </Text>
-        ) : null}
-
-        <View onLayout={(e) => { sectionY.current.coupons = e.nativeEvent.layout.y; }} />
-
         {showBag ? <Text style={styles.stepHead}>{t('step_dinners')}</Text> : null}
         {(!guideStep || guideStep === 'meals' || guideStep === 'list') && !listOnly ? (
         <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
@@ -1204,6 +1200,16 @@ export default function ShoppingScreen({ user }) {
           />
         </View>
         ) : null}
+
+        {!greatDeals.length && !listCoupons.length && guideStep !== 'meals' && !listOnly ? (
+          <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
+            {catalogState === 'loading' ? t('sav_status_loading')
+              : coupons.length ? t('sav_status_none', { n: coupons.length })
+              : `${t('sav_status_empty')} (${catalogError || '…'})`}
+          </Text>
+        ) : null}
+
+        <View onLayout={(e) => { sectionY.current.coupons = e.nativeEvent.layout.y; }} />
 
         {showBag && (greatDeals.length > 0 || listCoupons.length > 0) ? <Text style={styles.stepHead}>{t('step_coupons')}</Text> : null}
         {(greatDeals.length > 0 || listCoupons.length > 0) && guideStep !== 'meals' && !listOnly ? (
@@ -1317,6 +1323,38 @@ export default function ShoppingScreen({ user }) {
               );
             })}
           </View>
+        ) : null}
+
+        {(!guideStep || guideStep === 'list') ? (
+        <>
+        {showBag ? <Text style={styles.stepHead}>{t('step_build_list')}</Text> : null}
+        <View style={[styles.addRow, hl('addRow')]} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={t('type_item_placeholder')}
+            placeholderTextColor="#AAA39A"
+            style={styles.input}
+            returnKeyType="done"
+            onSubmitEditing={() => addItem(draft)}
+          />
+          <TouchableOpacity
+            style={[styles.addBtn, saving ? styles.addBtnDisabled : null]}
+            activeOpacity={0.88}
+            onPress={() => addItem(draft)}
+            disabled={saving}
+          >
+            <Text style={styles.addBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        <AlexaHint text={t('alexa_hint_list')} onPress={() => setAlexaOpen(true)} />
+        </>
+        ) : null}
+
+        {(!guideStep || guideStep === 'list') && !listOnly ? (
+        <View style={hl('everyday')} onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
+          <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
+        </View>
         ) : null}
 
         <View onLayout={(e) => { sectionY.current.savings = e.nativeEvent.layout.y; }} />
@@ -1860,15 +1898,24 @@ const styles = StyleSheet.create({
   shopBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   shopBtnSub: { color: '#FFE9D6', fontSize: 12, fontFamily: 'Jost-Regular', marginTop: 2 },
   stepHead: { color: '#C25A12', fontSize: 12, letterSpacing: 1.2, fontFamily: 'Jost-Bold', marginTop: 14, marginBottom: 6 },
-  bagCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 2, borderColor: '#E8651A', padding: 14, marginBottom: 6 },
-  bagTitle: { color: '#2B1E13', fontSize: 19, fontFamily: 'Jost-Bold' },
-  bagSub: { color: '#5A4630', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginTop: 4, marginBottom: 10 },
+  bagWrap: { marginBottom: 8 },
+  bagHandles: { flexDirection: 'row', justifyContent: 'center', marginBottom: -3, zIndex: 1 },
+  bagHandle: { width: 64, height: 34, borderWidth: 6, borderBottomWidth: 0, borderColor: '#9A6B34', borderTopLeftRadius: 34, borderTopRightRadius: 34, marginHorizontal: 22 },
+  bagCard: { backgroundColor: '#D9B27A', borderRadius: 6, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, borderWidth: 2, borderColor: '#B58A4F', overflow: 'hidden' },
+  bagRim: { height: 14, backgroundColor: '#C99C5F', borderBottomWidth: 2, borderBottomColor: '#B58A4F' },
+  bagBody: { padding: 14 },
+  bagLabel: { alignSelf: 'center', backgroundColor: '#FFF9EE', borderRadius: 999, borderWidth: 2, borderColor: '#1F3D2B', paddingHorizontal: 16, paddingVertical: 7 },
+  bagLabelText: { color: '#1F3D2B', fontSize: 17, fontFamily: 'Jost-Bold', textAlign: 'center' },
+  bagSub: { color: '#4A3418', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginTop: 8, marginBottom: 10, textAlign: 'center' },
   bagGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  bagChip: { width: '48.5%', flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4EFE7', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 8 },
-  bagChipOn: { backgroundColor: '#E8F1E6' },
+  bagChip: { width: '48.5%', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.55)', borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(120,84,36,0.35)', borderStyle: 'dashed', paddingVertical: 12, paddingHorizontal: 10, marginBottom: 8 },
+  bagChipOn: { backgroundColor: '#FFF9EE', borderStyle: 'solid', borderColor: '#1F3D2B' },
   bagChipEmoji: { fontSize: 22, marginRight: 8 },
-  bagChipText: { flex: 1, color: '#8A7A66', fontSize: 14, lineHeight: 18, fontFamily: 'Jost-SemiBold' },
+  bagChipText: { flex: 1, color: '#6B5230', fontSize: 14, lineHeight: 18, fontFamily: 'Jost-SemiBold' },
   bagChipTextOn: { color: '#1F3D2B' },
+  addedToast: { position: 'absolute', left: 16, right: 88, bottom: 16, zIndex: 50, backgroundColor: '#1F3D2B', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  addedToastText: { flex: 1, color: '#FFFFFF', fontSize: 15, fontFamily: 'Jost-SemiBold', marginRight: 10 },
+  addedToastLink: { color: '#FFB877', fontSize: 14, fontFamily: 'Jost-Bold' },
   doneBtn: {
     backgroundColor: colors.forest,
     borderRadius: 14,
