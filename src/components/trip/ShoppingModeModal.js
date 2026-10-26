@@ -113,12 +113,18 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     if (!next) { sp.busy = false; return; }
     sp.busy = true;
     sp.heard = false;
-    sp.timer = setTimeout(() => playNext.current(), 20000); // safety: never get stuck waiting on a line that did not play
+    sp.curSection = next.section || null;
+    sp.seq = (sp.seq || 0) + 1;
+    const seq = sp.seq;
+    // Safety only: if a line never loads or never ends, move on (the normal hand-off is the audio's own end, below).
+    sp.timer = setTimeout(() => { if (sp.seq === seq) playNext.current(); }, 25000);
     const gen = sp.gen || 0;
     getLine(next.text).then((uri) => {
-      if ((sp.gen || 0) !== gen) return; // closed / reset while the line was loading
-      if (!uri || !playPreparedRef.current(uri)) playNext.current();
-    }).catch(() => playNext.current());
+      if ((sp.gen || 0) !== gen || sp.seq !== seq) return; // closed / reset / replaced while the line was loading
+      // The next line starts when THIS audio actually ends (not by watching isSpeaking flip, which short lines can miss).
+      const started = playPreparedRef.current(uri, () => { if (sp.seq === seq && (sp.gen || 0) === gen) playNext.current(); });
+      if (!uri || !started) playNext.current();
+    }).catch(() => { if (sp.seq === seq) playNext.current(); });
   };
   const resetSpeech = () => {
     const sp = speechRef.current;
@@ -127,16 +133,13 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     sp.heard = false;
     sp.pending = [];
     sp.gen = (sp.gen || 0) + 1;
+    sp.seq = (sp.seq || 0) + 1;
   };
-  useEffect(() => {
-    const sp = speechRef.current;
-    if (!sp.busy) return;
-    if (isSpeaking) { sp.heard = true; return; }
-    if (sp.heard) { sp.heard = false; playNext.current(); }
-  }, [isSpeaking]);
 
   // `lines` is one string or a list of short pieces that are spoken back to back (each piece is cached on its own).
-  const say = useCallback((lines, { keep = false } = {}) => {
+  // `section` = the aisle section these lines are about. Anything still waiting (or playing) about a DIFFERENT section is
+  // stale the moment you move on, so it is dropped instead of being spoken late.
+  const say = useCallback((lines, { keep = false, section = null } = {}) => {
     const parts = (Array.isArray(lines) ? lines : [lines]).map((x) => String(x || '').trim()).filter(Boolean);
     const text = parts.join(' ');
     setStatus(text);
@@ -145,8 +148,15 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     if (sp.lastText === text && Date.now() - (sp.lastAt || 0) < 3000) return; // same line twice in a row: say it once
     sp.lastText = text;
     sp.lastAt = Date.now();
-    sp.pending = sp.pending.filter((p) => p.keep);
-    parts.forEach((part) => sp.pending.push({ text: part, keep }));
+    sp.pending = sp.pending.filter((p) => p.keep && (!section || !p.section || p.section === section));
+    if (sp.busy && section && sp.curSection && sp.curSection !== section) {
+      // A line about the section you already left is still playing: cut it off.
+      sp.seq = (sp.seq || 0) + 1;
+      clearTimeout(sp.timer);
+      sp.busy = false;
+      stopSpeaking?.();
+    }
+    parts.forEach((part) => sp.pending.push({ text: part, keep, section }));
     if (!sp.busy) playNext.current();
   }, [voice]);
 
@@ -157,7 +167,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     if (!visible) { announced.current = false; setPicked(false); setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); setShowCoupons(false); resetSpeech(); stopSpeaking?.(); return; }
     if (!picked || announced.current || !current) return;
     announced.current = true;
-    say([t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length }), intro(current.sectionKey)], { keep: true });
+    say([t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length }), intro(current.sectionKey)], { keep: true, section: current.sectionKey });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, current?.id, picked]);
 
@@ -214,6 +224,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     const sameSection = others.filter((i) => i.sectionKey === item.sectionKey);
     const msg = [t('shopmode_checked', { item: item.text })];
     let sectionChange = false;
+    let speakSection = item.sectionKey;
     if (sameSection.length) {
       msg.push(t('shopmode_remaining', { n: sameSection.length, section: nameOf(item.sectionKey) }));
     } else {
@@ -223,6 +234,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
         const nextCount = others.filter((i) => i.sectionKey === next.sectionKey).length;
         msg.push(t('shopmode_section_done', { section: nameOf(item.sectionKey) }), t('shopmode_section_intro', { section: nameOf(next.sectionKey), n: nextCount }));
         sectionChange = true;
+        speakSection = next.sectionKey;
       } else if (others.length) {
         // Only skipped items are left: the effect above says "now back to the ones you skipped" once, after this line.
       } else {
@@ -230,7 +242,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
         msg.push(t('shopmode_all_done'));
       }
     }
-    say(msg, { keep: sectionChange });
+    say(msg, { keep: sectionChange, section: speakSection });
     // Save last: the announcement/celebration above must show first, otherwise the next section's list flashes
     // on screen while the save finishes.
     await onSetChecked(item.ids || [item.id], true);
@@ -250,7 +262,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     const next = open.find((i) => i.sectionKey !== key && !skipped.includes(i.id));
     const go = () => {
       setSkipped((prev) => [...prev, ...left.map((i) => i.id)]);
-      if (next) say([t('shopmode_moving', { section: nameOf(next.sectionKey) }), intro(next.sectionKey)], { keep: true });
+      if (next) say([t('shopmode_moving', { section: nameOf(next.sectionKey) }), intro(next.sectionKey)], { keep: true, section: next.sectionKey });
     };
     Alert.alert(
       t('shopmode_move_title'),
