@@ -1615,7 +1615,10 @@ export default function HomeScreen({ user, route }) {
     Alert.alert(t('trip_flyer_title'), undefined, [
       { text: t('trip_flyer_camera'), onPress: () => { setFlyerTrace('0. camera button pressed'); runHomeFlyerScan(true, store); } },
       { text: t('trip_flyer_library'), onPress: () => { setFlyerTrace('0. photos button pressed'); runHomeFlyerScan(false, store); } },
-      { text: t('cancel_btn'), style: 'cancel' },
+      // No flyer is fine: the store's list and trip still open, just without the sale items.
+      { text: t('flyer_skip_shop'), style: 'cancel', onPress: () => {
+        if (store?.name) navigation.navigate('Shopping', { guide: Date.now(), guideStore: String(store.name).split(/ - |#/)[0].trim() });
+      } },
     ]);
   };
 

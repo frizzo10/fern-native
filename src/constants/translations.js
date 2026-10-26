@@ -548,6 +548,7 @@ export const translations = {
     delete_recipe_desc: "Delete \"{title}\" from your saved recipes?",
     delete_recipe_confirm: "Delete",
     cancel_btn: "Cancel",
+    flyer_skip_shop: "No flyer, just shop here",
 
     // Find Screen (Voice screen)
     welcome_message: "Hi! Ask me anything about food — recipes, what to make for dinner, substitutions, or scan your store circular for deals.",
@@ -2989,6 +2990,7 @@ export const translations = {
     delete_recipe_desc: "¿Eliminar \"{title}\" de tus recetas guardadas?",
     delete_recipe_confirm: "Eliminar",
     cancel_btn: "Cancelar",
+    flyer_skip_shop: "Sin folleto, solo comprar aquí",
 
     // Find Screen (Voice screen)
     welcome_message: "¡Hola! Pregúntame lo que quieras sobre comida: recetas, qué hacer de cenar, sustituciones o escanea el folleto de tu tienda para ver ofertas.",
