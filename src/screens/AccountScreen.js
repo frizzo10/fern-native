@@ -564,7 +564,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             </TouchableOpacity>
                         </View>
 
-                        {TOOL_SECTIONS.map((section) => (
+                        {[{ titleKey: 'all_tours', items: TOOL_SECTIONS.flatMap((section) => section.items) }].map((section) => (
                             <View key={section.titleKey} style={styles.sectionBlock}>
                                 
                                 <View style={styles.toolsGrid}>
