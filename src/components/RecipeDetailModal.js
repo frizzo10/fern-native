@@ -73,6 +73,8 @@ export default function RecipeDetailModal({
     AsyncStorage.setItem(TEXT_LEVEL_KEY, String(next)).catch(() => {});
   };
   const textScale = TEXT_SCALES[textLevel];
+  const [photoTrace, setPhotoTrace] = useState([]);
+  const tr = (m) => setPhotoTrace((a) => [...a.slice(-7), m]);
   const [isScaleModalVisible, setIsScaleModalVisible] = useState(false);
   const [isWinePairingVisible, setIsWinePairingVisible] = useState(false);
   const [isPlatingCoachVisible, setIsPlatingCoachVisible] = useState(false);
@@ -295,6 +297,7 @@ export default function RecipeDetailModal({
   };
 
   const uploadAndSetRecipeImage = async (pickerResult) => {
+    tr(`6. pick returned: canceled=${pickerResult?.canceled} denied=${pickerResult?.permissionDenied} base64=${pickerResult?.photo?.base64 ? Math.round(pickerResult.photo.base64.length / 1024) + 'KB' : 'NONE'} w=${pickerResult?.photo?.width}`);
     const why = (m) => Alert.alert(t('recipe_image_update_failed_title'), `${t('recipe_image_update_failed_desc')}\n\n${m}`);
     if (!pickerResult) return why('The photo picker gave no answer.');
     if (pickerResult.permissionDenied) return why('Photo permission is off. Turn it on in Settings > Fern.');
@@ -303,9 +306,12 @@ export default function RecipeDetailModal({
     setIsUploadingImage(true);
     try {
       const dataUri = `data:${pickerResult.photo.mimeType || 'image/jpeg'};base64,${pickerResult.photo.base64}`;
+      tr('7. uploading...');
       const url = await uploadPhoto(dataUri, `recipe_${recipe.id}_${Date.now()}.jpg`);
-      if (url) await onUpdateImage(url);
+      tr(`8. upload answer: ${url ? 'got link' : 'NO LINK'}`);
+      if (url) { await onUpdateImage(url); tr('9. saved to recipe + pushed'); }
     } catch (e) {
+      tr(`X. error: ${String(e?.message || e)}`);
       console.warn('Recipe image upload failed:', e);
       Alert.alert(t('recipe_image_update_failed_title'), `${t('recipe_image_update_failed_desc')}\n\n${String(e?.message || e)}`);
     } finally {
@@ -334,13 +340,14 @@ export default function RecipeDetailModal({
   };
 
   const handlePickRecipeImage = () => {
+    tr(`0. camera box tapped (onUpdateImage=${!!onUpdateImage}, uploading=${isUploadingImage})`);
     if (!onUpdateImage || isUploadingImage) return;
     Alert.alert(
       t('recipe_image_picker_title'),
       '',
       [
-        { text: t('take_photo_btn'), onPress: () => pickPhotoFromCamera({ maxWidth: 1600, quality: 0.6 }).then(uploadAndSetRecipeImage).catch((e) => Alert.alert(t('recipe_image_update_failed_title'), String(e?.message || e))) },
-        { text: t('upload_image_btn'), onPress: () => pickPhotoFromLibrary({ maxWidth: 1600, quality: 0.6 }).then(uploadAndSetRecipeImage).catch((e) => Alert.alert(t('recipe_image_update_failed_title'), String(e?.message || e))) },
+        { text: t('take_photo_btn'), onPress: () => pickPhotoFromCamera({ maxWidth: 1600, quality: 0.6, onStage: tr }).then(uploadAndSetRecipeImage).catch((e) => { tr(`X. picker error: ${String(e?.message || e)}`); Alert.alert(t('recipe_image_update_failed_title'), String(e?.message || e)); }) },
+        { text: t('upload_image_btn'), onPress: () => pickPhotoFromLibrary({ maxWidth: 1600, quality: 0.6, onStage: tr }).then(uploadAndSetRecipeImage).catch((e) => { tr(`X. picker error: ${String(e?.message || e)}`); Alert.alert(t('recipe_image_update_failed_title'), String(e?.message || e)); }) },
         { text: t('cancel_btn'), style: 'cancel' },
       ]
     );
@@ -500,6 +507,13 @@ export default function RecipeDetailModal({
                     </View>
                   )}
 
+                  {photoTrace.length > 0 ? (
+                    <View style={{ backgroundColor: '#000', padding: 8, borderRadius: 8, marginTop: 10 }}>
+                      {photoTrace.map((m, i) => (
+                        <Text key={i} style={{ color: '#7CFC9A', fontSize: 11 }}>{m}</Text>
+                      ))}
+                    </View>
+                  ) : null}
                   <View style={styles.overlayThumbsRow}>
                     {Array.isArray(recipe?.photos) && recipe.photos.length > 0 ? (
                       recipe.photos.map((uri, photoIdx) => (
