@@ -52,6 +52,7 @@ export default function RecipeDetailModal({
   onAddToList,
   onSaveEdits,
   onUpdateImage,
+  onSetPhotos,
   books,
   onSaveToCookbook,
   user,
@@ -308,6 +309,26 @@ export default function RecipeDetailModal({
     }
   };
 
+  // Tap a photo in the row: make it the main one, or remove it.
+  const handlePhotoMenu = (photoIdx) => {
+    const list = Array.isArray(recipe?.photos) ? recipe.photos : [];
+    if (!onSetPhotos || !list[photoIdx]) return;
+    const buttons = [];
+    if (photoIdx > 0) {
+      buttons.push({
+        text: t('photo_make_main'),
+        onPress: () => onSetPhotos([list[photoIdx], ...list.filter((_, i) => i !== photoIdx)]),
+      });
+    }
+    buttons.push({
+      text: t('photo_remove'),
+      style: 'destructive',
+      onPress: () => onSetPhotos(list.filter((_, i) => i !== photoIdx)),
+    });
+    buttons.push({ text: t('cancel_btn'), style: 'cancel' });
+    Alert.alert(t('photo_menu_title'), '', buttons);
+  };
+
   const handlePickRecipeImage = () => {
     if (!onUpdateImage || isUploadingImage) return;
     Alert.alert(
@@ -478,12 +499,18 @@ export default function RecipeDetailModal({
                   <View style={styles.overlayThumbsRow}>
                     {Array.isArray(recipe?.photos) && recipe.photos.length > 0 ? (
                       recipe.photos.map((uri, photoIdx) => (
-                        <ImageBackground
+                        <TouchableOpacity
                           key={`recipe-photo-${photoIdx}`}
-                          source={{ uri }}
-                          style={styles.overlayThumbImage}
-                          imageStyle={styles.overlayThumbImageInner}
-                        />
+                          activeOpacity={onSetPhotos ? 0.7 : 1}
+                          disabled={!onSetPhotos}
+                          onPress={() => handlePhotoMenu(photoIdx)}
+                        >
+                          <ImageBackground
+                            source={{ uri }}
+                            style={styles.overlayThumbImage}
+                            imageStyle={styles.overlayThumbImageInner}
+                          />
+                        </TouchableOpacity>
                       ))
                     ) : (
                       <ImageBackground

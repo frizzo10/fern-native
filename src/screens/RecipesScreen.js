@@ -838,6 +838,41 @@ export default function RecipesScreen({ user }) {
     }
   };
 
+  // Make a photo the main one (move it first) or remove it: `photos` is the recipe's new full list.
+  const handleSetRecipePhotos = async (photos) => {
+    if (!selectedRecipe || !Array.isArray(photos)) return;
+    try {
+      const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+      const baseSaved = Array.isArray(storedSaved)
+        ? storedSaved
+        : (Array.isArray(recipesLocal) ? recipesLocal : []);
+      const selectedId = String(selectedRecipe.id);
+      const selectedTitle = String(selectedRecipe.title || '').trim().toLowerCase();
+      const nextSaved = baseSaved.map((item, index) => {
+        const itemId = getRawRecipeId(item, index);
+        const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+        const isMatch = itemId === selectedId || (selectedTitle && itemTitle === selectedTitle);
+        return isMatch ? { ...item, _cloudPhotos: photos } : item;
+      });
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+      await syncRecipeCache(nextSaved);
+      setRecipesLocal(nextSaved);
+      setSelectedRecipe((prev) => (prev ? { ...prev, image: photos[0] || null, photos } : prev));
+      const pushResult = await pushChangedFromStorage({ saved: nextSaved });
+      const pushOk = pushResult && lastPush.status >= 200 && lastPush.status < 300
+        && pushResult.success !== false && !pushResult.error;
+      if (!pushOk) {
+        Alert.alert(
+          t('recipe_image_update_failed_title'),
+          `${t('recipe_image_update_failed_desc')}\n\nStatus: ${lastPush.status ?? 'none'}\n${lastPush.error || ''}`
+        );
+      }
+    } catch (e) {
+      console.warn('Set recipe photos failed:', e);
+      Alert.alert(t('recipe_image_update_failed_title'), t('recipe_image_update_failed_desc'));
+    }
+  };
+
   const handleSaveRecipesToBook = async (selectedIds) => {
     if (!selectedBook) return;
     setIsSavingAddRecipes(true);
@@ -1554,6 +1589,7 @@ export default function RecipesScreen({ user }) {
         onAddToList={handleAddSelectedRecipeToShoppingList}
         onSaveEdits={handleSaveRecipeEdits}
         onUpdateImage={handleUpdateRecipeImage}
+        onSetPhotos={handleSetRecipePhotos}
         books={data.books}
         onSaveToCookbook={persistSelectedRecipeToCookbook}
         user={user}
