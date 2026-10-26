@@ -129,7 +129,7 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
 
       {busy ? (
         <View style={styles.busyBox}>
-          <ActivityIndicator size="large" color={colors.orange} />
+          <ActivityIndicator size="large" color={'#D8607C'} />
           <Text style={styles.busyTitle}>{t('trip_flyer_scanning_title')}</Text>
           <Text style={styles.busyTime}>{`${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`}</Text>
           <Text style={styles.busyHint}>{t('trip_flyer_scanning_hint')}</Text>
@@ -162,23 +162,23 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
 
 const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', borderRadius: radius.lg || 16, padding: 16, marginBottom: 14 },
-  embedded: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F0E3D2' },
-  moreTitle: { fontSize: 14, fontWeight: '800', color: '#2D1B10' },
-  title: { fontSize: 16, fontWeight: '800', color: '#2D1B10' },
-  sub: { fontSize: 13, color: '#7a6d60', marginTop: 3 },
-  sharedBox: { backgroundColor: '#E6F1EA', borderRadius: 12, padding: 12, marginTop: 10, gap: 8 },
-  sharedText: { fontSize: 13, color: '#1d4d34', lineHeight: 18 },
-  primary: { backgroundColor: colors.orange, borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
+  embedded: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F3C9BD' },
+  moreTitle: { fontSize: 14, fontWeight: '800', color: '#5A3236' },
+  title: { fontSize: 16, fontWeight: '800', color: '#5A3236' },
+  sub: { fontSize: 13, color: '#9A7872', marginTop: 3 },
+  sharedBox: { backgroundColor: '#FBD9CE', borderRadius: 12, padding: 12, marginTop: 10, gap: 8 },
+  sharedText: { fontSize: 13, color: '#8A4A4E', lineHeight: 18 },
+  primary: { backgroundColor: '#D8607C', borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
   primaryText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   btnRow: { flexDirection: 'row', gap: 10, marginTop: 12 },
-  ghost: { flex: 1, borderWidth: 1, borderColor: colors.orange, borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
-  ghostText: { color: colors.orange, fontWeight: '700', fontSize: 14 },
-  busyBox: { alignItems: 'center', gap: 6, marginTop: 12, paddingVertical: 18, paddingHorizontal: 14, borderRadius: 14, borderWidth: 2, borderColor: colors.orange, backgroundColor: '#FFF4E8' },
-  busyTitle: { fontSize: 17, fontWeight: '800', color: '#2D1B10', textAlign: 'center' },
-  busyTime: { fontSize: 22, fontWeight: '800', color: colors.orange },
-  busyHint: { fontSize: 13, color: '#7a6d60', textAlign: 'center', lineHeight: 18 },
+  ghost: { flex: 1, borderWidth: 1, borderColor: '#D8607C', borderRadius: 999, paddingVertical: 10, alignItems: 'center' },
+  ghostText: { color: '#D8607C', fontWeight: '700', fontSize: 14 },
+  busyBox: { alignItems: 'center', gap: 6, marginTop: 12, paddingVertical: 18, paddingHorizontal: 14, borderRadius: 14, borderWidth: 2, borderColor: '#D8607C', backgroundColor: '#FDE8E0' },
+  busyTitle: { fontSize: 17, fontWeight: '800', color: '#5A3236', textAlign: 'center' },
+  busyTime: { fontSize: 22, fontWeight: '800', color: '#D8607C' },
+  busyHint: { fontSize: 13, color: '#9A7872', textAlign: 'center', lineHeight: 18 },
   readBox: { marginTop: 10, gap: 4 },
-  readText: { fontSize: 13, color: '#2D1B10', fontWeight: '600' },
-  addedText: { fontSize: 14, color: '#1d7a46', fontWeight: '800' },
-  retake: { fontSize: 13, color: colors.orange, fontWeight: '700' },
+  readText: { fontSize: 13, color: '#5A3236', fontWeight: '600' },
+  addedText: { fontSize: 14, color: '#C0475F', fontWeight: '800' },
+  retake: { fontSize: 13, color: '#D8607C', fontWeight: '700' },
 });

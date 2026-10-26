@@ -298,7 +298,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
 
       {phase === 'loading' || phase === 'checking' || phase === 'saving' ? (
         <View style={styles.busy}>
-          <ActivityIndicator color={colors.orange} />
+          <ActivityIndicator color={'#D8607C'} />
           <Text style={styles.sub}>{phase === 'saving' ? t('trip_week_saving') : phase === 'checking' ? t('trip_week_checking') : t('trip_week_working')}</Text>
         </View>
       ) : null}
@@ -322,7 +322,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                 <Text style={styles.fromCircular}>{t('trip_week_from_circular')}</Text>
                 <Text style={styles.starName}>{t('trip_week_star_sale', { item: c.deal.name })}</Text>
                 <Text style={styles.sub}>{[c.deal.isBogo ? 'BOGO' : c.deal.salePrice, c.deal.store, sv.amount > 0 ? t('psp_save_amt', { amt: `${sv.est ? '~' : ''}${fmtMoney(sv.amount)}` }) : ''].filter(Boolean).join(' · ')}</Text>
-                {c.loading ? <ActivityIndicator color={colors.orange} style={{ marginVertical: 8 }} /> : c.ideas.map((idea, ii) => {
+                {c.loading ? <ActivityIndicator color={'#D8607C'} style={{ marginVertical: 8 }} /> : c.ideas.map((idea, ii) => {
                   const pv = previews[idea.id];
                   return (
                     <View key={idea.id} style={styles.idea}>
@@ -339,7 +339,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                           <Text style={styles.link}>{pv ? t('trip_week_hide') : t('trip_week_preview')}</Text>
                         </TouchableOpacity>
                       </View>
-                      {pv?.loading ? <ActivityIndicator color={colors.orange} style={{ marginTop: 6 }} /> : null}
+                      {pv?.loading ? <ActivityIndicator color={'#D8607C'} style={{ marginTop: 6 }} /> : null}
                       {pv?.failed ? <Text style={styles.err}>{t('sale_list_recipes_failed')}</Text> : null}
                       {pv?.recipe ? (
                         <View style={styles.previewBox}>
@@ -354,7 +354,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                                 <TouchableOpacity onPress={() => previewSide(idea, side)} activeOpacity={0.8}>
                                   <Text style={[styles.link, { marginTop: 4, textDecorationLine: 'underline' }]}>{`${sp ? '▾' : '▸'} ${side}`}</Text>
                                 </TouchableOpacity>
-                                {sp?.loading ? <ActivityIndicator color={colors.orange} style={{ marginTop: 4, alignSelf: 'flex-start' }} /> : null}
+                                {sp?.loading ? <ActivityIndicator color={'#D8607C'} style={{ marginTop: 4, alignSelf: 'flex-start' }} /> : null}
                                 {sp?.failed ? <Text style={styles.err}>{t('sale_list_recipes_failed')}</Text> : null}
                                 {sp?.recipe ? (
                                   <View style={styles.previewBox}>
@@ -382,7 +382,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                                         />
                                       ) : (
                                         <TouchableOpacity style={[styles.addBtn, sa.done ? styles.addBtnOn : null]} disabled={Boolean(sa.done)} activeOpacity={0.85} onPress={() => setExtra(sk, { reviewing: true })}>
-                                          <Text style={[styles.addBtnText, sa.done ? { color: '#2F7D4F' } : null]}>{sa.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
+                                          <Text style={[styles.addBtnText, sa.done ? { color: '#C0475F' } : null]}>{sa.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
                                         </TouchableOpacity>
                                       );
                                     })()}
@@ -450,7 +450,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                                   />
                                 ) : (
                                   <TouchableOpacity style={[styles.addBtn, ex.done ? styles.addBtnOn : null]} disabled={Boolean(ex.done)} activeOpacity={0.85} onPress={() => setExtra(idea.id, { reviewing: true })}>
-                                    <Text style={[styles.addBtnText, ex.done ? { color: '#2F7D4F' } : null]}>{ex.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
+                                    <Text style={[styles.addBtnText, ex.done ? { color: '#C0475F' } : null]}>{ex.done ? t('sale_list_recipe_added') : t('sale_list_recipe_add')}</Text>
                                   </TouchableOpacity>
                                 )}
                               </View>
@@ -507,45 +507,45 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
 const styles = StyleSheet.create({
   bare: { marginBottom: 14 },
   card: { backgroundColor: '#fff', borderRadius: radius.lg || 16, padding: 16, marginBottom: 14 },
-  title: { fontSize: 16, fontWeight: '800', color: '#2D1B10' },
-  sub: { fontSize: 13, color: '#7a6d60', marginTop: 2 },
+  title: { fontSize: 16, fontWeight: '800', color: '#5A3236' },
+  sub: { fontSize: 13, color: '#9A7872', marginTop: 2 },
   err: { fontSize: 13, color: '#B3402A', marginTop: 8 },
-  primary: { backgroundColor: colors.orange, borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginTop: 10 },
+  primary: { backgroundColor: '#D8607C', borderRadius: 999, paddingVertical: 12, alignItems: 'center', marginTop: 10 },
   primaryText: { color: '#fff', fontWeight: '800', fontSize: 14 },
   busy: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  askQ: { fontSize: 14, fontWeight: '800', color: '#2D1B10', marginTop: 12 },
+  askQ: { fontSize: 14, fontWeight: '800', color: '#5A3236', marginTop: 12 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
-  chip: { borderWidth: 1, borderColor: colors.orange, borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
-  chipOn: { backgroundColor: colors.orange },
-  chipText: { color: colors.orange, fontWeight: '700', fontSize: 13 },
+  chip: { borderWidth: 1, borderColor: '#D8607C', borderRadius: 999, paddingVertical: 8, paddingHorizontal: 14 },
+  chipOn: { backgroundColor: '#D8607C' },
+  chipText: { color: '#D8607C', fontWeight: '700', fontSize: 13 },
   chipTextOn: { color: '#fff' },
   stepRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stepBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: colors.orange, alignItems: 'center', justifyContent: 'center' },
-  stepBtnText: { color: colors.orange, fontSize: 18, fontWeight: '800' },
-  stepNum: { fontSize: 16, fontWeight: '800', color: '#2D1B10', minWidth: 18, textAlign: 'center' },
-  star: { marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E4DCD2' },
-  fromCircular: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: '#7a6d60', marginBottom: 2 },
-  starName: { fontSize: 14, fontWeight: '800', color: '#2F7D4F' },
+  stepBtn: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: '#D8607C', alignItems: 'center', justifyContent: 'center' },
+  stepBtnText: { color: '#D8607C', fontSize: 18, fontWeight: '800' },
+  stepNum: { fontSize: 16, fontWeight: '800', color: '#5A3236', minWidth: 18, textAlign: 'center' },
+  star: { marginTop: 14, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#F3C9BD' },
+  fromCircular: { fontSize: 11, fontWeight: '800', letterSpacing: 0.8, color: '#9A7872', marginBottom: 2 },
+  starName: { fontSize: 14, fontWeight: '800', color: '#C0475F' },
   idea: { marginTop: 10 },
   ideaTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   check: { width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: '#C9BFB3', alignItems: 'center', justifyContent: 'center' },
-  checkOn: { backgroundColor: colors.orange, borderColor: colors.orange },
+  checkOn: { backgroundColor: '#D8607C', borderColor: '#D8607C' },
   checkMark: { color: '#fff', fontWeight: '800', fontSize: 14 },
-  ideaTitle: { fontSize: 14, fontWeight: '700', color: '#2D1B10' },
-  link: { color: colors.orange, fontSize: 13, fontWeight: '700' },
-  previewBox: { marginTop: 6, marginLeft: 34, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#E4DCD2' },
-  previewText: { fontSize: 13, color: '#2D1B10', marginTop: 3, lineHeight: 18 },
+  ideaTitle: { fontSize: 14, fontWeight: '700', color: '#5A3236' },
+  link: { color: '#D8607C', fontSize: 13, fontWeight: '700' },
+  previewBox: { marginTop: 6, marginLeft: 34, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#F3C9BD' },
+  previewText: { fontSize: 13, color: '#5A3236', marginTop: 3, lineHeight: 18 },
   dayRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 },
-  dayChip: { borderWidth: 1, borderColor: '#E4DCD2', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  mealChipOn: { backgroundColor: '#2D1B10', borderColor: '#2D1B10' },
-  dayChipText: { fontSize: 13, color: '#2D1B10', fontWeight: '700' },
-  addBtn: { alignSelf: 'flex-start', marginTop: 8, backgroundColor: colors.orange, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  addBtnOn: { backgroundColor: '#E6F1EA' },
+  dayChip: { borderWidth: 1, borderColor: '#F3C9BD', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  mealChipOn: { backgroundColor: '#5A3236', borderColor: '#5A3236' },
+  dayChipText: { fontSize: 13, color: '#5A3236', fontWeight: '700' },
+  addBtn: { alignSelf: 'flex-start', marginTop: 8, backgroundColor: '#D8607C', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
+  addBtnOn: { backgroundColor: '#FBD9CE' },
   addBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
   swapRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  count: { fontSize: 13, color: '#7a6d60', textAlign: 'center', marginTop: 14 },
-  done: { marginTop: 10, backgroundColor: '#E6F1EA', borderRadius: 12, padding: 12 },
-  doneTitle: { fontSize: 15, fontWeight: '800', color: '#1d4d34', marginBottom: 4 },
-  doneSave: { fontSize: 13, fontWeight: '800', color: '#2F7D4F', marginTop: 6 },
+  count: { fontSize: 13, color: '#9A7872', textAlign: 'center', marginTop: 14 },
+  done: { marginTop: 10, backgroundColor: '#FBD9CE', borderRadius: 12, padding: 12 },
+  doneTitle: { fontSize: 15, fontWeight: '800', color: '#8A4A4E', marginBottom: 4 },
+  doneSave: { fontSize: 13, fontWeight: '800', color: '#C0475F', marginTop: 6 },
 });

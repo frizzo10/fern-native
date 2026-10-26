@@ -27,7 +27,7 @@ export default function SaveRecipeButton({ onSave, books, t }) {
   if (state === 'done') {
     return (
       <View style={[styles.btn, styles.btnOn]}>
-        <Text style={[styles.btnText, { color: '#2F7D4F' }]}>{where ? t('save_recipe_done_in', { where }) : t('save_recipe_done')}</Text>
+        <Text style={[styles.btnText, { color: '#C0475F' }]}>{where ? t('save_recipe_done_in', { where }) : t('save_recipe_done')}</Text>
       </View>
     );
   }
@@ -45,12 +45,12 @@ export default function SaveRecipeButton({ onSave, books, t }) {
             </TouchableOpacity>
           ))}
         </View>
-        {state === 'saving' ? <ActivityIndicator color={colors?.orange || '#E8742A'} style={{ marginTop: 6, alignSelf: 'flex-start' }} /> : null}
+        {state === 'saving' ? <ActivityIndicator color={colors?.orange || '#D8607C'} style={{ marginTop: 6, alignSelf: 'flex-start' }} /> : null}
       </View>
     );
   }
   return (
-    <TouchableOpacity style={[styles.btn, { backgroundColor: '#2A6A2A' }]} activeOpacity={0.85} onPress={() => setState('choosing')}>
+    <TouchableOpacity style={[styles.btn, { backgroundColor: '#C0475F' }]} activeOpacity={0.85} onPress={() => setState('choosing')}>
       <Text style={styles.btnText}>{`📖 ${t('save_recipe_btn')}`}</Text>
     </TouchableOpacity>
   );
@@ -58,10 +58,10 @@ export default function SaveRecipeButton({ onSave, books, t }) {
 
 const styles = StyleSheet.create({
   btn: { alignSelf: 'flex-start', marginTop: 8, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7 },
-  btnOn: { backgroundColor: '#E6F1EA' },
+  btnOn: { backgroundColor: '#FBD9CE' },
   btnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  label: { fontSize: 12, fontWeight: '700', color: '#2D1B10', marginBottom: 4 },
+  label: { fontSize: 12, fontWeight: '700', color: '#5A3236', marginBottom: 4 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { borderWidth: 1, borderColor: '#E4DCD2', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, maxWidth: '100%' },
-  chipText: { fontSize: 13, color: '#2D1B10', fontWeight: '700' },
+  chip: { borderWidth: 1, borderColor: '#F3C9BD', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, maxWidth: '100%' },
+  chipText: { fontSize: 13, color: '#5A3236', fontWeight: '700' },
 });
