@@ -920,7 +920,7 @@ const styles = StyleSheet.create({
     zIndex: 999,
     backgroundColor: '#8A4A4E',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(168,213,162,0.2)',
+    borderBottomColor: 'rgba(253,232,224,0.25)',
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,

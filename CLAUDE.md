@@ -544,3 +544,5 @@ All UI copy goes through a single i18n module, not per-screen strings:
 **Tour cards are one grid (2026-10-26).** The Account screen's tour cards used to be two grids (the old Pro tools and Pro Max tools sections), which left a blank gap between Ask Fern and Charcuterie once the section titles were gone. `AccountScreen` now flattens `TOOL_SECTIONS` into one grid (`TOOL_SECTIONS` itself is unchanged). "Replay the tour" stays: it is the only way to replay the main Home tour (the cards below are the per-feature tours). JS-only.
 
 **"Replay the tour" renamed (2026-10-26).** `faq_replay_tour` now reads "Tour the whole app" (ES "Recorre toda la app") so it isn't confused with the per-feature tour cards below it on Account. Copy only. JS-only.
+
+**Arrival banner edge in peach (2026-10-26).** The in-app `ArrivalBanner` bottom border (`styles.banner`) was a faint green; it is now a faint cream-rose `rgba(253,232,224,0.25)`. The iPhone's own notification (app closed) can't be recolored and shows the app icon, which stays the dark green leaf until a new native build. No new strings. JS-only.
