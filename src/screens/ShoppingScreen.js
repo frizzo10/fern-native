@@ -3,6 +3,8 @@ import { chainKey, dealsForStore } from '../utils/flyerStore';
 import {
   ActivityIndicator,
   Alert,
+  Image,
+  ImageBackground,
   Clipboard,
   Linking,
   Share,
@@ -1061,12 +1063,8 @@ export default function ShoppingScreen({ user }) {
 
         {showBag ? (
           <View style={styles.bagWrap}>
-            <View style={styles.bagHandles}>
-              <View style={styles.bagHandle} />
-              <View style={styles.bagHandle} />
-            </View>
-            <View style={[styles.bagCard, shadow.card]}>
-              <View style={styles.bagRim} />
+            <Image source={require('../../assets/bag/bag-top.png')} style={styles.bagTopImg} resizeMode="stretch" />
+            <ImageBackground source={require('../../assets/bag/bag-body.png')} style={styles.bagCard} imageStyle={styles.bagBodyImg} resizeMode="stretch">
               <View style={styles.bagBody}>
                 <View style={styles.bagLabel}>
                   <Text style={styles.bagLabelText}>{`🌿 ${bagStore ? t('bag_title', { store: bagStore }) : t('bag_title_generic')}`}</Text>
@@ -1109,7 +1107,7 @@ export default function ShoppingScreen({ user }) {
                   </View>
                 ) : null}
               </View>
-            </View>
+            </ImageBackground>
           </View>
         ) : null}
 
@@ -1949,11 +1947,10 @@ const styles = StyleSheet.create({
   shopBtnSub: { color: '#FFE9D6', fontSize: 12, fontFamily: 'Jost-Regular', marginTop: 2 },
   stepHead: { color: '#C25A12', fontSize: 12, letterSpacing: 1.2, fontFamily: 'Jost-Bold', marginTop: 14, marginBottom: 6 },
   bagWrap: { marginBottom: 8 },
-  bagHandles: { flexDirection: 'row', justifyContent: 'center', marginBottom: -3, zIndex: 1 },
-  bagHandle: { width: 64, height: 34, borderWidth: 6, borderBottomWidth: 0, borderColor: '#9A6B34', borderTopLeftRadius: 34, borderTopRightRadius: 34, marginHorizontal: 22 },
-  bagCard: { backgroundColor: '#D9B27A', borderRadius: 6, borderBottomLeftRadius: 20, borderBottomRightRadius: 20, borderWidth: 2, borderColor: '#B58A4F', overflow: 'hidden' },
-  bagRim: { height: 14, backgroundColor: '#C99C5F', borderBottomWidth: 2, borderBottomColor: '#B58A4F' },
-  bagBody: { padding: 14 },
+  bagTopImg: { width: '100%', aspectRatio: 365 / 145, marginBottom: -1 },
+  bagCard: { width: '100%' },
+  bagBodyImg: { borderRadius: 0 },
+  bagBody: { paddingTop: '15%', paddingBottom: '13%', paddingLeft: '15%', paddingRight: '6%' },
   bagLabel: { alignSelf: 'center', backgroundColor: '#FFF9EE', borderRadius: 999, borderWidth: 2, borderColor: '#1F3D2B', paddingHorizontal: 16, paddingVertical: 7 },
   bagLabelText: { color: '#1F3D2B', fontSize: 17, fontFamily: 'Jost-Bold', textAlign: 'center' },
   bagSub: { color: '#4A3418', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginTop: 8, marginBottom: 10, textAlign: 'center' },
