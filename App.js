@@ -25,6 +25,8 @@ import FindScreen from './src/screens/FindScreen';
 import { useAuth } from './src/hooks/useAuth';
 import { useGeofence } from './src/hooks/useGeofence';
 import LocationSetupModal from './src/components/modals/LocationSetupModal';
+import PaperPickModal from './src/components/modals/PaperPickModal';
+import { STATIONERY_KEY } from './src/constants/stationery';
 import { shouldShowLocationSetup, markLocationSetupShown } from './src/services/locationSetup';
 import { stopStoreGeofencing } from './src/services/storeGeofencing';
 import useEntitlement from './src/hooks/useEntitlement';
@@ -361,16 +363,36 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   // Fern's spoken greeting on store arrival (app open). The old unprompted first-run welcome (`leaf_welcome_say`) was removed
   // 2026-10-16: it repeated the Home tour and talked over whatever the person tapped next. The tour explains the leaf.
   const { speakText: speakWelcome } = useFernVoice({ token: user?.token, allowFree: true, enabled: true });
+  // One-time "Pick your paper" screen (the Shopping list stationery), after sign-in. If the location screen is up it waits
+  // for that to close first (iOS drops a modal opened while another is still dismissing). Device-only flag fern_paper_asked.
+  const [showPaperPick, setShowPaperPick] = useState(false);
+  const maybeAskPaper = (delay) => {
+    AsyncStorage.getItem('fern_paper_asked').then((v) => {
+      if (!v) setTimeout(() => setShowPaperPick(true), delay);
+    }).catch(() => {});
+  };
+  const finishPaperPick = async (id) => {
+    setShowPaperPick(false);
+    try {
+      await AsyncStorage.setItem('fern_paper_asked', 'done');
+      if (id) await AsyncStorage.setItem(STATIONERY_KEY, id);
+    } catch (e) { /* best effort */ }
+  };
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
-    shouldShowLocationSetup(dateToKey(new Date())).then((show) => { if (alive && show) setShowLocationSetup(true); });
+    shouldShowLocationSetup(dateToKey(new Date())).then((show) => {
+      if (!alive) return;
+      if (show) setShowLocationSetup(true);
+      else maybeAskPaper(2500);
+    });
     return () => { alive = false; };
   }, [user?.id]);
   const finishLocationSetup = async () => {
     setShowLocationSetup(false);
     await markLocationSetupShown(dateToKey(new Date()));
     startGeofence(); // pick up whatever was just granted
+    maybeAskPaper(900);
   };
 
   // Tapping the "you've arrived" notification (from the background geofence or the
@@ -567,6 +589,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
       />
 
       <LocationSetupModal visible={showLocationSetup} onDone={finishLocationSetup} />
+      <PaperPickModal visible={showPaperPick} onDone={finishPaperPick} />
 
       <TourModal
         visible={!!activeTour}

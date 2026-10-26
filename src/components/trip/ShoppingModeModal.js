@@ -9,6 +9,8 @@ import { AISLES, aisleFor } from '../../utils/aisles';
 import { useFernVoice } from '../../hooks/useFernVoice';
 import useLanguage from '../../hooks/useLanguage';
 import Confetti from '../Confetti';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STATIONERY_KEY, stationeryById } from '../../constants/stationery';
 import { code128Widths } from '../../utils/code128';
 
 // A real, scannable Code 128 barcode drawn with plain Views (no library). Bars stretch to the card width.
@@ -45,6 +47,18 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   // Only coupons whose redemption is a real code get a barcode.
   const coupons = useMemo(() => (allCoupons || []).filter((m) => m && m.coupon), [allCoupons]);
   const [showCoupons, setShowCoupons] = useState(false); // the full-page coupon list for the register
+  // The paper picked for the Shopping list (device-only fern_stationery) also dresses this checklist.
+  const [paperId, setPaperId] = useState('');
+  useEffect(() => {
+    if (!visible) return;
+    AsyncStorage.getItem(STATIONERY_KEY).then((v) => setPaperId(v || '')).catch(() => {});
+  }, [visible]);
+  const paper = stationeryById(paperId);
+  const pBg = paper ? { backgroundColor: paper.bg } : null;
+  const pInk = paper ? { color: paper.ink } : null;
+  const pHead = paper ? { color: paper.title } : null;
+  const pSub = paper ? { color: paper.sub } : null;
+  const pLine = paper ? { borderBottomColor: paper.accent } : null;
   const [picked, setPicked] = useState(false); // the "on my own or with Fern" choice has been made
   const [showRecap, setShowRecap] = useState(false); // the "what you bought + coupons for the register" screen
 
@@ -317,9 +331,9 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   return (
     <Modal visible={Boolean(visible)} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>{`🌿 ${t('shopmode_title')}`}</Text>
+      <SafeAreaView style={[styles.container, pBg, paper ? paper.frame : null]}>
+        <View style={[styles.header, pLine]}>
+          <Text style={[styles.title, pHead, paper ? { fontFamily: paper.font } : null]}>{`${paper && paper.icon ? paper.icon : '🌿'} ${t('shopmode_title')}`}</Text>
           <TouchableOpacity onPress={finish} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Text style={styles.close}>{t('shopmode_close')}</Text>
           </TouchableOpacity>
@@ -417,20 +431,20 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
             </View>
           ) : currentSection ? (
             <View>
-              <Text style={styles.sectionHeader}>{`${currentSection.emoji} ${currentSection.name} · ${t('shopmode_left', { n: openIn(currentSection.key) })}`}</Text>
-              {status ? <Text style={styles.status}>{status}</Text> : null}
+              <Text style={[styles.sectionHeader, pHead]}>{`${currentSection.emoji} ${currentSection.name} · ${t('shopmode_left', { n: openIn(currentSection.key) })}`}</Text>
+              {status ? <Text style={[styles.status, pSub]}>{status}</Text> : null}
               {currentSection.items.map((it) => (
                 <TouchableOpacity key={it.id} style={styles.row} activeOpacity={0.7} onPress={() => tapRow(it)}>
-                  <View style={[styles.checkbox, it.checked && styles.checkboxChecked]}>
+                  <View style={[styles.checkbox, paper ? { borderColor: paper.accent, backgroundColor: paper.bg } : null, it.checked && styles.checkboxChecked, it.checked && paper ? { backgroundColor: paper.accent, borderColor: paper.accent } : null]}>
                     {it.checked ? <Text style={styles.checkmark}>✓</Text> : null}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.rowText, it.checked && styles.rowTextChecked]} numberOfLines={2}>
+                    <Text style={[styles.rowText, pInk, it.checked && styles.rowTextChecked]} numberOfLines={2}>
                       {it.ids && it.ids.length > 1 ? `${it.text} ×${it.ids.length}` : it.text}
                     </Text>
                     {/* Where it came from: the recipe(s) that need it (not for plain manual adds). */}
                     {it.recipe && !/^(manual add|fern starter|fern suggestion|coupon deal)$/i.test(String(it.recipe).trim()) ? (
-                      <Text style={styles.rowFor} numberOfLines={1}>{t('shopmode_for', { recipe: it.recipe })}</Text>
+                      <Text style={[styles.rowFor, pSub]} numberOfLines={1}>{t('shopmode_for', { recipe: it.recipe })}</Text>
                     ) : null}
                   </View>
                 </TouchableOpacity>

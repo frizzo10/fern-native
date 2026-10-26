@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { chainKey, dealsForStore } from '../utils/flyerStore';
+import PaperChips from '../components/trip/PaperChips';
 import { STATIONERY, STATIONERY_KEY, stationeryById, firstName } from '../constants/stationery';
 import {
   ActivityIndicator,
@@ -160,9 +161,11 @@ export default function ShoppingScreen({ user }) {
   // Stationery: one of ten fixed paper looks for the list (device-only fern_stationery; none = plain).
   const [stationeryId, setStationeryId] = useState(null);
   const [stationeryOpen, setStationeryOpen] = useState(false);
-  useEffect(() => {
-    AsyncStorage.getItem(STATIONERY_KEY).then((v) => { if (v) setStationeryId(v); }).catch(() => {});
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      AsyncStorage.getItem(STATIONERY_KEY).then((v) => setStationeryId(v || null)).catch(() => {});
+    }, [])
+  );
   const pickStationery = (id) => {
     setStationeryId(id);
     AsyncStorage.setItem(STATIONERY_KEY, id || '').catch(() => {});
@@ -1075,6 +1078,15 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
+        {!listOnly ? (
+        <View style={styles.paperBarWrap}>
+          <TouchableOpacity onPress={() => setStationeryOpen((v) => !v)} activeOpacity={0.88} style={styles.paperBar}>
+            <Text style={styles.paperBarText}>{`🎨 ${stationeryOpen ? t('stat_close') : (stat ? t('paper_bar_change', { name: t(`stat_${stat.id}_label`) }) : t('paper_bar'))}`}</Text>
+          </TouchableOpacity>
+          {stationeryOpen ? <PaperChips t={t} value={stat ? stat.id : ''} onPick={pickStationery} /> : null}
+        </View>
+        ) : null}
+
         {showBag ? (
           <View style={styles.bagWrap}>
             <View style={styles.bagPic}>
@@ -1426,25 +1438,6 @@ export default function ShoppingScreen({ user }) {
         {showBag && items.length ? <Text style={styles.stepHead}>{t('step_ready')}</Text> : null}
         {items.length ? (
           <View style={[styles.listWrap, hl('list')]} onLayout={(e) => { sectionY.current.list = e.nativeEvent.layout.y; }}>
-            <TouchableOpacity onPress={() => setStationeryOpen((v) => !v)} activeOpacity={0.85} style={styles.statBtn}>
-              <Text style={styles.statBtnText}>{stationeryOpen ? t('stat_close') : t('stat_choose_btn')}</Text>
-            </TouchableOpacity>
-            {stationeryOpen ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={styles.statPicker} contentContainerStyle={styles.statPickerRow}>
-                <TouchableOpacity onPress={() => pickStationery('')} activeOpacity={0.85} style={[styles.statChip, !stat ? styles.statChipOn : null]}>
-                  <View style={[styles.statSwatch, { backgroundColor: '#FDE8E0', borderColor: '#D8607C' }]} />
-                  <Text style={styles.statChipText}>{t('stat_plain')}</Text>
-                </TouchableOpacity>
-                {STATIONERY.map((st) => (
-                  <TouchableOpacity key={st.id} onPress={() => pickStationery(st.id)} activeOpacity={0.85} style={[styles.statChip, stat && stat.id === st.id ? styles.statChipOn : null]}>
-                    <View style={[styles.statSwatch, { backgroundColor: st.bg, borderColor: st.accent }]}>
-                      <Text style={{ fontSize: 12, color: st.accent }}>{st.icon}</Text>
-                    </View>
-                    <Text style={styles.statChipText} numberOfLines={1}>{t(`stat_${st.id}_label`)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : null}
             <View style={stat ? [styles.statPaper, { backgroundColor: stat.bg }, stat.frame] : null}>
             {stat ? (
               <View style={styles.statHead}>
@@ -1962,6 +1955,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Jost-SemiBold',
   },
   bigListTitle: { fontSize: 30, lineHeight: 36, color: '#8A4A4E', fontFamily: 'Jost-Bold', letterSpacing: 0.5, marginBottom: 4 },
+  paperBarWrap: { marginBottom: 12 },
+  paperBar: { backgroundColor: '#FDE8E0', borderWidth: 1.5, borderColor: '#D8607C', borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginBottom: 8 },
+  paperBarText: { color: '#C0475F', fontSize: 16, fontFamily: 'Jost-Bold' },
   statBtn: { alignSelf: 'flex-end', borderWidth: 1.5, borderColor: '#D8607C', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14, marginBottom: 8 },
   statBtnText: { color: '#C0475F', fontSize: 13, fontFamily: 'Jost-Bold' },
   statPicker: { marginBottom: 10 },
