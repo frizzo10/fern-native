@@ -709,6 +709,8 @@ export default function ShoppingScreen({ user }) {
   };
 
   const remainingCount = useMemo(() => items.filter((item) => !item.checked).length, [items]);
+  const showBag = !listOnly && (!guideStep || guideStep === 'list');
+  const bagStore = guideStoreName ? guideStoreName.split(/ - |#/)[0].trim() : '';
   // The list grouped by store section, in the order you walk the store.
   const aisleSections = useMemo(() => {
     const byAisle = new Map();
@@ -1020,6 +1022,26 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
+        {showBag ? (
+          <View style={[styles.bagCard, shadow.card]}>
+            <Text style={styles.bagTitle}>{`🛍 ${bagStore ? t('bag_title', { store: bagStore }) : t('bag_title_generic')}`}</Text>
+            <Text style={styles.bagSub}>{t('bag_sub')}</Text>
+            <View style={styles.bagGrid}>
+              {[
+                { key: 'list', emoji: '📝', n: remainingCount, full: t('bag_list', { n: remainingCount }), empty: t('bag_empty_list'), target: items.length ? 'list' : 'addRow' },
+                { key: 'sales', emoji: '🏷', n: weekDeals.length, full: t('bag_sales', { n: weekDeals.length }), empty: t('bag_empty_sales'), target: 'sales' },
+                { key: 'dinners', emoji: '🍽', n: Array.isArray(mealCards) ? mealCards.length : 0, full: t('bag_dinners', { n: Array.isArray(mealCards) ? mealCards.length : 0 }), empty: t('bag_empty_dinners'), target: 'meals' },
+                { key: 'coupons', emoji: '🎟', n: listCoupons.length + greatDeals.length, full: t('bag_coupons', { n: listCoupons.length + greatDeals.length }), empty: t('bag_empty_coupons'), target: 'couponCard' },
+              ].map((chip) => (
+                <TouchableOpacity key={chip.key} style={[styles.bagChip, chip.n > 0 ? styles.bagChipOn : null]} activeOpacity={0.85} onPress={() => goTo(sectionY.current[chip.target] != null ? chip.target : (chip.target === 'couponCard' ? 'coupons' : chip.target))}>
+                  <Text style={styles.bagChipEmoji}>{chip.emoji}</Text>
+                  <Text style={[styles.bagChipText, chip.n > 0 ? styles.bagChipTextOn : null]} numberOfLines={2}>{chip.n > 0 ? chip.full : chip.empty}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         {(!guideStep || guideStep === 'list') ? (
         <>
         {!guideStep && !listOnly ? (
@@ -1040,6 +1062,7 @@ export default function ShoppingScreen({ user }) {
         />
         ) : null}
 
+        {showBag ? <Text style={styles.stepHead}>{t('step_build_list')}</Text> : null}
         <View style={[styles.addRow, hl('addRow')]} onLayout={(e) => { sectionY.current.addRow = e.nativeEvent.layout.y; }}>
           <TextInput
             value={draft}
@@ -1110,6 +1133,7 @@ export default function ShoppingScreen({ user }) {
         {/* "This week's sales" only shows once a flyer has been scanned; the empty-state box is gone.
             The bare anchor keeps the step strip's "Sales" scroll target working either way. */}
         {!weekDeals.length ? <View onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }} /> : null}
+        {showBag && weekDeals.length > 0 ? <Text style={styles.stepHead}>{t('step_sales')}</Text> : null}
         {weekDeals.length > 0 && (!guideStep || guideStep === 'list') && !listOnly ? (
         <View style={hl('sales')} onLayout={(e) => { sectionY.current.sales = e.nativeEvent.layout.y; }}>
           {weekDeals.length ? (
@@ -1159,6 +1183,7 @@ export default function ShoppingScreen({ user }) {
 
         <View onLayout={(e) => { sectionY.current.coupons = e.nativeEvent.layout.y; }} />
 
+        {showBag ? <Text style={styles.stepHead}>{t('step_dinners')}</Text> : null}
         {(!guideStep || guideStep === 'meals' || guideStep === 'list') && !listOnly ? (
         <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
           <WeekMealsSection
@@ -1180,6 +1205,7 @@ export default function ShoppingScreen({ user }) {
         </View>
         ) : null}
 
+        {showBag && (greatDeals.length > 0 || listCoupons.length > 0) ? <Text style={styles.stepHead}>{t('step_coupons')}</Text> : null}
         {(greatDeals.length > 0 || listCoupons.length > 0) && guideStep !== 'meals' && !listOnly ? (
           <View style={[styles.greatCard, shadow.card, hl('couponCard')]} onLayout={(e) => { sectionY.current.couponCard = e.nativeEvent.layout.y; }}>
             <Text style={styles.checkoutTitle}>{`🎟 ${t('sav_coupons')}`}</Text>
@@ -1297,6 +1323,7 @@ export default function ShoppingScreen({ user }) {
 
         {(!guideStep || guideStep === 'list' || guideStep === 'ready') ? (
         <>
+        {showBag && items.length ? <Text style={styles.stepHead}>{t('step_ready')}</Text> : null}
         {items.length ? (
           <View style={[styles.listWrap, hl('list')]} onLayout={(e) => { sectionY.current.list = e.nativeEvent.layout.y; }}>
             {guideStep ? <Text style={styles.bigListTitle}>{t('shopping_list_title')}</Text> : null}
@@ -1388,6 +1415,7 @@ export default function ShoppingScreen({ user }) {
         {items.length ? (
           <TouchableOpacity style={[styles.shopBtn, shadow.strong]} activeOpacity={0.9} onPress={startShopping}>
             <Text style={styles.shopBtnText}>{`🛒 ${t('shop_start_btn')}`}</Text>
+            <Text style={styles.shopBtnSub}>{t('shop_start_sub')}</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -1830,6 +1858,17 @@ const styles = StyleSheet.create({
   greatValue: { color: '#C25A12', fontSize: 15, fontFamily: 'Jost-Bold', marginTop: 2 },
   shopBtn: { backgroundColor: colors.orange, borderRadius: 999, paddingVertical: 16, alignItems: 'center', marginTop: 4, marginBottom: 12 },
   shopBtnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  shopBtnSub: { color: '#FFE9D6', fontSize: 12, fontFamily: 'Jost-Regular', marginTop: 2 },
+  stepHead: { color: '#C25A12', fontSize: 12, letterSpacing: 1.2, fontFamily: 'Jost-Bold', marginTop: 14, marginBottom: 6 },
+  bagCard: { backgroundColor: '#FFFFFF', borderRadius: 18, borderWidth: 2, borderColor: '#E8651A', padding: 14, marginBottom: 6 },
+  bagTitle: { color: '#2B1E13', fontSize: 19, fontFamily: 'Jost-Bold' },
+  bagSub: { color: '#5A4630', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginTop: 4, marginBottom: 10 },
+  bagGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  bagChip: { width: '48.5%', flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4EFE7', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 10, marginBottom: 8 },
+  bagChipOn: { backgroundColor: '#E8F1E6' },
+  bagChipEmoji: { fontSize: 22, marginRight: 8 },
+  bagChipText: { flex: 1, color: '#8A7A66', fontSize: 14, lineHeight: 18, fontFamily: 'Jost-SemiBold' },
+  bagChipTextOn: { color: '#1F3D2B' },
   doneBtn: {
     backgroundColor: colors.forest,
     borderRadius: 14,
