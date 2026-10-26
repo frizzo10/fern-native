@@ -16,6 +16,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { getDifficultyLevel } from '../utils/recipeNormalize';
 import useLanguage from '../hooks/useLanguage';
@@ -91,6 +92,17 @@ export default function RecipeDetailModal({
   useEffect(() => { setIngredientOverrides({}); }, [recipe?.id, recipe?.title]);
   useEffect(() => { if (recipe?.title) trackEvent('recipe_view', recipe.title); }, [recipe?.id, recipe?.title]);
   const [isSharing, setIsSharing] = useState(false);
+  // Photo viewing: the hero swipes (heroIdx drives the dots); tapping it opens a full-screen
+  // viewer drawn inside this same Modal (a second Modal would be dropped by iOS). viewer = null or
+  // { index, grid }.
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const [heroIdx, setHeroIdx] = useState(0);
+  const [viewer, setViewer] = useState(null);
+  useEffect(() => { setHeroIdx(0); setViewer(null); }, [recipe?.id, recipe?.title]);
+  const gallery = Array.isArray(recipe?.photos) && recipe.photos.length > 0
+    ? recipe.photos
+    : (photoUrl ? [photoUrl] : []);
+  const openViewer = (index) => { if (gallery.length) setViewer({ index: Math.max(0, Math.min(gallery.length - 1, index)), grid: false }); };
 
   const handleSubstitute = async (sub) => {
     const idx = substitutionIdx;
@@ -373,11 +385,49 @@ export default function RecipeDetailModal({
                 contentContainerStyle={styles.overlayContent}
               >
                 <View style={styles.overlayImageWrap}>
-                  <ImageBackground
-                    source={photoUrl ? { uri: photoUrl } : require('../../assets/icon.png')}
-                    style={styles.overlayImage}
-                    imageStyle={styles.overlayImageInner}
-                  />
+                  {gallery.length > 1 ? (
+                    <ScrollView
+                      horizontal
+                      pagingEnabled
+                      nestedScrollEnabled
+                      showsHorizontalScrollIndicator={false}
+                      onMomentumScrollEnd={(e) => {
+                        const w = e.nativeEvent.layoutMeasurement.width || screenW;
+                        setHeroIdx(Math.round(e.nativeEvent.contentOffset.x / w));
+                      }}
+                      style={styles.overlayImage}
+                    >
+                      {gallery.map((uri, i) => (
+                        <TouchableOpacity key={`hero-${i}`} activeOpacity={0.95} onPress={() => openViewer(i)}>
+                          <ImageBackground
+                            source={{ uri }}
+                            style={{ width: screenW, height: 300 }}
+                            imageStyle={styles.overlayImageInner}
+                          />
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.overlayImage}
+                      activeOpacity={0.95}
+                      disabled={!gallery.length}
+                      onPress={() => openViewer(0)}
+                    >
+                      <ImageBackground
+                        source={photoUrl ? { uri: photoUrl } : require('../../assets/icon.png')}
+                        style={styles.overlayImage}
+                        imageStyle={styles.overlayImageInner}
+                      />
+                    </TouchableOpacity>
+                  )}
+                  {gallery.length > 1 ? (
+                    <View style={styles.heroDots} pointerEvents="none">
+                      {gallery.map((_, i) => (
+                        <View key={`dot-${i}`} style={[styles.heroDot, i === heroIdx ? styles.heroDotOn : null]} />
+                      ))}
+                    </View>
+                  ) : null}
 
                   <TouchableOpacity
                     style={styles.overlayCloseBtn}
@@ -505,9 +555,8 @@ export default function RecipeDetailModal({
                       recipe.photos.map((uri, photoIdx) => (
                         <TouchableOpacity
                           key={`recipe-photo-${photoIdx}`}
-                          activeOpacity={onSetPhotos ? 0.7 : 1}
-                          disabled={!onSetPhotos}
-                          onPress={() => handlePhotoMenu(photoIdx)}
+                          activeOpacity={0.7}
+                          onPress={() => openViewer(photoIdx)}
                         >
                           <ImageBackground
                             source={{ uri }}
@@ -520,9 +569,14 @@ export default function RecipeDetailModal({
                               </View>
                             ) : null}
                             {onSetPhotos ? (
-                              <View style={styles.photoMoreBtn}>
+                              <TouchableOpacity
+                                style={styles.photoMoreBtn}
+                                activeOpacity={0.7}
+                                onPress={() => handlePhotoMenu(photoIdx)}
+                                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                              >
                                 <Text style={styles.photoMoreBtnText}>⋯</Text>
-                              </View>
+                              </TouchableOpacity>
                             ) : null}
                           </ImageBackground>
                         </TouchableOpacity>
@@ -791,6 +845,69 @@ export default function RecipeDetailModal({
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
+        ) : null}
+
+        {recipe && viewer && gallery.length > 0 ? (
+          <View style={styles.viewerWrap}>
+            {viewer.grid ? (
+              <ScrollView contentContainerStyle={styles.viewerGrid}>
+                {gallery.map((uri, i) => {
+                  const cell = (screenW - 16 * 2 - 8) / 2;
+                  return (
+                    <TouchableOpacity
+                      key={`grid-${i}`}
+                      activeOpacity={0.85}
+                      onPress={() => setViewer({ index: i, grid: false })}
+                      style={{ width: cell, height: i === 0 ? cell * 1.1 : cell, marginBottom: 8 }}
+                    >
+                      <ImageBackground source={{ uri }} style={styles.viewerGridImg} imageStyle={styles.viewerGridImgInner} />
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <ScrollView
+                key={`viewer-${viewer.index}`}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                contentOffset={{ x: viewer.index * screenW, y: 0 }}
+                onMomentumScrollEnd={(e) => {
+                  const i = Math.round(e.nativeEvent.contentOffset.x / (e.nativeEvent.layoutMeasurement.width || screenW));
+                  setViewer((v) => (v && v.index !== i ? { ...v, index: i } : v));
+                }}
+              >
+                {gallery.map((uri, i) => (
+                  <ScrollView
+                    key={`zoom-${i}`}
+                    style={{ width: screenW }}
+                    contentContainerStyle={{ width: screenW, height: screenH, justifyContent: 'center' }}
+                    maximumZoomScale={3}
+                    minimumZoomScale={1}
+                    bouncesZoom
+                    showsVerticalScrollIndicator={false}
+                    showsHorizontalScrollIndicator={false}
+                    centerContent
+                  >
+                    <ImageBackground source={{ uri }} style={{ width: screenW, height: screenH * 0.8 }} imageStyle={{ resizeMode: 'contain' }} />
+                  </ScrollView>
+                ))}
+              </ScrollView>
+            )}
+            <View style={styles.viewerTop} pointerEvents="box-none">
+              <TouchableOpacity
+                style={styles.viewerBtn}
+                onPress={() => setViewer((v) => (v ? { ...v, grid: !v.grid } : v))}
+                accessibilityLabel={t(viewer.grid ? 'photo_view_swipe' : 'photo_view_grid')}
+              >
+                <Text style={styles.viewerBtnText}>{viewer.grid ? '▭' : '▦'}</Text>
+              </TouchableOpacity>
+              {!viewer.grid ? <Text style={styles.viewerCount}>{viewer.index + 1} / {gallery.length}</Text> : <View />}
+              <TouchableOpacity style={styles.viewerBtn} onPress={() => setViewer(null)} accessibilityLabel={t('photo_viewer_close')}>
+                <Text style={styles.viewerBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         ) : null}
 
         <ScaleRecipeModal
@@ -1104,6 +1221,60 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   photoMoreBtnText: { color: '#8A4A4E', fontSize: 18, fontWeight: '800', marginTop: -6 },
+  heroDots: {
+    position: 'absolute',
+    bottom: 10,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  heroDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginHorizontal: 3,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+  },
+  heroDotOn: { backgroundColor: '#FFFFFF', width: 9, height: 9, borderRadius: 5 },
+  viewerWrap: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#1A0E10',
+    zIndex: 50,
+  },
+  viewerTop: {
+    position: 'absolute',
+    top: 54,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  viewerBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewerBtnText: { color: '#FFFFFF', fontSize: 20, fontWeight: '700' },
+  viewerCount: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  viewerGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 110,
+    paddingBottom: 40,
+  },
+  viewerGridImg: { flex: 1 },
+  viewerGridImgInner: { borderRadius: 12 },
   photoHint: { marginTop: 8, color: '#A9756F', fontSize: 12 },
   overlayThumbImageInner: {
     borderRadius: 10,
