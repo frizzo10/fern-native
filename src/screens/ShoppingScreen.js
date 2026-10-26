@@ -624,8 +624,8 @@ export default function ShoppingScreen({ user }) {
   // The Shopping button under the list: find out whether the user is at a saved store (GPS), then open Shop with Fern.
   // Not at a store -> Fern stays store-agnostic and asks whether to go straight into shopping mode.
   const startShopping = () => {
-    // Straight into the checklist: no questions first.
-    setShopModeVoice(true);
+    // The modal's first screen asks: on my own, or with Fern talking.
+    setShopModeVoice(false);
     setShopModeOpen(true);
   };
 
@@ -1552,6 +1552,7 @@ export default function ShoppingScreen({ user }) {
         items={items}
         user={user}
         voice={shopModeVoice}
+        onPickVoice={setShopModeVoice}
         coupons={checkoutCoupons}
         usedIds={usedIds}
         onToggleCouponUsed={toggleCouponUsed}

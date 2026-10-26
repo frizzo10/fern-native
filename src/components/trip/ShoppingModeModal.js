@@ -28,7 +28,7 @@ function Barcode({ value }) {
 // Stores reported to take Coupons.com digital coupons (loaded to the store account). Anything else gets a "check first" note.
 const DIGITAL_OK = /publix|kroger|albertsons|safeway|food lion|meijer|walgreens|dollar general/i;
 
-export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed, onClearChecked, storeName = '' }) {
+export default function ShoppingModeModal({ visible, items, onSetChecked, onClose, user, voice, coupons: allCoupons = [], usedIds, onToggleCouponUsed, onClearChecked, storeName = '', onPickVoice }) {
   const { t } = useLanguage();
   const { prepareSpeech, playPrepared, stopSpeaking, isSpeaking } = useFernVoice({
     onError: (m) => console.warn('[ShoppingMode] voice error:', m),
@@ -45,6 +45,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
   // Only coupons whose redemption is a real code get a barcode.
   const coupons = useMemo(() => (allCoupons || []).filter((m) => m && m.coupon), [allCoupons]);
   const [showCoupons, setShowCoupons] = useState(false); // the full-page coupon list for the register
+  const [picked, setPicked] = useState(false); // the "on my own or with Fern" choice has been made
   const [showRecap, setShowRecap] = useState(false); // the "what you bought + coupons for the register" screen
 
   const sections = useMemo(() => {
@@ -153,27 +154,27 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 
   // Start fresh each time it opens, and read the first section.
   useEffect(() => {
-    if (!visible) { announced.current = false; setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); setShowCoupons(false); resetSpeech(); stopSpeaking?.(); return; }
-    if (announced.current || !current) return;
+    if (!visible) { announced.current = false; setPicked(false); setSkipped([]); setStatus(''); setCelebrate(null); setShowRecap(false); setShowCoupons(false); resetSpeech(); stopSpeaking?.(); return; }
+    if (!picked || announced.current || !current) return;
     announced.current = true;
     say([t(storeName ? 'shopmode_start_store' : 'shopmode_start', { store: storeName, n: open.length }), intro(current.sectionKey)], { keep: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, current?.id]);
+  }, [visible, current?.id, picked]);
 
   // Only left-behind items remain: bring them back around.
   useEffect(() => {
-    if (!visible || current || !open.length) return;
+    if (!visible || !picked || current || !open.length) return;
     setSkipped([]);
     say(t('shopmode_skipped_back'), { keep: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, current, open.length]);
+  }, [visible, picked, current, open.length]);
 
   // "Read the list ahead of time": when it opens with voice on, fetch every line Fern is likely to say (opening, each
   // section intro, each item's "checked off", the countdown, section done) a few at a time, in the order they will be needed.
   const prefetched = useRef(false);
   useEffect(() => {
     if (!visible) { prefetched.current = false; lineCache.current = new Map(); return; }
-    if (!voice || prefetched.current || !flat.length) return;
+    if (!picked || !voice || prefetched.current || !flat.length) return;
     prefetched.current = true;
     const lines = [];
     const add = (x) => { if (x && !lines.includes(x)) lines.push(x); };
@@ -200,7 +201,7 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     };
     worker(); worker(); worker();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, voice, flat.length]);
+  }, [visible, voice, picked, flat.length]);
 
   const gotRef = useRef({});
   const got = async (item) => {
@@ -273,6 +274,34 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
     if (!recapOn && boughtCount > 0) { resetSpeech(); stopSpeaking?.(); setShowRecap(true); return; }
     onClose();
   };
+
+  const choose = (withFern) => { onPickVoice?.(withFern); setPicked(true); };
+
+  if (visible && !picked) {
+    return (
+      <Modal visible animationType="slide" onRequestClose={onClose}>
+        <SafeAreaView style={styles.container}>
+          <View style={styles.header}>
+            <Text style={styles.title}>{`🌿 ${t('shopmode_title')}`}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Text style={styles.close}>{t('shopmode_close')}</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.choiceWrap}>
+            <Text style={styles.choiceTitle}>{t('shopmode_choice_title')}</Text>
+            <TouchableOpacity style={styles.choiceBtn} activeOpacity={0.85} onPress={() => choose(false)}>
+              <Text style={styles.choiceBtnText}>{`🛒 ${t('shopmode_choice_own')}`}</Text>
+              <Text style={styles.choiceBtnSub}>{t('shopmode_choice_own_sub')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.choiceBtn, styles.choiceBtnFern]} activeOpacity={0.85} onPress={() => choose(true)}>
+              <Text style={[styles.choiceBtnText, { color: '#fff' }]}>{`🌿 ${t('shopmode_choice_fern')}`}</Text>
+              <Text style={[styles.choiceBtnSub, { color: '#E8F0E4' }]}>{t('shopmode_choice_fern_sub')}</Text>
+            </TouchableOpacity>
+          </View>
+        </SafeAreaView>
+      </Modal>
+    );
+  }
 
   return (
     <Modal visible={Boolean(visible)} animationType="slide" onRequestClose={onClose}>
@@ -412,6 +441,12 @@ export default function ShoppingModeModal({ visible, items, onSetChecked, onClos
 }
 
 const styles = StyleSheet.create({
+  choiceWrap: { flex: 1, justifyContent: 'center', paddingHorizontal: 20, gap: 14 },
+  choiceTitle: { fontSize: 24, fontWeight: '800', color: colors.ink, textAlign: 'center', marginBottom: 10 },
+  choiceBtn: { backgroundColor: colors.paper, borderWidth: 2, borderColor: colors.border, borderRadius: 18, paddingVertical: 22, paddingHorizontal: 18, alignItems: 'center' },
+  choiceBtnFern: { backgroundColor: colors.bright, borderColor: colors.bright },
+  choiceBtnText: { fontSize: 20, fontWeight: '800', color: colors.ink },
+  choiceBtnSub: { fontSize: 14, color: colors.brown, marginTop: 6, textAlign: 'center' },
   container: { flex: 1, backgroundColor: colors.parch },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border },
   title: { fontSize: 20, fontWeight: '800', color: colors.ink },
