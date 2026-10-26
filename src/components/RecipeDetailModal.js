@@ -295,7 +295,11 @@ export default function RecipeDetailModal({
   };
 
   const uploadAndSetRecipeImage = async (pickerResult) => {
-    if (!pickerResult?.photo?.base64) return;
+    const why = (m) => Alert.alert(t('recipe_image_update_failed_title'), `${t('recipe_image_update_failed_desc')}\n\n${m}`);
+    if (!pickerResult) return why('The photo picker gave no answer.');
+    if (pickerResult.permissionDenied) return why('Photo permission is off. Turn it on in Settings > Fern.');
+    if (pickerResult.canceled) return;
+    if (!pickerResult.photo?.base64) return why('The picked photo had no picture data (try another photo, or take a new one).');
     setIsUploadingImage(true);
     try {
       const dataUri = `data:${pickerResult.photo.mimeType || 'image/jpeg'};base64,${pickerResult.photo.base64}`;
@@ -335,8 +339,8 @@ export default function RecipeDetailModal({
       t('recipe_image_picker_title'),
       '',
       [
-        { text: t('take_photo_btn'), onPress: () => pickPhotoFromCamera({ maxWidth: 1600, quality: 0.6 }).then(uploadAndSetRecipeImage) },
-        { text: t('upload_image_btn'), onPress: () => pickPhotoFromLibrary({ maxWidth: 1600, quality: 0.6 }).then(uploadAndSetRecipeImage) },
+        { text: t('take_photo_btn'), onPress: () => pickPhotoFromCamera({ maxWidth: 1600, quality: 0.6 }).then(uploadAndSetRecipeImage).catch((e) => Alert.alert(t('recipe_image_update_failed_title'), String(e?.message || e))) },
+        { text: t('upload_image_btn'), onPress: () => pickPhotoFromLibrary({ maxWidth: 1600, quality: 0.6 }).then(uploadAndSetRecipeImage).catch((e) => Alert.alert(t('recipe_image_update_failed_title'), String(e?.message || e))) },
         { text: t('cancel_btn'), style: 'cancel' },
       ]
     );
