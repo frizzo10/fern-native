@@ -17,11 +17,19 @@ import { streakWeeks, pagesThisWeek } from '../../utils/scanStats';
 import { storeCouponUrl } from '../trip/DigitalCouponHowTo';
 import MealPlannerImage from '../MealPlannerImage';
 
-const FOREST = '#1C3A1A';
-const ORANGE = '#E8651A';
+// Soft peach palette (2026-10-26). FOREST is kept as the name of the main ink/icon colour so every
+// existing reference follows the new palette; PANEL/CARD/LINE/BERRY are the new surfaces.
+const FOREST = '#8A4A4E';
+const PANEL = '#FBD9CE';
+const CARD = '#FDE8E0';
+const LINE = '#F3C9BD';
+const BERRY = '#D8607C';
+const ROSE = '#7A3C42';
+const MUTE = '#A9756F';
+const ORANGE = '#D8607C';
 const CREAM = '#F3EEE4';
-const SAGE = '#A8D5A2';
-const BORDER = '#E6DCCF';
+const SAGE = '#FBD9CE';
+const BORDER = '#F3C9BD';
 const BROWN = '#7A5C3A';
 
 function ToolRow({ item, last }) {
@@ -229,21 +237,21 @@ export default function NewHome({
                   <Text style={styles.storeCardName} numberOfLines={1}>{shortName}</Text>
                   {st ? (
                     <View style={styles.storeStatusRow}>
-                      <View style={[styles.storeDot, { backgroundColor: st.kind === 'ready' ? '#8FD18A' : '#F5C98B' }]} />
-                      <Text style={[styles.storeStatusText, { color: st.kind === 'ready' ? '#C9E6C4' : '#F5C98B' }]} numberOfLines={1}>{st.text}</Text>
+                      <View style={[styles.storeDot, { backgroundColor: st.kind === 'ready' ? '#6FAF88' : '#B8741F' }]} />
+                      <Text style={[styles.storeStatusText, { color: st.kind === 'ready' ? '#4E8F6A' : '#B8741F' }]} numberOfLines={1}>{st.text}</Text>
                     </View>
                   ) : null}
                 </View>
                 <TouchableOpacity style={styles.storeMoreBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} onPress={() => openStoreMenu(s, i)} accessibilityRole="button" accessibilityLabel={t('store_more_a11y')}>
-                  <Ionicons name="ellipsis-horizontal" size={20} color={CREAM} />
+                  <Ionicons name="ellipsis-horizontal" size={20} color={ROSE} />
                 </TouchableOpacity>
-                <Ionicons name="chevron-forward" size={18} color={SAGE} />
+                <Ionicons name="chevron-forward" size={18} color={MUTE} />
               </TouchableOpacity>
             );
           })}
         </View>
         <TouchableOpacity style={styles.addStoreBtn} activeOpacity={0.85} onPress={onAddStore} accessibilityRole="button">
-          <Ionicons name="add" size={18} color="#fff" />
+          <Ionicons name="add" size={18} color={ROSE} />
           <Text style={styles.addStoreText}>{t('home_add_store_a11y')}</Text>
         </TouchableOpacity>
         {scanStats && scanStats.total > 0 ? (
@@ -332,7 +340,7 @@ export default function NewHome({
             <Ionicons
               name={d.meals?.dinner ? 'checkmark' : 'add'}
               size={16}
-              color={d.meals?.dinner ? (d.isToday ? SAGE : '#2D5A27') : '#C4521A'}
+              color={d.meals?.dinner ? (d.isToday ? SAGE : '#2D5A27') : BERRY}
             />
             <View style={[styles.actDot, d.activities && d.activities.length ? styles.actDotOn : null]} />
           </TouchableOpacity>
@@ -401,38 +409,38 @@ const styles = StyleSheet.create({
   brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandText: { fontFamily: 'Playfair-Bold', fontSize: 24, color: FOREST },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  tierPill: { backgroundColor: '#F6E3C4', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  tierPillText: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 0.8, color: '#8A4A0E' },
+  tierPill: { backgroundColor: '#FFEBE3', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  tierPillText: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 0.8, color: '#9A3F44' },
   roundBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: BORDER, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   langBtn: { width: undefined, paddingHorizontal: 12 },
   langText: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: FOREST },
 
-  hero: { backgroundColor: FOREST, borderRadius: 28, padding: 18, shadowColor: FOREST, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, elevation: 6 },
+  hero: { backgroundColor: PANEL, borderRadius: 28, padding: 18, shadowColor: FOREST, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 6 },
   scanWrap: { alignItems: 'center', justifyContent: 'center', height: 190, marginBottom: 6 },
   scanHalo: { position: 'absolute', width: 150, height: 150, borderRadius: 75, backgroundColor: ORANGE },
   scanBtn: { width: 150, height: 150, borderRadius: 75, backgroundColor: ORANGE, alignItems: 'center', justifyContent: 'center', gap: 4, paddingHorizontal: 14, borderWidth: 3, borderColor: 'rgba(255,255,255,0.35)' },
   scanBtnText: { fontFamily: 'Jost-Bold', fontSize: 17, lineHeight: 20, color: '#fff', textAlign: 'center' },
   guideBtn: { marginTop: 16, height: 50, borderRadius: 25, backgroundColor: CREAM, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   guideBtnText: { fontFamily: 'Jost-Bold', fontSize: 16, color: FOREST },
-  heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: SAGE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
+  heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: MUTE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
   storeList: { marginTop: 2, gap: 10 },
-  storeCard: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 68, paddingVertical: 12, paddingLeft: 16, paddingRight: 12, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.09)', borderWidth: 1, borderColor: 'rgba(168,213,162,0.22)' },
-  storeCardName: { fontFamily: 'Jost-Bold', fontSize: 19, color: CREAM },
+  storeCard: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 68, paddingVertical: 12, paddingLeft: 16, paddingRight: 12, borderRadius: 18, backgroundColor: CARD, borderWidth: 1, borderColor: LINE },
+  storeCardName: { fontFamily: 'Jost-Bold', fontSize: 19, color: ROSE },
   storeStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 4 },
   storeDot: { width: 8, height: 8, borderRadius: 4 },
   storeStatusText: { fontFamily: 'Jost-Medium', fontSize: 14, flexShrink: 1 },
-  storeMoreBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.1)', alignItems: 'center', justifyContent: 'center' },
+  storeMoreBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.7)', alignItems: 'center', justifyContent: 'center' },
   storeLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(168,213,162,0.25)' },
-  scanBadge: { fontFamily: 'Jost-Medium', fontSize: 11, color: '#F5C98B', marginTop: 1 },
-  boardBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#F5C98B', alignItems: 'center', justifyContent: 'center' },
-  boardBtnText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: '#F5C98B' },
-  scanStatsLine: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#F5C98B', marginTop: 10, marginLeft: 2 },
+  scanBadge: { fontFamily: 'Jost-Medium', fontSize: 11, color: '#B8741F', marginTop: 1 },
+  boardBtn: { alignSelf: 'flex-start', marginTop: 8, minHeight: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, borderColor: '#B8741F', alignItems: 'center', justifyContent: 'center' },
+  boardBtnText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: '#B8741F' },
+  scanStatsLine: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#B8741F', marginTop: 10, marginLeft: 2 },
   storeLineText: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 14, color: CREAM },
   storeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   storeChip: { height: 44, maxWidth: 170, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, borderColor: 'rgba(168,213,162,0.35)', backgroundColor: 'rgba(255,255,255,0.08)', flexDirection: 'row', alignItems: 'center', gap: 7 },
   storeChipText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: CREAM, flexShrink: 1 },
   addChip: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(168,213,162,0.5)', alignItems: 'center', justifyContent: 'center' },
-  heroHint: { fontFamily: 'Jost-Regular', fontSize: 13, color: '#B7C7AE', marginTop: 8, marginLeft: 2 },
+  heroHint: { fontFamily: 'Jost-Regular', fontSize: 13, color: MUTE, marginTop: 8, marginLeft: 2 },
   askBar: { marginTop: 16, height: 54, borderRadius: 18, backgroundColor: CREAM, flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 16, paddingRight: 6 },
   askPlaceholder: { flex: 1, fontFamily: 'Jost-Regular', fontSize: 15, color: BROWN },
   micBtn: { width: 42, height: 42, borderRadius: 21, backgroundColor: FOREST, alignItems: 'center', justifyContent: 'center' },
@@ -446,7 +454,7 @@ const styles = StyleSheet.create({
   photo: { width: '100%', height: '100%' },
   photoEmoji: { fontSize: 40 },
   tonightText: { flex: 1, justifyContent: 'center', gap: 5 },
-  tonightLabel: { fontFamily: 'Jost-Bold', fontSize: 12, letterSpacing: 1, color: '#C4521A' },
+  tonightLabel: { fontFamily: 'Jost-Bold', fontSize: 12, letterSpacing: 1, color: BERRY },
   tonightTitle: { fontFamily: 'Playfair-SemiBold', fontSize: 19, lineHeight: 24, color: colors.ink },
   activityChip: { alignSelf: 'flex-start', backgroundColor: '#F5EFE6', borderRadius: 999, paddingHorizontal: 9, paddingVertical: 4, maxWidth: '100%' },
   activityChipText: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: BROWN },
@@ -454,7 +462,7 @@ const styles = StyleSheet.create({
   weekRow: { flexDirection: 'row', gap: 6, marginTop: 10 },
   dayCell: { flex: 1, alignItems: 'center', gap: 3, paddingTop: 8, paddingBottom: 7, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1, borderColor: BORDER },
   dayCellToday: { backgroundColor: FOREST, borderColor: FOREST },
-  dayCellSelected: { borderColor: '#C4521A', borderWidth: 2 },
+  dayCellSelected: { borderColor: BERRY, borderWidth: 2 },
   dayPanel: { marginTop: 12, backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 14, paddingVertical: 12 },
   dayPanelTitle: { fontFamily: 'Playfair-Bold', fontSize: 18, color: FOREST, marginBottom: 6 },
   dayName: { fontFamily: 'Jost-SemiBold', fontSize: 11, color: BROWN },
@@ -477,7 +485,7 @@ const styles = StyleSheet.create({
   sheetTitle: { fontFamily: 'Playfair-Bold', fontSize: 22, color: FOREST, marginBottom: 10 },
   sheetEmpty: { fontFamily: 'Jost-Regular', fontSize: 14, color: BROWN, marginBottom: 6 },
   sheetRow: { flexDirection: 'row', gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EFE6DA' },
-  sheetSlot: { width: 96, fontFamily: 'Jost-Bold', fontSize: 12, letterSpacing: 0.4, color: '#C4521A' },
+  sheetSlot: { width: 96, fontFamily: 'Jost-Bold', fontSize: 12, letterSpacing: 0.4, color: BERRY },
   sheetItem: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 15, color: colors.ink },
   sheetBtns: { flexDirection: 'row', gap: 10, marginTop: 16 },
   sheetPrimary: { flex: 1, minHeight: 48, borderRadius: 14, backgroundColor: FOREST, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
@@ -494,29 +502,29 @@ const styles = StyleSheet.create({
   toolLabel: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 15, color: colors.ink },
   toolValue: { fontFamily: 'Jost-Bold', fontSize: 14, color: FOREST },
   lockBadge: { backgroundColor: '#E8F1E3', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 3 },
-  lockBadgeMax: { backgroundColor: '#F6E3C4' },
+  lockBadgeMax: { backgroundColor: '#FFEBE3' },
   lockBadgeText: { fontFamily: 'Jost-Bold', fontSize: 10, letterSpacing: 0.6, color: '#2D5A27' },
-  lockBadgeTextMax: { color: '#8A4A0E' },
+  lockBadgeTextMax: { color: '#9A3F44' },
   greetTitle: { fontFamily: 'Playfair-Bold', fontSize: 28, color: FOREST },
-  greetSub: { fontFamily: 'Jost-Regular', fontSize: 16, color: '#6B5F4E', marginTop: 4 },
+  greetSub: { fontFamily: 'Jost-Regular', fontSize: 16, color: '#8E6A66', marginTop: 4 },
   fernDot: { width: 40, height: 40, borderRadius: 20, backgroundColor: SAGE, alignItems: 'center', justifyContent: 'center' },
   fernName: { fontFamily: 'Jost-SemiBold', fontSize: 19, color: '#fff' },
-  autoRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 10, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 999, paddingVertical: 6, paddingLeft: 14, paddingRight: 8 },
-  autoTitle: { fontFamily: 'Jost-SemiBold', fontSize: 15, color: '#fff' },
+  autoRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 10, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 999, paddingVertical: 6, paddingLeft: 14, paddingRight: 8 },
+  autoTitle: { fontFamily: 'Jost-SemiBold', fontSize: 15, color: ROSE },
   autoSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#C9E3C4', marginTop: 2 },
-  switchTrack: { width: 42, height: 24, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.25)', padding: 3, justifyContent: 'center' },
+  switchTrack: { width: 42, height: 24, borderRadius: 12, backgroundColor: 'rgba(138,74,78,0.25)', padding: 3, justifyContent: 'center' },
   switchTrackOn: { backgroundColor: ORANGE },
   switchKnob: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff', alignSelf: 'flex-start' },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, backgroundColor: '#F3EEDC', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16 },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16 },
   listTitle: { fontFamily: 'Jost-SemiBold', fontSize: 18, color: FOREST },
-  listSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#5B4F3E' },
-  listOpen: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: '#B84A0C' },
+  listSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: MUTE },
+  listOpen: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: BERRY },
   quickRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  quickBtn: { flex: 1, height: 72, borderRadius: 18, backgroundColor: '#F3EEDC', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  quickBtn: { flex: 1, height: 72, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', gap: 4 },
   quickText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: FOREST },
-  storeHint: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#C9E3C4', marginTop: -6, marginBottom: 6, marginLeft: 2 },
-  addStoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: SAGE, marginTop: 10 },
-  addStoreText: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: '#fff' },
+  storeHint: { fontFamily: 'Jost-Regular', fontSize: 14, color: MUTE, marginTop: -6, marginBottom: 6, marginLeft: 2 },
+  addStoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: BERRY, marginTop: 10 },
+  addStoreText: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: ROSE },
   pickPage: { flex: 1, backgroundColor: '#FBF8F1', paddingTop: 56, paddingHorizontal: 20, paddingBottom: 28 },
   pickBack: { fontFamily: 'Jost-SemiBold', fontSize: 17, color: FOREST },
   pickTitle: { fontFamily: 'Playfair-Bold', fontSize: 28, color: FOREST, marginTop: 8 },

@@ -476,7 +476,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
 
   return (
     <NavigationContainer ref={navigationRef}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       {/* Sync failure banner -- shown above the arrival banner since a
           failed sync is a more fundamental problem than a store arrival */}
       {syncError && !syncBannerDismissed && (
@@ -614,23 +614,23 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           headerTitle: () => <AppTabHeader />,
           headerTitleAlign: 'left',
           headerStyle: {
-            backgroundColor: '#1C3A1A',
+            backgroundColor: '#F0B3A3',
             height: 100,
           },
-          headerTintColor: '#fff',
+          headerTintColor: '#7A3C42',
           headerShadowVisible: false,
 
           tabBarStyle: {
-            backgroundColor: colors.forest,
-            borderTopColor: 'rgba(168,200,162,0.2)',
+            backgroundColor: '#FFF4EE',
+            borderTopColor: '#F3C9BD',
             borderTopWidth: 1,
             paddingBottom: 6,
             paddingTop: 6,
             height: 70,
           },
           tabBarHideOnKeyboard: Platform.OS === 'android',
-          tabBarActiveTintColor: colors.orange,
-          tabBarInactiveTintColor: 'rgba(168,213,162,0.45)',
+          tabBarActiveTintColor: '#D8607C',
+          tabBarInactiveTintColor: '#C3A29B',
           tabBarLabelStyle: {
             fontSize: 9,
             fontWeight: '800',
@@ -878,16 +878,17 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
     marginRight: 10,
     marginLeft: -20,
+    borderRadius: 21,
   },
   appHeaderText: {
-    color: '#F5EFE6',
+    color: '#7A3C42',
     fontFamily: 'Jost-Bold',
     fontSize: 22,
   },
   appHeaderSubText: {
     fontSize: 8,
     fontFamily: 'Jost-Bold',
-    color: '#A8D5A2',
+    color: '#A9756F',
     letterSpacing: 2,
     textTransform: 'uppercase',
   },
@@ -916,14 +917,14 @@ const styles = StyleSheet.create({
   syncBanner: { backgroundColor: '#B45309', borderBottomColor: 'rgba(255,255,255,0.25)' },
 
   chatFabWrap: { position: 'absolute', right: 18, bottom: 86, zIndex: 998, width: 56, height: 56 },
-  chatFabRing: { position: 'absolute', right: 6, bottom: 74, zIndex: 997, width: 80, height: 80, borderRadius: 40, backgroundColor: colors.orange },
+  chatFabRing: { position: 'absolute', right: 6, bottom: 74, zIndex: 997, width: 80, height: 80, borderRadius: 40, backgroundColor: '#D8607C' },
   leafProblem: { position: 'absolute', right: 18, bottom: 152, zIndex: 999, maxWidth: 260, backgroundColor: 'rgba(30,30,30,0.92)', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 },
   leafProblemText: { color: '#fff', fontSize: 12 },
   chatFab: {
     width: 56,
     height: 56,
     borderRadius: radius.full,
-    backgroundColor: colors.orange,
+    backgroundColor: '#D8607C',
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.strong,

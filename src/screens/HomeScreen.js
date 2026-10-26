@@ -3650,7 +3650,7 @@ export default function HomeScreen({ user, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F4F0EA',
+    backgroundColor: '#FFFAF6',
   },
   screenScroll: {
     flex: 1,
