@@ -138,7 +138,7 @@ export default function SaveToCookbookModal({
                             value={customCuisine}
                             onChangeText={setCustomCuisine}
                             placeholder={t('edit_recipe_cuisine_label')}
-                            placeholderTextColor={colors.brown}
+                            placeholderTextColor={'#8A5A5C'}
                         />
                     ) : null}
                     <PickerField label={t('edit_recipe_meal_label')} value={mealTypeLabel} onPress={() => setActiveField('mealType')} />
@@ -203,7 +203,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(26,14,5,0.45)',
     },
     card: {
-        backgroundColor: colors.parch,
+        backgroundColor: '#FFFAF6',
         borderTopLeftRadius: radius.xl,
         borderTopRightRadius: radius.xl,
         paddingHorizontal: 20,
@@ -217,10 +217,10 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
         marginBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor: '#F3C9BD',
     },
     title: {
-        color: colors.ink,
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 20,
     },
@@ -228,12 +228,12 @@ const styles = StyleSheet.create({
         width: 30,
         height: 30,
         borderRadius: 15,
-        backgroundColor: colors.paper,
+        backgroundColor: '#FDE8E0',
         alignItems: 'center',
         justifyContent: 'center',
     },
     closeBtnText: {
-        color: colors.brown,
+        color: '#8A5A5C',
         fontSize: 16,
         lineHeight: 18,
     },
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
         marginBottom: 18,
     },
     fieldLabel: {
-        color: colors.brown,
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         letterSpacing: 0.5,
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: '#F3C9BD',
         backgroundColor: '#FFFFFF',
         borderRadius: radius.sm,
         paddingHorizontal: 14,
@@ -260,12 +260,12 @@ const styles = StyleSheet.create({
     },
     fieldValue: {
         flex: 1,
-        color: colors.ink,
+        color: '#5A3236',
         fontFamily: 'Jost-Medium',
         fontSize: 15,
     },
     fieldChevron: {
-        color: colors.brown,
+        color: '#8A5A5C',
         fontSize: 16,
         marginLeft: 8,
     },
@@ -273,12 +273,12 @@ const styles = StyleSheet.create({
         marginTop: -10,
         marginBottom: 18,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: '#F3C9BD',
         backgroundColor: '#FFFFFF',
         borderRadius: radius.sm,
         paddingHorizontal: 14,
         paddingVertical: 12,
-        color: colors.ink,
+        color: '#5A3236',
         fontFamily: 'Jost-Medium',
         fontSize: 15,
     },
@@ -289,7 +289,7 @@ const styles = StyleSheet.create({
     },
     saveBtn: {
         flex: 2,
-        backgroundColor: colors.forest,
+        backgroundColor: '#8A4A4E',
         borderRadius: radius.sm,
         alignItems: 'center',
         justifyContent: 'center',
@@ -304,14 +304,14 @@ const styles = StyleSheet.create({
     cancelBtn: {
         flex: 1,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: '#F3C9BD',
         borderRadius: radius.sm,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     cancelBtnText: {
-        color: colors.brown,
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
         letterSpacing: 0.5,
@@ -327,14 +327,14 @@ const styles = StyleSheet.create({
     },
     overlaySheet: {
         maxHeight: '70%',
-        backgroundColor: colors.parch,
+        backgroundColor: '#FFFAF6',
         borderRadius: radius.lg,
         paddingHorizontal: 18,
         paddingTop: 18,
         paddingBottom: 8,
     },
     overlayTitle: {
-        color: colors.ink,
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 16,
         marginBottom: 10,
@@ -348,16 +348,16 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingVertical: 13,
         borderBottomWidth: 1,
-        borderBottomColor: colors.border,
+        borderBottomColor: '#F3C9BD',
     },
     overlayRowText: {
         flex: 1,
-        color: colors.ink,
+        color: '#5A3236',
         fontFamily: 'Jost-Medium',
         fontSize: 15,
     },
     overlayCheck: {
-        color: colors.forest,
+        color: '#8A4A4E',
         fontFamily: 'Jost-Bold',
         fontSize: 16,
         marginLeft: 10,

@@ -488,7 +488,7 @@ export default function RecipeDetailModal({
                       disabled={!onUpdateImage}
                     >
                       {isUploadingImage ? (
-                        <ActivityIndicator color="#7B5D3C" />
+                        <ActivityIndicator color="#8A5A5C" />
                       ) : (
                         <Text style={styles.overlayCameraIcon}>📷</Text>
                       )}
@@ -608,7 +608,7 @@ export default function RecipeDetailModal({
                         disabled={isSavingEdits}
                       >
                         {isSavingEdits ? (
-                          <ActivityIndicator color="#F1F1E8" />
+                          <ActivityIndicator color="#FDE8E0" />
                         ) : (
                           <Text style={styles.overlayBottomBtnTextLight}>{t('save_changes_btn')}</Text>
                         )}
@@ -814,11 +814,11 @@ const styles = StyleSheet.create({
   },
   overlaySheet: {
     maxHeight: '92%',
-    backgroundColor: '#F3EFE8',
+    backgroundColor: '#FDE8E0',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: '#D5C8B5',
+    borderColor: '#F3C9BD',
     overflow: 'hidden',
   },
   overlayContent: {
@@ -860,19 +860,19 @@ const styles = StyleSheet.create({
   },
   overlayTitle: {
     marginTop: 8,
-    color: '#2D1A0F',
+    color: '#5A3236',
     fontSize: 22,
     lineHeight: 30,
     fontFamily: 'PlayfairDisplay-Bold',
   },
   overlayTitleInput: {
     marginTop: 8,
-    color: '#2D1A0F',
+    color: '#5A3236',
     fontSize: 20,
     lineHeight: 26,
     fontFamily: 'PlayfairDisplay-Bold',
     borderWidth: 1,
-    borderColor: '#D3BE96',
+    borderColor: '#F3C9BD',
     borderRadius: 10,
     backgroundColor: '#FBF8F2',
     paddingHorizontal: 12,
@@ -892,24 +892,24 @@ const styles = StyleSheet.create({
   },
   editFieldLabel: {
     marginBottom: 6,
-    color: '#7B5D3C',
+    color: '#8A5A5C',
     fontSize: 10,
     letterSpacing: 0.6,
     fontFamily: 'Jost-Bold',
   },
   editFieldHint: {
     marginBottom: 6,
-    color: '#9A8062',
+    color: '#9A7872',
     fontSize: 11,
     fontFamily: 'Jost-Regular',
     fontStyle: 'italic',
   },
   editFieldInput: {
     borderWidth: 1,
-    borderColor: '#D3BE96',
+    borderColor: '#F3C9BD',
     borderRadius: 10,
     backgroundColor: '#FBF8F2',
-    color: '#2D1A0F',
+    color: '#5A3236',
     fontSize: 13,
     fontFamily: 'Jost-Regular',
     paddingHorizontal: 12,
@@ -927,7 +927,7 @@ const styles = StyleSheet.create({
   editSaveBtn: {
     flex: 1,
     borderRadius: 14,
-    backgroundColor: '#184626',
+    backgroundColor: '#8A4A4E',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
@@ -935,9 +935,9 @@ const styles = StyleSheet.create({
   editCancelBtn: {
     flex: 1,
     borderRadius: 14,
-    backgroundColor: '#E5E4DD',
+    backgroundColor: '#F3C9BD',
     borderWidth: 1,
-    borderColor: '#D1C4AC',
+    borderColor: '#F3C9BD',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 14,
@@ -950,7 +950,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   overlayMetaText: {
-    color: '#7F6547',
+    color: '#8A5A5C',
     fontSize: 12,
     fontFamily: 'Jost-Regular',
   },
@@ -960,9 +960,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     borderWidth: 1,
-    borderColor: '#D3BE96',
+    borderColor: '#F3C9BD',
     borderRadius: 999,
-    backgroundColor: '#F5EEDB',
+    backgroundColor: '#FDE8E0',
     paddingHorizontal: 14,
     paddingVertical: 8,
   },
@@ -972,22 +972,22 @@ const styles = StyleSheet.create({
     borderRadius: 99,
   },
   difficultyDotFilled: {
-    backgroundColor: '#947117',
+    backgroundColor: '#C0475F',
   },
   difficultyDotEmpty: {
     borderWidth: 1,
-    borderColor: '#B99233',
+    borderColor: '#C0475F',
     backgroundColor: 'transparent',
   },
   overlayDifficultyText: {
     marginLeft: 4,
-    color: '#977110',
+    color: '#C0475F',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
   alreadySavedText: {
     marginTop: 10,
-    color: '#2F6B2F',
+    color: '#C0475F',
     fontSize: 12,
     fontFamily: 'Jost-Bold',
   },
@@ -995,7 +995,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 14,
     height: 1,
-    backgroundColor: '#D8C8B0',
+    backgroundColor: '#F3C9BD',
   },
   overlayLastDivider: {
     height: 100,
@@ -1004,13 +1004,13 @@ const styles = StyleSheet.create({
   overlayDescriptionCard: {
     borderRadius: 8,
     borderLeftWidth: 6,
-    borderLeftColor: '#265A34',
-    backgroundColor: '#D8E6D7',
+    borderLeftColor: '#8A4A4E',
+    backgroundColor: '#FBD9CE',
     paddingHorizontal: 10,
     paddingVertical: 14,
   },
   overlayDescriptionText: {
-    color: '#80623F',
+    color: '#8A5A5C',
     fontSize: 10,
     lineHeight: 16,
     fontFamily: 'PlayfairDisplay-Italic',
@@ -1032,7 +1032,7 @@ const styles = StyleSheet.create({
     height: 100,
     borderWidth: 2,
     borderStyle: 'dashed',
-    borderColor: '#D3BE96',
+    borderColor: '#F3C9BD',
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
@@ -1043,13 +1043,13 @@ const styles = StyleSheet.create({
   },
   overlaySectionTitle: {
     marginTop: 26,
-    color: '#214A2B',
+    color: '#8A4A4E',
     fontSize: 11,
     letterSpacing: 3,
     fontFamily: 'Jost-Bold',
   },
   overlayServings: {
-    color: '#7B5D3C',
+    color: '#8A5A5C',
     letterSpacing: 0,
     fontFamily: 'Jost-Regular',
   },
@@ -1060,16 +1060,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   overlayActionPill: {
-    backgroundColor: '#1C512A',
+    backgroundColor: '#8A4A4E',
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 11,
   },
   overlayActionPillCook: {
-    backgroundColor: '#E96B1E',
+    backgroundColor: '#D8607C',
   },
   overlayActionText: {
-    color: '#F2F0E8',
+    color: '#FDE8E0',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
@@ -1087,8 +1087,8 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D9C9AF',
-    backgroundColor: '#FFFDF8',
+    borderColor: '#F3C9BD',
+    backgroundColor: '#FDE8E0',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1096,29 +1096,29 @@ const styles = StyleSheet.create({
     opacity: 0.35,
   },
   textSizeBtnTextSmall: {
-    color: '#1C512A',
+    color: '#8A4A4E',
     fontSize: 13,
     fontFamily: 'Jost-Bold',
   },
   textSizeBtnTextBig: {
-    color: '#1C512A',
+    color: '#8A4A4E',
     fontSize: 22,
     fontFamily: 'Jost-Bold',
   },
   overlayIngredientItem: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E5D8C8',
+    borderBottomColor: '#F3C9BD',
     paddingBottom: 4,
   },
   overlayIngredientText: {
-    color: '#795A39',
+    color: '#8A5A5C',
     fontSize: 12,
     lineHeight: 16,
     fontFamily: 'Jost-Regular',
   },
   overlayTipText: {
     marginTop: 14,
-    color: '#1F140C',
+    color: '#5A3236',
     fontSize: 12,
     lineHeight: 18,
     fontFamily: 'PlayfairDisplay-BoldItalic',
@@ -1129,13 +1129,13 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5D8C8',
+    borderBottomColor: '#F3C9BD',
   },
   overlayStepNum: {
     width: 28,
     height: 28,
     borderRadius: 99,
-    backgroundColor: '#1C512A',
+    backgroundColor: '#8A4A4E',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
@@ -1147,24 +1147,24 @@ const styles = StyleSheet.create({
   },
   overlayStepText: {
     flex: 1,
-    color: '#7C5E3D',
+    color: '#8A5A5C',
     fontSize: 12,
     lineHeight: 18,
     fontFamily: 'Jost-Regular',
   },
   overlayNoteBox: {
     borderWidth: 1,
-    borderColor: '#CDBA9F',
+    borderColor: '#F3C9BD',
     borderRadius: 10,
     borderLeftWidth: 6,
-    borderLeftColor: '#1C512A',
-    backgroundColor: '#F8F5EF',
+    borderLeftColor: '#8A4A4E',
+    backgroundColor: '#FDE8E0',
     minHeight: 100,
     marginLeft: -5,
     padding: 10,
   },
   overlayNoteInput: {
-    color: '#1A0E05',
+    color: '#5A3236',
     fontSize: 12,
     lineHeight: 18,
     minHeight: 80,
@@ -1175,14 +1175,14 @@ const styles = StyleSheet.create({
     marginTop: 14,
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: '#C0A987',
+    borderColor: '#C3A29B',
     borderRadius: 14,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    backgroundColor: '#F8F5EF',
+    backgroundColor: '#FDE8E0',
   },
   overlaySaveNoteBtnText: {
-    color: '#7B5D3C',
+    color: '#8A5A5C',
     fontSize: 10,
     letterSpacing: 1,
     fontFamily: 'Jost-Bold',
@@ -1198,7 +1198,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   overlayBottomBtnDark: {
-    backgroundColor: '#184626',
+    backgroundColor: '#8A4A4E',
   },
   overlayBottomBtnSplit: {
     flexDirection: 'row',
@@ -1214,22 +1214,22 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   overlaySaveDropdownChevron: {
-    color: '#F1F1E8',
+    color: '#FDE8E0',
     fontSize: 12,
   },
   overlayBottomBtnGreen: {
-    backgroundColor: '#2F6B2F',
+    backgroundColor: '#C0475F',
   },
   overlayBottomBtnInstacart: {
     backgroundColor: '#0B9A4B',
   },
   overlayBottomBtnEdit: {
-    backgroundColor: '#8A6538',
+    backgroundColor: '#8A5A5C',
   },
   overlayBottomBtnClose: {
-    backgroundColor: '#E5E4DD',
+    backgroundColor: '#F3C9BD',
     borderWidth: 1,
-    borderColor: '#D1C4AC',
+    borderColor: '#F3C9BD',
   },
   overlayBottomBtnDelete: {
     backgroundColor: '#F7E7E9',
@@ -1237,12 +1237,12 @@ const styles = StyleSheet.create({
     borderColor: '#EEB7C0',
   },
   overlayBottomBtnTextLight: {
-    color: '#F1F1E8',
+    color: '#FDE8E0',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
   overlayBottomBtnTextDark: {
-    color: '#21150D',
+    color: '#5A3236',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
