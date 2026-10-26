@@ -77,6 +77,7 @@ import {
 import { onePerSlot } from '../utils/onePerSlot';
 import AlexaHint from '../components/AlexaHint';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
+import { createListShareLink } from '../services/shareService';
 
 const QUICK_ADD_ITEMS = ['Milk', 'Eggs', 'Bread', 'Bananas', 'Butter', 'Pasta'];
 const FERN_STARTER_ITEMS = ['Olive oil', 'Garlic', 'Onion', 'Chicken', 'Rice'];
@@ -949,7 +950,7 @@ export default function ShoppingScreen({ user }) {
   const buildListText = () => {
     const lines = aisleSections.flatMap((section) => [
       `\n${t(section.aisle.labelKey).toUpperCase()}`,
-      ...section.items.map((item) => `${item.checked ? '✓' : '•'} ${item.text}${buyCount(item) > 1 ? ` ×${buyCount(item)}` : ''}`),
+      ...section.items.map((item) => `${item.checked ? '☑' : '☐'} ${item.text}${buyCount(item) > 1 ? ` ×${buyCount(item)}` : ''}`),
     ]);
     return lines.length ? `${statTitle || t('share_list_header')}\n\n${lines.join('\n')}` : t('share_list_empty');
   };
@@ -964,10 +965,29 @@ export default function ShoppingScreen({ user }) {
     }
   };
 
+  // Share list: a real link (/s/l/<id>) that previews in Messages, opens on the sender's stationery and lets the
+  // friend tick items off. If the link can't be made (offline, server down) the tidied text goes instead.
   const shareList = async () => {
-    const message = buildListText();
     try {
-      await Share.share({ message });
+      const aisles = aisleSections.map((section) => ({
+        name: t(section.aisle.labelKey),
+        items: section.items.map((item) => ({ text: item.text, qty: buyCount(item), checked: !!item.checked })),
+      }));
+      const url = await createListShareLink({
+        title: statTitle || t('share_list_header'),
+        sub: stat ? t(`stat_${stat.id}_s`) : '',
+        senderName: statName,
+        style: stat ? stat.id : '',
+        store: bagStore,
+        aisles,
+      });
+      await Share.share(Platform.OS === 'ios' ? { url } : { message: url });
+      return;
+    } catch (e) {
+      console.warn('Share link failed, sharing text instead:', e);
+    }
+    try {
+      await Share.share({ message: buildListText() });
     } catch (e) {
       console.warn('Share failed:', e);
     }

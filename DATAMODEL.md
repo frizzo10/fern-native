@@ -259,6 +259,10 @@ The other **GET** endpoint — no query params, no body, no `token`/`userId`. Re
 
 Payload: `{ token }` (no `userId` — the backend resolves the user from the verified token). Response: `{ deals: [{ brand, title, description, image_url, deal_code, valid_until, featured }], updatedAt }` for a Pro/Pro Max user, or `{ proOnly: true }` when the backend's own record (`user_data.tier`) says the user is free. `deals` is expected to be empty until real brand partnerships are added server-side (`brand_deals` table) — the modal's "Deals coming soon" state is the normal case today. The backend swallows its own errors and returns `{ deals: [] }`, so an empty list can also mean a server-side failure. Because `user_data.tier` is filled by the client-push described under "Subscription tier sync", a user who just subscribed can see `proOnly` until the next app launch pushes the new tier. Caller: `src/services/insiderDealsService.js`'s `fetchInsiderDeals`, used by `InsiderDealsModal` (Home "Insider Deals" tile, gated by `FEATURE_TIERS.insider_deals` = Pro). Mirrors the web app's `openInsiderDeals()`.
 
+### `share-shopping-list` — shared shopping list link
+
+POST `{ title, sub, senderName, style, store, aisles: [{ name, items: [{ text, qty, checked }] }] }` -> `{ success, url }` (`https://app.clickpickandcook.com/s/l/<id>`, no token). Caller: `shareService.createListShareLink`, from `ShoppingScreen.shareList`. Stored server-side in `shared_shop_lists`; GET `?id=` reads it back for the hosted page.
+
 ### `share` and `share-cookbook` — hosted share links
 
 Both called from `src/services/shareService.js`. Neither takes a `token`; both return `{ success, url }` (or `{ error }`). The recipe/cookbook objects are mapped from native's normalized shape by `toSharedRecipe` to the field names the backend reads (`title, emoji, cuisine, mealType, time, difficulty, description, servings, ingredients[], instructions[], notes, photo`); placeholder strings like "No ingredients listed yet" are dropped, and `photo` is sent only when it is an `http(s)` URL.

@@ -125,6 +125,18 @@ export async function createPlanShareLink({ days, senderName, store }) {
     return url;
 }
 
+// Shopping list as a hosted page (/s/l/<id>): aisles with items, plus the stationery id and header phrase.
+export async function createListShareLink({ title, sub, senderName, style, store, aisles }) {
+    return postJson('share-shopping-list', {
+        title: String(title || ''),
+        sub: String(sub || ''),
+        senderName: String(senderName || '').trim(),
+        style: String(style || ''),
+        store: String(store || ''),
+        aisles: aisles || [],
+    });
+}
+
 // Reads a shared cookbook back from the server so it can be added to this
 // library. `input` is a pasted share link (…/cookbook-share.html?id=abc12345,
 // possibly with other text around it) or just the bare id.
