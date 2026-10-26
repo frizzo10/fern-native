@@ -1083,7 +1083,7 @@ export default function ShoppingScreen({ user }) {
           <TouchableOpacity onPress={() => setStationeryOpen((v) => !v)} activeOpacity={0.88} style={styles.paperBar}>
             <Text style={styles.paperBarText}>{`🎨 ${stationeryOpen ? t('stat_close') : (stat ? t('paper_bar_change', { name: t(`stat_${stat.id}_label`) }) : t('paper_bar'))}`}</Text>
           </TouchableOpacity>
-          {stationeryOpen ? <PaperChips t={t} value={stat ? stat.id : ''} onPick={pickStationery} /> : null}
+          {stationeryOpen ? <PaperChips t={t} value={stat ? stat.id : ''} onPick={pickStationery} name={statName} /> : null}
         </View>
         ) : null}
 

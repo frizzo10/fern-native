@@ -1,10 +1,33 @@
 import React from 'react';
 import { ScrollView, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { STATIONERY } from '../../constants/stationery';
+import { STATIONERY, stationeryById } from '../../constants/stationery';
 
 // The row of paper swatches (Plain + the ten stationery looks). Shared by the Shopping page's top bar and the first-run
 // "Pick your paper" screen. `value` is the chosen id ('' / null = plain); `onPick(id)` gets '' for plain.
-export default function PaperChips({ t, value, onPick, wrap = false }) {
+// A small sample page in the chosen paper: its title, handwriting, colours and frame, with three sample items.
+function PaperPreview({ t, value, name }) {
+  const st = stationeryById(value);
+  const items = [t('paper_prev_1'), t('paper_prev_2'), t('paper_prev_3')];
+  const title = st ? (name ? t(`stat_${st.id}_t`, { name }) : t(`stat_${st.id}_tn`)) : t('shopping_list_title');
+  const ink = st ? st.ink : '#5A3236';
+  const accent = st ? st.accent : '#D8607C';
+  return (
+    <View style={[s.prev, { backgroundColor: st ? st.bg : '#FDE8E0', borderColor: '#F3C9BD', borderWidth: 1 }, st ? st.frame : null]}>
+      {st && st.icon ? <Text style={{ textAlign: 'center', fontSize: 18, color: accent }}>{st.icon}</Text> : null}
+      <Text style={[s.prevTitle, { color: st ? st.title : '#8A4A4E' }, st ? { fontFamily: st.font } : { fontFamily: 'Jost-Bold' }]} numberOfLines={2}>{title}</Text>
+      {st ? <Text style={[s.prevSub, { color: st.sub }]}>{t(`stat_${st.id}_s`).toUpperCase()}</Text> : null}
+      <View style={[s.prevRule, { backgroundColor: accent }]} />
+      {items.map((it, i) => (
+        <View key={i} style={s.prevRow}>
+          <View style={[s.prevDot, { borderColor: accent }, i === 1 ? { backgroundColor: accent } : null]} />
+          <Text style={[s.prevItem, { color: ink }, st ? { fontFamily: st.font } : { fontFamily: 'Jost-Medium' }, i === 1 ? { textDecorationLine: 'line-through', opacity: 0.6 } : null]}>{it}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export default function PaperChips({ t, value, onPick, wrap = false, name = '' }) {
   const chips = (
     <>
       <TouchableOpacity onPress={() => onPick('')} activeOpacity={0.85} style={[s.chip, !value ? s.chipOn : null]}>
@@ -21,15 +44,26 @@ export default function PaperChips({ t, value, onPick, wrap = false }) {
       ))}
     </>
   );
-  if (wrap) return <View style={s.wrap}>{chips}</View>;
+  const preview = <PaperPreview t={t} value={value} name={name} />;
+  if (wrap) return <View style={{ alignSelf: 'stretch' }}><View style={s.wrap}>{chips}</View>{preview}</View>;
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={s.picker} contentContainerStyle={s.row}>
-      {chips}
-    </ScrollView>
+    <View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={s.picker} contentContainerStyle={s.row}>
+        {chips}
+      </ScrollView>
+      {preview}
+    </View>
   );
 }
 
 const s = StyleSheet.create({
+  prev: { borderRadius: 8, padding: 16, marginTop: 8, marginBottom: 12 },
+  prevTitle: { fontSize: 26, lineHeight: 32, textAlign: 'center' },
+  prevSub: { fontSize: 11, letterSpacing: 2, textAlign: 'center', marginTop: 2, fontFamily: 'Jost-SemiBold' },
+  prevRule: { height: 2, width: 90, alignSelf: 'center', marginVertical: 10, borderRadius: 1 },
+  prevRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6 },
+  prevDot: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, marginRight: 12 },
+  prevItem: { fontSize: 20 },
   picker: { marginBottom: 10 },
   row: { gap: 10, paddingRight: 8 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
