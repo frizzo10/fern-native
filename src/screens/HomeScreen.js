@@ -1639,19 +1639,27 @@ export default function HomeScreen({ user, route }) {
     if (dealsForStore(deals, store?.name).length) { goToCircular(); return; }
     // The shopper cleared this store's items on purpose: don't quietly bring another shopper's scan back, ask for a photo.
     if (await isStoreCleared(store?.name)) { setFlyerScan(null); setTimeout(() => askFlyerPhoto(store), 400); return; }
-    setFlyerScan({ phase: 'looking' });
+    // Only show the "looking" overlay if the check is slow; a quick "nobody scanned it" answer used to flash it
+    // (and its fade-out) behind the photo prompt.
+    let lookingShown = false;
+    const lookingTimer = setTimeout(() => { lookingShown = true; setFlyerScan({ phase: 'looking' }); }, 800);
     let shared = [];
     try {
       shared = await fetchStoreDeals({ token: user?.token, stores: [store?.name], zips: zipsByStoreName(userStoresLocal) });
     } catch (e) { shared = []; }
+    clearTimeout(lookingTimer);
     const sharedDeals = sharedStoresToDeals(shared);
     if (sharedDeals.length) {
       await saveWeekDeals(sharedDeals);
       goToCircular();
       return;
     }
-    setFlyerScan(null);
-    setTimeout(() => askFlyerPhoto(store), 400); // iOS drops an Alert shown while the overlay is still closing
+    if (lookingShown) {
+      setFlyerScan(null);
+      setTimeout(() => askFlyerPhoto(store), 400); // iOS drops an Alert shown while the overlay is still closing
+    } else {
+      askFlyerPhoto(store); // overlay never appeared, so there is nothing to wait for
+    }
   };
 
   // Store-arrival notification tap: App.js navigates here with the store's name -> start that store's flyer scan,
@@ -3211,7 +3219,7 @@ export default function HomeScreen({ user, route }) {
         </View>
       )}
 
-      <Modal visible={Boolean(flyerScan)} transparent animationType="fade" onRequestClose={() => {}}>
+      <Modal visible={Boolean(flyerScan)} transparent animationType="none" onRequestClose={() => {}}>
         <View style={{ flex: 1, backgroundColor: 'rgba(20,45,20,0.92)', alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           {flyerScan?.phase === 'already' ? (
             <>
