@@ -1065,9 +1065,6 @@ export default function ShoppingScreen({ user }) {
             <View style={styles.bagPic}>
               <Image source={require('../../assets/bag/bag-full.png')} style={styles.bagImg} resizeMode="contain" />
               <View style={styles.bagFront} pointerEvents="box-none">
-                <View style={styles.bagLabel}>
-                  <Text style={styles.bagLabelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{`🌿 ${bagStore ? t('bag_title', { store: bagStore }) : t('bag_title_generic')}`}</Text>
-                </View>
                 <View style={styles.bagGrid}>
                   {[
                     { key: 'sales', emoji: '🏷', n: weekDeals.length, full: t('bag_sales', { n: weekDeals.length }), empty: t('bag_empty_sales'), target: 'sales' },
@@ -1947,12 +1944,12 @@ const styles = StyleSheet.create({
   bagWrap: { marginBottom: 8 },
   bagPic: { width: '94%', alignSelf: 'center', aspectRatio: 365 / 497 },
   bagImg: { width: '100%', height: '100%' },
-  bagFront: { position: 'absolute', left: '25%', right: '8%', top: '42%', bottom: '17%', justifyContent: 'center' },
+  bagFront: { position: 'absolute', left: '27%', right: '7%', top: '45%', bottom: '19%', justifyContent: 'center', transform: [{ rotate: '-1.2deg' }] },
   bagLabel: { alignSelf: 'center', backgroundColor: '#FFF9EE', borderRadius: 999, borderWidth: 1.5, borderColor: '#1F3D2B', paddingHorizontal: 12, paddingVertical: 5, marginBottom: 8, maxWidth: '100%' },
   bagLabelText: { color: '#1F3D2B', fontSize: 14, fontFamily: 'Jost-Bold', textAlign: 'center' },
   bagSub: { color: '#4A3418', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginBottom: 8, textAlign: 'center' },
   bagGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  bagChip: { width: '48.5%', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.6)', borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(120,84,36,0.4)', borderStyle: 'dashed', paddingVertical: 6, paddingHorizontal: 4, marginBottom: 6, height: 62, justifyContent: 'center' },
+  bagChip: { width: '48.5%', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.6)', borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(120,84,36,0.4)', borderStyle: 'dashed', paddingVertical: 6, paddingHorizontal: 4, marginBottom: 8, height: 72, justifyContent: 'center' },
   bagChipOn: { backgroundColor: '#FFF9EE', borderStyle: 'solid', borderColor: '#1F3D2B' },
   bagChipEmoji: { fontSize: 18, marginBottom: 2 },
   bagChipText: { color: '#6B5230', fontSize: 12, lineHeight: 15, fontFamily: 'Jost-SemiBold', textAlign: 'center' },
