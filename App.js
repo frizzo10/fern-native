@@ -83,7 +83,7 @@ function AppTabHeader() {
   return (
     <View style={styles.appHeaderRow}>
       <Image
-        source={require('./assets/icon.png')}
+        source={require('./assets/header-logo.png')}
         style={styles.appHeaderIcon}
       />
       <View>
@@ -900,8 +900,7 @@ const styles = StyleSheet.create({
     height: 42,
     resizeMode: 'contain',
     marginRight: 10,
-    marginLeft: -20,
-    borderRadius: 21,
+    marginLeft: 0,
   },
   appHeaderText: {
     color: '#7A3C42',
