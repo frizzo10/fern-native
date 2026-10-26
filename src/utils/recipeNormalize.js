@@ -141,9 +141,11 @@ export function normalizeRecipe(item, index) {
   ]));
 
   // Every photo on the recipe, in order (the web app keeps several in `_cloudPhotos`).
-  const photos = Array.isArray(item?._cloudPhotos)
+  let photos = Array.isArray(item?._cloudPhotos)
     ? item._cloudPhotos.filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u))
     : [];
+  // A recipe whose only picture is a looked-up/other URL still gets one tappable photo.
+  if (!photos.length && typeof image === 'string' && /^https?:\/\//i.test(image)) photos = [image];
 
   return {
     id,

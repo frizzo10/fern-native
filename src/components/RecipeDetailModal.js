@@ -303,7 +303,7 @@ export default function RecipeDetailModal({
       if (url) await onUpdateImage(url);
     } catch (e) {
       console.warn('Recipe image upload failed:', e);
-      Alert.alert(t('recipe_image_update_failed_title'), t('recipe_image_update_failed_desc'));
+      Alert.alert(t('recipe_image_update_failed_title'), `${t('recipe_image_update_failed_desc')}\n\n${String(e?.message || e)}`);
     } finally {
       setIsUploadingImage(false);
     }
@@ -335,8 +335,8 @@ export default function RecipeDetailModal({
       t('recipe_image_picker_title'),
       '',
       [
-        { text: t('take_photo_btn'), onPress: () => pickPhotoFromCamera().then(uploadAndSetRecipeImage) },
-        { text: t('upload_image_btn'), onPress: () => pickPhotoFromLibrary().then(uploadAndSetRecipeImage) },
+        { text: t('take_photo_btn'), onPress: () => pickPhotoFromCamera({ maxWidth: 1600, quality: 0.6 }).then(uploadAndSetRecipeImage) },
+        { text: t('upload_image_btn'), onPress: () => pickPhotoFromLibrary({ maxWidth: 1600, quality: 0.6 }).then(uploadAndSetRecipeImage) },
         { text: t('cancel_btn'), style: 'cancel' },
       ]
     );

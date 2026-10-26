@@ -8,6 +8,10 @@ export async function uploadPhoto(photoBase64DataUri, fileName) {
     body: JSON.stringify({ photoBase64: photoBase64DataUri, fileName }),
   });
 
-  const json = await res.json();
-  return json?.url || null;
+  const json = await res.json().catch(() => null);
+  if (!res.ok || !json?.url) {
+    // Say why (status + size) so a failed upload is never silent.
+    throw new Error(`upload ${res.status} (${Math.round((photoBase64DataUri || '').length / 1024)} KB)${json?.error ? ': ' + json.error : ''}`);
+  }
+  return json.url;
 }

@@ -653,7 +653,7 @@ export default function RecipesScreen({ user }) {
 
       if (photo?.base64) {
         const dataUri = `data:${photo.mimeType || 'image/jpeg'};base64,${photo.base64}`;
-        coverUrl = await uploadPhoto(dataUri, `cover_${bookId}_${Date.now()}.jpg`);
+        try { coverUrl = await uploadPhoto(dataUri, `cover_${bookId}_${Date.now()}.jpg`); } catch (e) { console.warn('Cover upload failed:', e); }
       }
 
       const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
@@ -697,7 +697,7 @@ export default function RecipesScreen({ user }) {
       let coverUrl = selectedBook.cover || null;
       if (photo?.base64) {
         const dataUri = `data:${photo.mimeType || 'image/jpeg'};base64,${photo.base64}`;
-        coverUrl = await uploadPhoto(dataUri, `cover_${selectedBook.id}_${Date.now()}.jpg`);
+        try { coverUrl = await uploadPhoto(dataUri, `cover_${selectedBook.id}_${Date.now()}.jpg`); } catch (e) { console.warn('Cover upload failed:', e); }
       }
 
       const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
@@ -805,9 +805,11 @@ export default function RecipesScreen({ user }) {
         const isMatch = itemId === selectedId || (selectedTitle && itemTitle === selectedTitle);
         if (!isMatch) return item;
         // Add to the recipe's photos instead of replacing them (the web app keeps several here).
-        const existing = Array.isArray(item?._cloudPhotos)
+        let existing = Array.isArray(item?._cloudPhotos)
           ? item._cloudPhotos.filter((u) => typeof u === 'string' && u)
           : [];
+        // Keep the recipe's current picture (e.g. a looked-up photo) as the first one.
+        if (!existing.length && typeof item?._photoUrl === 'string' && /^https?:\/\//i.test(item._photoUrl)) existing = [item._photoUrl];
         return { ...item, _cloudPhotos: [...existing, url] };
       });
 
