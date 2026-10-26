@@ -1224,6 +1224,7 @@ export default function ShoppingScreen({ user }) {
           <WeekMealsSection
             key={`meals-${mealsKey}`}
             autoStart={guideStep === 'list' || !!dinnerMood}
+            moodLabel={dinnerMood ? t('mood_' + dinnerMood) : ''}
             moodHint={dinnerMood ? (DINNER_MOODS.find((m) => m[0] === dinnerMood)?.[2] || '') : ''}
             onReady={setMealCards}
             t={t}

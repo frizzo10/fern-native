@@ -54,7 +54,7 @@ async function readJson(key, fallback) {
 // nights in Family Hub and every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
-export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, moodHint = '', onReady, onSaveRecipe, books }) {
+export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, moodHint = '', moodLabel = '', onReady, onSaveRecipe, books }) {
   const { hasAccess } = useEntitlement();
   const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
@@ -255,7 +255,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
   return (
     <View style={phase === 'idle' ? styles.bare : [styles.card, shadow.card]}>
       <UpgradeGateModal visible={gate} onClose={() => setGate(false)} tier={TIERS.PRO} title={t('trip_limit_title')} desc={t('trip_limit_desc')} />
-      {phase !== 'idle' ? <Text style={styles.title}>{`📅 ${t('trip_week_title')}`}</Text> : null}
+      {phase !== 'idle' ? <Text style={styles.title}>{`📅 ${moodLabel ? t('mood_found_title', { mood: moodLabel }) : t('trip_week_title')}`}</Text> : null}
       {phase !== 'idle' ? <Text style={styles.sub}>{t('trip_week_sub')}</Text> : null}
 
       {phase === 'idle' ? (
