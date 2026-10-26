@@ -40,6 +40,44 @@ import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import { recipeLimitReached } from '../utils/freeLimits';
 
+// Magazine-style collage: blocks of [one big tile + two stacked] and [three across], repeating.
+// Returns absolutely-positioned tiles { i, x, y, w, h } inside a column W wide, gap g.
+function buildCollage(n, W, g) {
+  const out = [];
+  let i = 0;
+  let y = 0;
+  let feature = true;
+  while (i < n) {
+    const left = n - i;
+    if (left === 1) {
+      out.push({ i, x: 0, y, w: W, h: W * 0.62 }); i += 1; y += W * 0.62 + g;
+    } else if (left === 2) {
+      const w = (W - g) / 2;
+      out.push({ i, x: 0, y, w, h: w * 1.15 });
+      out.push({ i: i + 1, x: w + g, y, w, h: w * 1.15 });
+      i += 2; y += w * 1.15 + g;
+    } else if (feature) {
+      const bigW = (W - g) * 0.62;
+      const smallW = W - g - bigW;
+      const h = W * 0.78;
+      const smallH = (h - g) / 2;
+      out.push({ i, x: 0, y, w: bigW, h });
+      out.push({ i: i + 1, x: bigW + g, y, w: smallW, h: smallH });
+      out.push({ i: i + 2, x: bigW + g, y: y + smallH + g, w: smallW, h: smallH });
+      i += 3; y += h + g; feature = false;
+    } else {
+      const w = (W - g * 2) / 3;
+      for (let k = 0; k < 3; k += 1) out.push({ i: i + k, x: k * (w + g), y, w, h: w * 1.2 });
+      i += 3; y += w * 1.2 + g; feature = true;
+    }
+  }
+  return out;
+}
+function collageHeight(n, W, g) {
+  const tiles = buildCollage(n, W, g);
+  return tiles.reduce((m, c) => Math.max(m, c.y + c.h), 0);
+}
+
 export default function RecipeDetailModal({
   recipe,
   onClose,
@@ -864,19 +902,23 @@ export default function RecipeDetailModal({
           <View style={styles.viewerWrap}>
             {viewer.grid ? (
               <ScrollView contentContainerStyle={styles.viewerGrid}>
-                {gallery.map((uri, i) => {
-                  const cell = (screenW - 16 * 2 - 8) / 2;
-                  return (
-                    <TouchableOpacity
-                      key={`grid-${i}`}
-                      activeOpacity={0.85}
-                      onPress={() => setViewer({ index: i, grid: false })}
-                      style={{ width: cell, height: i === 0 ? cell * 1.1 : cell, marginBottom: 8 }}
-                    >
-                      <ImageBackground source={gallerySources[i]} style={styles.viewerGridImg} imageStyle={styles.viewerGridImgInner} />
-                    </TouchableOpacity>
-                  );
-                })}
+                {buildCollage(gallery.length, screenW - 32, 6).map((c) => (
+                  <TouchableOpacity
+                    key={`grid-${c.i}`}
+                    activeOpacity={0.85}
+                    onPress={() => setViewer({ index: c.i, grid: false })}
+                    style={{ position: 'absolute', left: c.x, top: c.y, width: c.w, height: c.h }}
+                  >
+                    <ImageBackground source={gallerySources[c.i]} style={styles.viewerGridImg} imageStyle={styles.viewerGridImgInner}>
+                      {c.i === 0 && gallery.length > 1 ? (
+                        <View style={styles.photoMainTag}>
+                          <Text style={styles.photoMainTagText}>{t('photo_main_tag')}</Text>
+                        </View>
+                      ) : null}
+                    </ImageBackground>
+                  </TouchableOpacity>
+                ))}
+                <View style={{ width: screenW - 32, height: collageHeight(gallery.length, screenW - 32, 6) }} />
               </ScrollView>
             ) : (
               <ScrollView
@@ -1291,9 +1333,6 @@ const styles = StyleSheet.create({
   viewerBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   viewerCount: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   viewerGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 110,
     paddingBottom: 40,
