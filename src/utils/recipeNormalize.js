@@ -140,6 +140,11 @@ export function normalizeRecipe(item, index) {
     ...normalizeIdArray(item?._bookIds),
   ]));
 
+  // Every photo on the recipe, in order (the web app keeps several in `_cloudPhotos`).
+  const photos = Array.isArray(item?._cloudPhotos)
+    ? item._cloudPhotos.filter((u) => typeof u === 'string' && /^https?:\/\//i.test(u))
+    : [];
+
   return {
     id,
     title,
@@ -149,6 +154,7 @@ export function normalizeRecipe(item, index) {
     difficulty,
     emoji,
     image,
+    photos,
     description,
     servings,
     ingredients: ingredients.length ? ingredients : ['No ingredients listed yet'],

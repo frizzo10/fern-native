@@ -476,11 +476,22 @@ export default function RecipeDetailModal({
                   )}
 
                   <View style={styles.overlayThumbsRow}>
-                    <ImageBackground
-                      source={photoUrl ? { uri: photoUrl } : require('../../assets/icon.png')}
-                      style={styles.overlayThumbImage}
-                      imageStyle={styles.overlayThumbImageInner}
-                    />
+                    {Array.isArray(recipe?.photos) && recipe.photos.length > 0 ? (
+                      recipe.photos.map((uri, photoIdx) => (
+                        <ImageBackground
+                          key={`recipe-photo-${photoIdx}`}
+                          source={{ uri }}
+                          style={styles.overlayThumbImage}
+                          imageStyle={styles.overlayThumbImageInner}
+                        />
+                      ))
+                    ) : (
+                      <ImageBackground
+                        source={photoUrl ? { uri: photoUrl } : require('../../assets/icon.png')}
+                        style={styles.overlayThumbImage}
+                        imageStyle={styles.overlayThumbImageInner}
+                      />
+                    )}
                     <TouchableOpacity
                       style={styles.overlayCameraPlaceholder}
                       activeOpacity={onUpdateImage ? 0.7 : 1}
@@ -1018,6 +1029,7 @@ const styles = StyleSheet.create({
   overlayThumbsRow: {
     marginTop: 14,
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   overlayThumbImage: {

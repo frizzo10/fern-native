@@ -804,13 +804,21 @@ export default function RecipesScreen({ user }) {
         const itemTitle = String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
         const isMatch = itemId === selectedId || (selectedTitle && itemTitle === selectedTitle);
         if (!isMatch) return item;
-        return { ...item, _cloudPhotos: [url] };
+        // Add to the recipe's photos instead of replacing them (the web app keeps several here).
+        const existing = Array.isArray(item?._cloudPhotos)
+          ? item._cloudPhotos.filter((u) => typeof u === 'string' && u)
+          : [];
+        return { ...item, _cloudPhotos: [...existing, url] };
       });
 
       await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
       await syncRecipeCache(nextSaved);
       setRecipesLocal(nextSaved);
-      setSelectedRecipe((prev) => (prev ? { ...prev, image: url, _cloudPhotos: [url] } : prev));
+      setSelectedRecipe((prev) => {
+        if (!prev) return prev;
+        const photos = [...(Array.isArray(prev.photos) ? prev.photos : []), url];
+        return { ...prev, image: prev.image || url, photos };
+      });
 
       const pushResult = await pushChangedFromStorage({ saved: nextSaved });
       // Diagnostic: a save that never reached the server is otherwise invisible (the next refresh
