@@ -422,7 +422,7 @@ export default function FamilyRecipeVaultModal({ visible, onClose, user, data, p
                                         disabled={isTellingStory}
                                     >
                                         {isTellingStory ? (
-                                            <ActivityIndicator size="small" color="#F1F7F1" />
+                                            <ActivityIndicator size="small" color="#FDE8E0" />
                                         ) : (
                                             <Text style={styles.fernStoryBtnText}>{t('family_vault_let_fern_tell_story_btn')}</Text>
                                         )}
@@ -448,7 +448,7 @@ export default function FamilyRecipeVaultModal({ visible, onClose, user, data, p
                                                 disabled={isBusyImportOrScan}
                                             >
                                                 {isImportingUrl ? (
-                                                    <ActivityIndicator size="small" color="#FFF5EC" />
+                                                    <ActivityIndicator size="small" color="#FDE8E0" />
                                                 ) : (
                                                     <Text style={styles.importBtnText}>{t('family_vault_import_recipe_btn')}</Text>
                                                 )}
@@ -466,7 +466,7 @@ export default function FamilyRecipeVaultModal({ visible, onClose, user, data, p
                                                 disabled={isBusyImportOrScan}
                                             >
                                                 {isScanningMode === 'full' ? (
-                                                    <ActivityIndicator size="small" color="#FFF5EC" />
+                                                    <ActivityIndicator size="small" color="#FDE8E0" />
                                                 ) : (
                                                     <Text style={styles.scanBtnPrimaryText}>{t('family_vault_scan_full_btn')}</Text>
                                                 )}
@@ -478,7 +478,7 @@ export default function FamilyRecipeVaultModal({ visible, onClose, user, data, p
                                                 disabled={isBusyImportOrScan}
                                             >
                                                 {isScanningMode === 'ingredients' ? (
-                                                    <ActivityIndicator size="small" color="#F1F7F1" />
+                                                    <ActivityIndicator size="small" color="#FDE8E0" />
                                                 ) : (
                                                     <Text style={styles.scanBtnGreenText}>{t('family_vault_scan_ingredients_btn')}</Text>
                                                 )}
@@ -490,7 +490,7 @@ export default function FamilyRecipeVaultModal({ visible, onClose, user, data, p
                                                 disabled={isBusyImportOrScan}
                                             >
                                                 {isScanningMode === 'instructions' ? (
-                                                    <ActivityIndicator size="small" color="#F1F7F1" />
+                                                    <ActivityIndicator size="small" color="#FDE8E0" />
                                                 ) : (
                                                     <Text style={styles.scanBtnForestText}>{t('family_vault_scan_instructions_btn')}</Text>
                                                 )}
@@ -611,7 +611,7 @@ export default function FamilyRecipeVaultModal({ visible, onClose, user, data, p
                                             disabled={collection.isSaving}
                                         >
                                             {collection.isSaving ? (
-                                                <ActivityIndicator size="small" color="#FFF5EC" />
+                                                <ActivityIndicator size="small" color="#FDE8E0" />
                                             ) : (
                                                 <Text style={styles.detailSaveBtnText}>{t('family_vault_save_to_recipes_btn')}</Text>
                                             )}
@@ -647,11 +647,11 @@ const styles = StyleSheet.create({
     },
     sheet: {
         maxHeight: '92%',
-        backgroundColor: '#FBF8F2',
+        backgroundColor: '#FDE8E0',
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         borderWidth: 1,
-        borderColor: '#D9CFBF',
+        borderColor: '#F3C9BD',
         overflow: 'hidden',
     },
     topBar: {
@@ -662,12 +662,12 @@ const styles = StyleSheet.create({
         paddingTop: 20,
         paddingBottom: 14,
         borderBottomWidth: 1,
-        borderBottomColor: '#E0D4C4',
+        borderBottomColor: '#F3C9BD',
         gap: 10,
     },
     topBarTitle: {
         flex: 1,
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 19,
     },
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
     askFernText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
@@ -691,12 +691,12 @@ const styles = StyleSheet.create({
         width: 34,
         height: 34,
         borderRadius: 17,
-        backgroundColor: '#E5E4DD',
+        backgroundColor: '#F3C9BD',
         alignItems: 'center',
         justifyContent: 'center',
     },
     closeText: {
-        color: '#2A1A11',
+        color: '#5A3236',
         fontSize: 20,
         lineHeight: 22,
         fontFamily: 'Jost-Regular',
@@ -711,7 +711,7 @@ const styles = StyleSheet.create({
         width: 64,
         height: 64,
         borderRadius: 16,
-        backgroundColor: '#F1EEE7',
+        backgroundColor: '#FDE8E0',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -721,14 +721,14 @@ const styles = StyleSheet.create({
     heroTitle: {
         marginTop: 14,
         textAlign: 'center',
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 22,
     },
     heroSubtitle: {
         marginTop: 6,
         textAlign: 'center',
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
     },
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
         marginBottom: 6,
         textAlign: 'center',
         fontStyle: 'italic',
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
     },
@@ -771,25 +771,25 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     recipeRowTitle: {
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 16,
     },
     recipeRowOrigin: {
         marginTop: 2,
-        color: '#5D4F42',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
     },
     recipeRowStory: {
         marginTop: 2,
         fontStyle: 'italic',
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
     },
     recipeRowChevron: {
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Bold',
         fontSize: 20,
     },
@@ -800,7 +800,7 @@ const styles = StyleSheet.create({
     },
     launchPrimaryBtn: {
         flex: 1,
-        backgroundColor: '#8B4A1F',
+        backgroundColor: '#C0475F',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
@@ -808,16 +808,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
     },
     launchPrimaryText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         textAlign: 'center',
     },
     launchOutlineBtn: {
         flex: 1,
-        backgroundColor: '#F1EEE7',
+        backgroundColor: '#FDE8E0',
         borderWidth: 1,
-        borderColor: '#D9CFBF',
+        borderColor: '#F3C9BD',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
@@ -826,7 +826,7 @@ const styles = StyleSheet.create({
         marginTop: 0,
     },
     launchOutlineText: {
-        color: '#5D4F42',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         textAlign: 'center',
@@ -838,12 +838,12 @@ const styles = StyleSheet.create({
         marginBottom: 18,
     },
     backArrow: {
-        color: '#8B4A1F',
+        color: '#C0475F',
         fontFamily: 'Jost-Bold',
         fontSize: 18,
     },
     backLabel: {
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 19,
     },
@@ -857,7 +857,7 @@ const styles = StyleSheet.create({
         height: 48,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#D9CFBF',
+        borderColor: '#F3C9BD',
         backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
@@ -868,10 +868,10 @@ const styles = StyleSheet.create({
     nameInput: {
         flex: 1,
         borderWidth: 1,
-        borderColor: '#D9CFBF',
+        borderColor: '#F3C9BD',
         borderRadius: 12,
         backgroundColor: '#FFFFFF',
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Jost-Regular',
         fontSize: 14,
         paddingHorizontal: 14,
@@ -880,17 +880,17 @@ const styles = StyleSheet.create({
     fieldLabel: {
         marginTop: 18,
         marginBottom: 8,
-        color: '#7B5C3A',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         letterSpacing: 1,
     },
     textInput: {
         borderWidth: 1,
-        borderColor: '#D9CFBF',
+        borderColor: '#F3C9BD',
         borderRadius: 12,
         backgroundColor: '#FFFFFF',
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Jost-Regular',
         fontSize: 14,
         paddingHorizontal: 14,
@@ -902,40 +902,40 @@ const styles = StyleSheet.create({
     },
     fernStoryBtn: {
         marginTop: 16,
-        backgroundColor: '#1C3A1A',
+        backgroundColor: '#8A4A4E',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     fernStoryBtnText: {
-        color: '#F1F7F1',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     importBtn: {
         marginTop: 12,
-        backgroundColor: '#8B4A1F',
+        backgroundColor: '#C0475F',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     importBtnText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     scanSectionLabel: {
         marginTop: 20,
         marginBottom: 10,
-        color: '#7B5C3A',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         letterSpacing: 1,
     },
     scanBtnPrimary: {
-        backgroundColor: '#8B4A1F',
+        backgroundColor: '#C0475F',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
@@ -943,7 +943,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     scanBtnPrimaryText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -956,12 +956,12 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     scanBtnGreenText: {
-        color: '#F1F7F1',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     scanBtnForest: {
-        backgroundColor: '#1C3A1A',
+        backgroundColor: '#8A4A4E',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
@@ -969,20 +969,20 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     scanBtnForestText: {
-        color: '#F1F7F1',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     saveVaultBtn: {
         marginTop: 22,
-        backgroundColor: '#8B4A1F',
+        backgroundColor: '#C0475F',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 17,
     },
     saveVaultBtnText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
         letterSpacing: 0.3,
@@ -1003,7 +1003,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 40,
         borderRadius: 10,
-        backgroundColor: '#F1EEE7',
+        backgroundColor: '#FDE8E0',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -1014,13 +1014,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     detailTitle: {
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 17,
     },
     detailOrigin: {
         marginTop: 2,
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
     },
@@ -1050,10 +1050,10 @@ const styles = StyleSheet.create({
         marginTop: 18,
         flexDirection: 'row',
         gap: 10,
-        backgroundColor: '#F1EEE7',
+        backgroundColor: '#FDE8E0',
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#E5DCCB',
+        borderColor: '#F3C9BD',
         padding: 16,
     },
     storyIcon: {
@@ -1062,7 +1062,7 @@ const styles = StyleSheet.create({
     storyText: {
         flex: 1,
         fontStyle: 'italic',
-        color: '#5D4F42',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
         lineHeight: 20,
@@ -1070,13 +1070,13 @@ const styles = StyleSheet.create({
     detailCard: {
         marginTop: 16,
         borderWidth: 1,
-        borderColor: '#E5DCCB',
+        borderColor: '#F3C9BD',
         backgroundColor: '#FFFFFF',
         borderRadius: 14,
         padding: 16,
     },
     detailCardLabel: {
-        color: '#7B5C3A',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         letterSpacing: 1,
@@ -1091,14 +1091,14 @@ const styles = StyleSheet.create({
         borderStyle: 'dashed',
     },
     detailListBullet: {
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
         width: 18,
     },
     detailListText: {
         flex: 1,
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Jost-Regular',
         fontSize: 13,
         lineHeight: 19,
@@ -1110,29 +1110,29 @@ const styles = StyleSheet.create({
     },
     detailSaveBtn: {
         flex: 1,
-        backgroundColor: '#8B4A1F',
+        backgroundColor: '#C0475F',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     detailSaveBtnText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     detailShopBtn: {
         flex: 1,
-        backgroundColor: '#F1EEE7',
+        backgroundColor: '#FDE8E0',
         borderWidth: 1,
-        borderColor: '#D9CFBF',
+        borderColor: '#F3C9BD',
         borderRadius: 14,
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     detailShopBtnText: {
-        color: '#5D4F42',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },

@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: '88%',
-    backgroundColor: '#FBF8F2',
+    backgroundColor: '#FDE8E0',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     marginTop: 20,
     marginBottom: 10,
-    color: '#7B5C3A',
+    color: '#8A5A5C',
     fontFamily: 'Jost-Bold',
     fontSize: 11,
     letterSpacing: 1.2,

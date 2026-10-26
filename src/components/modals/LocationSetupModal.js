@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import useLanguage from '../../hooks/useLanguage';
 import { getLocationSetupStatus, isSetupComplete, needsAlways, requestLocationSetup } from '../../services/locationSetup';
 
-const C = { forest: '#1C3A1A', orange: '#E8651A', parch: '#FDFAF6', ink: '#1A0E05', brown: '#8C7A5F', border: '#E8E0D0', green: '#2E7D32' };
+const C = { forest: '#8A4A4E', orange: '#D8607C', parch: '#FFFAF6', ink: '#5A3236', brown: '#9A7872', border: '#E8E0D0', green: '#C0475F' };
 
 // First-run (and later, if something is missing) explanation + one button that runs
 // the location / "Always" / notification prompts. onDone(status) fires on close.

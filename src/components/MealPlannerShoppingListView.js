@@ -31,7 +31,7 @@ export default function MealPlannerShoppingListView({ groups, isLoading, onBack,
                 <Text style={styles.loadingEmoji}>🛒</Text>
                 <Text style={styles.loadingTitle}>{t('meal_planner_shopping_loading_title')}</Text>
                 <Text style={styles.loadingDesc}>{t('meal_planner_shopping_loading_desc')}</Text>
-                <ActivityIndicator color={colors.forest} style={styles.loadingSpinner} />
+                <ActivityIndicator color={'#8A4A4E'} style={styles.loadingSpinner} />
             </View>
         );
     }
@@ -72,7 +72,7 @@ export default function MealPlannerShoppingListView({ groups, isLoading, onBack,
                 disabled={isSaving}
             >
                 {isSaving ? (
-                    <ActivityIndicator color="#F1F7F1" />
+                    <ActivityIndicator color="#FDE8E0" />
                 ) : (
                     <Text style={styles.shopWithFernBtnText}>{`🛍️ ${t('meal_planner_shop_with_fern_btn')}`}</Text>
                 )}
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     backLinkText: {
-        color: '#8C6B46',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -113,13 +113,13 @@ const styles = StyleSheet.create({
         fontSize: 40,
     },
     headerTitle: {
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 24,
     },
     headerSubtitle: {
         marginTop: 6,
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Italic',
         fontStyle: 'italic',
         fontSize: 13,
@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
     card: {
         marginBottom: 18,
         borderWidth: 1,
-        borderColor: '#E0D4C4',
+        borderColor: '#F3C9BD',
         borderRadius: 16,
         backgroundColor: '#FFFFFF',
         paddingHorizontal: 16,
@@ -146,31 +146,31 @@ const styles = StyleSheet.create({
     itemRow: {
         paddingVertical: 9,
         borderBottomWidth: 1,
-        borderBottomColor: '#F0E9DD',
+        borderBottomColor: '#FDE8E0',
         borderStyle: 'dashed',
     },
     itemText: {
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Jost-Regular',
         fontSize: 14,
     },
     emptyText: {
         marginTop: 40,
         textAlign: 'center',
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
     },
     shopWithFernBtn: {
         marginTop: 8,
         borderRadius: 14,
-        backgroundColor: colors.forest,
+        backgroundColor: '#8A4A4E',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 17,
     },
     shopWithFernBtnText: {
-        color: '#F1F7F1',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
         textAlign: 'center',
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
         paddingVertical: 16,
     },
     copyBtnText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         borderWidth: 1,
         borderColor: 'rgb(216, 109, 51)',
-        backgroundColor: '#FBF8F2',
+        backgroundColor: '#FDE8E0',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
@@ -223,14 +223,14 @@ const styles = StyleSheet.create({
     loadingTitle: {
         marginTop: 14,
         textAlign: 'center',
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 18,
     },
     loadingDesc: {
         marginTop: 8,
         textAlign: 'center',
-        color: '#8C7A5F',
+        color: '#9A7872',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
     },

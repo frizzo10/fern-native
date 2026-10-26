@@ -246,7 +246,7 @@ const styles = StyleSheet.create({
     },
     sheet: {
         height: '85%',
-        backgroundColor: '#FBF8F2',
+        backgroundColor: '#FDE8E0',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 1,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     previewTitle: { color: '#5A3236', fontFamily: 'PlayfairDisplay-Bold', fontSize: 20, marginBottom: 4 },
     previewHead: { color: '#5A3236', fontFamily: 'Jost-Bold', fontSize: 14, marginTop: 16, marginBottom: 6, textTransform: 'uppercase' },
     previewLine: { color: '#5A3236', fontFamily: 'Jost-Regular', fontSize: 15, lineHeight: 22, marginBottom: 4 },
-    previewFooter: { padding: 14, borderTopWidth: 1, borderTopColor: '#F3C9BD', backgroundColor: '#FBF8F2' },
+    previewFooter: { padding: 14, borderTopWidth: 1, borderTopColor: '#F3C9BD', backgroundColor: '#FDE8E0' },
     previewAddBtn: { backgroundColor: '#D8607C', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
     previewAddText: { color: '#fff', fontFamily: 'Jost-Bold', fontSize: 16 },
     emptyState: {

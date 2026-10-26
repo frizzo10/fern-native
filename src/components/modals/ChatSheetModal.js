@@ -604,7 +604,7 @@ export default function ChatSheetModal({
           {thinking && (
             <View style={[styles.bubbleRow, styles.bubbleRowFern]}>
               <View style={[styles.bubble, styles.bubbleFern, shadow.card]}>
-                <ActivityIndicator size="small" color={colors.forest} />
+                <ActivityIndicator size="small" color={'#8A4A4E'} />
               </View>
             </View>
           )}
@@ -635,7 +635,7 @@ export default function ChatSheetModal({
             value={inputText}
             onChangeText={setInputText}
             placeholder={t('chat_input_placeholder')}
-            placeholderTextColor={colors.brown}
+            placeholderTextColor={'#8A5A5C'}
             onSubmitEditing={() => askFern(inputText)}
             returnKeyType="send"
           />
@@ -652,59 +652,59 @@ export default function ChatSheetModal({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.parch },
+  container: { flex: 1, backgroundColor: '#FFFAF6' },
   fullBackdrop: { flex: 1 },
   compactBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.12)' },
-  compactSheet: { height: '40%', minHeight: 300, backgroundColor: colors.parch, borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
+  compactSheet: { height: '40%', minHeight: 300, backgroundColor: '#FFFAF6', borderTopLeftRadius: 20, borderTopRightRadius: 20, overflow: 'hidden' },
   headerCompact: { paddingTop: 16 },
   header: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 20, paddingTop: 60, paddingBottom: 16,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+    borderBottomWidth: 1, borderBottomColor: '#F3C9BD',
   },
-  headerTitle: { fontFamily: 'serif', fontSize: 19, fontWeight: '800', color: colors.ink },
-  closeX: { fontSize: 20, color: colors.brown, padding: 4 },
+  headerTitle: { fontFamily: 'serif', fontSize: 19, fontWeight: '800', color: '#5A3236' },
+  closeX: { fontSize: 20, color: '#8A5A5C', padding: 4 },
 
   messageList: { flex: 1 },
   messageListContent: { padding: 16, gap: 10 },
 
   emptyState: { alignItems: 'center', paddingTop: 60, paddingHorizontal: 40 },
   emptyEmoji: { fontSize: 40, marginBottom: 12 },
-  emptyText: { fontSize: 14, color: colors.brown, textAlign: 'center', lineHeight: 20 },
+  emptyText: { fontSize: 14, color: '#8A5A5C', textAlign: 'center', lineHeight: 20 },
 
   bubbleRow: { flexDirection: 'row', marginBottom: 4 },
   bubbleRowUser: { justifyContent: 'flex-end' },
   bubbleRowFern: { justifyContent: 'flex-start' },
   bubble: { maxWidth: '80%', borderRadius: radius.lg, paddingVertical: 10, paddingHorizontal: 14 },
-  bubbleUser: { backgroundColor: colors.forest },
-  bubbleFern: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.border },
+  bubbleUser: { backgroundColor: '#8A4A4E' },
+  bubbleFern: { backgroundColor: '#FDE8E0', borderWidth: 1, borderColor: '#F3C9BD' },
   bubbleError: { backgroundColor: '#FBEAE7', borderWidth: 1, borderColor: colors.voiceRed },
   bubbleTextUser: { color: colors.onFern, fontSize: 15, lineHeight: 21 },
-  bubbleTextFern: { color: colors.ink, fontSize: 15, lineHeight: 21 },
+  bubbleTextFern: { color: '#5A3236', fontSize: 15, lineHeight: 21 },
   bubbleTextError: { color: colors.voiceRed, fontSize: 14 },
 
   inputRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 16, paddingVertical: 12,
-    borderTopWidth: 1, borderTopColor: colors.border,
+    borderTopWidth: 1, borderTopColor: '#F3C9BD',
   },
   micBtn: {
-    width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.paper,
-    borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
+    width: 40, height: 40, borderRadius: radius.full, backgroundColor: '#FDE8E0',
+    borderWidth: 1.5, borderColor: '#F3C9BD', alignItems: 'center', justifyContent: 'center',
   },
   micBtnActive: { backgroundColor: colors.voiceRed, borderColor: colors.voiceRed },
   micBtnDisabled: { opacity: 0.4 },
   micBtnText: { fontSize: 16 },
   textInput: {
-    flex: 1, backgroundColor: colors.paper, borderRadius: radius.full,
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 16, paddingVertical: 10,
-    fontSize: 15, color: colors.ink,
+    flex: 1, backgroundColor: '#FDE8E0', borderRadius: radius.full,
+    borderWidth: 1, borderColor: '#F3C9BD', paddingHorizontal: 16, paddingVertical: 10,
+    fontSize: 15, color: '#5A3236',
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: radius.full, backgroundColor: colors.orange,
+    width: 40, height: 40, borderRadius: radius.full, backgroundColor: '#D8607C',
     alignItems: 'center', justifyContent: 'center',
   },
   sendBtnText: { color: '#fff', fontSize: 18, fontWeight: '800' },
 
-  listeningHint: { textAlign: 'center', fontSize: 12, color: colors.brown, paddingBottom: 10, fontStyle: 'italic' },
+  listeningHint: { textAlign: 'center', fontSize: 12, color: '#8A5A5C', paddingBottom: 10, fontStyle: 'italic' },
 });

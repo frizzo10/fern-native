@@ -79,7 +79,7 @@ export default function InsiderDealsModal({ visible, onClose, user }) {
                     <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                         {status === 'loading' ? (
                             <View style={styles.centerBlock}>
-                                <ActivityIndicator size="large" color={colors.forest} />
+                                <ActivityIndicator size="large" color={'#8A4A4E'} />
                                 <Text style={styles.mutedText}>{t('insider_deals_loading')}</Text>
                             </View>
                         ) : null}
@@ -163,11 +163,11 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     sheet: {
-        backgroundColor: '#F5F2ED',
+        backgroundColor: '#FDE8E0',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 1,
-        borderColor: '#D9CFBF',
+        borderColor: '#F3C9BD',
         paddingHorizontal: 16,
         paddingTop: 16,
         paddingBottom: 16,
@@ -183,7 +183,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: 'Playfair-Bold',
         fontSize: 22,
-        color: colors.forest,
+        color: '#8A4A4E',
     },
     closeBtn: {
         width: 36,
@@ -213,14 +213,14 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontFamily: 'Playfair-Bold',
         fontSize: 20,
-        color: colors.ink,
+        color: '#5A3236',
         textAlign: 'center',
     },
     mutedText: {
         fontFamily: 'Jost-Regular',
         fontSize: 14,
         lineHeight: 21,
-        color: colors.brown,
+        color: '#8A5A5C',
         textAlign: 'center',
     },
     notifyNote: {
@@ -233,14 +233,14 @@ const styles = StyleSheet.create({
     notifyNoteText: {
         fontSize: 13,
         fontStyle: 'italic',
-        color: colors.brown,
+        color: '#8A5A5C',
         textAlign: 'center',
     },
     dealCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: radius.md,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: '#F3C9BD',
         padding: 14,
         marginBottom: 12,
     },
@@ -259,26 +259,26 @@ const styles = StyleSheet.create({
         aspectRatio: 16 / 9,
         borderRadius: radius.sm,
         marginBottom: 10,
-        backgroundColor: colors.paper,
+        backgroundColor: '#FDE8E0',
     },
     dealBrand: {
         fontSize: 11,
         fontWeight: '800',
         letterSpacing: 1.2,
-        color: colors.brown,
+        color: '#8A5A5C',
         marginBottom: 2,
     },
     dealTitle: {
         fontFamily: 'Playfair-Bold',
         fontSize: 18,
-        color: colors.ink,
+        color: '#5A3236',
         marginBottom: 6,
     },
     dealDescription: {
         fontFamily: 'Jost-Regular',
         fontSize: 14,
         lineHeight: 20,
-        color: colors.ink,
+        color: '#5A3236',
         marginBottom: 8,
     },
     codeRow: {
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         borderWidth: 1,
         borderStyle: 'dashed',
-        borderColor: colors.bright,
+        borderColor: '#C0475F',
         backgroundColor: 'rgba(28,58,26,0.06)',
         borderRadius: radius.sm,
         paddingVertical: 8,
@@ -298,23 +298,23 @@ const styles = StyleSheet.create({
         fontSize: 11,
         fontWeight: '700',
         letterSpacing: 1,
-        color: colors.brown,
+        color: '#8A5A5C',
     },
     codeText: {
         fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }),
         fontSize: 16,
         fontWeight: '900',
         letterSpacing: 1.5,
-        color: colors.forest,
+        color: '#8A4A4E',
     },
     validText: {
         fontSize: 12,
         fontStyle: 'italic',
-        color: colors.brown,
+        color: '#8A5A5C',
         marginBottom: 6,
     },
     primaryBtn: {
-        backgroundColor: colors.forest,
+        backgroundColor: '#8A4A4E',
         borderRadius: radius.md,
         paddingVertical: 12,
         paddingHorizontal: 18,
@@ -323,7 +323,7 @@ const styles = StyleSheet.create({
     },
     primaryBtnText: {
         fontFamily: 'Jost-Bold',
-        color: colors.sage,
+        color: '#F3C9BD',
         fontSize: 13,
         fontWeight: '800',
         letterSpacing: 0.6,

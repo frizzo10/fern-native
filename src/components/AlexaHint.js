@@ -32,7 +32,7 @@ export default function AlexaHint({ text, onPress, style }) {
 }
 
 const s = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF5EC', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginTop: 8 },
-  text: { fontSize: 13, fontFamily: 'Jost-SemiBold', color: '#3F5B3F', lineHeight: 18 },
+  wrap: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FBD9CE', borderRadius: 10, paddingVertical: 8, paddingHorizontal: 12, marginTop: 8 },
+  text: { fontSize: 13, fontFamily: 'Jost-SemiBold', color: '#8A4A4E', lineHeight: 18 },
   x: { fontSize: 14, color: '#6B7F69', paddingLeft: 10 },
 });

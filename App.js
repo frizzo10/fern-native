@@ -630,7 +630,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           },
           tabBarHideOnKeyboard: Platform.OS === 'android',
           tabBarActiveTintColor: '#D8607C',
-          tabBarInactiveTintColor: '#C3A29B',
+          tabBarInactiveTintColor: '#8F6F6A',
           tabBarLabelStyle: {
             fontSize: 9,
             fontWeight: '800',
@@ -896,7 +896,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0, left: 0, right: 0,
     zIndex: 999,
-    backgroundColor: colors.forest,
+    backgroundColor: '#8A4A4E',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(168,213,162,0.2)',
     flexDirection: 'row',
@@ -909,8 +909,8 @@ const styles = StyleSheet.create({
   bannerEmoji: { fontSize: 24 },
   bannerText: { flex: 1 },
   bannerTitle: { fontSize: 14, fontWeight: '800', color: colors.onFern },
-  bannerSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  bannerBtn: { backgroundColor: colors.orange, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8 },
+  bannerSub: { fontSize: 12, color: '#EBCFC6', marginTop: 2 },
+  bannerBtn: { backgroundColor: '#D8607C', borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 8 },
   bannerBtnText: { color: '#fff', fontWeight: '800', fontSize: 13 },
   bannerClose: { padding: 6 },
   bannerCloseText: { color: 'rgba(255,255,255,0.4)', fontSize: 18 },
@@ -939,7 +939,7 @@ const styles = StyleSheet.create({
   // Same look as the app's feature screens: forest header band, Playfair title in
   // gold, parchment body.
   moreSheet: {
-    backgroundColor: colors.forest,
+    backgroundColor: '#8A4A4E',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     overflow: 'hidden',
@@ -950,7 +950,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.forest,
+    backgroundColor: '#8A4A4E',
     paddingHorizontal: 18,
     paddingVertical: 14,
     marginBottom: 16,
@@ -962,12 +962,12 @@ const styles = StyleSheet.create({
   moreTitle: {
     fontFamily: 'Playfair-Bold',
     fontSize: 20,
-    color: '#F0E0B0',
+    color: '#FDE8E0',
   },
   moreSubtitle: {
     marginTop: 2,
     fontSize: 11,
-    color: colors.sage,
+    color: '#F3C9BD',
     fontFamily: 'Jost-Bold',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
@@ -983,7 +983,7 @@ const styles = StyleSheet.create({
   moreCloseText: {
     fontSize: 24,
     lineHeight: 26,
-    color: '#F0E0B0',
+    color: '#FDE8E0',
     marginTop: -2,
   },
   // Buttons match the bottom tab bar: emoji icon over a small uppercase label, on forest.
@@ -993,8 +993,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingTop: 2,
   },
-  moreCaption: { color: '#F5F0E7', fontSize: 15, lineHeight: 21, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10 },
-  moreActionLit: { borderWidth: 3, borderColor: '#F28C28', borderRadius: 14, backgroundColor: 'rgba(242,140,40,0.18)' },
+  moreCaption: { color: '#FDE8E0', fontSize: 15, lineHeight: 21, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 10 },
+  moreActionLit: { borderWidth: 3, borderColor: '#D8607C', borderRadius: 14, backgroundColor: 'rgba(242,140,40,0.18)' },
   moreActionDim: { opacity: 0.35 },
   moreAction: {
     flex: 1,
@@ -1013,7 +1013,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
-    color: colors.sage,
+    color: '#F3C9BD',
   },
 
 });

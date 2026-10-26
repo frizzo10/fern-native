@@ -360,7 +360,7 @@ export default function NutritionTrackerModal({ visible, onClose, navigation, us
 
                         {step === 'analyzing' ? (
                             <View style={styles.loadingWrap}>
-                                <ActivityIndicator size="large" color="#173E20" />
+                                <ActivityIndicator size="large" color="#8A4A4E" />
                                 <Text style={styles.loadingTitle}>{t('nutrition_tracker_analyzing_title')}</Text>
                             </View>
                         ) : step === 'results' && result ? (
@@ -528,11 +528,11 @@ const styles = StyleSheet.create({
     },
     sheet: {
         maxHeight: '92%',
-        backgroundColor: '#FBF8F2',
+        backgroundColor: '#FDE8E0',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 1,
-        borderColor: '#D9CFBF',
+        borderColor: '#F3C9BD',
         overflow: 'hidden',
     },
     topBar: {
@@ -542,24 +542,24 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderBottomWidth: 1,
-        borderBottomColor: '#E0D4C4',
+        borderBottomColor: '#F3C9BD',
         gap: 10,
     },
     title: {
         flex: 1,
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 18,
         lineHeight: 24,
     },
     shareBtn: {
         borderRadius: 999,
-        backgroundColor: '#173E20',
+        backgroundColor: '#8A4A4E',
         paddingHorizontal: 16,
         paddingVertical: 10,
     },
     shareBtnText: {
-        color: '#F1F7F1',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -568,13 +568,13 @@ const styles = StyleSheet.create({
         height: 40,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#D6C8B4',
-        backgroundColor: '#F2ECE3',
+        borderColor: '#F3C9BD',
+        backgroundColor: '#FDE8E0',
         alignItems: 'center',
         justifyContent: 'center',
     },
     closeText: {
-        color: '#8C6B46',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Bold',
         fontSize: 24,
         lineHeight: 30,
@@ -586,18 +586,18 @@ const styles = StyleSheet.create({
     },
     aiEstimationBanner: {
         borderRadius: 14,
-        backgroundColor: '#E9F1E7',
+        backgroundColor: '#FBD9CE',
         paddingHorizontal: 14,
         paddingVertical: 14,
     },
     aiEstimationText: {
-        color: '#2A4A2A',
+        color: '#8A4A4E',
         fontFamily: 'Jost-Regular',
         fontSize: 13,
         lineHeight: 20,
     },
     aiEstimationLabel: {
-        color: '#2F6B2F',
+        color: '#C0475F',
         fontFamily: 'Jost-Bold',
     },
     suggestedPlanBanner: {
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
     },
     loadingTitle: {
         marginTop: 18,
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 18,
     },
@@ -629,14 +629,14 @@ const styles = StyleSheet.create({
     // Form step
     goalsHeading: {
         marginTop: 20,
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 20,
         lineHeight: 26,
     },
     goalsSubtitle: {
         marginTop: 6,
-        color: '#7B5E3E',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
         lineHeight: 19,
@@ -644,7 +644,7 @@ const styles = StyleSheet.create({
     sectionLabel: {
         marginTop: 20,
         marginBottom: 10,
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Jost-Bold',
         fontSize: 15,
     },
@@ -657,37 +657,37 @@ const styles = StyleSheet.create({
         width: '47.5%',
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#CFBEA7',
-        backgroundColor: '#F1E9DA',
+        borderColor: '#F3C9BD',
+        backgroundColor: '#FDE8E0',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
         paddingHorizontal: 8,
     },
     optionBtnSelected: {
-        backgroundColor: '#173E20',
-        borderColor: '#173E20',
+        backgroundColor: '#8A4A4E',
+        borderColor: '#8A4A4E',
     },
     optionBtnText: {
         textAlign: 'center',
-        color: '#2B2017',
+        color: '#5A3236',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
         lineHeight: 18,
     },
     optionBtnTextSelected: {
-        color: '#F1F7F1',
+        color: '#FDE8E0',
     },
     analyzeBtn: {
         marginTop: 24,
         borderRadius: 14,
-        backgroundColor: '#E96B1E',
+        backgroundColor: '#D8607C',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 17,
     },
     analyzeBtnText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 15,
     },
@@ -700,19 +700,19 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 8,
         borderRadius: 12,
-        backgroundColor: '#E9F1E7',
+        backgroundColor: '#FBD9CE',
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
     goalsBarText: {
         flex: 1,
-        color: '#2A4A2A',
+        color: '#8A4A4E',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         lineHeight: 18,
     },
     editGoalsLink: {
-        color: '#173E20',
+        color: '#8A4A4E',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         textDecorationLine: 'underline',
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
     },
     legendItem: {},
     legendOnTrackText: {
-        color: '#2F6B2F',
+        color: '#C0475F',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
@@ -741,19 +741,19 @@ const styles = StyleSheet.create({
     statTile: {
         flex: 1,
         borderRadius: 14,
-        backgroundColor: '#F1E9DA',
+        backgroundColor: '#FDE8E0',
         alignItems: 'center',
         paddingVertical: 14,
         paddingHorizontal: 4,
     },
     statValue: {
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Playfair-Bold',
         fontSize: 18,
     },
     statLabel: {
         marginTop: 4,
-        color: '#8C7355',
+        color: '#9A7872',
         fontFamily: 'Jost-Bold',
         fontSize: 9,
         letterSpacing: 0.5,
@@ -773,7 +773,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     dayName: {
-        color: '#2A1A11',
+        color: '#5A3236',
         fontFamily: 'Jost-Bold',
         fontSize: 15,
     },
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#FBDAD3',
     },
     dayPillOnTrackText: {
-        color: '#2F6B2F',
+        color: '#C0475F',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
     },
@@ -869,13 +869,13 @@ const styles = StyleSheet.create({
     findRecipesBtn: {
         marginTop: 14,
         borderRadius: 14,
-        backgroundColor: '#E96B1E',
+        backgroundColor: '#D8607C',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     findRecipesBtnText: {
-        color: '#FFF5EC',
+        color: '#FDE8E0',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
     },

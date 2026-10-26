@@ -1041,7 +1041,7 @@ const styles = StyleSheet.create({
     },
     mealAddText: {
         marginTop: 3,
-        color: '#C3A29B',
+        color: '#8A5A5C',
         fontFamily: 'Jost-Medium',
         fontSize: 14,
     },

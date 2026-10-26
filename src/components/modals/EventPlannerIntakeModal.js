@@ -35,11 +35,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheetContainer: {
-    backgroundColor: '#F5F2ED',
+    backgroundColor: '#FDE8E0',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderWidth: 1,
-    borderColor: '#D9CFBF',
+    borderColor: '#F3C9BD',
     maxHeight: '90%',
   },
   sheetContent: {
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontFamily: 'PlayfairDisplay-Bold',
-    color: '#1A0E05',
+    color: '#5A3236',
     marginBottom: 2,
   },
   subtitle: {
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#E5E4DD',
+    backgroundColor: '#F3C9BD',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -93,13 +93,13 @@ const styles = StyleSheet.create({
   loadingTitle: {
     fontSize: 20,
     fontFamily: 'PlayfairDisplay-Bold',
-    color: '#1A0E05',
+    color: '#5A3236',
     marginBottom: 8,
   },
   loadingText: {
     fontSize: 13,
     fontFamily: 'Jost-Regular',
-    color: '#7B5E3E',
+    color: '#8A5A5C',
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Jost-Bold',
     letterSpacing: 1.2,
-    color: '#EC6518',
+    color: '#D8607C',
     marginTop: 20,
     marginBottom: 12,
   },
@@ -132,9 +132,9 @@ const styles = StyleSheet.create({
   menuHeaderCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FDFAF6',
+    backgroundColor: '#FFFAF6',
     borderWidth: 1,
-    borderColor: '#E6DCCF',
+    borderColor: '#F3C9BD',
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -144,14 +144,14 @@ const styles = StyleSheet.create({
   menuHeaderText: {
     fontSize: 13,
     fontFamily: 'Jost-Bold',
-    color: '#1A0E05',
+    color: '#5A3236',
     letterSpacing: 1,
   },
   recipeCard: {
     flexDirection: 'row',
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#E6DCCF',
+    borderColor: '#F3C9BD',
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontFamily: 'PlayfairDisplay-SemiBold',
-    color: '#1A0E05',
+    color: '#5A3236',
   },
   aiBadge: {
     backgroundColor: '#F0EAE0',
@@ -184,14 +184,14 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     fontSize: 9,
     fontFamily: 'Jost-Bold',
-    color: '#7B5E3E',
+    color: '#8A5A5C',
   },
   timeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F2ED',
+    backgroundColor: '#FDE8E0',
     borderWidth: 1,
-    borderColor: '#E6DCCF',
+    borderColor: '#F3C9BD',
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderRadius: 4,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   timeBadgeText: {
     fontSize: 9,
     fontFamily: 'Jost-Regular',
-    color: '#7B5E3E',
+    color: '#8A5A5C',
   },
   chevron: {
     fontSize: 16,
@@ -209,14 +209,14 @@ const styles = StyleSheet.create({
   recipeDesc: {
     fontSize: 12,
     fontFamily: 'Jost-Regular',
-    color: '#7B5E3E',
+    color: '#8A5A5C',
     marginBottom: 8,
     lineHeight: 17,
   },
   tapRecipeText: {
     fontSize: 10,
     fontFamily: 'Jost-Bold',
-    color: '#EC6518',
+    color: '#D8607C',
     letterSpacing: 0.3,
   },
   actionButtons: {
@@ -230,17 +230,17 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D8C8B0',
-    backgroundColor: '#FDFAF6',
+    borderColor: '#F3C9BD',
+    backgroundColor: '#FFFAF6',
   },
   actionBtnPrimary: {
-    backgroundColor: colors.orange || '#E8651A',
-    borderColor: colors.orange || '#E8651A',
+    backgroundColor: '#D8607C' || '#D8607C',
+    borderColor: '#D8607C' || '#D8607C',
   },
   actionBtnText: {
     fontSize: 11,
     fontFamily: 'Jost-Bold',
-    color: '#5C4A3D',
+    color: '#8A5A5C',
   },
   actionBtnTextPrimary: {
     color: '#FFFFFF',
@@ -555,7 +555,7 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
                   </Text>
                   <ActivityIndicator
                     size="large"
-                    color={colors.orange || '#E8651A'}
+                    color={'#D8607C' || '#D8607C'}
                     style={{ marginTop: 16 }}
                   />
                 </View>
@@ -566,7 +566,7 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
                   {planResult.overview && (
                     <View style={styles.overviewCard}>
                       <LinearGradient
-                        colors={['#EC6518', '#3A4A22']}
+                        colors={['#D8607C', '#8A4A4E']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.overviewGradient}
@@ -626,10 +626,10 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
                       <Text style={styles.sectionTitle}>🍷 {t('beverages').toUpperCase()}</Text>
                       {planResult.drinks.map((drink, idx) => (
                         <View key={idx} style={{ marginBottom: 8 }}>
-                          <Text style={{ fontSize: 12, fontFamily: 'Jost-SemiBold', color: '#1A0E05' }}>
+                          <Text style={{ fontSize: 12, fontFamily: 'Jost-SemiBold', color: '#5A3236' }}>
                             {drink.name}
                           </Text>
-                          <Text style={{ fontSize: 11, fontFamily: 'Jost-Regular', color: '#7B5E3E' }}>
+                          <Text style={{ fontSize: 11, fontFamily: 'Jost-Regular', color: '#8A5A5C' }}>
                             {drink.notes}
                           </Text>
                         </View>
@@ -647,7 +647,7 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
                           style={{
                             fontSize: 11,
                             fontFamily: 'Jost-Regular',
-                            color: '#7B5E3E',
+                            color: '#8A5A5C',
                             marginBottom: 6,
                             lineHeight: 16,
                           }}

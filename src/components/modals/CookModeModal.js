@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    color: '#F1E7D2',
+    color: '#FDE8E0',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 20,
   },
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeText: {
-    color: '#F1E7D2',
+    color: '#FDE8E0',
     fontSize: 20,
     lineHeight: 22,
   },
@@ -339,13 +339,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   ingredientsBarText: {
-    color: '#D9CFBF',
+    color: '#F3C9BD',
     fontFamily: 'Jost-Bold',
     fontSize: 12,
     letterSpacing: 1,
   },
   ingredientsChevron: {
-    color: '#D9CFBF',
+    color: '#F3C9BD',
     fontSize: 12,
   },
   ingredientsList: {
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   ingredientItemText: {
-    color: '#D9CFBF',
+    color: '#F3C9BD',
     fontFamily: 'Jost-Regular',
     fontSize: 13,
     lineHeight: 22,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   stepText: {
     marginTop: 10,
     textAlign: 'center',
-    color: '#F1E7D2',
+    color: '#FDE8E0',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 20,
     lineHeight: 28,
@@ -404,12 +404,12 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   controlBtnText: {
-    color: '#F1E7D2',
+    color: '#FDE8E0',
     fontFamily: 'Jost-Bold',
     fontSize: 13,
   },
   stepFraction: {
-    color: '#B4A488',
+    color: '#C3A29B',
     fontFamily: 'Jost-Regular',
     fontSize: 13,
   },
@@ -422,18 +422,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   helpBtnText: {
-    color: '#F1E7D2',
+    color: '#FDE8E0',
     fontFamily: 'Jost-Bold',
     fontSize: 13,
   },
   finishBtn: {
     borderRadius: 999,
-    backgroundColor: '#E96B1E',
+    backgroundColor: '#D8607C',
     paddingHorizontal: 18,
     paddingVertical: 12,
   },
   finishBtnText: {
-    color: '#FFF5EC',
+    color: '#FDE8E0',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
   },

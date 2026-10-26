@@ -101,7 +101,7 @@ export default function CircularsBrowseModal({ visible, onClose, user }) {
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
                             <Text style={styles.sub}>{t('circulars_sub')}</Text>
                             {status === 'loading' ? (
-                                <View style={styles.center}><ActivityIndicator size="large" color={colors.forest} /></View>
+                                <View style={styles.center}><ActivityIndicator size="large" color={'#8A4A4E'} /></View>
                             ) : null}
                             {status === 'error' ? (
                                 <View style={styles.center}>
@@ -129,7 +129,7 @@ export default function CircularsBrowseModal({ visible, onClose, user }) {
                         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
                             <Text style={styles.detailTitle}>{picked.store}</Text>
                             {detail?.validDates ? <Text style={styles.sub}>{detail.validDates}</Text> : null}
-                            {detail?.loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.forest} /></View> : null}
+                            {detail?.loading ? <View style={styles.center}><ActivityIndicator size="large" color={'#8A4A4E'} /></View> : null}
                             {detail?.failed ? <Text style={styles.muted}>{t('circulars_error')}</Text> : null}
                             {!detail?.loading && !detail?.failed ? (
                                 <TextInput
@@ -137,7 +137,7 @@ export default function CircularsBrowseModal({ visible, onClose, user }) {
                                     value={query}
                                     onChangeText={setQuery}
                                     placeholder={t('circulars_search_ph')}
-                                    placeholderTextColor={colors.brown}
+                                    placeholderTextColor={'#8A5A5C'}
                                 />
                             ) : null}
                             {!detail?.loading && !detail?.failed && sections.length === 0 ? <Text style={styles.muted}>{t('circulars_no_match')}</Text> : null}
@@ -169,40 +169,40 @@ export default function CircularsBrowseModal({ visible, onClose, user }) {
 const styles = StyleSheet.create({
     backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.28)', justifyContent: 'flex-end' },
     sheet: {
-        backgroundColor: '#F5F2ED', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: '#D9CFBF',
+        backgroundColor: '#FDE8E0', borderTopLeftRadius: 28, borderTopRightRadius: 28, borderWidth: 1, borderColor: '#F3C9BD',
         paddingHorizontal: 16, paddingTop: 16, paddingBottom: 16, height: '85%',
     },
     topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-    title: { flex: 1, fontFamily: 'Playfair-Bold', fontSize: 22, color: colors.forest },
+    title: { flex: 1, fontFamily: 'Playfair-Bold', fontSize: 22, color: '#8A4A4E' },
     backBtn: { paddingVertical: 6, paddingRight: 12 },
-    backText: { fontSize: 17, color: colors.forest, fontWeight: '700' },
+    backText: { fontSize: 17, color: '#8A4A4E', fontWeight: '700' },
     closeBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#D8D8D8', alignItems: 'center', justifyContent: 'center' },
     closeText: { fontSize: 24, lineHeight: 26, color: '#F4F4F4' },
     content: { paddingBottom: 30 },
-    sub: { fontSize: 14, color: colors.brown, marginBottom: 10 },
+    sub: { fontSize: 14, color: '#8A5A5C', marginBottom: 10 },
     center: { alignItems: 'center', paddingVertical: 30, gap: 12 },
-    muted: { fontSize: 15, color: colors.brown, textAlign: 'center', paddingVertical: 16 },
-    primaryBtn: { backgroundColor: colors.forest, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 22 },
+    muted: { fontSize: 15, color: '#8A5A5C', textAlign: 'center', paddingVertical: 16 },
+    primaryBtn: { backgroundColor: '#8A4A4E', borderRadius: 14, paddingVertical: 10, paddingHorizontal: 22 },
     primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
     storeCard: {
         flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, borderWidth: 1, borderColor: '#E4DCCD',
         padding: 14, marginBottom: 10,
     },
-    storeName: { fontSize: 18, fontWeight: '700', color: colors.forest },
-    storeMeta: { fontSize: 13, color: colors.brown, marginTop: 2 },
-    chev: { fontSize: 28, color: colors.brown, marginLeft: 8 },
-    detailTitle: { fontFamily: 'Playfair-Bold', fontSize: 24, color: colors.forest },
+    storeName: { fontSize: 18, fontWeight: '700', color: '#8A4A4E' },
+    storeMeta: { fontSize: 13, color: '#8A5A5C', marginTop: 2 },
+    chev: { fontSize: 28, color: '#8A5A5C', marginLeft: 8 },
+    detailTitle: { fontFamily: 'Playfair-Bold', fontSize: 24, color: '#8A4A4E' },
     search: {
         backgroundColor: '#fff', borderRadius: 14, borderWidth: 1, borderColor: '#E4DCCD', paddingHorizontal: 14, paddingVertical: 10,
-        fontSize: 16, color: colors.forest, marginTop: 6,
+        fontSize: 16, color: '#8A4A4E', marginTop: 6,
     },
-    aisle: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: colors.brown, marginBottom: 4 },
+    aisle: { fontSize: 12, fontWeight: '800', letterSpacing: 1.2, color: '#8A5A5C', marginBottom: 4 },
     itemRow: {
         flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#EEE7DA',
         paddingVertical: 10, paddingHorizontal: 12, marginBottom: 6,
     },
-    itemName: { fontSize: 15.5, color: colors.forest, fontWeight: '600' },
-    itemMeta: { fontSize: 12.5, color: colors.brown },
-    itemPrice: { fontSize: 16, fontWeight: '800', color: colors.orange },
-    itemWas: { fontSize: 12, color: colors.brown, textDecorationLine: 'line-through' },
+    itemName: { fontSize: 15.5, color: '#8A4A4E', fontWeight: '600' },
+    itemMeta: { fontSize: 12.5, color: '#8A5A5C' },
+    itemPrice: { fontSize: 16, fontWeight: '800', color: '#D8607C' },
+    itemWas: { fontSize: 12, color: '#8A5A5C', textDecorationLine: 'line-through' },
 });

@@ -150,7 +150,7 @@ export default function ScaleRecipeModal({ visible, recipe, token, onClose }) {
 
               {isScaling ? (
                 <View style={styles.loadingWrap}>
-                  <ActivityIndicator size="small" color="#E96B1E" />
+                  <ActivityIndicator size="small" color="#D8607C" />
                   <Text style={styles.loadingText}>{t('adjusting_quantities_label')}</Text>
                 </View>
               ) : null}
@@ -208,11 +208,11 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: '90%',
-    backgroundColor: '#FBF8F2',
+    backgroundColor: '#FDE8E0',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: '#D9CFBF',
+    borderColor: '#F3C9BD',
     overflow: 'hidden',
   },
   headerRow: {
@@ -222,20 +222,20 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0D4C4',
+    borderBottomColor: '#F3C9BD',
     gap: 10,
   },
   headerTextWrap: {
     flex: 1,
   },
   title: {
-    color: '#2A1A11',
+    color: '#5A3236',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 22,
   },
   subtitle: {
     marginTop: 4,
-    color: '#8C7355',
+    color: '#9A7872',
     fontFamily: 'Jost-Regular',
     fontSize: 12,
   },
@@ -243,12 +243,12 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#E5E4DD',
+    backgroundColor: '#F3C9BD',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeText: {
-    color: '#2A1A11',
+    color: '#5A3236',
     fontSize: 20,
     lineHeight: 22,
     fontFamily: 'Jost-Regular',
@@ -260,13 +260,13 @@ const styles = StyleSheet.create({
   },
   currentCard: {
     borderRadius: 14,
-    backgroundColor: '#EDEAE2',
+    backgroundColor: '#FDE8E0',
     alignItems: 'center',
     paddingVertical: 18,
     paddingHorizontal: 14,
   },
   currentLabel: {
-    color: '#8C7355',
+    color: '#9A7872',
     fontFamily: 'Jost-Bold',
     fontSize: 11,
     letterSpacing: 1.5,
@@ -274,20 +274,20 @@ const styles = StyleSheet.create({
   currentTitle: {
     marginTop: 8,
     textAlign: 'center',
-    color: '#2A1A11',
+    color: '#5A3236',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 18,
   },
   currentServes: {
     marginTop: 6,
-    color: '#7B5E3E',
+    color: '#8A5A5C',
     fontFamily: 'Jost-Regular',
     fontSize: 13,
   },
   pickLabel: {
     marginTop: 24,
     marginBottom: 12,
-    color: '#7B5C3A',
+    color: '#8A5A5C',
     fontFamily: 'Jost-Bold',
     fontSize: 12,
     letterSpacing: 1,
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   quickBtn: {
     width: '30%',
     borderWidth: 1,
-    borderColor: '#D9CFBF',
+    borderColor: '#F3C9BD',
     borderRadius: 12,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
@@ -309,21 +309,21 @@ const styles = StyleSheet.create({
   },
   quickBtnCurrent: {
     backgroundColor: '#F1E9D8',
-    borderColor: '#D3BE96',
+    borderColor: '#F3C9BD',
   },
   quickBtnSelected: {
-    borderColor: '#E96B1E',
+    borderColor: '#D8607C',
     borderWidth: 2,
     backgroundColor: '#FCEEE3',
   },
   quickBtnText: {
-    color: '#2A1A11',
+    color: '#5A3236',
     fontFamily: 'Jost-Bold',
     fontSize: 18,
   },
   quickBtnTag: {
     marginTop: 2,
-    color: '#8C7355',
+    color: '#9A7872',
     fontFamily: 'Jost-Bold',
     fontSize: 9,
     letterSpacing: 0.5,
@@ -332,16 +332,16 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 8,
     textAlign: 'center',
-    color: '#8C7355',
+    color: '#9A7872',
     fontFamily: 'PlayfairDisplay-Italic',
     fontSize: 13,
   },
   customInput: {
     borderWidth: 1,
-    borderColor: '#D9CFBF',
+    borderColor: '#F3C9BD',
     borderRadius: 14,
     backgroundColor: '#FFFFFF',
-    color: '#2A1A11',
+    color: '#5A3236',
     fontFamily: 'Jost-Regular',
     fontSize: 14,
     paddingHorizontal: 14,
@@ -351,9 +351,9 @@ const styles = StyleSheet.create({
   scaleBtn: {
     marginTop: 18,
     borderRadius: 14,
-    backgroundColor: '#E96B1E',
+    backgroundColor: '#D8607C',
     borderBottomWidth: 3,
-    borderBottomColor: '#184626',
+    borderBottomColor: '#8A4A4E',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   scaleBtnText: {
-    color: '#FFF5EC',
+    color: '#FDE8E0',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
     letterSpacing: 0.5,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   loadingText: {
-    color: '#8C7355',
+    color: '#9A7872',
     fontFamily: 'PlayfairDisplay-Italic',
     fontSize: 14,
   },
@@ -387,33 +387,33 @@ const styles = StyleSheet.create({
   resultCard: {
     marginTop: 22,
     borderRadius: 14,
-    backgroundColor: '#EDEAE2',
+    backgroundColor: '#FDE8E0',
     alignItems: 'center',
     paddingVertical: 16,
   },
   resultLabel: {
-    color: '#E96B1E',
+    color: '#D8607C',
     fontFamily: 'Jost-Bold',
     fontSize: 12,
     letterSpacing: 1,
   },
   resultServings: {
     marginTop: 6,
-    color: '#2A1A11',
+    color: '#5A3236',
     fontFamily: 'Jost-Bold',
     fontSize: 15,
   },
   ingredientsCard: {
     marginTop: 14,
     borderWidth: 1,
-    borderColor: '#D9CFBF',
+    borderColor: '#F3C9BD',
     borderRadius: 14,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
   ingredientsLabel: {
-    color: '#7B5C3A',
+    color: '#8A5A5C',
     fontFamily: 'Jost-Bold',
     fontSize: 12,
     letterSpacing: 1,
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   },
   ingredientRow: {
     borderBottomWidth: 1,
-    borderBottomColor: '#E5D8C8',
+    borderBottomColor: '#F3C9BD',
     paddingVertical: 10,
     gap: 4,
   },
@@ -435,7 +435,7 @@ const styles = StyleSheet.create({
     textDecorationLine: 'line-through',
   },
   nowText: {
-    color: '#184626',
+    color: '#8A4A4E',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
   },

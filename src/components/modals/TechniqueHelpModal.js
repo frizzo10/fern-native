@@ -96,7 +96,7 @@ export default function TechniqueHelpModal({ visible, recipeTitle, step, onClose
             {isLoading ? (
               <View style={styles.loadingWrap}>
                 <Text style={styles.loadingText}>⏳ {t('technique_help_loading_label')}</Text>
-                <ActivityIndicator size="small" color="#D9C48F" style={{ marginTop: 14 }} />
+                <ActivityIndicator size="small" color="#F3C9BD" style={{ marginTop: 14 }} />
               </View>
             ) : error ? (
               <View style={styles.loadingWrap}>
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: '#3C2E1E',
+    borderColor: '#5A3236',
     overflow: 'hidden',
   },
   headerRow: {
@@ -185,11 +185,11 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#3C2E1E',
+    borderBottomColor: '#5A3236',
     gap: 10,
   },
   headerIcon: {
-    color: '#D9C48F',
+    color: '#F3C9BD',
     fontSize: 16,
     marginTop: 4,
   },
@@ -197,13 +197,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    color: '#F1E7D2',
+    color: '#FDE8E0',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 20,
   },
   subtitle: {
     marginTop: 4,
-    color: '#B4A488',
+    color: '#C3A29B',
     fontFamily: 'Jost-Regular',
     fontSize: 12,
   },
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeText: {
-    color: '#D9CFBF',
+    color: '#F3C9BD',
     fontSize: 18,
     lineHeight: 20,
   },
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
     paddingVertical: 50,
   },
   loadingText: {
-    color: '#B4A488',
+    color: '#C3A29B',
     fontFamily: 'Jost-Regular',
     fontSize: 14,
   },
@@ -241,14 +241,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   sectionLabel: {
-    color: '#B4A488',
+    color: '#C3A29B',
     fontFamily: 'Jost-Bold',
     fontSize: 11,
     letterSpacing: 1.5,
     marginBottom: 8,
   },
   currentStepText: {
-    color: '#F1E7D2',
+    color: '#FDE8E0',
     fontFamily: 'PlayfairDisplay-Italic',
     fontSize: 15,
     lineHeight: 22,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   videoSectionLabel: {
-    color: '#B4A488',
+    color: '#C3A29B',
     fontFamily: 'Jost-Bold',
     fontSize: 11,
     letterSpacing: 1.5,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     borderWidth: 1,
-    borderColor: '#3C2E1E',
+    borderColor: '#5A3236',
     borderRadius: 14,
     backgroundColor: 'rgba(255,255,255,0.03)',
     paddingHorizontal: 12,
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   videoRowTitle: {
-    color: '#F1E7D2',
+    color: '#FDE8E0',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
   },
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   searchAllText: {
-    color: '#D9C48F',
+    color: '#F3C9BD',
     fontFamily: 'Jost-Bold',
     fontSize: 13,
     textDecorationLine: 'underline',

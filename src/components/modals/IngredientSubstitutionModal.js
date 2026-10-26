@@ -70,7 +70,7 @@ export default function IngredientSubstitutionModal({ visible, recipe, ingredien
             </TouchableOpacity>
           </View>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-            {loading ? <ActivityIndicator color="#184029" style={styles.spinner} /> : null}
+            {loading ? <ActivityIndicator color="#8A4A4E" style={styles.spinner} /> : null}
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
             {onSelect && results.length ? <Text style={styles.hintText}>{t('substitution_tap_hint')}</Text> : null}
             {results.map((row, idx) => (
@@ -98,11 +98,11 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.34)', justifyContent: 'flex-end' },
   sheet: {
     maxHeight: '80%',
-    backgroundColor: '#FBF8F2',
+    backgroundColor: '#FDE8E0',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: '#D9CFBF',
+    borderColor: '#F3C9BD',
     overflow: 'hidden',
   },
   headerRow: {
@@ -112,27 +112,27 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0D4C4',
+    borderBottomColor: '#F3C9BD',
     gap: 10,
   },
   headerTextWrap: { flex: 1 },
-  title: { color: '#2A1A11', fontFamily: 'PlayfairDisplay-Bold', fontSize: 22 },
-  subtitle: { marginTop: 4, color: '#8C7355', fontFamily: 'Jost-Regular', fontSize: 13 },
+  title: { color: '#5A3236', fontFamily: 'PlayfairDisplay-Bold', fontSize: 22 },
+  subtitle: { marginTop: 4, color: '#9A7872', fontFamily: 'Jost-Regular', fontSize: 13 },
   closeBtn: {
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#E5E4DD',
+    backgroundColor: '#F3C9BD',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeText: { color: '#2A1A11', fontSize: 20, lineHeight: 22, fontFamily: 'Jost-Regular' },
+  closeText: { color: '#5A3236', fontSize: 20, lineHeight: 22, fontFamily: 'Jost-Regular' },
   scrollContent: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 30, gap: 10 },
   spinner: { marginVertical: 24 },
   errorText: { color: '#8C3B2A', fontFamily: 'Jost-Regular', fontSize: 14, textAlign: 'center', marginVertical: 16 },
-  hintText: { color: '#8C7355', fontFamily: 'Jost-Regular', fontSize: 13, marginBottom: 2 },
-  card: { borderRadius: 14, backgroundColor: '#EDEAE2', padding: 14 },
-  cardName: { color: '#2A1A11', fontFamily: 'Jost-Medium', fontSize: 16 },
-  cardAmount: { marginTop: 3, color: '#184029', fontFamily: 'Jost-Regular', fontSize: 13 },
-  cardNote: { marginTop: 4, color: '#795A39', fontFamily: 'Jost-Regular', fontSize: 12, lineHeight: 17 },
+  hintText: { color: '#9A7872', fontFamily: 'Jost-Regular', fontSize: 13, marginBottom: 2 },
+  card: { borderRadius: 14, backgroundColor: '#FDE8E0', padding: 14 },
+  cardName: { color: '#5A3236', fontFamily: 'Jost-Medium', fontSize: 16 },
+  cardAmount: { marginTop: 3, color: '#8A4A4E', fontFamily: 'Jost-Regular', fontSize: 13 },
+  cardNote: { marginTop: 4, color: '#8A5A5C', fontFamily: 'Jost-Regular', fontSize: 12, lineHeight: 17 },
 });
