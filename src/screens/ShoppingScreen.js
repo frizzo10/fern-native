@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  ImageBackground,
   Clipboard,
   Linking,
   Share,
@@ -1063,13 +1062,12 @@ export default function ShoppingScreen({ user }) {
 
         {showBag ? (
           <View style={styles.bagWrap}>
-            <Image source={require('../../assets/bag/bag-top.png')} style={styles.bagTopImg} resizeMode="stretch" />
-            <ImageBackground source={require('../../assets/bag/bag-body.png')} style={styles.bagCard} imageStyle={styles.bagBodyImg} resizeMode="stretch">
-              <View style={styles.bagBody}>
+            <View style={styles.bagPic}>
+              <Image source={require('../../assets/bag/bag-full.png')} style={styles.bagImg} resizeMode="contain" />
+              <View style={styles.bagFront} pointerEvents="box-none">
                 <View style={styles.bagLabel}>
-                  <Text style={styles.bagLabelText}>{`🌿 ${bagStore ? t('bag_title', { store: bagStore }) : t('bag_title_generic')}`}</Text>
+                  <Text style={styles.bagLabelText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{`🌿 ${bagStore ? t('bag_title', { store: bagStore }) : t('bag_title_generic')}`}</Text>
                 </View>
-                <Text style={styles.bagSub}>{t('bag_sub')}</Text>
                 <View style={styles.bagGrid}>
                   {[
                     { key: 'sales', emoji: '🏷', n: weekDeals.length, full: t('bag_sales', { n: weekDeals.length }), empty: t('bag_empty_sales'), target: 'sales' },
@@ -1079,35 +1077,35 @@ export default function ShoppingScreen({ user }) {
                   ].map((chip) => (
                     <TouchableOpacity key={chip.key} style={[styles.bagChip, chip.n > 0 ? styles.bagChipOn : null]} activeOpacity={0.85} onPress={() => goTo(sectionY.current[chip.target] != null ? chip.target : (chip.target === 'couponCard' ? 'coupons' : chip.target))}>
                       <Text style={styles.bagChipEmoji}>{chip.emoji}</Text>
-                      <Text style={[styles.bagChipText, chip.n > 0 ? styles.bagChipTextOn : null]} numberOfLines={2}>{chip.n > 0 ? chip.full : chip.empty}</Text>
+                      <Text style={[styles.bagChipText, chip.n > 0 ? styles.bagChipTextOn : null]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75}>{chip.n > 0 ? chip.full : chip.empty}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-                {weekDeals.length > 0 ? (
-                  <View>
-                    <TouchableOpacity style={[styles.bagChip, styles.bagChipOn, { width: '100%', marginBottom: 0 }]} activeOpacity={0.85} onPress={() => setMoodOpen((v) => !v)}>
-                      <Text style={styles.bagChipEmoji}>{dinnerMood ? DINNER_MOODS.find((m) => m[0] === dinnerMood)?.[1] : '🍽'}</Text>
-                      <Text style={[styles.bagChipText, styles.bagChipTextOn]} numberOfLines={2}>{dinnerMood ? t('mood_btn_set', { mood: t(`mood_${dinnerMood}`) }) : t('mood_btn')}</Text>
-                      <Text style={styles.bagChipTextOn}>{moodOpen ? '▴' : '▾'}</Text>
-                    </TouchableOpacity>
-                    {moodOpen ? (
-                      <View style={{ marginTop: 8 }}>
-                        <Text style={styles.bagSub}>{t('mood_sub')}</Text>
-                        <View style={styles.bagGrid}>
-                          {[['', '✨', '']].concat(DINNER_MOODS).map((m) => (
-                            <TouchableOpacity key={m[0] || 'any'} style={[styles.bagChip, dinnerMood === m[0] ? styles.bagChipOn : null]} activeOpacity={0.85}
-                              onPress={() => { setDinnerMood(m[0]); setMoodOpen(false); setMealsKey((k) => k + 1); setMealCards(null); setTimeout(() => goTo('meals'), 300); }}>
-                              <Text style={styles.bagChipEmoji}>{m[1]}</Text>
-                              <Text style={[styles.bagChipText, dinnerMood === m[0] ? styles.bagChipTextOn : null]} numberOfLines={2}>{m[0] ? t(`mood_${m[0]}`) : t('mood_any')}</Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                    ) : null}
+              </View>
+            </View>
+            {weekDeals.length > 0 ? (
+              <View style={styles.moodCard}>
+                <TouchableOpacity style={styles.moodRow} activeOpacity={0.85} onPress={() => setMoodOpen((v) => !v)}>
+                  <Text style={styles.moodEmoji}>{dinnerMood ? DINNER_MOODS.find((m) => m[0] === dinnerMood)?.[1] : '🍽'}</Text>
+                  <Text style={styles.moodText} numberOfLines={2}>{dinnerMood ? t('mood_btn_set', { mood: t(`mood_${dinnerMood}`) }) : t('mood_btn')}</Text>
+                  <Text style={styles.moodText}>{moodOpen ? '▴' : '▾'}</Text>
+                </TouchableOpacity>
+                {moodOpen ? (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={styles.bagSub}>{t('mood_sub')}</Text>
+                    <View style={styles.moodGrid}>
+                      {[['', '✨', '']].concat(DINNER_MOODS).map((m) => (
+                        <TouchableOpacity key={m[0] || 'any'} style={[styles.moodChip, dinnerMood === m[0] ? styles.moodChipOn : null]} activeOpacity={0.85}
+                          onPress={() => { setDinnerMood(m[0]); setMoodOpen(false); setMealsKey((k) => k + 1); setMealCards(null); setTimeout(() => goTo('meals'), 300); }}>
+                          <Text style={styles.moodChipEmoji}>{m[1]}</Text>
+                          <Text style={[styles.moodChipText, dinnerMood === m[0] ? styles.moodChipTextOn : null]} numberOfLines={2}>{m[0] ? t(`mood_${m[0]}`) : t('mood_any')}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   </View>
                 ) : null}
               </View>
-            </ImageBackground>
+            ) : null}
           </View>
         ) : null}
 
@@ -1947,19 +1945,28 @@ const styles = StyleSheet.create({
   shopBtnSub: { color: '#FFE9D6', fontSize: 12, fontFamily: 'Jost-Regular', marginTop: 2 },
   stepHead: { color: '#C25A12', fontSize: 12, letterSpacing: 1.2, fontFamily: 'Jost-Bold', marginTop: 14, marginBottom: 6 },
   bagWrap: { marginBottom: 8 },
-  bagTopImg: { width: '100%', aspectRatio: 365 / 145, marginBottom: -1 },
-  bagCard: { width: '100%' },
-  bagBodyImg: { borderRadius: 0 },
-  bagBody: { paddingTop: '15%', paddingBottom: '13%', paddingLeft: '15%', paddingRight: '6%' },
-  bagLabel: { alignSelf: 'center', backgroundColor: '#FFF9EE', borderRadius: 999, borderWidth: 2, borderColor: '#1F3D2B', paddingHorizontal: 16, paddingVertical: 7 },
-  bagLabelText: { color: '#1F3D2B', fontSize: 17, fontFamily: 'Jost-Bold', textAlign: 'center' },
-  bagSub: { color: '#4A3418', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginTop: 8, marginBottom: 10, textAlign: 'center' },
+  bagPic: { width: '94%', alignSelf: 'center', aspectRatio: 365 / 497 },
+  bagImg: { width: '100%', height: '100%' },
+  bagFront: { position: 'absolute', left: '25%', right: '8%', top: '42%', bottom: '17%', justifyContent: 'center' },
+  bagLabel: { alignSelf: 'center', backgroundColor: '#FFF9EE', borderRadius: 999, borderWidth: 1.5, borderColor: '#1F3D2B', paddingHorizontal: 12, paddingVertical: 5, marginBottom: 8, maxWidth: '100%' },
+  bagLabelText: { color: '#1F3D2B', fontSize: 14, fontFamily: 'Jost-Bold', textAlign: 'center' },
+  bagSub: { color: '#4A3418', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginBottom: 8, textAlign: 'center' },
   bagGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  bagChip: { width: '48.5%', flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.55)', borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(120,84,36,0.35)', borderStyle: 'dashed', paddingVertical: 12, paddingHorizontal: 10, marginBottom: 8 },
+  bagChip: { width: '48.5%', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.6)', borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(120,84,36,0.4)', borderStyle: 'dashed', paddingVertical: 6, paddingHorizontal: 4, marginBottom: 6, height: 62, justifyContent: 'center' },
   bagChipOn: { backgroundColor: '#FFF9EE', borderStyle: 'solid', borderColor: '#1F3D2B' },
-  bagChipEmoji: { fontSize: 22, marginRight: 8 },
-  bagChipText: { flex: 1, color: '#6B5230', fontSize: 14, lineHeight: 18, fontFamily: 'Jost-SemiBold' },
+  bagChipEmoji: { fontSize: 18, marginBottom: 2 },
+  bagChipText: { color: '#6B5230', fontSize: 12, lineHeight: 15, fontFamily: 'Jost-SemiBold', textAlign: 'center' },
   bagChipTextOn: { color: '#1F3D2B' },
+  moodCard: { backgroundColor: '#FFF9EE', borderRadius: 14, borderWidth: 1.5, borderColor: '#1F3D2B', padding: 12, marginTop: 6 },
+  moodRow: { flexDirection: 'row', alignItems: 'center' },
+  moodEmoji: { fontSize: 22, marginRight: 10 },
+  moodText: { flex: 1, color: '#1F3D2B', fontSize: 15, fontFamily: 'Jost-SemiBold' },
+  moodGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  moodChip: { width: '48.5%', flexDirection: 'row', alignItems: 'center', borderRadius: 10, borderWidth: 1.5, borderColor: 'rgba(31,61,43,0.25)', paddingVertical: 10, paddingHorizontal: 8, marginBottom: 8 },
+  moodChipOn: { backgroundColor: '#E8F0E3', borderColor: '#1F3D2B' },
+  moodChipEmoji: { fontSize: 18, marginRight: 6 },
+  moodChipText: { flex: 1, color: '#1F3D2B', fontSize: 13, lineHeight: 16, fontFamily: 'Jost-SemiBold' },
+  moodChipTextOn: { color: '#1F3D2B' },
   addedToast: { position: 'absolute', left: 16, right: 88, bottom: 16, zIndex: 50, backgroundColor: '#1F3D2B', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   addedToastText: { flex: 1, color: '#FFFFFF', fontSize: 15, fontFamily: 'Jost-SemiBold', marginRight: 10 },
   addedToastLink: { color: '#FFB877', fontSize: 14, fontFamily: 'Jost-Bold' },
