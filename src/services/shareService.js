@@ -230,6 +230,10 @@ export async function fetchSharedRecipe(id) {
         ingredients: Array.isArray(r.i) ? r.i : [],
         instructions: Array.isArray(r.ins) ? r.ins : [],
         note: r.n || '',
-        _cloudPhotos: r.p && /^https?:\/\//i.test(r.p) ? [r.p] : [],
+        _cloudPhotos: (() => {
+            const list = (Array.isArray(r.ps) ? r.ps : []).filter(isWebUrl);
+            if (isWebUrl(r.p) && !list.includes(r.p)) list.unshift(r.p);
+            return list;
+        })(),
     };
 }
