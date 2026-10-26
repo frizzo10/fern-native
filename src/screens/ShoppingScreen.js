@@ -110,6 +110,14 @@ function toSyncPayload(list) {
 }
 
 // Device-only: set once Fern has spoken the full circular walkthrough, so later visits skip it.
+// Mood picker on the trip bag: key -> emoji and the plain-English phrase sent to the AI.
+const DINNER_MOODS = [
+  ['quick20', '⏱', '20-minute meals, ready in 20 minutes or less'], ['italian', '🍝', 'quick Italian dinners'],
+  ['mexican', '🌮', 'Mexican night'], ['asian', '🥢', 'Asian-inspired dinners'], ['comfort', '🍲', 'comfort food'],
+  ['grill', '🔥', 'grilling'], ['healthy', '🥗', 'light and healthy dinners'], ['onepan', '🍳', 'one-pan dinners with easy cleanup'],
+  ['slow', '🥘', 'slow cooker or oven roast dinners'], ['kids', '👨‍👩‍👧', 'kid-friendly dinners'], ['veg', '🥦', 'vegetarian dinners'],
+  ['seafood', '🐟', 'seafood'], ['soup', '🍜', 'soups and stews'], ['lowcarb', '🥩', 'low-carb dinners'], ['brdinner', '🥞', 'breakfast for dinner'],
+];
 const WALKTHROUGH_KEY = 'fern_shop_walkthrough_heard';
 const GUIDE_SPEECH_DELAY_MS = 3000; // how long the person gets to read the Shopping screen before Fern speaks
 
@@ -146,6 +154,8 @@ export default function ShoppingScreen({ user }) {
   const [ledger, setLedger] = useState({});
   const [doneShopping, setDoneShopping] = useState(false);
   const [showSales, setShowSales] = useState(false);
+  const [dinnerMood, setDinnerMood] = useState(''); // key from DINNER_MOODS ('' = anything)
+  const [moodOpen, setMoodOpen] = useState(false);
   // The very first time a circular is on screen it is open so the person sees what's in it; after that it stays a closed accordion.
   const circularSeenChecked = useRef(false);
   const [shoppingDay, setShoppingDay] = useState(null);
@@ -1075,6 +1085,29 @@ export default function ShoppingScreen({ user }) {
                     </TouchableOpacity>
                   ))}
                 </View>
+                {weekDeals.length > 0 ? (
+                  <View>
+                    <TouchableOpacity style={[styles.bagChip, styles.bagChipOn, { width: '100%', marginBottom: 0 }]} activeOpacity={0.85} onPress={() => setMoodOpen((v) => !v)}>
+                      <Text style={styles.bagChipEmoji}>{dinnerMood ? DINNER_MOODS.find((m) => m[0] === dinnerMood)?.[1] : '🍽'}</Text>
+                      <Text style={[styles.bagChipText, styles.bagChipTextOn]} numberOfLines={2}>{dinnerMood ? t('mood_btn_set', { mood: t(`mood_${dinnerMood}`) }) : t('mood_btn')}</Text>
+                      <Text style={styles.bagChipTextOn}>{moodOpen ? '▴' : '▾'}</Text>
+                    </TouchableOpacity>
+                    {moodOpen ? (
+                      <View style={{ marginTop: 8 }}>
+                        <Text style={styles.bagSub}>{t('mood_sub')}</Text>
+                        <View style={styles.bagGrid}>
+                          {[['', '✨', '']].concat(DINNER_MOODS).map((m) => (
+                            <TouchableOpacity key={m[0] || 'any'} style={[styles.bagChip, dinnerMood === m[0] ? styles.bagChipOn : null]} activeOpacity={0.85}
+                              onPress={() => { setDinnerMood(m[0]); setMoodOpen(false); setMealsKey((k) => k + 1); setMealCards(null); setTimeout(() => goTo('meals'), 300); }}>
+                              <Text style={styles.bagChipEmoji}>{m[1]}</Text>
+                              <Text style={[styles.bagChipText, dinnerMood === m[0] ? styles.bagChipTextOn : null]} numberOfLines={2}>{m[0] ? t(`mood_${m[0]}`) : t('mood_any')}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
               </View>
             </View>
           </View>
@@ -1190,7 +1223,8 @@ export default function ShoppingScreen({ user }) {
         <View onLayout={(e) => { sectionY.current.meals = e.nativeEvent.layout.y; }}>
           <WeekMealsSection
             key={`meals-${mealsKey}`}
-            autoStart={guideStep === 'list'}
+            autoStart={guideStep === 'list' || !!dinnerMood}
+            moodHint={dinnerMood ? (DINNER_MOODS.find((m) => m[0] === dinnerMood)?.[2] || '') : ''}
             onReady={setMealCards}
             t={t}
             locale={locale}

@@ -54,7 +54,7 @@ async function readJson(key, fallback) {
 // nights in Family Hub and every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
-export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, onReady, onSaveRecipe, books }) {
+export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, moodHint = '', onReady, onSaveRecipe, books }) {
   const { hasAccess } = useEntitlement();
   const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
@@ -76,7 +76,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
   const noteFor = () => [
     prefs.current.householdSize ? `Cooking for ${prefs.current.householdSize} people.` : '',
     prefs.current.dietary && prefs.current.dietary !== 'none' ? `Dietary needs: ${prefs.current.dietary}.` : '',
-    mood ? `This week they are in the mood for: ${mood}.` : '',
+    (moodHint || mood) ? `This week they are in the mood for: ${moodHint || mood}. Every dinner must fit that.` : '',
     busy === 'busy' ? 'It is a very busy week: every dinner must be quick (30 minutes or less) and easy, with minimal cleanup.' : '',
     busy === 'normal' ? 'A normal week: mostly weeknight-friendly dinners under 45 minutes.' : '',
     busy === 'relaxed' ? 'A relaxed week: there is time for a couple of dinners that take longer to cook.' : '',
