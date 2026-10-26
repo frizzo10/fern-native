@@ -1091,10 +1091,22 @@ export default function ShoppingScreen({ user }) {
               <Text style={styles.title} numberOfLines={1}>{`🛒 ${guideStoreName.split(/ - |#/)[0].trim()}`}</Text>
               <Text style={{ fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#D8607C', marginTop: 2 }}>{t('store_coupons_link')}</Text>
             </TouchableOpacity>
+            {!listOnly ? (
+              <TouchableOpacity onPress={() => setStationeryOpen((v) => !v)} activeOpacity={0.88} style={styles.paperPill} accessibilityRole="button">
+                <Text style={styles.paperPillText} numberOfLines={2}>{`🎨 ${stationeryOpen ? t('stat_close') : t('paper_pill')}`}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : null}
-        {!guideStep && !listOnly && bagStore ? (
-          <Text style={[styles.title, { marginBottom: 2 }]} numberOfLines={1}>{`🛒 ${bagStore}`}</Text>
+        {!guideStep && !listOnly ? (
+          <View style={styles.headerRow}>
+            {bagStore ? <Text style={[styles.title, { flexShrink: 1 }]} numberOfLines={1}>{`🛒 ${bagStore}`}</Text> : <View />}
+            {!listOnly ? (
+              <TouchableOpacity onPress={() => setStationeryOpen((v) => !v)} activeOpacity={0.88} style={styles.paperPill} accessibilityRole="button">
+                <Text style={styles.paperPillText} numberOfLines={2}>{`🎨 ${stationeryOpen ? t('stat_close') : t('paper_pill')}`}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
         ) : null}
         {!guideStep ? (
         <View style={styles.headerRow}>
@@ -1112,9 +1124,6 @@ export default function ShoppingScreen({ user }) {
 
         {!listOnly ? (
         <View style={styles.paperBarWrap}>
-          <TouchableOpacity onPress={() => setStationeryOpen((v) => !v)} activeOpacity={0.88} style={styles.paperBar}>
-            <Text style={styles.paperBarText}>{`🎨 ${stationeryOpen ? t('stat_close') : (stat ? t('paper_bar_change', { name: t(`stat_${stat.id}_label`) }) : t('paper_bar'))}`}</Text>
-          </TouchableOpacity>
           {stationeryOpen ? <PaperChips t={t} value={stat ? stat.id : ''} onPick={pickStationery} name={statName} /> : null}
         </View>
         ) : null}
@@ -1987,7 +1996,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Jost-SemiBold',
   },
   bigListTitle: { fontSize: 30, lineHeight: 36, color: '#8A4A4E', fontFamily: 'Jost-Bold', letterSpacing: 0.5, marginBottom: 4 },
-  paperBarWrap: { marginBottom: 12 },
+  paperBarWrap: { marginBottom: 4 },
+  paperPill: { backgroundColor: '#FDE8E0', borderWidth: 1.5, borderColor: '#D8607C', borderRadius: 999, paddingVertical: 7, paddingHorizontal: 12, maxWidth: '52%', alignItems: 'center' },
+  paperPillText: { color: '#C0475F', fontSize: 13, fontFamily: 'Jost-Bold', textAlign: 'center' },
   paperBar: { backgroundColor: '#FDE8E0', borderWidth: 1.5, borderColor: '#D8607C', borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginBottom: 8 },
   paperBarText: { color: '#C0475F', fontSize: 16, fontFamily: 'Jost-Bold' },
   statBtn: { alignSelf: 'flex-end', borderWidth: 1.5, borderColor: '#D8607C', borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14, marginBottom: 8 },
