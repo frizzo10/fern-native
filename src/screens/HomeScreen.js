@@ -1638,11 +1638,10 @@ export default function HomeScreen({ user, route }) {
     const deals = await loadWeekDeals();
     if (dealsForStore(deals, store?.name).length) { goToCircular(); return; }
     // The shopper cleared this store's items on purpose: don't quietly bring another shopper's scan back, ask for a photo.
-    if (await isStoreCleared(store?.name)) { setFlyerScan(null); setTimeout(() => askFlyerPhoto(store), 400); return; }
+    if (await isStoreCleared(store?.name)) { goToCircular(); return; }
     // Only show the "looking" overlay if the check is slow; a quick "nobody scanned it" answer used to flash it
     // (and its fade-out) behind the photo prompt.
-    let lookingShown = false;
-    const lookingTimer = setTimeout(() => { lookingShown = true; setFlyerScan({ phase: 'looking' }); }, 800);
+    const lookingTimer = setTimeout(() => setFlyerScan({ phase: 'looking' }), 800);
     let shared = [];
     try {
       shared = await fetchStoreDeals({ token: user?.token, stores: [store?.name], zips: zipsByStoreName(userStoresLocal) });
@@ -1654,12 +1653,8 @@ export default function HomeScreen({ user, route }) {
       goToCircular();
       return;
     }
-    if (lookingShown) {
-      setFlyerScan(null);
-      setTimeout(() => askFlyerPhoto(store), 400); // iOS drops an Alert shown while the overlay is still closing
-    } else {
-      askFlyerPhoto(store); // overlay never appeared, so there is nothing to wait for
-    }
+    // Nobody has scanned it: open the store's Shopping page, which already asks for the photo (Take photo / Choose photo).
+    goToCircular();
   };
 
   // Store-arrival notification tap: App.js navigates here with the store's name -> start that store's flyer scan,
