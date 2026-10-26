@@ -16,7 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { buildChapters, chapterNameById } from '../utils/cookbookChapters';
 import { loadChapterMap, needsOrganizing, organizeBook } from '../services/cookbookOrganizer';
-import { useSync } from '../hooks/useSync';
+import { useSync, lastPush } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import {
   pickFirst,
@@ -812,7 +812,17 @@ export default function RecipesScreen({ user }) {
       setRecipesLocal(nextSaved);
       setSelectedRecipe((prev) => (prev ? { ...prev, image: url, _cloudPhotos: [url] } : prev));
 
-      await pushChangedFromStorage({ saved: nextSaved });
+      const pushResult = await pushChangedFromStorage({ saved: nextSaved });
+      // Diagnostic: a save that never reached the server is otherwise invisible (the next refresh
+      // brings the old recipe back). Show the real status so the cause can be read off the phone.
+      const pushOk = pushResult && lastPush.status >= 200 && lastPush.status < 300
+        && pushResult.success !== false && !pushResult.error;
+      if (!pushOk) {
+        Alert.alert(
+          t('recipe_image_update_failed_title'),
+          `${t('recipe_image_update_failed_desc')}\n\nStatus: ${lastPush.status ?? 'none'}\nSize: ${Math.round((lastPush.bytes || 0) / 1024)} KB\n${lastPush.error || (pushResult && (pushResult.error || pushResult.message)) || ''}`
+        );
+      }
     } catch (e) {
       console.warn('Update recipe image failed:', e);
       Alert.alert(t('recipe_image_update_failed_title'), t('recipe_image_update_failed_desc'));

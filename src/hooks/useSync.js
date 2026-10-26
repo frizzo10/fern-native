@@ -25,6 +25,10 @@ function logPayload(label, obj) {
   ), 2));
 }
 
+// Result of the most recent push (status, server error text, payload size), so a caller can tell the
+// person when a save did not reach the server. Read it right after awaiting pushChangedFromStorage.
+export const lastPush = { status: null, error: null, bytes: 0 };
+
 function fixCorruptedEmojis(recipes) {
   if (!Array.isArray(recipes)) return { fixed: recipes, hadCorruption: false };
 
@@ -225,13 +229,19 @@ export function useSync(user) {
 
       logPayload('[sync] push request body', requestBody);
 
+      lastPush.status = null;
+      lastPush.error = null;
+      const bodyText = JSON.stringify(requestBody);
+      lastPush.bytes = bodyText.length;
       const res = await fetch(SYNC_URL, {
         method: 'POST',
         headers: API_HEADERS,
-        body: JSON.stringify(requestBody),
+        body: bodyText,
       });
 
       const responseJson = await res.json().catch(() => null);
+      lastPush.status = res.status;
+      lastPush.error = responseJson?.error || responseJson?.message || null;
       console.log('[sync] push response status', res.status);
       logPayload('[sync] push response json', responseJson);
 
@@ -239,6 +249,7 @@ export function useSync(user) {
       return responseJson;
     } catch (e) {
       console.warn('Sync changed push failed:', e);
+      lastPush.error = String(e?.message || e);
       return null;
     }
   }, [user]);
