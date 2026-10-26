@@ -46,6 +46,7 @@ export function toSharedRecipe(recipe, chapter) {
         // Only a hosted photo can be shown on the share page — a local file
         // or data URI would be a dead image for everyone else.
         photo: isWebUrl(recipe?.image) ? recipe.image : '',
+        photos: Array.isArray(recipe?.photos) ? recipe.photos.filter(isWebUrl) : [],
     };
 }
 
@@ -182,7 +183,11 @@ export async function fetchSharedCookbook(input) {
             ingredients: Array.isArray(r.i) ? r.i : [],
             instructions: Array.isArray(r.ins) ? r.ins : [],
             note: r.n || '',
-            _cloudPhotos: r.p && /^https?:\/\//i.test(r.p) ? [r.p] : [],
+            _cloudPhotos: (() => {
+            const list = Array.isArray(r.ps) ? r.ps.filter((u) => /^https?:\/\//i.test(u)) : [];
+            if (r.p && /^https?:\/\//i.test(r.p) && !list.includes(r.p)) list.unshift(r.p);
+            return list;
+        })(),
         })).filter((r) => r.title),
         cover: /^https?:\/\//i.test(d.cv || '') ? d.cv : '',
     };
