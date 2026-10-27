@@ -15,7 +15,7 @@ npx expo run:ios           # build + run dev client on simulator/device
 npx expo run:android       # build + run dev client on Android
 eas build --platform ios --profile preview      # .ipa for internal distribution
 eas build --platform android --profile preview  # .apk for internal distribution
-eas update --branch production --message "..."  # push JS/UI-only update (no native changes)
+eas update --branch production --environment production --message "..."  # push JS/UI-only update (no native changes; SDK 55+ requires --environment)
 ```
 
 There is no test suite, linter, or typechecker configured in this repo — `package.json` only has the four scripts above (`start`, `android`, `ios`, `web`).
@@ -582,3 +582,5 @@ All UI copy goes through a single i18n module, not per-screen strings:
 **Pro Max pill is sage green (2026-10-27).** The "✦✦ PRO MAX" plan pill in Home's top bar (`NewHome` `tierPill`) and the Pro Max lock badges in the tools menu (`lockBadgeMax`) were still the old peach/rose (`#FFEBE3` / `#9A3F44`); they are now sage (`#ECF2E6` background, `#3F6845` text). Colour only, no new strings. JS-only.
 
 **Plans page removed; Pro Max pill is a plain label (2026-10-27).** The app is free for everyone for good, so `PlansScreen.js` and `PlansModalContext.js` are deleted (the per-feature tours it duplicated live on Account → Tours, and Manage Subscription / Restore Purchases stay on Account). The "PRO MAX" pill in Home's top bar (`NewHome` `tierPill`, and the old-layout `proBadge` in `HomeScreen`) is a non-tappable `View`; `onOpenPlans` is gone. `UpgradeGateModal` lost its "See what's included" link (`upgrade_required_see_plans` key now unused), `ScanCircularModal`'s unlock button only closes the modal, and Account's free-tier "Upgrade" button opens the RevenueCat paywall directly. `PlansModalProvider` is no longer in the `App.js` provider nesting (supersedes the provider list and the "AccountScreen and PlansScreen are overlays" note above). JS-only.
+
+**Lock badges removed from Home tools (2026-10-27).** The app is free forever, so the Pro / Pro Max badges on the tools menu rows (`newHomeTools` `badge` is now null) and on the legacy-layout tiles (`tierLockBadge` JSX in `HomeScreen`) are gone. The unused `lockBadge*` / `tierLockBadge*` styles and `tier_badge_*` keys remain. JS-only.

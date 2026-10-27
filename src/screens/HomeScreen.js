@@ -2669,8 +2669,8 @@ export default function HomeScreen({ user, route }) {
       label: t(toolKeysMap[label] || label),
       icon,
       onPress,
-      badge: isLocked ? (requiredTier === TIERS.PRO_MAX ? t('tier_badge_max') : t('tier_badge_pro')) : null,
-      badgeMax: requiredTier === TIERS.PRO_MAX,
+      badge: null,
+      badgeMax: false,
     };
   });
   const newHomeLibrary = [
@@ -2846,13 +2846,6 @@ export default function HomeScreen({ user, route }) {
                       { backgroundColor: color }
                     ]}
                   >
-                    {isLocked ? (
-                      <View style={[styles.tierLockBadge, requiredTier === TIERS.PRO_MAX ? styles.tierLockBadgeMax : styles.tierLockBadgePro]}>
-                        <Text style={[styles.tierLockBadgeText, requiredTier === TIERS.PRO_MAX ? styles.tierLockBadgeTextMax : null]}>
-                          {requiredTier === TIERS.PRO_MAX ? t('tier_badge_max') : t('tier_badge_pro')}
-                        </Text>
-                      </View>
-                    ) : null}
                     <Text style={styles.mainVal}>{val}</Text>
                     <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
                   </TouchableOpacity>
@@ -3086,13 +3079,6 @@ export default function HomeScreen({ user, route }) {
                       { backgroundColor: color }
                     ]}
                   >
-                    {isLocked ? (
-                      <View style={[styles.tierLockBadge, requiredTier === TIERS.PRO_MAX ? styles.tierLockBadgeMax : styles.tierLockBadgePro]}>
-                        <Text style={[styles.tierLockBadgeText, requiredTier === TIERS.PRO_MAX ? styles.tierLockBadgeTextMax : null]}>
-                          {requiredTier === TIERS.PRO_MAX ? t('tier_badge_max') : t('tier_badge_pro')}
-                        </Text>
-                      </View>
-                    ) : null}
                     <Text style={styles.mainVal}>{val}</Text>
                     <Text style={styles.mainLabel}>{t(toolKeysMap[label] || label)}</Text>
                   </TouchableOpacity>
