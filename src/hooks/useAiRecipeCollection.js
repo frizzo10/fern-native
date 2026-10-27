@@ -322,7 +322,65 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
         });
     };
 
+    // Photos for the open recipe (Home / Family viewers). If it isn't in the library yet it is saved
+    // first, so the photo has somewhere to live. `mode` 'add' appends `value` (a URL); 'set' replaces the list.
+    const writeSelectedPhotos = async (mode, value) => {
+        if (!selectedRecipe) return;
+        try {
+            const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+            const baseSaved = Array.isArray(storedSaved) ? storedSaved : (Array.isArray(data.recipes) ? data.recipes : []);
+            const target = String(selectedRecipe.title || '').trim().toLowerCase();
+            const titleOf = (item) => String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+            const calc = (item) => {
+                if (mode === 'set') return value;
+                let existing = Array.isArray(item?._cloudPhotos) ? item._cloudPhotos.filter((u) => typeof u === 'string' && u) : [];
+                if (!existing.length && typeof item?._photoUrl === 'string' && /^https?:\/\//i.test(item._photoUrl)) existing = [item._photoUrl];
+                return [...existing, value];
+            };
+            let found = false;
+            let nextSaved = baseSaved.map((item) => {
+                if (!target || titleOf(item) !== target) return item;
+                found = true;
+                return { ...item, _cloudPhotos: calc(item) };
+            });
+            if (!found) {
+                const d = selectedRecipe;
+                nextSaved = [...baseSaved, {
+                    id: `${source}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: d.title,
+                    emoji: d.emoji,
+                    cuisine: d.category,
+                    mealType: d.meal,
+                    time: d.time,
+                    difficulty: d.difficulty,
+                    description: d.description,
+                    ingredients: d.ingredients,
+                    instructions: d.methodSteps,
+                    note: noteText || '',
+                    photoSearch: d.title,
+                    _cloudPhotos: mode === 'set' ? value : [...(d.photos && d.photos.length ? d.photos : (d.image && /^https?:\/\//i.test(d.image) ? [d.image] : [])), value],
+                    _bookIds: [],
+                }];
+            }
+            await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+            await syncCache(nextSaved);
+            const mine = nextSaved.find((item) => titleOf(item) === target);
+            const finalPhotos = mode === 'set' ? value : ((mine && mine._cloudPhotos) || [value]);
+            setSelectedRecipe((prev) => (prev ? { ...prev, image: finalPhotos[0] || null, photos: finalPhotos } : prev));
+            await pushAllFromStorage();
+            await pull();
+        } catch (e) {
+            console.log(`[${source}] photo update failed`, e?.message || e);
+            Alert.alert(t('recipe_image_update_failed_title'), t('recipe_image_update_failed_desc'));
+        }
+    };
+
+    const addPhotoToSelected = (url) => (url ? writeSelectedPhotos('add', url) : undefined);
+    const setSelectedPhotos = (list) => (Array.isArray(list) ? writeSelectedPhotos('set', list) : undefined);
+
     return {
+        addPhotoToSelected,
+        setSelectedPhotos,
         recipes,
         setRecipes,
         selectedRecipe,
