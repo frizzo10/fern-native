@@ -546,6 +546,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           // She just changed something: jump to where it is so the person watches it happen (the chat stays open and she keeps talking).
           if (!w?.screen) return;
           if (w.screen === 'Family') navigationRef.current?.navigate('Family', { showDayOffset: w.dayOffset || 0, showNonce: Date.now(), showKind: w.kind, showLabel: w.label, showSlot: w.slot });
+          else if (w.screen === 'Recipes' && w.recipeId != null) navigationRef.current?.navigate('Recipes', { openTab: 'recipes', requestKey: String(Date.now()), openRecipeId: w.recipeId, openRecipeTitle: w.recipeTitle });
           else navigationRef.current?.navigate(w.screen);
         }}
         onSpeechDone={(p) => {

@@ -227,14 +227,16 @@ async function saveRecipe(a, env) {
   if (wanted && !book) return { ok: false, text: `I could not find a cookbook called "${a.book}".` };
   const existing = saved.find((r) => lc(r?.title) === lc(title));
   let next;
+  let savedId = existing?.id;
   if (existing) {
-    if (!book) return { ok: true, text: `"${title}" is already in your saved recipes.` };
+    if (!book) return { ok: true, text: `"${title}" is already in your saved recipes.`, recipeId: existing.id, recipeTitle: existing.title };
     next = saved.map((r) => (r === existing ? { ...r, _bookIds: Array.from(new Set([...(r._bookIds || []), bookId(book)])) } : r));
   } else {
     if (!env.canSaveUnlimited && (await recipeLimitReached())) return { ok: false, text: 'Your recipe box is full on the Free plan.' };
     const image = await fetchRecipeImage(`${title} food`, env.token);
+    savedId = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     next = [...saved, {
-      id: `agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      id: savedId,
       title,
       emoji: a.emoji || '🍽️',
       cuisine: '',
@@ -253,7 +255,7 @@ async function saveRecipe(a, env) {
   await AsyncStorage.setItem('rv4_saved', JSON.stringify(next));
   await patchCache({ recipes: next });
   await env.pushChangedFromStorage({ saved: next });
-  return { ok: true, text: `Saved "${title}" to ${book ? bookName(book) : 'My Recipes'}`, changed: 'recipes' };
+  return { ok: true, text: `Saved "${title}" to ${book ? bookName(book) : 'My Recipes'}`, changed: 'recipes', recipeId: savedId, recipeTitle: title };
 }
 
 async function planMeal(a, env) {
@@ -378,7 +380,7 @@ export async function executeAgentActions(actions, env) {
       if (r?.ok && !out.watch) {
         if (['remove_from_list', 'check_off', 'add_coupon', 'add_recipe_to_list'].includes(type)) out.watch = { screen: 'Shopping' };
         else if (type === 'plan_meal' || type === 'remove_meal' || type === 'add_activity') out.watch = { screen: 'Family', dayOffset: Math.max(0, Math.min(6, Number(a.day_offset) || 0)), kind: type === 'add_activity' ? 'activity' : (type === 'plan_meal' ? 'meal' : undefined), label: clip(a.label || a.title, 80), slot: type === 'plan_meal' ? String(a.slot || 'Dinner') : undefined };
-        else if (type === 'save_recipe') out.watch = { screen: 'Recipes' };
+        else if (type === 'save_recipe') out.watch = { screen: 'Recipes', recipeId: r.recipeId, recipeTitle: r.recipeTitle };
       }
     } catch (e) {
       console.warn('[fernAgent] action failed', type, e?.message || e);
