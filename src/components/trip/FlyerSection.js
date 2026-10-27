@@ -105,6 +105,16 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
     return days === 0 ? t('psp_when_today') : days === 1 ? t('psp_when_yesterday') : t('psp_when_days_ago', { n: days });
   };
 
+  // Walmart prices everything "every day" and has no dated weekly circular to scan, so don't ask for a photo.
+  if (!embedded && !weekDeals.length && hereKeys.length === 1 && hereKeys[0].startsWith('walmart')) {
+    return (
+      <View style={[styles.card, shadow.card]}>
+        <Text style={styles.title}>{`🛒 ${t('trip_flyer_walmart_title')}`}</Text>
+        <Text style={styles.sub}>{t('trip_flyer_walmart_body')}</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={embedded ? styles.embedded : [styles.card, shadow.card]}>
       {embedded ? (
