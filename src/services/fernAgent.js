@@ -117,7 +117,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false, topic = '' } 
   const calendar = ctx.keys.map((k, i) => {
     const meals = Array.isArray(ctx.plan[k]) ? ctx.plan[k] : [];
     const acts = ctx.acts.filter((a) => a?.dateKey === k);
-    const name = i === 0 ? 'today' : DAY_NAMES[parseDateKey(k).getDay()];
+    const name = i === 0 ? `today (${DAY_NAMES[parseDateKey(k).getDay()]})` : DAY_NAMES[parseDateKey(k).getDay()];
     const parts = [
       ...meals.map((m) => `${m.slot || 'Dinner'}: ${clip(m.title, 40)}`),
       ...acts.map((a) => `activity: ${clip(a.label, 30)}${a.time ? ` ${a.time}` : ''}`),
@@ -138,7 +138,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false, topic = '' } 
     unchecked.length ? `ON THE SHOPPING LIST NOW: ${unchecked.join(', ')}.` : 'The shopping list is empty.',
     have.length ? `SAVED RECIPES: ${have.join('; ')}.` : 'No saved recipes yet.',
     books.length ? `COOKBOOKS: ${books.join('; ')}.` : 'No cookbooks yet.',
-    `WEEK CALENDAR (day_offset = number):\n${calendar.join('\n')}`,
+    `WEEK CALENDAR (day_offset = number):\n${calendar.join('\n')}\nDAY NAMES: each weekday name appears once in this 7-day calendar, so a weekday name ("Monday", "Monday the second") means the ONE matching line above; never ask them which day they mean or list two days. If a date and weekday both appear, trust the date line. Only ask if the day truly is not in the calendar (then say it is outside this week).`,
     walletTitles.length ? `COUPON WALLET: ${walletTitles.join('; ')}.` : 'The coupon wallet is empty.',
     wantsCoupons && ctx.catalog.length ? `COUPON CATALOG (a sample of ${Math.min(ctx.catalog.length, 25)} of ${ctx.catalog.length}):\n${ctx.catalog.slice(0, 25).map(couponLine).join('\n')}` : '',
     !wantsCoupons ? '' : 'HOW COUPONS WORK: a [digital] coupon has no barcode; the shopper must first load it to their loyalty account in that store\'s app or website, then it comes off at checkout when they give their phone number or card. Adding it to the Fern wallet does NOT load it to the store. [code] coupons are entered at checkout online; [link] coupons are opened from a link. Walmart does not accept digital coupons.',
