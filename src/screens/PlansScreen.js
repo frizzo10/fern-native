@@ -78,17 +78,8 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
         }
     };
 
-    const renderSection = (features, sectionTier) => (
+    const renderFeatures = (features) => (
         <>
-            <View style={styles.tierRow}>
-                <View style={[styles.tierPill, sectionTier === TIERS.PRO_MAX ? styles.tierPillOrange : styles.tierPillGreen]}>
-                    <Text style={[styles.tierPillText, sectionTier === TIERS.PRO_MAX ? styles.tierPillTextOrange : styles.tierPillTextGreen]}>
-                        {sectionTier === TIERS.PRO_MAX ? '✦✦ PRO MAX' : '✦ PRO'}
-                    </Text>
-                </View>
-                <Text style={styles.tierPrice}>{t(sectionTier === TIERS.PRO_MAX ? 'plans_pro_max_price' : 'plans_pro_price')}</Text>
-            </View>
-
             {features.map((item, index) => (
                 <TouchableOpacity
                     key={item.key}
@@ -103,7 +94,7 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
                         <Text style={styles.cardTitle}>{t(item.labelKey)}</Text>
                         <Text style={styles.cardDesc}>{t(item.planDescKey)}</Text>
                     </View>
-                    <Text style={[styles.cardStart, sectionTier === TIERS.PRO_MAX ? styles.cardStartOrange : styles.cardStartGreen]}>
+                    <Text style={[styles.cardStart, styles.cardStartGreen]}>
                         {t('account_tour_start')} →
                     </Text>
                 </TouchableOpacity>
@@ -129,8 +120,7 @@ export default function PlansScreen({ visible, onClose, onAfterStartTour }) {
                     bounces={false}
                 >
                     <View style={styles.body}>
-                        {renderSection(PRO_FEATURES, TIERS.PRO)}
-                        {renderSection(PRO_MAX_FEATURES, TIERS.PRO_MAX)}
+                        {renderFeatures([...PRO_FEATURES, ...PRO_MAX_FEATURES])}
 
                         {tier !== TIERS.FREE && !LAUNCH_ALL_FREE && (
                             <TouchableOpacity
