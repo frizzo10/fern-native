@@ -16,7 +16,6 @@ import { useTour } from '../../services/TourContext';
 import CircularHistoryView from '../CircularHistoryView';
 import useEntitlement from '../../hooks/useEntitlement';
 import { FEATURE_TIERS } from '../../constants/featureAccess';
-import { usePlansModal } from '../../services/PlansModalContext';
 import { sumSavings, fmtMoney } from '../../utils/savings';
 
 const CATEGORY_EMOJI = [
@@ -148,13 +147,10 @@ export default function ScanCircularModal({
     }, [visible]);
 
     const { hasAccess } = useEntitlement();
-    const { open: openPlans } = usePlansModal();
     const showUnlock = !hasAccess(FEATURE_TIERS.personal_shopper);
     const flyerSavings = sumSavings(result?.items || []);
     const handleUnlock = () => {
         onClose();
-        // iOS drops a modal opened while another is still dismissing.
-        setTimeout(() => openPlans(), 450);
     };
 
     const itemCount = result?.items?.length || 0;

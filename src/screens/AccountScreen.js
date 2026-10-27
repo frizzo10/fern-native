@@ -18,7 +18,6 @@ import { fetchCalendarLink } from '../services/calendarLinkService';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { consumeToursScroll } from '../services/helpBus';
 import { openChat } from '../services/chatBus';
-import { usePlansModal } from '../services/PlansModalContext';
 import * as Updates from 'expo-updates';
 import appJson from '../../app.json';
 import { CODE_VERSION } from '../constants/codeVersion';
@@ -114,8 +113,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
         return () => clearTimeout(id);
     }, [visible]);
     const { tier, hasAccess } = useEntitlement();
-    const { presentCustomerCenter, restore } = useRevenueCat();
-    const { open: openPlans } = usePlansModal();
+    const { presentCustomerCenter, presentPaywall, restore } = useRevenueCat();
     const [seenTours, setSeenTours] = useState({});
     const [restoring, setRestoring] = useState(false);
     const [fridgeChallengeDone, setFridgeChallengeDone] = useState(false);
@@ -280,8 +278,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
     const handleManageSubscription = () => {
         if (LAUNCH_ALL_FREE) return; // launch period: nothing to manage
         if (tier === TIERS.FREE) {
-            onClose();
-            openPlans();
+            presentPaywall();
             return;
         }
         presentCustomerCenter();

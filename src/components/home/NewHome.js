@@ -62,7 +62,6 @@ export default function NewHome({
   user,
   localeLabel,
   tierBadgeLabel,
-  onOpenPlans,
   onOpenAccount,
   onOpenLanguage,
   greeting,
@@ -152,9 +151,9 @@ export default function NewHome({
       {/* Top bar */}
       <View style={styles.topBar}>
         <View style={styles.topActions}>
-          <TouchableOpacity style={styles.tierPill} activeOpacity={0.85} onPress={onOpenPlans}>
+          <View style={styles.tierPill}>
             <Text style={styles.tierPillText}>{tierBadgeLabel}</Text>
-          </TouchableOpacity>
+          </View>
           <TouchableOpacity ref={tourTargetRef('help')} collapsable={false} style={styles.roundBtn} activeOpacity={0.85} onPress={openHelp} accessibilityRole="button" accessibilityLabel={t('faq_a11y')}>
             <Ionicons name="help-circle-outline" size={22} color={FOREST} />
           </TouchableOpacity>

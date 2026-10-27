@@ -44,10 +44,8 @@ import { subscribeOpenChat } from './src/services/chatBus';
 import { subscribeOpenHelp, requestToursScroll } from './src/services/helpBus';
 import { requestOpenTool } from './src/services/toolBus';
 import AccountScreen from './src/screens/AccountScreen';
-import PlansScreen from './src/screens/PlansScreen';
 import HelpModal from './src/components/modals/HelpModal';
 import { AccountModalProvider, useAccountModal } from './src/services/AccountModalContext';
-import { PlansModalProvider, usePlansModal } from './src/services/PlansModalContext';
 import { TourProvider, useTour } from './src/services/TourContext';
 import TourModal from './src/components/TourModal';
 import { TOUR_PREVIEW_ROUTE } from './src/constants/tourContent';
@@ -269,7 +267,6 @@ function shortStoreName(name) {
 function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, retrySync }) {
   const { t } = useLanguage();
   const { visible: isAccountOpen, open: openAccountModal, close: closeAccount } = useAccountModal();
-  const { visible: isPlansOpen, open: openPlans, close: closePlans } = usePlansModal();
   const {
     tour: activeTour,
     tourKey: activeTourKey,
@@ -583,11 +580,6 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         onOpenShopping={() => navigationRef.current?.navigate('Shopping')}
       />
 
-      <PlansScreen
-        visible={isPlansOpen}
-        onClose={closePlans}
-      />
-
       <LocationSetupModal visible={showLocationSetup} onDone={finishLocationSetup} />
       <PaperPickModal visible={showPaperPick} onDone={finishPaperPick} />
 
@@ -874,13 +866,11 @@ export default function App() {
       <RevenueCatProvider>
         <LanguageProvider>
           <AccountModalProvider>
-            <PlansModalProvider>
-              <TourProvider>
-                <ErrorBoundary>
-                  <MainAppContent />
-                </ErrorBoundary>
-              </TourProvider>
-            </PlansModalProvider>
+            <TourProvider>
+              <ErrorBoundary>
+                <MainAppContent />
+              </ErrorBoundary>
+            </TourProvider>
           </AccountModalProvider>
         </LanguageProvider>
       </RevenueCatProvider>

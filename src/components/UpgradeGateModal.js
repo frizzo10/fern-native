@@ -3,7 +3,6 @@ import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TouchableOpacity, Vi
 import { colors, radius, shadow } from '../constants/tokens';
 import { TIERS } from '../constants/tiers';
 import useLanguage from '../hooks/useLanguage';
-import { usePlansModal } from '../services/PlansModalContext';
 import { useRevenueCat } from '../services/RevenueCatContext';
 import { PAYWALL_RESULT } from '../services/purchasesService';
 import { stopFernAudio } from '../utils/fernAudioBus';
@@ -17,7 +16,6 @@ import { stopFernAudio } from '../utils/fernAudioBus';
 //   }
 export default function UpgradeGateModal({ visible, onClose, tier, title, desc }) {
   const { t } = useLanguage();
-  const { open: openPlans } = usePlansModal();
   const { presentPaywall, restore } = useRevenueCat();
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
@@ -62,11 +60,6 @@ export default function UpgradeGateModal({ visible, onClose, tier, title, desc }
     }
   };
 
-  const handleSeePlans = () => {
-    onClose();
-    openPlans();
-  };
-
   return (
     <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <View style={styles.overlay}>
@@ -79,9 +72,6 @@ export default function UpgradeGateModal({ visible, onClose, tier, title, desc }
 
           <TouchableOpacity style={styles.ctaBtn} activeOpacity={0.9} onPress={handleUpgrade} disabled={purchasing}>
             {purchasing ? <ActivityIndicator color="#fff" /> : <Text style={styles.ctaBtnText}>{t('upgrade_required_cta')}</Text>}
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.linkBtn} activeOpacity={0.8} onPress={handleSeePlans}>
-            <Text style={styles.linkBtnText}>{t('upgrade_required_see_plans')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.linkBtn} activeOpacity={0.8} onPress={handleRestore} disabled={restoring}>
             {restoring ? <ActivityIndicator color={colors.onFern} /> : <Text style={styles.linkBtnText}>{t('upgrade_required_restore')}</Text>}

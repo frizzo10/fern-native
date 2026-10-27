@@ -94,7 +94,6 @@ import FamilyAddActivityModal from '../components/modals/FamilyAddActivityModal'
 import { useAccountModal } from '../services/AccountModalContext';
 import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
-import { usePlansModal } from '../services/PlansModalContext';
 import { TIERS } from '../constants/tiers';
 import { FEATURE_TIERS } from '../constants/featureAccess';
 import AlwaysLocationReminder from '../components/home/AlwaysLocationReminder';
@@ -164,7 +163,6 @@ export default function HomeScreen({ user, route }) {
   const { open: openAccount } = useAccountModal();
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { tier, hasAccess } = useEntitlement();
-  const { open: openPlans } = usePlansModal();
   const tierBadgeLabel = tier === TIERS.PRO_MAX ? t('pro_max') : tier === TIERS.PRO ? t('pro') : t('free');
 
   useEffect(() => {
@@ -2737,7 +2735,6 @@ export default function HomeScreen({ user, route }) {
                 user={user}
                 localeLabel={locale.toUpperCase()}
                 tierBadgeLabel={tierBadgeLabel}
-                onOpenPlans={openPlans}
                 onOpenAccount={openAccount}
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
                 greeting={`${getGreeting(t)}, ${userName}`}
@@ -2774,9 +2771,9 @@ export default function HomeScreen({ user, route }) {
               </View>
 
               <View style={styles.headerActions}>
-                <TouchableOpacity style={styles.proBadge} activeOpacity={0.85} onPress={openPlans}>
+                <View style={styles.proBadge}>
                   <Text style={styles.proBadgeText}>{tierBadgeLabel}</Text>
-                </TouchableOpacity>
+                </View>
                 <TouchableOpacity
                   style={styles.iconBadge}
                   activeOpacity={0.85}
