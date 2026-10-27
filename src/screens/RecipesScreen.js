@@ -302,7 +302,26 @@ export default function RecipesScreen({ user }) {
             const list = Array.isArray(stored) ? stored : [];
             const key = shared.title.trim().toLowerCase();
             const dup = list.find((r) => String(r?.title || r?.name || '').trim().toLowerCase() === key);
-            if (dup) { setTab('recipes'); setTimeout(() => setSelectedRecipe(normalizeRecipe(dup)), 400); return; }
+            if (dup) {
+              // Already own it: keep the copy, but bring over any photos it doesn't have yet.
+              let opened = dup;
+              try {
+                const isWeb = (u) => typeof u === 'string' && /^https?:\/\//i.test(u);
+                const have = (Array.isArray(dup._cloudPhotos) ? dup._cloudPhotos : []).filter(isWeb);
+                if (!have.length && isWeb(dup._photoUrl)) have.push(dup._photoUrl);
+                const merged = [...have];
+                (shared._cloudPhotos || []).forEach((u) => { if (isWeb(u) && !merged.includes(u)) merged.push(u); });
+                if (merged.length > have.length) {
+                  opened = { ...dup, _cloudPhotos: merged };
+                  const next = list.map((r) => (r === dup ? opened : r));
+                  await AsyncStorage.setItem('rv4_saved', JSON.stringify(next));
+                  const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
+                  await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, recipes: next }));
+                  pushChangedFromStorage({ saved: next }).then(() => pull()).catch(() => {});
+                }
+              } catch (e) {}
+              setTab('recipes'); setTimeout(() => setSelectedRecipe(normalizeRecipe(opened)), 400); return;
+            }
             if (!hasAccess(TIERS.PRO) && (await recipeLimitReached())) { Alert.alert(t('shared_cb_title'), t('shared_rc_err_limit')); return; }
             setPendingShared(shared);
             return;
