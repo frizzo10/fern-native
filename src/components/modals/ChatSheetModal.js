@@ -309,7 +309,17 @@ export default function ChatSheetModal({
       if (agentOn && options.length && /New ideas from me|From your recipes:/i.test(reply)) {
         const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
         const replyN = norm(reply);
-        options = options.filter((o) => replyN.includes(norm(o.title)));
+        // A card stays when its whole title is in her sentence, or most of its words are ("Quick Tuna Salad Wrap" vs "Quick Tuna Wrap").
+        // Cards left over from an old request share no words with the new sentence, so they are still dropped.
+        const inReply = (title) => {
+          const tn = norm(title);
+          if (!tn) return false;
+          if (replyN.includes(tn)) return true;
+          const words = tn.split(' ').filter((w) => w.length > 3);
+          if (!words.length) return false;
+          return words.filter((w) => replyN.includes(w)).length >= Math.ceil(words.length * 0.6);
+        };
+        options = options.filter((o) => inReply(o.title));
       }
       // Sometimes the model names the dishes in her sentence but leaves "options" empty, so no cards show.
       // Ask once more, only for the cards (same context, so the day and meal are read the same way).
