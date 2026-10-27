@@ -24,11 +24,11 @@ import { recipeLimitReached } from '../utils/freeLimits';
 import { importFromUrl, importFromVideo, importFromCard, importFromText } from '../services/importService';
 
 const C = {
-  forest: '#8A4A4E',
-  orange: '#D8607C',
-  parch: '#FFFAF6',
-  ink: '#5A3236',
-  brown: '#9A7872',
+  forest: '#3F5645',
+  orange: '#4E7A54',
+  parch: '#F7FAF3',
+  ink: '#2F4535',
+  brown: '#6B7F66',
   card: '#FFFFFF',
   border: '#E8E0D0',
 };
@@ -272,7 +272,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
                     style={[s.tab, mode === tb.key && s.tabActive]}
                     onPress={() => setMode(tb.key)}
                   >
-                    <Ionicons name={tb.icon} size={20} color={mode === tb.key ? '#FDE8E0' : C.orange} />
+                    <Ionicons name={tb.icon} size={20} color={mode === tb.key ? '#ECF2E6' : C.orange} />
                     <Text style={[s.tabText, mode === tb.key && s.tabTextActive]}>{tb.label}</Text>
                   </TouchableOpacity>
                 ))}
@@ -391,12 +391,12 @@ const s = StyleSheet.create({
   content: { padding: 20, paddingBottom: 60 },
   tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 18 },
   tab: {
-    width: '48%', minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: '#F3C9BD', backgroundColor: '#FFF',
+    width: '48%', minHeight: 48, borderRadius: 16, borderWidth: 1, borderColor: '#C8D6BE', backgroundColor: '#FFF',
     paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 10,
   },
   tabActive: { backgroundColor: C.forest, borderColor: C.forest },
-  tabText: { fontSize: 13, color: '#5A3236', fontFamily: 'Jost-Bold' },
-  tabTextActive: { color: '#FDE8E0' },
+  tabText: { fontSize: 13, color: '#2F4535', fontFamily: 'Jost-Bold' },
+  tabTextActive: { color: '#ECF2E6' },
   helper: { color: C.brown, fontSize: 13, fontFamily: 'Jost-Regular', marginBottom: 10, lineHeight: 18 },
   input: {
     backgroundColor: C.card, borderWidth: 1, borderColor: C.border, borderRadius: 12,

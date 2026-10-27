@@ -74,7 +74,7 @@ export default function MealPlannerRecipeDetailView({ meal, onBack, onSwap, isSw
                 disabled={isSwapping}
             >
                 {isSwapping ? (
-                    <ActivityIndicator color="#FDE8E0" />
+                    <ActivityIndicator color="#ECF2E6" />
                 ) : (
                     <Text style={styles.swapBtnText}>{`↺ ${t('meal_planner_swap_meal_btn')}`}</Text>
                 )}
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
         alignSelf: 'flex-start',
     },
     backLinkText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -115,28 +115,28 @@ const styles = StyleSheet.create({
     mealTitle: {
         marginTop: 10,
         textAlign: 'center',
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 24,
     },
     mealMeta: {
         marginTop: 6,
         textAlign: 'center',
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
     },
     card: {
         marginTop: 22,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         borderRadius: 16,
         backgroundColor: '#FFFFFF',
         paddingHorizontal: 16,
         paddingVertical: 16,
     },
     cardHeader: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         letterSpacing: 1,
@@ -149,13 +149,13 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
     },
     bulletDot: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontSize: 14,
         lineHeight: 20,
     },
     bulletText: {
         flex: 1,
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Regular',
         fontSize: 14,
         lineHeight: 20,
@@ -166,24 +166,24 @@ const styles = StyleSheet.create({
         gap: 12,
         paddingVertical: 8,
         borderBottomWidth: 1,
-        borderBottomColor: '#FDE8E0',
+        borderBottomColor: '#ECF2E6',
     },
     stepBadge: {
         width: 24,
         height: 24,
         borderRadius: 12,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
     },
     stepBadgeText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
     stepText: {
         flex: 1,
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Regular',
         fontSize: 14,
         lineHeight: 21,
@@ -191,14 +191,14 @@ const styles = StyleSheet.create({
     tipCard: {
         marginTop: 16,
         borderLeftWidth: 3,
-        borderLeftColor: '#8A4A4E',
-        backgroundColor: '#FDE8E0',
+        borderLeftColor: '#3F5645',
+        backgroundColor: '#ECF2E6',
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
     tipText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Italic',
         fontStyle: 'italic',
         fontSize: 13,
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     swapBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
         letterSpacing: 0.6,

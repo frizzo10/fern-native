@@ -67,14 +67,14 @@ export default function AlexaCard({ shopCount, onSetup }) {
 }
 
 const s = StyleSheet.create({
-  card: { backgroundColor: '#FBD9CE', borderRadius: 14, borderWidth: 1, borderColor: '#F3C9BD', padding: 14, marginBottom: 12 },
-  title: { fontSize: 16, fontFamily: 'Jost-Bold', color: '#8A4A4E' },
-  body: { fontSize: 14, fontFamily: 'Jost-Regular', color: '#8A4A4E', marginTop: 4, lineHeight: 20 },
-  phrase: { fontSize: 15, fontFamily: 'Jost-SemiBold', color: '#8A4A4E', marginTop: 8 },
+  card: { backgroundColor: '#DDE7D5', borderRadius: 14, borderWidth: 1, borderColor: '#C8D6BE', padding: 14, marginBottom: 12 },
+  title: { fontSize: 16, fontFamily: 'Jost-Bold', color: '#3F5645' },
+  body: { fontSize: 14, fontFamily: 'Jost-Regular', color: '#3F5645', marginTop: 4, lineHeight: 20 },
+  phrase: { fontSize: 15, fontFamily: 'Jost-SemiBold', color: '#3F5645', marginTop: 8 },
   row: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
-  primary: { backgroundColor: '#D8607C', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16 },
+  primary: { backgroundColor: '#4E7A54', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16 },
   primaryText: { color: '#fff', fontSize: 14, fontFamily: 'Jost-Bold' },
   later: { paddingVertical: 10, paddingHorizontal: 14 },
-  laterText: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#9A7872' },
-  small: { fontSize: 12, fontFamily: 'Jost-Regular', color: '#9A7872', marginTop: 2 },
+  laterText: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#6B7F66' },
+  small: { fontSize: 12, fontFamily: 'Jost-Regular', color: '#6B7F66', marginTop: 2 },
 });

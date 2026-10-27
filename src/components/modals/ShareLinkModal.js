@@ -154,7 +154,7 @@ export default function ShareLinkModal({
                                         disabled={status === 'creating'}
                                     >
                                         {status === 'creating' ? (
-                                            <ActivityIndicator color={'#F3C9BD'} />
+                                            <ActivityIndicator color={'#C8D6BE'} />
                                         ) : (
                                             <Text style={styles.primaryBtnText}>{t('share_link_create_btn')}</Text>
                                         )}
@@ -179,11 +179,11 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     sheet: {
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         paddingHorizontal: 18,
         paddingTop: 16,
         paddingBottom: 28,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
         flex: 1,
         fontFamily: 'Playfair-Bold',
         fontSize: 20,
-        color: '#8A4A4E',
+        color: '#3F5645',
     },
     closeBtn: {
         width: 36,
@@ -219,20 +219,20 @@ const styles = StyleSheet.create({
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         letterSpacing: 1,
-        color: '#8A5A5C',
+        color: '#5C7262',
         marginTop: 10,
         marginBottom: 6,
     },
     input: {
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         borderRadius: radius.md,
         paddingHorizontal: 14,
         paddingVertical: 12,
         fontFamily: 'Jost-Regular',
         fontSize: 15,
-        color: '#5A3236',
+        color: '#2F4535',
     },
     errorText: {
         fontFamily: 'Jost-Regular',
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
         marginTop: 12,
     },
     primaryBtn: {
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         borderRadius: radius.md,
         paddingVertical: 14,
         alignItems: 'center',
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
     primaryBtnText: {
         fontFamily: 'Jost-Bold',
         fontSize: 14,
-        color: '#F3C9BD',
+        color: '#C8D6BE',
         letterSpacing: 0.5,
     },
     secondaryBtn: {
@@ -262,13 +262,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 8,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#C8D6BE',
     },
     secondaryBtnText: {
         fontFamily: 'Jost-Bold',
         fontSize: 14,
-        color: '#5A3236',
+        color: '#2F4535',
     },
     langRow: { flexDirection: 'row', gap: 8 },
     langChip: {
@@ -277,35 +277,35 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         borderRadius: radius.md,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         backgroundColor: '#FFFFFF',
     },
-    langChipOn: { backgroundColor: '#8A4A4E', borderColor: '#8A4A4E' },
-    langChipText: { fontFamily: 'Jost-Bold', fontSize: 13, color: '#5A3236' },
-    langChipTextOn: { color: '#F3C9BD' },
+    langChipOn: { backgroundColor: '#3F5645', borderColor: '#3F5645' },
+    langChipText: { fontFamily: 'Jost-Bold', fontSize: 13, color: '#2F4535' },
+    langChipTextOn: { color: '#C8D6BE' },
     translatingText: {
         fontFamily: 'Jost-Regular',
         fontSize: 13,
-        color: '#8A5A5C',
+        color: '#5C7262',
         textAlign: 'center',
         marginTop: 10,
     },
     readyLabel: {
         fontFamily: 'Jost-Bold',
         fontSize: 14,
-        color: '#C0475F',
+        color: '#3F6845',
         marginBottom: 10,
     },
     urlBox: {
         backgroundColor: '#FFFFFF',
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         borderRadius: radius.md,
         padding: 12,
     },
     urlText: {
         fontFamily: 'Jost-Regular',
         fontSize: 13,
-        color: '#5A3236',
+        color: '#2F4535',
     },
 });

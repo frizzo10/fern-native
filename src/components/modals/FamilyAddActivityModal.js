@@ -163,7 +163,7 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
                             value={emoji}
                             onChangeText={setEmoji}
                             placeholder={t('family_activity_emoji_placeholder')}
-                            placeholderTextColor="#C3A29B"
+                            placeholderTextColor="#66795F"
                             style={styles.emojiInput}
                             maxLength={4}
                         />
@@ -171,7 +171,7 @@ export default function FamilyAddActivityModal({ visible, dayOptions, initialDat
                             value={name}
                             onChangeText={setName}
                             placeholder={t('family_activity_name_placeholder')}
-                            placeholderTextColor="#C3A29B"
+                            placeholderTextColor="#66795F"
                             style={styles.nameInput}
                         />
 
@@ -225,11 +225,11 @@ const styles = StyleSheet.create({
     },
     sheet: {
         maxHeight: '90%',
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         overflow: 'hidden',
     },
     grabber: {
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
         width: 40,
         height: 4,
         borderRadius: 2,
-        backgroundColor: '#F3C9BD',
+        backgroundColor: '#C8D6BE',
     },
     scrollContent: {
         paddingHorizontal: 20,
@@ -246,13 +246,13 @@ const styles = StyleSheet.create({
         paddingBottom: 30,
     },
     title: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 24,
     },
     sectionLabel: {
         marginTop: 20,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         letterSpacing: 0.6,
@@ -266,17 +266,17 @@ const styles = StyleSheet.create({
     quickChip: {
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
     quickChipActive: {
-        borderColor: '#8A4A4E',
-        backgroundColor: '#FBD9CE',
+        borderColor: '#3F5645',
+        backgroundColor: '#DDE7D5',
     },
     quickChipText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
     },
@@ -285,9 +285,9 @@ const styles = StyleSheet.create({
         width: 90,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         backgroundColor: '#FFFFFF',
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Regular',
         fontSize: 16,
         textAlign: 'center',
@@ -297,9 +297,9 @@ const styles = StyleSheet.create({
         marginTop: 10,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         backgroundColor: '#FFFFFF',
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Regular',
         fontSize: 14,
         paddingHorizontal: 14,
@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
         height: 48,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
@@ -330,16 +330,16 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
     },
     pickChipActive: {
-        borderColor: '#8A4A4E',
-        backgroundColor: '#8A4A4E',
+        borderColor: '#3F5645',
+        backgroundColor: '#3F5645',
     },
     pickChipText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Medium',
         fontSize: 16,
     },
     pickChipTextActive: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
     },
     actionsRow: {
         marginTop: 26,
@@ -350,25 +350,25 @@ const styles = StyleSheet.create({
         flex: 1,
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         paddingVertical: 15,
     },
     cancelBtnText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
     },
     addBtn: {
         flex: 2,
         borderRadius: 999,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         paddingVertical: 15,
     },
     addBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
     },

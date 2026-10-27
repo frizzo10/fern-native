@@ -31,14 +31,14 @@ export default function PaperPickModal({ visible, onDone }) {
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#FFFAF6' },
+  safe: { flex: 1, backgroundColor: '#F7FAF3' },
   body: { padding: 24, alignItems: 'center' },
   emoji: { fontSize: 44, marginTop: 12 },
-  title: { fontSize: 28, color: '#8A4A4E', fontFamily: 'Jost-Bold', marginTop: 8, textAlign: 'center' },
-  sub: { fontSize: 16, lineHeight: 23, color: '#8A5A5C', fontFamily: 'Jost-Medium', textAlign: 'center', marginTop: 8, marginBottom: 22 },
-  footer: { padding: 16, borderTopWidth: 1, borderTopColor: '#F3C9BD' },
-  useBtn: { backgroundColor: '#C0475F', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
+  title: { fontSize: 28, color: '#3F5645', fontFamily: 'Jost-Bold', marginTop: 8, textAlign: 'center' },
+  sub: { fontSize: 16, lineHeight: 23, color: '#5C7262', fontFamily: 'Jost-Medium', textAlign: 'center', marginTop: 8, marginBottom: 22 },
+  footer: { padding: 16, borderTopWidth: 1, borderTopColor: '#C8D6BE' },
+  useBtn: { backgroundColor: '#3F6845', borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
   useText: { color: '#FFFFFF', fontSize: 17, fontFamily: 'Jost-Bold' },
   skipBtn: { paddingVertical: 12, alignItems: 'center' },
-  skipText: { color: '#8A5A5C', fontSize: 15, fontFamily: 'Jost-SemiBold' },
+  skipText: { color: '#5C7262', fontSize: 15, fontFamily: 'Jost-SemiBold' },
 });

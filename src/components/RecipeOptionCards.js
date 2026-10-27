@@ -89,15 +89,15 @@ function OptionCard({ option, onAction }) {
         ) : null}
         {noDay ? (
           <TouchableOpacity style={[styles.btn, styles.btnAlt, done.plan && styles.btnDone]} onPress={() => (done.plan ? null : setPicking((v) => !v))} disabled={!!busy}>
-            {busy === 'plan' ? <ActivityIndicator size="small" color={'#8A4A4E'} /> : <Text style={done.plan ? styles.btnMainText : styles.btnAltText}>{done.plan ? t('option_planned') : t('option_plan_pick')}</Text>}
+            {busy === 'plan' ? <ActivityIndicator size="small" color={'#3F5645'} /> : <Text style={done.plan ? styles.btnMainText : styles.btnAltText}>{done.plan ? t('option_planned') : t('option_plan_pick')}</Text>}
           </TouchableOpacity>
         ) : null}
         <TouchableOpacity style={[styles.btn, recipe.dayOffset !== null && recipe.dayOffset !== undefined ? styles.btnAlt : styles.btnMain, done.list && styles.btnDone]} onPress={openReview} disabled={!!busy}>
-          {busy === 'list' ? <ActivityIndicator size="small" color={'#8A4A4E'} /> : <Text style={(recipe.dayOffset !== null && recipe.dayOffset !== undefined && !done.list) ? styles.btnAltText : styles.btnMainText}>{done.list ? t('option_added') : t('option_add_list')}</Text>}
+          {busy === 'list' ? <ActivityIndicator size="small" color={'#3F5645'} /> : <Text style={(recipe.dayOffset !== null && recipe.dayOffset !== undefined && !done.list) ? styles.btnAltText : styles.btnMainText}>{done.list ? t('option_added') : t('option_add_list')}</Text>}
         </TouchableOpacity>
         {!recipe.isSaved ? (
           <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => run('save')} disabled={!!busy}>
-            {busy === 'save' ? <ActivityIndicator size="small" color={'#8A4A4E'} /> : <Text style={styles.btnAltText}>{done.save ? t('option_saved') : t('option_save')}</Text>}
+            {busy === 'save' ? <ActivityIndicator size="small" color={'#3F5645'} /> : <Text style={styles.btnAltText}>{done.save ? t('option_saved') : t('option_save')}</Text>}
           </TouchableOpacity>
         ) : null}
         <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => setOpen((o) => !o)}>
@@ -162,23 +162,23 @@ export default function RecipeOptionCards({ options, onAction }) {
 
 const styles = StyleSheet.create({
   wrap: { marginHorizontal: 16, marginTop: 4, marginBottom: 8, gap: 8 },
-  card: { backgroundColor: '#fff', borderRadius: radius?.md || 14, borderWidth: 1, borderColor: '#F3C9BD', padding: 12 },
+  card: { backgroundColor: '#fff', borderRadius: radius?.md || 14, borderWidth: 1, borderColor: '#C8D6BE', padding: 12 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   emoji: { fontSize: 28 },
-  title: { color: '#8A4A4E', fontWeight: '800', fontSize: 15 },
-  badge: { color: '#9A7872', fontSize: 11, fontWeight: '700', marginTop: 2 },
-  chev: { color: '#8A4A4E', fontSize: 16, paddingHorizontal: 4 },
+  title: { color: '#3F5645', fontWeight: '800', fontSize: 15 },
+  badge: { color: '#6B7F66', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  chev: { color: '#3F5645', fontSize: 16, paddingHorizontal: 4 },
   body: { marginTop: 8 },
-  desc: { color: '#5A3236', fontSize: 13, marginBottom: 6 },
-  sub: { color: '#8A4A4E', fontWeight: '800', fontSize: 12, marginTop: 6, marginBottom: 2 },
-  line: { color: '#5A3236', fontSize: 13, lineHeight: 19 },
-  askBox: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F3C9BD' },
-  askText: { color: '#8A4A4E', fontWeight: '800', fontSize: 14 },
+  desc: { color: '#2F4535', fontSize: 13, marginBottom: 6 },
+  sub: { color: '#3F5645', fontWeight: '800', fontSize: 12, marginTop: 6, marginBottom: 2 },
+  line: { color: '#2F4535', fontSize: 13, lineHeight: 19 },
+  askBox: { marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#C8D6BE' },
+  askText: { color: '#3F5645', fontWeight: '800', fontSize: 14 },
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   btn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 999, minHeight: 34, justifyContent: 'center', alignItems: 'center' },
-  btnMain: { backgroundColor: '#D8607C' },
-  btnDone: { backgroundColor: '#8A4A4E' },
+  btnMain: { backgroundColor: '#4E7A54' },
+  btnDone: { backgroundColor: '#3F5645' },
   btnMainText: { color: '#fff', fontWeight: '800', fontSize: 13 },
-  btnAlt: { borderWidth: 1, borderColor: '#8A4A4E' },
-  btnAltText: { color: '#8A4A4E', fontWeight: '800', fontSize: 13 },
+  btnAlt: { borderWidth: 1, borderColor: '#3F5645' },
+  btnAltText: { color: '#3F5645', fontWeight: '800', fontSize: 13 },
 });

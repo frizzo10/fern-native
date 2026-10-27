@@ -472,14 +472,14 @@ export default function FamilyScreen({ user }) {
                 <Text style={styles.title}>{`🗓️ ${t('family_hub_title')}`}</Text>
                 {isLoadingMealRecipe ? (
                     <View style={styles.recipeLoadingRow}>
-                        <ActivityIndicator color={'#8A4A4E'} size="small" />
+                        <ActivityIndicator color={'#3F5645'} size="small" />
                         <Text style={styles.recipeLoadingText}>{t('family_hub_loading_recipe')}</Text>
                     </View>
                 ) : null}
 
                 {isFillingWeek ? (
                     <View style={styles.recipeLoadingRow}>
-                        <ActivityIndicator color={'#8A4A4E'} size="small" />
+                        <ActivityIndicator color={'#3F5645'} size="small" />
                         <Text style={styles.recipeLoadingText}>{t('family_hub_ai_filling')}</Text>
                     </View>
                 ) : null}
@@ -800,7 +800,7 @@ export default function FamilyScreen({ user }) {
 const styles = StyleSheet.create({
     screen: {
         flex: 1,
-        backgroundColor: '#FFFAF6',
+        backgroundColor: '#F7FAF3',
     },
     screenContent: {
         paddingHorizontal: 20,
@@ -821,13 +821,13 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     title: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 24,
     },
     statusLine: {
         marginTop: 6,
-        color: '#8A4A4E',
+        color: '#3F5645',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -838,7 +838,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     recipeLoadingText: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
     },
@@ -849,7 +849,7 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     fillWeekBtn: {
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         borderRadius: 999,
         paddingHorizontal: 16,
         paddingVertical: 12,
@@ -858,7 +858,7 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     fillWeekBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
@@ -869,35 +869,35 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     planFernBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
     listBtn: {
-        backgroundColor: '#F3C9BD',
+        backgroundColor: '#C8D6BE',
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         paddingHorizontal: 16,
         paddingVertical: 12,
     },
     listBtnText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
     shareBtn: {
         marginTop: 10,
         alignSelf: 'flex-start',
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         paddingHorizontal: 16,
         paddingVertical: 11,
     },
     shareBtnText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
@@ -911,19 +911,19 @@ const styles = StyleSheet.create({
         flexBasis: '47%',
         flexGrow: 1,
         borderRadius: 14,
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         paddingHorizontal: 14,
         paddingVertical: 14,
     },
     statLabel: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 10,
         letterSpacing: 0.6,
     },
     statValue: {
         marginTop: 6,
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 20,
     },
@@ -942,12 +942,12 @@ const styles = StyleSheet.create({
         height: 40,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         alignItems: 'center',
         justifyContent: 'center',
     },
     dayArrowText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 18,
     },
@@ -955,7 +955,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     dayAbbrev: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         letterSpacing: 1,
@@ -967,12 +967,12 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     dayDateNum: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 40,
     },
     dayMonth: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 18,
     },
@@ -986,33 +986,33 @@ const styles = StyleSheet.create({
         width: 7,
         height: 7,
         borderRadius: 4,
-        backgroundColor: '#F3C9BD',
+        backgroundColor: '#C8D6BE',
     },
     dotActive: {
         width: 18,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
     },
-    flashRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderWidth: 3, borderColor: '#D8607C', borderRadius: 19 },
+    flashRing: { position: 'absolute', top: -3, left: -3, right: -3, bottom: -3, borderWidth: 3, borderColor: '#4E7A54', borderRadius: 19 },
     mealCard: {
         marginTop: 16,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
         padding: 12,
     },
     mealCardEmpty: {
         borderStyle: 'dashed',
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
     },
     mealIconWrap: {
         width: 44,
         height: 44,
         borderRadius: 10,
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -1028,20 +1028,20 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     mealSlotLabel: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 10,
         letterSpacing: 0.6,
     },
     mealTitle: {
         marginTop: 3,
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 16,
     },
     mealAddText: {
         marginTop: 3,
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Medium',
         fontSize: 14,
     },
@@ -1052,7 +1052,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     mealActionText: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 18,
     },
@@ -1060,7 +1060,7 @@ const styles = StyleSheet.create({
         marginTop: 20,
     },
     activitiesLabel: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 10,
         letterSpacing: 0.6,
@@ -1070,13 +1070,13 @@ const styles = StyleSheet.create({
         borderRadius: 14,
         borderWidth: 1,
         borderStyle: 'dashed',
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     addActivityText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -1084,7 +1084,7 @@ const styles = StyleSheet.create({
         marginTop: 20,
         flexDirection: 'row',
         gap: 12,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         borderRadius: 16,
         padding: 16,
         alignItems: 'center',
@@ -1096,13 +1096,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     fernBannerLabel: {
-        color: '#F3C9BD',
+        color: '#C8D6BE',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
     },
     fernBannerText: {
         marginTop: 4,
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
         lineHeight: 19,
@@ -1110,7 +1110,7 @@ const styles = StyleSheet.create({
     emptyText: {
         marginTop: 40,
         textAlign: 'center',
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
     },

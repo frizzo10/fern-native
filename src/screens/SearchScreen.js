@@ -1022,7 +1022,7 @@ export default function SearchScreen({ user }) {
 
     return (
         <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-            <LinearGradient colors={['#FBF7EF', '#F7F1E6', '#FDE8E0']} style={styles.background}>
+            <LinearGradient colors={['#FBF7EF', '#F7F1E6', '#ECF2E6']} style={styles.background}>
                 <View style={styles.glowOne} />
                 <View style={styles.glowTwo} />
 
@@ -1166,7 +1166,7 @@ export default function SearchScreen({ user }) {
 
                             {isSearching ? (
                                 <View style={styles.loadingWrap}>
-                                    <ActivityIndicator color={'#8A4A4E'} />
+                                    <ActivityIndicator color={'#3F5645'} />
                                     <Text style={styles.loadingText}>{t('searching_results', { query: activeQuery })}</Text>
                                 </View>
                             ) : visibleResults.length ? (
@@ -1250,7 +1250,7 @@ export default function SearchScreen({ user }) {
                                                                 onPress={() => handleToggleBloggerFeed(blogger)}
                                                             >
                                                                 {isLoadingFeed ? (
-                                                                    <ActivityIndicator size="small" color={hasNew ? '#FDE8E0' : '#8A6C4B'} />
+                                                                    <ActivityIndicator size="small" color={hasNew ? '#ECF2E6' : '#8A6C4B'} />
                                                                 ) : (
                                                                     <Text style={[styles.followingActionText, hasNew ? styles.followingActionTextHot : null]}>
                                                                         {newCount === null
@@ -1401,7 +1401,7 @@ export default function SearchScreen({ user }) {
 const styles = StyleSheet.create({
     safeArea: {
         flex: 1,
-        backgroundColor: '#FFFAF6',
+        backgroundColor: '#F7FAF3',
     },
     background: {
         flex: 1,
@@ -1487,7 +1487,7 @@ const styles = StyleSheet.create({
         marginBottom: 22,
     },
     searchCard: {
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderColor: '#E2CFB0',
         borderWidth: 2,
         borderRadius: 18,
@@ -1497,7 +1497,7 @@ const styles = StyleSheet.create({
     },
     searchInput: {
         borderRadius: 14,
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         color: '#7B5D3B',
         fontFamily: 'PlayfairDisplay-Italic',
         fontSize: 14,
@@ -1506,7 +1506,7 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     searchButton: {
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         borderRadius: 12,
         alignItems: 'center',
         justifyContent: 'center',
@@ -1535,7 +1535,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#3C2414',
     },
     actionButtonLight: {
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
     },
     actionButtonText: {
         fontSize: 13,
@@ -1639,7 +1639,7 @@ const styles = StyleSheet.create({
         height: 52,
         borderRadius: 46,
         borderWidth: 1,
-        borderColor: '#FDE8E0',
+        borderColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         ...shadow.card,
@@ -1774,7 +1774,7 @@ const styles = StyleSheet.create({
         flex: 1,
         minHeight: 44,
         borderWidth: 1,
-        borderColor: '#8A4A4E',
+        borderColor: '#3F5645',
         backgroundColor: '#FFFFFF',
         borderRadius: 10,
         paddingHorizontal: 8,
@@ -1782,16 +1782,16 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     followingActionText: {
-        color: '#8A4A4E',
+        color: '#3F5645',
         fontFamily: 'Jost-Bold',
         fontSize: 15,
     },
     followingActionBtnHot: {
-        borderColor: '#D8607C',
-        backgroundColor: '#D8607C',
+        borderColor: '#4E7A54',
+        backgroundColor: '#4E7A54',
     },
     followingActionTextHot: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
     },
     feedItemsWrap: {
         marginTop: -6,
@@ -1805,7 +1805,7 @@ const styles = StyleSheet.create({
     },
     feedEmptyText: {
         paddingVertical: 8,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Regular',
         fontSize: 11,
         fontStyle: 'italic',
@@ -1845,14 +1845,14 @@ const styles = StyleSheet.create({
     },
     feedItemBadge: {
         alignSelf: 'flex-start',
-        backgroundColor: '#D8607C',
+        backgroundColor: '#4E7A54',
         borderRadius: 6,
         paddingHorizontal: 6,
         paddingVertical: 2,
         marginBottom: 4,
     },
     feedItemBadgeText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 7,
         letterSpacing: 0.4,
@@ -1865,7 +1865,7 @@ const styles = StyleSheet.create({
     },
     feedItemTime: {
         marginTop: 3,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Regular',
         fontSize: 10,
     },
@@ -1875,7 +1875,7 @@ const styles = StyleSheet.create({
         marginLeft: 4,
     },
     followingRecipesText: {
-        color: '#8A4A4E',
+        color: '#3F5645',
         fontFamily: 'Jost-Bold',
         fontSize: 15,
     },
@@ -1893,7 +1893,7 @@ const styles = StyleSheet.create({
         lineHeight: 26,
     },
     addBlogRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-    addBlogBtn: { height: 46, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#8A4A4E', alignItems: 'center', justifyContent: 'center' },
+    addBlogBtn: { height: 46, paddingHorizontal: 16, borderRadius: 14, backgroundColor: '#3F5645', alignItems: 'center', justifyContent: 'center' },
     addBlogBtnText: { color: '#FFF', fontWeight: '700', fontSize: 14 },
     modalSearchWrap: {
         marginTop: 6,
@@ -1957,7 +1957,7 @@ const styles = StyleSheet.create({
     newSearchBtn: {
         borderWidth: 1,
         borderColor: '#DAC7AA',
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderRadius: 14,
         paddingHorizontal: 14,
         paddingVertical: 10,
@@ -1965,7 +1965,7 @@ const styles = StyleSheet.create({
     },
     newSearchBtnText: {
         fontFamily: 'Jost-SemiBold',
-        color: '#8A4A4E',
+        color: '#3F5645',
         fontSize: 11,
         textAlign: 'center',
     },
@@ -1990,8 +1990,8 @@ const styles = StyleSheet.create({
         paddingVertical: 9,
     },
     filterPillActive: {
-        backgroundColor: '#8A4A4E',
-        borderColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
+        borderColor: '#3F5645',
     },
     filterPillText: {
         fontFamily: 'Jost-Bold',
@@ -2012,11 +2012,11 @@ const styles = StyleSheet.create({
         gap: 18,
     },
     resultCard: {
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderRadius: 22,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
     },
     resultImageWrap: {
         height: 160,
@@ -2054,7 +2054,7 @@ const styles = StyleSheet.create({
         paddingBottom: 16,
     },
     resultTitle: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontSize: 19,
         lineHeight: 24,
         fontFamily: 'PlayfairDisplay-Bold',
@@ -2067,20 +2067,20 @@ const styles = StyleSheet.create({
     },
     resultTag: {
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         borderRadius: 999,
         paddingHorizontal: 12,
         paddingVertical: 6,
     },
     resultTagText: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontSize: 11,
         fontFamily: 'Jost-SemiBold',
     },
     resultDescription: {
         marginTop: 12,
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontSize: 13,
         lineHeight: 19,
         fontFamily: 'PlayfairDisplay-Italic',
@@ -2089,10 +2089,10 @@ const styles = StyleSheet.create({
         marginTop: 14,
         marginBottom: 10,
         height: 1,
-        backgroundColor: '#F3C9BD',
+        backgroundColor: '#C8D6BE',
     },
     resultSavedNote: {
-        color: '#C0475F',
+        color: '#3F6845',
         fontSize: 12,
         fontFamily: 'Jost-Bold',
     },
@@ -2100,20 +2100,20 @@ const styles = StyleSheet.create({
         marginTop: 20,
         padding: 18,
         borderRadius: 20,
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         alignItems: 'center',
     },
     emptyResultsTitle: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontSize: 16,
         fontFamily: 'Jost-Bold',
         textAlign: 'center',
     },
     emptyResultsSub: {
         marginTop: 6,
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontSize: 12,
         fontFamily: 'Jost-Medium',
         textAlign: 'center',

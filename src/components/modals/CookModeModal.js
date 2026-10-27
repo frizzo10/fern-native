@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     flex: 1,
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 20,
   },
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontSize: 20,
     lineHeight: 22,
   },
@@ -339,13 +339,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   ingredientsBarText: {
-    color: '#F3C9BD',
+    color: '#C8D6BE',
     fontFamily: 'Jost-Bold',
     fontSize: 12,
     letterSpacing: 1,
   },
   ingredientsChevron: {
-    color: '#F3C9BD',
+    color: '#C8D6BE',
     fontSize: 12,
   },
   ingredientsList: {
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   ingredientItemText: {
-    color: '#F3C9BD',
+    color: '#C8D6BE',
     fontFamily: 'Jost-Regular',
     fontSize: 13,
     lineHeight: 22,
@@ -381,7 +381,7 @@ const styles = StyleSheet.create({
   stepText: {
     marginTop: 10,
     textAlign: 'center',
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 20,
     lineHeight: 28,
@@ -404,12 +404,12 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   controlBtnText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontFamily: 'Jost-Bold',
     fontSize: 13,
   },
   stepFraction: {
-    color: '#C3A29B',
+    color: '#66795F',
     fontFamily: 'Jost-Regular',
     fontSize: 13,
   },
@@ -422,18 +422,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   helpBtnText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontFamily: 'Jost-Bold',
     fontSize: 13,
   },
   finishBtn: {
     borderRadius: 999,
-    backgroundColor: '#D8607C',
+    backgroundColor: '#4E7A54',
     paddingHorizontal: 18,
     paddingVertical: 12,
   },
   finishBtnText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
   },

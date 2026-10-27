@@ -205,7 +205,7 @@ export default function CouponWalletScreen({ onBack, availableCoupons, isLoading
 
                     {isLoadingAvailableCoupons && !groupedBrowse.length ? (
                         <View style={styles.emptyState}>
-                            <ActivityIndicator color="#8A4A4E" />
+                            <ActivityIndicator color="#3F5645" />
                             <Text style={[styles.emptyText, { marginTop: 12 }]}>{t('coupon_wallet_loading')}</Text>
                         </View>
                     ) : browseLoadError && !groupedBrowse.length ? (
@@ -294,18 +294,18 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
     backLinkText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
     },
     title: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 20,
     },
     subtitle: {
         marginTop: 8,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Italic',
         fontStyle: 'italic',
         fontSize: 12,
@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
         marginTop: 22,
         flexDirection: 'row',
         borderBottomWidth: 1,
-        borderBottomColor: '#F3C9BD',
+        borderBottomColor: '#C8D6BE',
     },
     tab: {
         marginRight: 28,
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     tabTextActive: {
-        color: '#5A3236',
+        color: '#2F4535',
     },
     tabUnderline: {
         marginTop: 10,
@@ -337,7 +337,7 @@ const styles = StyleSheet.create({
         backgroundColor: 'transparent',
     },
     tabUnderlineActive: {
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
     },
     segmentRow: {
         marginTop: 20,
@@ -348,23 +348,23 @@ const styles = StyleSheet.create({
         flex: 1,
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,
     },
     segmentActive: {
-        backgroundColor: '#8A4A4E',
-        borderColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
+        borderColor: '#3F5645',
     },
     segmentText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
     segmentTextActive: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
     },
     groupBlock: {
         marginTop: 24,
@@ -374,11 +374,11 @@ const styles = StyleSheet.create({
         alignItems: 'baseline',
         gap: 6,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3C9BD',
+        borderBottomColor: '#C8D6BE',
         paddingBottom: 8,
     },
     groupLabel: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 15,
     },
@@ -393,8 +393,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 12,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         borderRadius: 14,
         padding: 12,
     },
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
     discountBadgeText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         textAlign: 'center',
@@ -420,37 +420,37 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     couponTitle: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 13,
         lineHeight: 18,
     },
     couponDescription: {
         marginTop: 3,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 11,
     },
     addBtn: {
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         borderRadius: 10,
         paddingHorizontal: 14,
         paddingVertical: 10,
     },
     addBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
     },
     addedBadge: {
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#8A4A4E',
+        borderColor: '#3F5645',
         paddingHorizontal: 12,
         paddingVertical: 10,
     },
     addedBadgeText: {
-        color: '#8A4A4E',
+        color: '#3F5645',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
     },
@@ -464,14 +464,14 @@ const styles = StyleSheet.create({
     },
     emptyTitle: {
         marginTop: 14,
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 16,
         textAlign: 'center',
     },
     emptyText: {
         marginTop: 8,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
         lineHeight: 17,
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     },
     retryBtn: {
         marginTop: 16,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         borderRadius: 999,
         paddingHorizontal: 22,
         paddingVertical: 10,
@@ -502,8 +502,8 @@ const styles = StyleSheet.create({
         height: 38,
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 6,
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
         opacity: 0.4,
     },
     pageArrowText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 16,
     },
@@ -521,22 +521,22 @@ const styles = StyleSheet.create({
         height: 38,
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 6,
     },
     pageNumberBtnActive: {
-        backgroundColor: '#8A4A4E',
-        borderColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
+        borderColor: '#3F5645',
     },
     pageNumberText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     pageNumberTextActive: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
     },
 });

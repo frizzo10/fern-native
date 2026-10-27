@@ -2799,7 +2799,7 @@ export default function HomeScreen({ user, route }) {
 
             {loading ? (
               <View style={styles.loadingRow}>
-                <ActivityIndicator color={'#8A4A4E'} />
+                <ActivityIndicator color={'#3F5645'} />
                 <Text style={styles.loadingText}>{t('syncing_data')}</Text>
               </View>
             ) : null}
@@ -3220,7 +3220,7 @@ export default function HomeScreen({ user, route }) {
             <>
               <Text style={{ fontSize: 64 }}>✅</Text>
               <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 24, textAlign: 'center', marginTop: 12 }}>{t('flyer_already_title')}</Text>
-              <Text style={{ color: '#FBD9CE', fontFamily: 'Jost-Medium', fontSize: 16, textAlign: 'center', marginTop: 8 }}>
+              <Text style={{ color: '#DDE7D5', fontFamily: 'Jost-Medium', fontSize: 16, textAlign: 'center', marginTop: 8 }}>
                 {flyerScan.store ? t('flyer_scanned_found_store', { n: flyerScan.count, store: flyerScan.store }) : t('flyer_scanned_found', { n: flyerScan.count })}
               </Text>
               {flyerScan.game ? (
@@ -3229,7 +3229,7 @@ export default function HomeScreen({ user, route }) {
                   {flyerScan.game.pages > 1 ? `  ·  ${t('scan_game_pages', { n: flyerScan.game.pages })}` : ''}
                 </Text>
               ) : null}
-              <Text style={{ color: '#FBD9CE', fontFamily: 'Jost-Medium', fontSize: 14, textAlign: 'center', marginTop: 14 }}>{t('flyer_already_sub')}</Text>
+              <Text style={{ color: '#DDE7D5', fontFamily: 'Jost-Medium', fontSize: 14, textAlign: 'center', marginTop: 14 }}>{t('flyer_already_sub')}</Text>
               <TouchableOpacity
                 style={{ marginTop: 28, paddingVertical: 12, paddingHorizontal: 26, borderRadius: 24, backgroundColor: '#DE6F2F' }}
                 onPress={() => { flyerSkipRef.current = true; setFlyerScan(null); navigation.navigate('Shopping', { guide: Date.now(), guideStore: flyerScan.store || '' }); }}
@@ -3237,7 +3237,7 @@ export default function HomeScreen({ user, route }) {
                 <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 16 }}>{t('flyer_already_use')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={{ marginTop: 14, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 20, borderWidth: 1, borderColor: '#FBD9CE' }}
+                style={{ marginTop: 14, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 20, borderWidth: 1, borderColor: '#DDE7D5' }}
                 onPress={() => { flyerSkipRef.current = true; setFlyerScan(null); setTimeout(askFlyerPhoto, 400); }}
               >
                 <Text style={{ color: '#fff', fontFamily: 'Jost-Medium', fontSize: 14 }}>{t('flyer_already_rescan')}</Text>
@@ -3245,24 +3245,24 @@ export default function HomeScreen({ user, route }) {
             </>
           ) : flyerScan?.phase === 'looking' ? (
             <>
-              <ActivityIndicator size="large" color="#D8607C" />
+              <ActivityIndicator size="large" color="#4E7A54" />
               <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 22, textAlign: 'center', marginTop: 20 }}>{t('flyer_looking_title')}</Text>
             </>
           ) : flyerScan?.phase === 'done' ? (
             <>
               <Text style={{ fontSize: 64 }}>✅</Text>
               <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 24, textAlign: 'center', marginTop: 12 }}>{t('flyer_scanned_title')}</Text>
-              <Text style={{ color: '#FBD9CE', fontFamily: 'Jost-Medium', fontSize: 16, textAlign: 'center', marginTop: 8 }}>
+              <Text style={{ color: '#DDE7D5', fontFamily: 'Jost-Medium', fontSize: 16, textAlign: 'center', marginTop: 8 }}>
                 {flyerScan.store ? t('flyer_scanned_found_store', { n: flyerScan.count, store: flyerScan.store }) : t('flyer_scanned_found', { n: flyerScan.count })}
               </Text>
             </>
           ) : !flyerScan ? null : (
             <>
-              <ActivityIndicator size="large" color="#D8607C" />
+              <ActivityIndicator size="large" color="#4E7A54" />
               <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 22, textAlign: 'center', marginTop: 20 }}>{t('flyer_scanning_title')}</Text>
-              <Text style={{ color: '#D8607C', fontFamily: 'Jost-Bold', fontSize: 28, textAlign: 'center', marginTop: 10 }}>{`${Math.floor(flyerSecs / 60)}:${String(flyerSecs % 60).padStart(2, '0')}`}</Text>
-              <Text style={{ color: '#FBD9CE', fontFamily: 'Jost-Medium', fontSize: 15, textAlign: 'center', marginTop: 8 }}>{t('flyer_scanning_sub')}</Text>
-              <Text style={{ color: '#FBD9CE', fontFamily: 'Jost-Medium', fontSize: 13, textAlign: 'center', marginTop: 14, paddingHorizontal: 30 }}>{t('trip_flyer_scanning_hint')}</Text>
+              <Text style={{ color: '#4E7A54', fontFamily: 'Jost-Bold', fontSize: 28, textAlign: 'center', marginTop: 10 }}>{`${Math.floor(flyerSecs / 60)}:${String(flyerSecs % 60).padStart(2, '0')}`}</Text>
+              <Text style={{ color: '#DDE7D5', fontFamily: 'Jost-Medium', fontSize: 15, textAlign: 'center', marginTop: 8 }}>{t('flyer_scanning_sub')}</Text>
+              <Text style={{ color: '#DDE7D5', fontFamily: 'Jost-Medium', fontSize: 13, textAlign: 'center', marginTop: 14, paddingHorizontal: 30 }}>{t('trip_flyer_scanning_hint')}</Text>
             </>
           )}
         </View>
@@ -3650,7 +3650,7 @@ export default function HomeScreen({ user, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFAF6',
+    backgroundColor: '#F7FAF3',
   },
   screenScroll: {
     flex: 1,
@@ -3691,7 +3691,7 @@ const styles = StyleSheet.create({
 
   subheading: {
     fontSize: 12,
-    color: '#8A5A5C',
+    color: '#5C7262',
     marginTop: 2,
     fontFamily: 'Jost-Medium',
     fontStyle: 'italic',
@@ -3736,7 +3736,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
     paddingHorizontal: 16,
     paddingVertical: 11,
-    backgroundColor: '#D8607C',
+    backgroundColor: '#4E7A54',
   },
 
   askFernBadgeActive: {
@@ -3744,14 +3744,14 @@ const styles = StyleSheet.create({
   },
 
   askFernBadgeText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontSize: 12,
     fontFamily: 'Jost-Bold',
     letterSpacing: 0.2,
   },
 
   langBadgeText: {
-    color: '#5A3236',
+    color: '#2F4535',
     fontSize: 11,
     fontFamily: 'Jost-Medium',
     letterSpacing: 0.3,
@@ -3781,7 +3781,7 @@ const styles = StyleSheet.create({
   },
 
   voiceReply: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontSize: 13,
     fontFamily: 'Jost-Medium',
   },
@@ -3795,7 +3795,7 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 12,
-    color: '#8A5A5C',
+    color: '#5C7262',
     fontFamily: 'Jost-Regular',
   },
 
@@ -3810,7 +3810,7 @@ const styles = StyleSheet.create({
 
   mainCard: {
     width: '31%',
-    backgroundColor: '#FDE8E0',
+    backgroundColor: '#ECF2E6',
     borderRadius: 22,
     minHeight: 50,
     padding: 12,
@@ -3834,7 +3834,7 @@ const styles = StyleSheet.create({
   tierLockBadgeMax: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     borderWidth: 1,
-    borderColor: '#D8607C',
+    borderColor: '#4E7A54',
   },
   tierLockBadgePro: {
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -3846,7 +3846,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   tierLockBadgeTextMax: {
-    color: '#D8607C',
+    color: '#4E7A54',
   },
 
   statsRow: {
@@ -3860,21 +3860,21 @@ const styles = StyleSheet.create({
 
   statCard: {
     width: '48%',
-    backgroundColor: '#F3C9BD',
+    backgroundColor: '#C8D6BE',
     borderRadius: 18,
     padding: 14,
     minHeight: 100,
     borderWidth: 1,
-    borderColor: '#F3C9BD',
+    borderColor: '#C8D6BE',
   },
 
   panelCard: {
     marginHorizontal: 20,
     marginTop: 10,
-    backgroundColor: '#F3C9BD',
+    backgroundColor: '#C8D6BE',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#F3C9BD',
+    borderColor: '#C8D6BE',
     padding: 16,
   },
 
@@ -3891,7 +3891,7 @@ const styles = StyleSheet.create({
   },
 
   panelLink: {
-    color: '#8A4A4E',
+    color: '#3F5645',
     fontSize: 14,
     fontFamily: 'Jost-Bold',
   },
@@ -3911,21 +3911,21 @@ const styles = StyleSheet.create({
   },
 
   scanCircularHeaderBtn: {
-    backgroundColor: '#8A4A4E',
+    backgroundColor: '#3F5645',
     borderRadius: radius.full,
     paddingHorizontal: 13,
     paddingVertical: 8,
   },
 
   smallActionBtn: {
-    backgroundColor: '#D8607C',
+    backgroundColor: '#4E7A54',
     borderRadius: radius.full,
     paddingHorizontal: 13,
     paddingVertical: 8,
   },
 
   smallActionBtnText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
@@ -3944,7 +3944,7 @@ const styles = StyleSheet.create({
     width: 35,
     height: 35,
     borderRadius: 10,
-    backgroundColor: '#8A4A4E',
+    backgroundColor: '#3F5645',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3971,14 +3971,14 @@ const styles = StyleSheet.create({
   },
 
   scanCircularBtn: {
-    backgroundColor: '#D8607C',
+    backgroundColor: '#4E7A54',
     borderRadius: radius.full,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
 
   scanCircularBtnText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
   },
@@ -4038,7 +4038,7 @@ const styles = StyleSheet.create({
     borderColor: '#BFB6AA',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FDE8E0',
+    backgroundColor: '#ECF2E6',
   },
 
   weekCircleToday: {
@@ -4046,8 +4046,8 @@ const styles = StyleSheet.create({
   },
 
   weekCircleFilled: {
-    backgroundColor: '#8A4A4E',
-    borderColor: '#8A4A4E',
+    backgroundColor: '#3F5645',
+    borderColor: '#3F5645',
   },
 
   weekCircleInner: {
@@ -4068,7 +4068,7 @@ const styles = StyleSheet.create({
   fernKnowledgeCard: {
     marginHorizontal: 20,
     marginTop: 18,
-    backgroundColor: '#8A4A4E',
+    backgroundColor: '#3F5645',
     borderRadius: 18,
     padding: 16,
   },
@@ -4148,7 +4148,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     fontFamily: 'Jost-Bold',
-    color: '#8A5A5C',
+    color: '#5C7262',
     marginTop: 4
   },
 
@@ -4174,7 +4174,7 @@ const styles = StyleSheet.create({
   loyaltyCardTitle: {
     fontSize: 11,
     fontFamily: 'Jost-Bold',
-    color: '#8A5A5C',
+    color: '#5C7262',
     letterSpacing: 1,
   },
 
@@ -4204,7 +4204,7 @@ const styles = StyleSheet.create({
   },
 
   versionTap: { alignSelf: 'center', paddingVertical: 10, paddingHorizontal: 16 },
-  versionText: { fontSize: 10, color: '#9A7872', opacity: 0.45 },
+  versionText: { fontSize: 10, color: '#6B7F66', opacity: 0.45 },
   bottomSpacer: {
     height: 24,
   },
@@ -4215,7 +4215,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   addStoreSheet: {
-    backgroundColor: '#FDE8E0',
+    backgroundColor: '#ECF2E6',
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
     paddingHorizontal: 18,
@@ -4231,7 +4231,7 @@ const styles = StyleSheet.create({
   },
   addStoreTitle: {
     fontFamily: 'PlayfairDisplay-Bold',
-    color: '#5A3236',
+    color: '#2F4535',
     fontSize: 20,
     lineHeight: 56,
   },
@@ -4256,7 +4256,7 @@ const styles = StyleSheet.create({
   },
   addStorePresetChip: {
     borderWidth: 2,
-    borderColor: '#F3C9BD',
+    borderColor: '#C8D6BE',
     borderRadius: 24,
     paddingHorizontal: 12,
     paddingVertical: 7,
@@ -4277,16 +4277,16 @@ const styles = StyleSheet.create({
   addStoreFieldLabel: {
     marginTop: 4,
     marginBottom: 6,
-    color: '#8A5A5C',
+    color: '#5C7262',
     fontFamily: 'Jost-Bold',
     fontSize: 12,
   },
   addStoreInput: {
     borderWidth: 2,
-    borderColor: '#F3C9BD',
+    borderColor: '#C8D6BE',
     borderRadius: 14,
-    backgroundColor: '#FDE8E0',
-    color: '#5A3236',
+    backgroundColor: '#ECF2E6',
+    color: '#2F4535',
     fontFamily: 'Jost-Regular',
     fontSize: 12,
     paddingHorizontal: 12,
@@ -4312,21 +4312,21 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   addStoreFindBtnText: {
-    color: '#FBD9CE',
+    color: '#DDE7D5',
     fontFamily: 'Jost-Bold',
     fontSize: 12,
   },
   addStoreResultCard: {
     marginTop: 12,
     borderWidth: 2,
-    borderColor: '#F3C9BD',
+    borderColor: '#C8D6BE',
     borderRadius: 14,
     backgroundColor: '#F0ECE4',
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   addStoreResultName: {
-    color: '#5A3236',
+    color: '#2F4535',
     fontFamily: 'Jost-Bold',
     fontSize: 12,
   },
@@ -4348,7 +4348,7 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
   addStoreSaveBtnText: {
-    color: '#FBD9CE',
+    color: '#DDE7D5',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
   },

@@ -9,12 +9,12 @@ function PaperPreview({ t, value, name }) {
   const st = stationeryById(value);
   const items = [t('paper_prev_1'), t('paper_prev_2'), t('paper_prev_3')];
   const title = st ? (name ? t(`stat_${st.id}_t`, { name }) : t(`stat_${st.id}_tn`)) : t('shopping_list_title');
-  const ink = st ? st.ink : '#5A3236';
-  const accent = st ? st.accent : '#D8607C';
+  const ink = st ? st.ink : '#2F4535';
+  const accent = st ? st.accent : '#4E7A54';
   return (
-    <View style={[s.prev, { backgroundColor: st ? st.bg : '#FDE8E0', borderColor: '#F3C9BD', borderWidth: 1 }, st ? st.frame : null]}>
+    <View style={[s.prev, { backgroundColor: st ? st.bg : '#ECF2E6', borderColor: '#C8D6BE', borderWidth: 1 }, st ? st.frame : null]}>
       {st && st.icon ? <Text style={{ textAlign: 'center', fontSize: 18, color: accent }}>{st.icon}</Text> : null}
-      <Text style={[s.prevTitle, { color: st ? st.title : '#8A4A4E' }, st ? { fontFamily: st.font } : { fontFamily: 'Jost-Bold' }]} numberOfLines={2}>{title}</Text>
+      <Text style={[s.prevTitle, { color: st ? st.title : '#3F5645' }, st ? { fontFamily: st.font } : { fontFamily: 'Jost-Bold' }]} numberOfLines={2}>{title}</Text>
       {st ? <Text style={[s.prevSub, { color: st.sub }]}>{t(`stat_${st.id}_s`).toUpperCase()}</Text> : null}
       <View style={[s.prevRule, { backgroundColor: accent }]} />
       {items.map((it, i) => (
@@ -31,7 +31,7 @@ export default function PaperChips({ t, value, onPick, wrap = false, name = '' }
   const chips = (
     <>
       <TouchableOpacity onPress={() => onPick('')} activeOpacity={0.85} style={[s.chip, !value ? s.chipOn : null]}>
-        <View style={[s.swatch, { backgroundColor: '#FDE8E0', borderColor: '#D8607C' }]} />
+        <View style={[s.swatch, { backgroundColor: '#ECF2E6', borderColor: '#4E7A54' }]} />
         <Text style={s.chipText}>{t('stat_plain')}</Text>
       </TouchableOpacity>
       {STATIONERY.map((st) => (
@@ -68,7 +68,7 @@ const s = StyleSheet.create({
   row: { gap: 10, paddingRight: 8 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 10 },
   chip: { alignItems: 'center', width: 78, paddingVertical: 6, borderRadius: 12, borderWidth: 2, borderColor: 'transparent' },
-  chipOn: { borderColor: '#C0475F', backgroundColor: '#FDE8E0' },
+  chipOn: { borderColor: '#3F6845', backgroundColor: '#ECF2E6' },
   swatch: { width: 48, height: 58, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  chipText: { color: '#5A3236', fontSize: 11, fontFamily: 'Jost-SemiBold', marginTop: 4 },
+  chipText: { color: '#2F4535', fontSize: 11, fontFamily: 'Jost-SemiBold', marginTop: 4 },
 });

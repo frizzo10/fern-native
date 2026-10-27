@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: '#D8607C' || '#D8607C',
+    backgroundColor: '#4E7A54' || '#4E7A54',
     borderRadius: 2,
   },
   questionLabel: {
@@ -46,13 +46,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: '#F3C9BD',
-    backgroundColor: '#FFFAF6',
+    borderColor: '#C8D6BE',
+    backgroundColor: '#F7FAF3',
   },
   controlBtnNext: {
     flex: 1.2,
-    backgroundColor: '#D8607C' || '#D8607C',
-    borderColor: '#D8607C' || '#D8607C',
+    backgroundColor: '#4E7A54' || '#4E7A54',
+    borderColor: '#4E7A54' || '#4E7A54',
   },
   controlBtnDisabled: {
     opacity: 0.4,
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   controlBtnText: {
     fontSize: 11,
     fontFamily: 'Jost-Bold',
-    color: '#8A5A5C',
+    color: '#5C7262',
     letterSpacing: 0.5,
   },
   controlBtnTextNext: {

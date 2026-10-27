@@ -123,7 +123,7 @@ export default function LoyaltyCardModal({
                                         disabled={isLinking}
                                     >
                                         {isLinking ? (
-                                            <ActivityIndicator color="#FDE8E0" />
+                                            <ActivityIndicator color="#ECF2E6" />
                                         ) : (
                                             <Text style={styles.linkBtnText}>{t('loyalty_modal_link_btn')}</Text>
                                         )}
@@ -137,7 +137,7 @@ export default function LoyaltyCardModal({
                         <Text style={styles.storeCardsTitle}>{t('loyalty_store_cards_title')}</Text>
 
                         {isLoadingStoreCards ? (
-                            <ActivityIndicator color={'#8A4A4E'} style={styles.storeCardsLoading} />
+                            <ActivityIndicator color={'#3F5645'} style={styles.storeCardsLoading} />
                         ) : storeCards?.length ? (
                             <View style={styles.storeCardsList}>
                                 {storeCards.map((card) => (
@@ -188,7 +188,7 @@ export default function LoyaltyCardModal({
                                 disabled={isAddingStoreCard}
                             >
                                 {isAddingStoreCard ? (
-                                    <ActivityIndicator color="#FDE8E0" />
+                                    <ActivityIndicator color="#ECF2E6" />
                                 ) : (
                                     <Text style={styles.addCardBtnText}>{t('loyalty_store_card_add_btn')}</Text>
                                 )}
@@ -208,11 +208,11 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     sheet: {
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         overflow: 'hidden',
         paddingBottom: 24,
     },
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'flex-start',
         borderBottomWidth: 1,
-        borderBottomColor: '#F3C9BD',
+        borderBottomColor: '#C8D6BE',
         gap: 12,
     },
     headerEmoji: {
@@ -233,13 +233,13 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     title: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 20,
     },
     subtitle: {
         marginTop: 4,
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
     },
@@ -248,13 +248,13 @@ const styles = StyleSheet.create({
         height: 36,
         borderRadius: 18,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
     },
     closeText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 22,
         lineHeight: 28,
@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
         paddingBottom: 24,
     },
     instructions: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Regular',
         fontSize: 13,
         lineHeight: 20,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     label: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
         marginBottom: 8,
@@ -283,9 +283,9 @@ const styles = StyleSheet.create({
     input: {
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         backgroundColor: '#FFFFFF',
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Regular',
         fontSize: 14,
         paddingHorizontal: 14,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     },
     hashDisclaimer: {
         marginTop: 8,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Italic',
         fontStyle: 'italic',
         fontSize: 11,
@@ -315,21 +315,21 @@ const styles = StyleSheet.create({
         flex: 1,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     cancelBtnText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     linkBtn: {
         flex: 1.4,
         borderRadius: 14,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
@@ -338,13 +338,13 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     linkBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     successCard: {
         borderRadius: 18,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         paddingHorizontal: 18,
         paddingVertical: 22,
         alignItems: 'center',
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
     },
     successTitle: {
         marginTop: 8,
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 18,
     },
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     statValue: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 22,
     },
@@ -382,27 +382,27 @@ const styles = StyleSheet.create({
         marginTop: 16,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 15,
     },
     secondaryBtnText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     primaryBtn: {
         marginTop: 10,
         borderRadius: 14,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 15,
     },
     primaryBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -410,10 +410,10 @@ const styles = StyleSheet.create({
         marginTop: 22,
         marginBottom: 18,
         height: 1,
-        backgroundColor: '#F3C9BD',
+        backgroundColor: '#C8D6BE',
     },
     storeCardsTitle: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
         marginBottom: 10,
@@ -422,7 +422,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
     storeCardsEmpty: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 13,
         marginBottom: 14,
@@ -435,13 +435,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         borderRadius: 12,
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         paddingHorizontal: 14,
         paddingVertical: 12,
         marginBottom: 8,
     },
     storeCardText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -462,13 +462,13 @@ const styles = StyleSheet.create({
     },
     addCardBtn: {
         borderRadius: 12,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 18,
     },
     addCardBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },

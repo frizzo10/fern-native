@@ -19,17 +19,17 @@ import MealPlannerImage from '../MealPlannerImage';
 
 // Soft peach palette (2026-10-26). FOREST is kept as the name of the main ink/icon colour so every
 // existing reference follows the new palette; PANEL/CARD/LINE/BERRY are the new surfaces.
-const FOREST = '#8A4A4E';
-const PANEL = '#FBD9CE';
-const CARD = '#FDE8E0';
-const LINE = '#F3C9BD';
-const BERRY = '#D8607C';
-const ROSE = '#7A3C42';
-const MUTE = '#A9756F';
-const ORANGE = '#D8607C';
+const FOREST = '#3F5645';
+const PANEL = '#DDE7D5';
+const CARD = '#ECF2E6';
+const LINE = '#C8D6BE';
+const BERRY = '#4E7A54';
+const ROSE = '#34493A';
+const MUTE = '#4F6455';
+const ORANGE = '#4E7A54';
 const CREAM = '#F3EEE4';
-const SAGE = '#FBD9CE';
-const BORDER = '#F3C9BD';
+const SAGE = '#DDE7D5';
+const BORDER = '#C8D6BE';
 const BROWN = '#7A5C3A';
 
 function ToolRow({ item, last }) {
@@ -512,7 +512,7 @@ const styles = StyleSheet.create({
   autoRow: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 10, marginTop: 12, backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 999, paddingVertical: 6, paddingLeft: 14, paddingRight: 8 },
   autoTitle: { fontFamily: 'Jost-SemiBold', fontSize: 15, color: ROSE },
   autoSub: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#C9E3C4', marginTop: 2 },
-  switchTrack: { width: 42, height: 24, borderRadius: 12, backgroundColor: 'rgba(138,74,78,0.25)', padding: 3, justifyContent: 'center' },
+  switchTrack: { width: 42, height: 24, borderRadius: 12, backgroundColor: 'rgba(63,86,69,0.25)', padding: 3, justifyContent: 'center' },
   switchTrackOn: { backgroundColor: ORANGE },
   switchKnob: { width: 18, height: 18, borderRadius: 9, backgroundColor: '#fff', alignSelf: 'flex-start' },
   listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16, backgroundColor: '#fff', borderRadius: 18, paddingVertical: 14, paddingHorizontal: 16 },

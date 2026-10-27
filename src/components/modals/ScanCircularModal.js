@@ -189,7 +189,7 @@ export default function ScanCircularModal({
                             <CircularHistoryView onBack={() => setShowHistory(false)} />
                         ) : step === 'loading' ? (
                             <View style={styles.loadingWrap}>
-                                <ActivityIndicator size="large" color="#8A4A4E" />
+                                <ActivityIndicator size="large" color="#3F5645" />
                                 <Text style={styles.loadingTitle}>{t('scan_circular_loading_title')}</Text>
                                 <Text style={styles.loadingTip}>{t('scan_circular_loading_tip')}</Text>
                                 <LoadingProgressBar />
@@ -284,7 +284,7 @@ export default function ScanCircularModal({
                                 <Text style={styles.recipeIdeasLabel}>{t('scan_circular_recipe_ideas_using_deal')}</Text>
 
                                 {isLoadingDealIdeas ? (
-                                    <ActivityIndicator style={styles.ideasLoading} size="small" color="#8A4A4E" />
+                                    <ActivityIndicator style={styles.ideasLoading} size="small" color="#3F5645" />
                                 ) : (
                                     <>
                                         {dealIdeas.map((idea) => (
@@ -399,13 +399,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 18,
         borderRadius: 999,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
     },
     historyLinkText: {
         fontFamily: 'Jost-SemiBold',
         fontSize: 13,
-        color: '#8A5A5C',
+        color: '#5C7262',
     },
     backdrop: {
         flex: 1,
@@ -414,11 +414,11 @@ const styles = StyleSheet.create({
     },
     sheet: {
         maxHeight: '92%',
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         overflow: 'hidden',
     },
     topBar: {
@@ -428,20 +428,20 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderBottomWidth: 1,
-        borderBottomColor: '#F3C9BD',
+        borderBottomColor: '#C8D6BE',
         gap: 10,
     },
     topBarTextWrap: {
         flex: 1,
     },
     title: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 18,
     },
     subtitle: {
         marginTop: 2,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Regular',
         fontSize: 12,
         fontStyle: 'italic',
@@ -451,13 +451,13 @@ const styles = StyleSheet.create({
         height: 40,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
     },
     closeText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 24,
         lineHeight: 30,
@@ -483,14 +483,14 @@ const styles = StyleSheet.create({
     },
     shareNote: {
         marginTop: 10,
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Regular',
         fontSize: 12,
         lineHeight: 17,
     },
     tipBannerText: {
         flex: 1,
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Regular',
         fontSize: 13,
         lineHeight: 18,
@@ -504,7 +504,7 @@ const styles = StyleSheet.create({
         flex: 1,
         aspectRatio: 1.5,
         borderRadius: 16,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
         fontSize: 30,
     },
     takePhotoBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
     },
@@ -522,14 +522,14 @@ const styles = StyleSheet.create({
         aspectRatio: 1.5,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
     },
     chooseImageBtnText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
     },
@@ -541,7 +541,7 @@ const styles = StyleSheet.create({
         aspectRatio: 1.15,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
     },
     removePhotoBtn: {
         position: 'absolute',
@@ -563,26 +563,26 @@ const styles = StyleSheet.create({
     findDealsBtn: {
         marginTop: 14,
         borderRadius: 14,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     findDealsBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 15,
     },
     tipsRowWrap: {
         marginTop: 18,
         borderRadius: 12,
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         paddingVertical: 14,
         paddingHorizontal: 14,
     },
     tipsRowText: {
         textAlign: 'center',
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
         lineHeight: 18,
@@ -602,14 +602,14 @@ const styles = StyleSheet.create({
     },
     loadingTitle: {
         marginTop: 18,
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 20,
     },
     loadingTip: {
         marginTop: 14,
         textAlign: 'center',
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Regular',
         fontSize: 13,
         fontStyle: 'italic',
@@ -626,27 +626,27 @@ const styles = StyleSheet.create({
     progressFill: {
         height: 6,
         borderRadius: 3,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
     },
     loadingCaption: {
         marginTop: 12,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
     },
 
     // Results step
-    unlockCard: { backgroundColor: '#FDE8E0', borderWidth: 1.5, borderColor: '#D8607C', borderRadius: 14, padding: 14, marginBottom: 14 },
-    unlockTitle: { color: '#5A3236', fontSize: 16, lineHeight: 21, fontFamily: 'Jost-Bold' },
+    unlockCard: { backgroundColor: '#ECF2E6', borderWidth: 1.5, borderColor: '#4E7A54', borderRadius: 14, padding: 14, marginBottom: 14 },
+    unlockTitle: { color: '#2F4535', fontSize: 16, lineHeight: 21, fontFamily: 'Jost-Bold' },
     unlockBody: { color: '#5A4630', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginTop: 4, marginBottom: 10 },
-    unlockBtn: { backgroundColor: '#D8607C', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+    unlockBtn: { backgroundColor: '#4E7A54', borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
     unlockBtnText: { color: '#FFFFFF', fontSize: 14, fontFamily: 'Jost-Bold' },
     savingsCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         borderRadius: 16,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         paddingHorizontal: 18,
         paddingVertical: 18,
     },
@@ -687,7 +687,7 @@ const styles = StyleSheet.create({
         marginTop: 14,
     },
     sectionHeader: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
         letterSpacing: 0.5,
@@ -699,8 +699,8 @@ const styles = StyleSheet.create({
         gap: 10,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         paddingHorizontal: 12,
         paddingVertical: 10,
         marginBottom: 10,
@@ -716,7 +716,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     itemName: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         lineHeight: 18,
@@ -729,7 +729,7 @@ const styles = StyleSheet.create({
     },
     itemSavings: {
         marginTop: 2,
-        color: '#C0475F',
+        color: '#3F6845',
         fontFamily: 'Jost-Medium',
         fontSize: 11,
     },
@@ -740,7 +740,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     salePriceText: {
-        color: '#C0475F',
+        color: '#3F6845',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
@@ -756,30 +756,30 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     bogoText: {
-        color: '#C0475F',
+        color: '#3F6845',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
     dealBadge: {
         borderRadius: 6,
-        backgroundColor: '#5A3236',
+        backgroundColor: '#2F4535',
         paddingHorizontal: 8,
         paddingVertical: 3,
     },
     dealBadgeText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 9,
         letterSpacing: 0.5,
     },
     recipesPill: {
         borderRadius: 10,
-        backgroundColor: '#D8607C',
+        backgroundColor: '#4E7A54',
         paddingHorizontal: 8,
         paddingVertical: 5,
     },
     recipesPillText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 10,
     },
@@ -795,7 +795,7 @@ const styles = StyleSheet.create({
     emptyStateTitle: {
         marginTop: 20,
         textAlign: 'center',
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 17,
         lineHeight: 24,
@@ -803,7 +803,7 @@ const styles = StyleSheet.create({
     emptyStateDesc: {
         marginTop: 14,
         textAlign: 'center',
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Regular',
         fontStyle: 'italic',
         fontSize: 13,
@@ -813,13 +813,13 @@ const styles = StyleSheet.create({
         marginTop: 24,
         alignSelf: 'stretch',
         borderRadius: 14,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 16,
     },
     tryAgainBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 14,
         letterSpacing: 1,
@@ -832,13 +832,13 @@ const styles = StyleSheet.create({
     askFernBtn: {
         flex: 1,
         borderRadius: 14,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 10,
     },
     askFernBtnText: {
-        color: '#FDE8E0',
+        color: '#ECF2E6',
         fontFamily: 'Jost-Bold',
         fontSize: 10,
     },
@@ -846,14 +846,14 @@ const styles = StyleSheet.create({
         flex: 1,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 10,
     },
     scanAnotherBtnText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 10,
     },
@@ -868,14 +868,14 @@ const styles = StyleSheet.create({
         marginTop: 12,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 10,
     },
     scanAnotherPlaceholderText: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 10,
         letterSpacing: 0.5,
@@ -883,18 +883,18 @@ const styles = StyleSheet.create({
 
     // Item detail step
     backToDealsLink: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
     itemDetailTitle: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 18,
         lineHeight: 30,
     },
     itemDetailPrice: {
-        color: '#C0475F',
+        color: '#3F6845',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
@@ -902,8 +902,8 @@ const styles = StyleSheet.create({
         marginTop: 14,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FBD9CE',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#DDE7D5',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 12,
@@ -912,7 +912,7 @@ const styles = StyleSheet.create({
         opacity: 0.6,
     },
     addToListBtnText: {
-        color: '#C0475F',
+        color: '#3F6845',
         fontFamily: 'Jost-Bold',
         fontSize: 12,
     },
@@ -928,7 +928,7 @@ const styles = StyleSheet.create({
     },
     ideaCard: {
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         marginTop: 12,
         flexDirection: 'row',
         alignItems: 'center',
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 10,
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -957,20 +957,20 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     ideaTitle: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Playfair-Bold',
         fontSize: 15,
         lineHeight: 19,
     },
     ideaMeta: {
         marginTop: 3,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Regular',
         fontSize: 12,
         lineHeight: 16,
     },
     ideaArrow: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 16,
     },
@@ -978,8 +978,8 @@ const styles = StyleSheet.create({
         marginTop: 14,
         borderRadius: 14,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 12,

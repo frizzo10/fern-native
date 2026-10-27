@@ -119,7 +119,7 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
       </View>
       {state === 'loading' ? (
         <View style={styles.loadRow}>
-          <ActivityIndicator color={'#8A4A4E'} />
+          <ActivityIndicator color={'#3F5645'} />
           <Text style={styles.loadText}>{t('greet_loading')}</Text>
         </View>
       ) : (
@@ -160,18 +160,18 @@ export default function FernGreetingCard({ t, locale, token, items, weekDeals, r
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: '#FDE8E0', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#D8607C' },
+  card: { backgroundColor: '#ECF2E6', borderRadius: 16, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#4E7A54' },
   head: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
-  title: { fontSize: 16, fontWeight: '800', color: '#5A3236' },
-  refresh: { fontSize: 13, fontWeight: '700', color: '#8A4A4E' },
-  greeting: { fontSize: 15, color: '#5A3236', lineHeight: 21, marginTop: 8 },
+  title: { fontSize: 16, fontWeight: '800', color: '#2F4535' },
+  refresh: { fontSize: 13, fontWeight: '700', color: '#3F5645' },
+  greeting: { fontSize: 15, color: '#2F4535', lineHeight: 21, marginTop: 8 },
   voiceErr: { fontSize: 12, color: '#B3261E', marginTop: 8 },
   loadRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
-  loadText: { fontSize: 14, color: '#9A7872' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F3C9BD' },
-  rowText: { flex: 1, fontSize: 14, color: '#5A3236', lineHeight: 19 },
-  btn: { backgroundColor: '#D8607C', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
-  btnDone: { backgroundColor: '#8A4A4E' },
+  loadText: { fontSize: 14, color: '#6B7F66' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#C8D6BE' },
+  rowText: { flex: 1, fontSize: 14, color: '#2F4535', lineHeight: 19 },
+  btn: { backgroundColor: '#4E7A54', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 9 },
+  btnDone: { backgroundColor: '#3F5645' },
   btnText: { fontSize: 13, fontWeight: '800', color: '#fff' },
 });

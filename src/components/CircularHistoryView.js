@@ -41,7 +41,7 @@ export default function CircularHistoryView({ onBack }) {
     const openEntry = openKey ? (history || []).find((entry) => entry?.key === openKey) : null;
 
     if (history === null) {
-        return <ActivityIndicator style={styles.loading} color="#8A4A4E" />;
+        return <ActivityIndicator style={styles.loading} color="#3F5645" />;
     }
 
     if (openEntry) {
@@ -107,22 +107,22 @@ const styles = StyleSheet.create({
     backLink: {
         fontFamily: 'Jost-SemiBold',
         fontSize: 13,
-        color: '#8A5A5C',
+        color: '#5C7262',
         marginBottom: 12,
     },
     heading: {
         fontFamily: 'Playfair-Bold',
         fontSize: 20,
-        color: '#5A3236',
+        color: '#2F4535',
         marginBottom: 14,
     },
     emptyWrap: { alignItems: 'center', paddingVertical: 32 },
     emptyEmoji: { fontSize: 40, opacity: 0.4, marginBottom: 10 },
-    emptyText: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#9A7872', textAlign: 'center' },
+    emptyText: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#6B7F66', textAlign: 'center' },
     groupCard: {
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderWidth: 1.5,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         borderRadius: 14,
         padding: 14,
         marginBottom: 12,
@@ -130,20 +130,20 @@ const styles = StyleSheet.create({
     groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
     groupIcon: { fontSize: 20 },
     groupHeaderText: { flex: 1 },
-    groupName: { fontFamily: 'Jost-Bold', fontSize: 15, color: '#5A3236' },
-    groupCount: { fontFamily: 'Jost-Regular', fontSize: 12, color: '#9A7872' },
+    groupName: { fontFamily: 'Jost-Bold', fontSize: 15, color: '#2F4535' },
+    groupCount: { fontFamily: 'Jost-Regular', fontSize: 12, color: '#6B7F66' },
     scanRow: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingVertical: 10,
         borderTopWidth: 1,
-        borderTopColor: '#F3C9BD',
+        borderTopColor: '#C8D6BE',
     },
-    scanDate: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#5A3236' },
-    scanItems: { fontFamily: 'Jost-Regular', fontSize: 12, color: '#9A7872' },
-    detailStore: { fontFamily: 'Playfair-Bold', fontSize: 20, color: '#5A3236' },
-    detailDate: { fontFamily: 'Jost-Regular', fontSize: 12, color: '#9A7872', marginTop: 2, marginBottom: 12 },
+    scanDate: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#2F4535' },
+    scanItems: { fontFamily: 'Jost-Regular', fontSize: 12, color: '#6B7F66' },
+    detailStore: { fontFamily: 'Playfair-Bold', fontSize: 20, color: '#2F4535' },
+    detailDate: { fontFamily: 'Jost-Regular', fontSize: 12, color: '#6B7F66', marginTop: 2, marginBottom: 12 },
     itemRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -151,8 +151,8 @@ const styles = StyleSheet.create({
         gap: 12,
         paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: '#F3C9BD',
+        borderBottomColor: '#C8D6BE',
     },
-    itemName: { flex: 1, fontFamily: 'Jost-Regular', fontSize: 14, color: '#5A3236' },
+    itemName: { flex: 1, fontFamily: 'Jost-Regular', fontSize: 14, color: '#2F4535' },
     itemPrice: { fontFamily: 'Jost-Bold', fontSize: 14, color: '#9B3A0F' },
 });

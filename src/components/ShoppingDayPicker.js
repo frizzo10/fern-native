@@ -20,6 +20,6 @@ export default function ShoppingDayPicker({ t, day, onPick }) {
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
   chip: { backgroundColor: '#F1EEE8', borderRadius: 999, paddingHorizontal: 16, paddingVertical: 10 },
-  chipOn: { backgroundColor: '#D8607C' },
-  chipText: { fontSize: 15, fontWeight: '800', color: '#5A3236' },
+  chipOn: { backgroundColor: '#4E7A54' },
+  chipText: { fontSize: 15, fontWeight: '800', color: '#2F4535' },
 });

@@ -140,13 +140,13 @@ export default function MealPlannerModal({
                         <View style={styles.loadingState}>
                             <Text style={styles.loadingEmoji}>🗒️</Text>
                             <Text style={styles.loadingText}>{t('meal_planner_loading')}</Text>
-                            <ActivityIndicator color={'#8A4A4E'} style={styles.loadingSpinner} />
+                            <ActivityIndicator color={'#3F5645'} style={styles.loadingSpinner} />
                         </View>
                     ) : isGenerating ? (
                         <View style={styles.loadingState}>
                             <Text style={styles.loadingEmoji}>✨</Text>
                             <Text style={styles.loadingText}>{t('meal_planner_generating')}</Text>
-                            <ActivityIndicator color={'#8A4A4E'} style={styles.loadingSpinner} />
+                            <ActivityIndicator color={'#3F5645'} style={styles.loadingSpinner} />
                         </View>
                     ) : selectedMeal ? (
                         <MealPlannerRecipeDetailView
@@ -260,11 +260,11 @@ const styles = StyleSheet.create({
     },
     sheet: {
         height: '90%',
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderTopLeftRadius: 28,
         borderTopRightRadius: 28,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         overflow: 'hidden',
     },
     topBar: {
@@ -273,12 +273,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         borderBottomWidth: 1,
-        borderBottomColor: '#F3C9BD',
+        borderBottomColor: '#C8D6BE',
         gap: 10,
     },
     title: {
         flex: 1,
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 20,
     },
@@ -287,13 +287,13 @@ const styles = StyleSheet.create({
         height: 40,
         borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
     },
     closeText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 24,
         lineHeight: 30,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         marginTop: 14,
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Italic',
         fontStyle: 'italic',
         fontSize: 14,
@@ -334,14 +334,14 @@ const styles = StyleSheet.create({
         flex: 1,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,
     },
     secondaryBtnText: {
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         borderWidth: 1.5,
         borderColor: 'rgb(216, 109, 51)',
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,
@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
     emptyGenerateBtn: {
         marginTop: 22,
         borderRadius: 12,
-        backgroundColor: '#8A4A4E',
+        backgroundColor: '#3F5645',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,
@@ -382,14 +382,14 @@ const styles = StyleSheet.create({
         marginTop: 10,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
-        backgroundColor: '#FDE8E0',
+        borderColor: '#C8D6BE',
+        backgroundColor: '#ECF2E6',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 14,
     },
     regenerateBtnText: {
-        color: '#8A5A5C',
+        color: '#5C7262',
         fontFamily: 'Jost-Bold',
         fontSize: 13,
     },
@@ -402,14 +402,14 @@ const styles = StyleSheet.create({
     },
     dayLabel: {
         textAlign: 'center',
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 26,
     },
     dayCounter: {
         marginTop: 4,
         textAlign: 'center',
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         letterSpacing: 0.6,
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     mealCard: {
         marginTop: 18,
         borderWidth: 1,
-        borderColor: '#F3C9BD',
+        borderColor: '#C8D6BE',
         backgroundColor: '#FFFFFF',
         borderRadius: 16,
         padding: 14,
@@ -428,13 +428,13 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     mealSlotLabel: {
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Bold',
         fontSize: 11,
         letterSpacing: 0.6,
     },
     aiBadge: {
-        backgroundColor: '#FDE8E0',
+        backgroundColor: '#ECF2E6',
         borderRadius: 999,
         paddingHorizontal: 10,
         paddingVertical: 4,
@@ -455,18 +455,18 @@ const styles = StyleSheet.create({
     },
     mealTitle: {
         flex: 1,
-        color: '#5A3236',
+        color: '#2F4535',
         fontFamily: 'PlayfairDisplay-Bold',
         fontSize: 18,
     },
     mealChevron: {
-        color: '#C3A29B',
+        color: '#66795F',
         fontFamily: 'Jost-Bold',
         fontSize: 16,
     },
     mealMeta: {
         marginTop: 4,
-        color: '#9A7872',
+        color: '#6B7F66',
         fontFamily: 'Jost-Medium',
         fontSize: 12,
     },
@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
         width: 7,
         height: 7,
         borderRadius: 4,
-        backgroundColor: '#F3C9BD',
+        backgroundColor: '#C8D6BE',
     },
     dotActive: {
         width: 18,
@@ -489,7 +489,7 @@ const styles = StyleSheet.create({
     swipeHint: {
         marginTop: 8,
         textAlign: 'center',
-        color: '#C3A29B',
+        color: '#66795F',
         fontFamily: 'Jost-Italic',
         fontStyle: 'italic',
         fontSize: 12,

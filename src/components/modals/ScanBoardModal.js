@@ -56,7 +56,7 @@ export default function ScanBoardModal({ visible, onClose, user }) {
                 <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                     <Text style={styles.sub}>{t('scan_board_sub')}</Text>
 
-                    {status === 'loading' ? <ActivityIndicator style={{ marginTop: 24 }} color={'#8A4A4E' || '#8A4A4E'} /> : null}
+                    {status === 'loading' ? <ActivityIndicator style={{ marginTop: 24 }} color={'#3F5645' || '#3F5645'} /> : null}
                     {status === 'error' ? (
                         <TouchableOpacity style={styles.retry} onPress={load}><Text style={styles.retryText}>{t('scan_board_retry')}</Text></TouchableOpacity>
                     ) : null}
@@ -113,7 +113,7 @@ export default function ScanBoardModal({ visible, onClose, user }) {
     );
 }
 
-const FOREST = '#8A4A4E';
+const FOREST = '#3F5645';
 const styles = StyleSheet.create({
     page: { flex: 1, backgroundColor: '#FAF6EE' },
     bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 56, paddingHorizontal: 20, paddingBottom: 12 },
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     meLine: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: '#fff' },
     meRank: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: '#F5C98B', marginTop: 4 },
     row: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 14, marginBottom: 8, borderWidth: 1, borderColor: '#E3DCCB' },
-    rowMe: { borderColor: '#D8607C', borderWidth: 2 },
+    rowMe: { borderColor: '#4E7A54', borderWidth: 2 },
     rowNo: { width: 34, fontFamily: 'Jost-Bold', fontSize: 18, color: FOREST },
     rowName: { flex: 1, fontFamily: 'Jost-SemiBold', fontSize: 16, color: '#22301C' },
     rowPages: { fontFamily: 'Jost-Regular', fontSize: 14, color: '#4B5A45' },
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
     nameHint: { fontFamily: 'Jost-Regular', fontSize: 13, color: '#4B5A45', marginTop: 4, marginBottom: 10 },
     input: { borderWidth: 1, borderColor: '#CFC6AF', borderRadius: 10, paddingHorizontal: 12, height: 46, fontFamily: 'Jost-Regular', fontSize: 16, color: '#22301C' },
     err: { fontFamily: 'Jost-Regular', fontSize: 13, color: '#B3202A', marginTop: 6 },
-    btn: { marginTop: 12, minHeight: 46, borderRadius: 12, backgroundColor: '#D8607C', alignItems: 'center', justifyContent: 'center' },
+    btn: { marginTop: 12, minHeight: 46, borderRadius: 12, backgroundColor: '#4E7A54', alignItems: 'center', justifyContent: 'center' },
     btnText: { fontFamily: 'Jost-Bold', fontSize: 16, color: '#fff' },
     leave: { marginTop: 10, minHeight: 40, alignItems: 'center', justifyContent: 'center' },
     leaveText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: '#B3202A' },

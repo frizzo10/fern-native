@@ -49,8 +49,8 @@ export default function DigitalCouponHowTo({ coupon, t }) {
 const styles = StyleSheet.create({
   box: { backgroundColor: '#FFF1DC', borderColor: '#E8B877', borderWidth: 1, borderRadius: 12, padding: 12, marginTop: 12 },
   title: { color: '#8A3F0C', fontSize: 15, fontFamily: 'Jost-Bold', marginBottom: 6 },
-  step: { color: '#5A3236', fontSize: 14, lineHeight: 20, fontFamily: 'Jost-Regular', marginTop: 3 },
-  openBtn: { backgroundColor: '#D8607C', borderRadius: 999, paddingVertical: 11, alignItems: 'center', marginTop: 10 },
+  step: { color: '#2F4535', fontSize: 14, lineHeight: 20, fontFamily: 'Jost-Regular', marginTop: 3 },
+  openBtn: { backgroundColor: '#4E7A54', borderRadius: 999, paddingVertical: 11, alignItems: 'center', marginTop: 10 },
   openBtnText: { color: '#fff', fontSize: 14, fontFamily: 'Jost-Bold' },
-  note: { color: '#8A5A5C', fontSize: 12, lineHeight: 17, fontFamily: 'Jost-Regular', marginTop: 8 },
+  note: { color: '#5C7262', fontSize: 12, lineHeight: 17, fontFamily: 'Jost-Regular', marginTop: 8 },
 });

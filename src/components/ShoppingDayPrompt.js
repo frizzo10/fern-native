@@ -54,7 +54,7 @@ export default function ShoppingDayPrompt({ userId }) {
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', padding: 24 },
   card: { backgroundColor: '#fff', borderRadius: 20, padding: 20 },
-  title: { fontSize: 22, fontWeight: '800', color: '#8A4A4E' },
-  sub: { fontSize: 14, color: '#9A7872', marginTop: 6, lineHeight: 20 },
-  skip: { fontSize: 14, color: '#9A7872', fontWeight: '700' },
+  title: { fontSize: 22, fontWeight: '800', color: '#3F5645' },
+  sub: { fontSize: 14, color: '#6B7F66', marginTop: 6, lineHeight: 20 },
+  skip: { fontSize: 14, color: '#6B7F66', fontWeight: '700' },
 });

@@ -118,7 +118,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
         {rect ? null : (
           <LinearGradient
             pointerEvents="none"
-            colors={['rgba(60,30,35,0)', 'rgba(60,30,35,0.55)', 'rgba(60,30,35,0.86)']}
+            colors={['rgba(30,50,36,0)', 'rgba(30,50,36,0.55)', 'rgba(30,50,36,0.86)']}
             locations={[0, 0.55, 1]}
             style={styles.scrim}
           />
@@ -138,7 +138,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
               const S = side + B * 2;
               return (
                 <View pointerEvents="none" style={{ position: 'absolute', left: shownRect.x - PAD, top: shownRect.y - PAD, width: side, height: shownRect.height + PAD * 2, overflow: 'hidden' }}>
-                  <View style={{ position: 'absolute', left: -B, top: -B, width: S, height: S, borderRadius: S / 2, borderWidth: B, borderColor: 'rgba(60,30,35,0.55)' }} />
+                  <View style={{ position: 'absolute', left: -B, top: -B, width: S, height: S, borderRadius: S / 2, borderWidth: B, borderColor: 'rgba(30,50,36,0.55)' }} />
                 </View>
               );
             })() : null}
@@ -255,7 +255,7 @@ export default function TourModal({ visible, tour, storageKey, onClose, onDone, 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(60,30,35,0.12)',
+    backgroundColor: 'rgba(30,50,36,0.12)',
     justifyContent: 'space-between',
   },
   scrim: {
@@ -265,8 +265,8 @@ const styles = StyleSheet.create({
     bottom: 0,
     height: '62%',
   },
-  dim: { position: 'absolute', backgroundColor: 'rgba(60,30,35,0.55)' },
-  spot: { position: 'absolute', borderWidth: 3, borderColor: '#D8607C' },
+  dim: { position: 'absolute', backgroundColor: 'rgba(30,50,36,0.55)' },
+  spot: { position: 'absolute', borderWidth: 3, borderColor: '#4E7A54' },
   skipWrap: { alignItems: 'flex-end', paddingHorizontal: 16, paddingTop: 56 },
   skipBtn: {
     backgroundColor: 'rgba(255,255,255,0.15)',
@@ -278,23 +278,23 @@ const styles = StyleSheet.create({
 
   cardOuter: { paddingHorizontal: 16, paddingBottom: 24, position: 'relative' },
   morePreview: { position: 'absolute', left: 16, right: 16, backgroundColor: '#fff', borderRadius: 20, padding: 14, ...shadow.strong },
-  morePreviewTitle: { color: '#8A4A4E', fontWeight: '800', fontSize: 15, marginBottom: 10 },
+  morePreviewTitle: { color: '#3F5645', fontWeight: '800', fontSize: 15, marginBottom: 10 },
   morePreviewGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  morePreviewItem: { width: '31%', backgroundColor: '#8A4A4E', borderRadius: 14, paddingVertical: 10, alignItems: 'center' },
-  morePreviewItemLit: { borderWidth: 3, borderColor: '#D8607C' },
+  morePreviewItem: { width: '31%', backgroundColor: '#3F5645', borderRadius: 14, paddingVertical: 10, alignItems: 'center' },
+  morePreviewItemLit: { borderWidth: 3, borderColor: '#4E7A54' },
   morePreviewItemDim: { opacity: 0.35 },
   morePreviewEmoji: { fontSize: 22 },
-  toolsPreviewItem: { width: '31%', backgroundColor: '#8A4A4E', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center' },
+  toolsPreviewItem: { width: '31%', backgroundColor: '#3F5645', borderRadius: 12, paddingVertical: 6, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center' },
   toolsPreviewEmoji: { fontSize: 14, marginRight: 4 },
   toolsPreviewText: { flex: 1, color: '#F5F0E7', fontWeight: '700', fontSize: 10 },
   morePreviewText: { color: '#F5F0E7', fontWeight: '700', fontSize: 11, marginTop: 4, paddingHorizontal: 4 },
   cardOuterLifted: { paddingBottom: 176 },
   // Same spot and size as App.js `chatFab` (right 18, bottom 86, 56x56); the arrow sits just above it.
   leafSpot: { position: 'absolute', right: 18, bottom: 86, width: 56, alignItems: 'center', zIndex: 5 },
-  leafArrow: { position: 'absolute', top: -26, color: '#D8607C', fontSize: 20, fontWeight: '900' },
+  leafArrow: { position: 'absolute', top: -26, color: '#4E7A54', fontSize: 20, fontWeight: '900' },
   leafBtnWrap: { width: 56, height: 56, alignItems: 'center', justifyContent: 'center' },
-  leafRing: { position: 'absolute', width: 56, height: 56, borderRadius: 28, borderWidth: 3, borderColor: '#D8607C' },
-  leafBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#D8607C', alignItems: 'center', justifyContent: 'center', ...shadow.strong },
+  leafRing: { position: 'absolute', width: 56, height: 56, borderRadius: 28, borderWidth: 3, borderColor: '#4E7A54' },
+  leafBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#4E7A54', alignItems: 'center', justifyContent: 'center', ...shadow.strong },
   leafBtnText: { fontSize: 26 },
 
   fernAvatar: {
@@ -312,7 +312,7 @@ const styles = StyleSheet.create({
   fernAvatarEmoji: { fontSize: 28, opacity: 0.9 },
 
   card: {
-    backgroundColor: '#8A4A4E',
+    backgroundColor: '#3F5645',
     borderRadius: radius.xl,
     padding: 12,
   },
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
   },
 
   eyebrow: {
-    color: '#D8607C',
+    color: '#4E7A54',
     fontWeight: '800',
     fontSize: 10,
     letterSpacing: 0.5,
@@ -348,10 +348,10 @@ const styles = StyleSheet.create({
 
   dotsRow: { flexDirection: 'row', gap: 5, marginTop: 16, marginBottom: 12 },
   dot: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.25)' },
-  dotActive: { backgroundColor: '#D8607C' },
+  dotActive: { backgroundColor: '#4E7A54' },
 
   nextBtn: {
-    backgroundColor: '#D8607C',
+    backgroundColor: '#4E7A54',
     borderRadius: radius.full,
     paddingVertical: 12,
     alignItems: 'center',

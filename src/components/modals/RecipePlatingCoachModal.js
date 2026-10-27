@@ -80,7 +80,7 @@ export default function RecipePlatingCoachModal({ visible, recipe, user, onClose
                 <Text style={styles.loadingEmoji}>🎨</Text>
                 <Text style={styles.loadingTitle}>{t('plating_loading_title')}</Text>
                 <Text style={styles.loadingSubtitle}>{t('plating_loading_subtitle')}</Text>
-                <ActivityIndicator size="small" color="#8A4A4E" style={{ marginTop: 14 }} />
+                <ActivityIndicator size="small" color="#3F5645" style={{ marginTop: 14 }} />
               </View>
             ) : error ? (
               <View style={styles.loadingWrap}>
@@ -166,11 +166,11 @@ const styles = StyleSheet.create({
   },
   sheet: {
     maxHeight: '88%',
-    backgroundColor: '#FDE8E0',
+    backgroundColor: '#ECF2E6',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: '#F3C9BD',
+    borderColor: '#C8D6BE',
     overflow: 'hidden',
   },
   headerRow: {
@@ -180,21 +180,21 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3C9BD',
+    borderBottomColor: '#C8D6BE',
     gap: 10,
   },
   headerTextWrap: {
     flex: 1,
   },
   title: {
-    color: '#5A3236',
+    color: '#2F4535',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 22,
     lineHeight: 28,
   },
   subtitle: {
     marginTop: 4,
-    color: '#9A7872',
+    color: '#6B7F66',
     fontFamily: 'Jost-Regular',
     fontSize: 12,
   },
@@ -202,12 +202,12 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#F3C9BD',
+    backgroundColor: '#C8D6BE',
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeText: {
-    color: '#5A3236',
+    color: '#2F4535',
     fontSize: 20,
     lineHeight: 22,
     fontFamily: 'Jost-Regular',
@@ -226,13 +226,13 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   loadingTitle: {
-    color: '#5A3236',
+    color: '#2F4535',
     fontFamily: 'PlayfairDisplay-Bold',
     fontSize: 18,
   },
   loadingSubtitle: {
     marginTop: 6,
-    color: '#9A7872',
+    color: '#6B7F66',
     fontFamily: 'PlayfairDisplay-Italic',
     fontSize: 13,
     textAlign: 'center',
@@ -250,19 +250,19 @@ const styles = StyleSheet.create({
   },
   vibeBadge: {
     borderRadius: 999,
-    backgroundColor: '#8A4A4E',
+    backgroundColor: '#3F5645',
     paddingHorizontal: 22,
     paddingVertical: 10,
   },
   vibeBadgeText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontFamily: 'Jost-Bold',
     fontSize: 13,
     letterSpacing: 1.5,
   },
   card: {
     borderWidth: 1,
-    borderColor: '#F3C9BD',
+    borderColor: '#C8D6BE',
     borderRadius: 16,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   cardText: {
-    color: '#5A3236',
+    color: '#2F4535',
     fontFamily: 'Jost-Regular',
     fontSize: 14,
     lineHeight: 22,
@@ -288,14 +288,14 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   stepNum: {
-    color: '#5A3236',
+    color: '#2F4535',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
     lineHeight: 22,
   },
   stepText: {
     flex: 1,
-    color: '#5A3236',
+    color: '#2F4535',
     fontFamily: 'Jost-Regular',
     fontSize: 14,
     lineHeight: 22,
@@ -312,20 +312,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   chipText: {
-    color: '#8A4A4E',
+    color: '#3F5645',
     fontFamily: 'Jost-Bold',
     fontSize: 13,
   },
   doneBtn: {
     marginTop: 4,
     borderRadius: 14,
-    backgroundColor: '#D8607C',
+    backgroundColor: '#4E7A54',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
   },
   doneBtnText: {
-    color: '#FDE8E0',
+    color: '#ECF2E6',
     fontFamily: 'Jost-Bold',
     fontSize: 14,
     letterSpacing: 0.5,
