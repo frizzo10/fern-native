@@ -833,7 +833,7 @@ export default function SearchScreen({ user }) {
                 t('blogger_import_failed_title'),
                 t('blogger_import_failed_desc'),
                 [
-                    { text: t('cancel'), style: 'cancel' },
+                    { text: t('cancel_btn'), style: 'cancel' },
                     { text: t('blogger_view_on_site'), onPress: () => Linking.openURL(item.url) },
                 ]
             );

@@ -498,7 +498,6 @@ export const translations = {
     could_not_add_items_title: "Could not add items",
     could_not_add_item_title: "Could not add item",
     charcuterie_items_already_added_desc: "Those charcuterie items are already in your shopping list.",
-    pairing_fallback_label: "Pairing",
     dietary_fallback_vegan: "Vegan",
     store_fallback_label: "Store",
     address_unavailable_label: "Address unavailable",
@@ -904,7 +903,6 @@ export const translations = {
 
     // Family Voice Example (hidden dev view, formerly the whole Family tab)
     family_list_title: "🛒 Family List",
-    coming_soon: "Coming soon",
     continuous_mic_test: "Continuous Mic Test",
     start_listening_btn: "Start Listening",
     status_label: "Status: {status}",
@@ -2648,7 +2646,6 @@ export const translations = {
     host_tips: "Consejos para el Anfitrión",
 
     copy: "Copiar",
-    coming_soon: "Próximamente",
     music_feature_coming_soon: "La función de música estará disponible próximamente",
     music: "Música",
     new_plan: "Nuevo Plan",
@@ -3084,7 +3081,6 @@ export const translations = {
     could_not_add_items_title: "No se pudieron agregar los artículos",
     could_not_add_item_title: "No se pudo agregar el artículo",
     charcuterie_items_already_added_desc: "Esos artículos de charcutería ya están en tu lista de compras.",
-    pairing_fallback_label: "Maridaje",
     dietary_fallback_vegan: "Vegana",
     store_fallback_label: "Tienda",
     address_unavailable_label: "Dirección no disponible",

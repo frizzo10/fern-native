@@ -1004,7 +1004,7 @@ export default function RecipesScreen({ user }) {
       });
       const shareId = parseCookbookShareId(link);
       const out = await buildCookbookPdf({ shareId, token: user?.token, author: user?.name || '', trim });
-      await setPublish(selectedBook.id, { pdfUrl: out.url, pages: out.pages, trim: out.trim || trim, color: !!out.color });
+      await setPublish(selectedBook.id, { pdfUrl: out.url, pages: out.pages, trim: out.trim || trim, color: !!out.color, kdpCoverUrl: '' }); // a new interior means any saved KDP cover has the wrong spine
       setPubSaved({ pdfUrl: out.url, pages: out.pages, trim: out.trim || trim, color: !!out.color });
       Alert.alert(
         t('pdf_ready_title'),
