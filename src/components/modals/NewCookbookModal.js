@@ -4,6 +4,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -42,19 +43,35 @@ export default function NewCookbookModal({ visible, onClose, onCreate, isCreatin
     }
   }, [visible, book]);
 
-  const handleTakePhoto = async () => {
-    const result = await pickPhotoFromCamera();
-    if (result.photo) {
+  const applyPick = (result) => {
+    if (result?.permissionDenied) {
+      Alert.alert(t('cover_image_optional_label'), t('photo_permission_denied_desc'));
+      return;
+    }
+    if (result?.photo) {
+      if (!result.photo.base64) {
+        Alert.alert(t('cookbook_create_failed_title'), 'No picture data came back from the photo picker.');
+        return;
+      }
       setPhoto(result.photo);
       setExistingCoverUri(null);
     }
   };
 
+  // Shrunk on the phone (same as recipe photos) so the upload is small enough to succeed.
+  const handleTakePhoto = async () => {
+    try {
+      applyPick(await pickPhotoFromCamera({ maxWidth: 1600, quality: 0.6 }));
+    } catch (e) {
+      Alert.alert(t('cookbook_create_failed_title'), String(e?.message || e));
+    }
+  };
+
   const handlePickFromLibrary = async () => {
-    const result = await pickPhotoFromLibrary();
-    if (result.photo) {
-      setPhoto(result.photo);
-      setExistingCoverUri(null);
+    try {
+      applyPick(await pickPhotoFromLibrary({ maxWidth: 1600, quality: 0.6 }));
+    } catch (e) {
+      Alert.alert(t('cookbook_create_failed_title'), String(e?.message || e));
     }
   };
 

@@ -694,7 +694,11 @@ export default function RecipesScreen({ user }) {
 
       if (photo?.base64) {
         const dataUri = `data:${photo.mimeType || 'image/jpeg'};base64,${photo.base64}`;
-        try { coverUrl = await uploadPhoto(dataUri, `cover_${bookId}_${Date.now()}.jpg`); } catch (e) { console.warn('Cover upload failed:', e); }
+        try { coverUrl = await uploadPhoto(dataUri, `cover_${bookId}_${Date.now()}.jpg`); } catch (e) {
+          // Never save a cookbook without the cover the person picked; say why and keep the sheet open.
+          Alert.alert(t('cookbook_create_failed_title'), String(e?.message || e));
+          return;
+        }
       }
 
       const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
@@ -738,7 +742,10 @@ export default function RecipesScreen({ user }) {
       let coverUrl = selectedBook.cover || null;
       if (photo?.base64) {
         const dataUri = `data:${photo.mimeType || 'image/jpeg'};base64,${photo.base64}`;
-        try { coverUrl = await uploadPhoto(dataUri, `cover_${selectedBook.id}_${Date.now()}.jpg`); } catch (e) { console.warn('Cover upload failed:', e); }
+        try { coverUrl = await uploadPhoto(dataUri, `cover_${selectedBook.id}_${Date.now()}.jpg`); } catch (e) {
+          Alert.alert(t('cookbook_edit_failed_title'), String(e?.message || e));
+          return;
+        }
       }
 
       const storedBooks = JSON.parse(await AsyncStorage.getItem('rv4_books') || 'null');
