@@ -39,6 +39,9 @@ import { translateRecipes, translateStrings } from '../services/translateService
 import AddSharedCookbookModal from '../components/modals/AddSharedCookbookModal';
 import { createCookbookShareLink, fetchSharedCookbook, fetchSharedRecipe, parseShareLink, parseCookbookShareId } from '../services/shareService';
 import { buildCookbookPdf } from '../services/cookbookPdfService';
+import { getPublish, setPublish } from '../services/publishService';
+import { openChat } from '../services/chatBus';
+import PublishGuideModal from '../components/modals/PublishGuideModal';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
@@ -379,6 +382,16 @@ export default function RecipesScreen({ user }) {
   const [isAddRecipesVisible, setIsAddRecipesVisible] = useState(false);
   const [isShareCookbookVisible, setIsShareCookbookVisible] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [pubOpen, setPubOpen] = useState(false);
+  const [pubSaved, setPubSaved] = useState(null); // { pdfUrl, pages } once a PDF was made for the open cookbook
+  useEffect(() => {
+    let live = true;
+    setPubSaved(null);
+    if (selectedBook?.id != null) {
+      getPublish(selectedBook.id).then((p) => { if (live && p?.pdfUrl) setPubSaved({ pdfUrl: p.pdfUrl, pages: p.pages }); });
+    }
+    return () => { live = false; };
+  }, [selectedBook?.id]);
   const [isSavingAddRecipes, setIsSavingAddRecipes] = useState(false);
   const attemptedImageFetchIds = useRef(new Set());
 
@@ -991,10 +1004,13 @@ export default function RecipesScreen({ user }) {
       });
       const shareId = parseCookbookShareId(link);
       const out = await buildCookbookPdf({ shareId, token: user?.token, author: user?.name || '', trim });
+      await setPublish(selectedBook.id, { pdfUrl: out.url, pages: out.pages, trim: out.trim || trim });
+      setPubSaved({ pdfUrl: out.url, pages: out.pages });
       Alert.alert(
         t('pdf_ready_title'),
         t('pdf_ready_desc', { pages: out.pages }),
         [
+          { text: t('pub_open_btn'), onPress: () => setTimeout(() => setPubOpen(true), 450) },
           { text: t('pdf_open'), onPress: () => Linking.openURL(out.url) },
           { text: t('pdf_share_link'), onPress: () => Share.share(Platform.OS === 'ios' ? { url: out.url } : { message: out.url }) },
           { text: t('close_btn'), style: 'cancel' },
@@ -1542,6 +1558,11 @@ export default function RecipesScreen({ user }) {
                 <Text style={styles.bookPdfBtnText}>{pdfBusy ? t('pdf_making') : t('pdf_btn')}</Text>
               </TouchableOpacity>
               {pdfBusy ? <Text style={styles.bookPdfHint}>{t('pdf_wait')}</Text> : null}
+              {pubSaved && !pdfBusy ? (
+                <TouchableOpacity activeOpacity={0.85} onPress={() => setPubOpen(true)} style={styles.bookPdfBtn} accessibilityRole="button">
+                  <Text style={styles.bookPdfBtnText}>{t('pub_open_btn')}</Text>
+                </TouchableOpacity>
+              ) : null}
 
               <TouchableOpacity activeOpacity={0.85} style={styles.bookTrashBtn} onPress={handleDeleteBook}>
                 <Text style={styles.bookTrashText}>🗑</Text>
@@ -1736,6 +1757,23 @@ export default function RecipesScreen({ user }) {
         )}
       </ScrollView>
 
+      {pubOpen && selectedBook ? (() => {
+        const all = getAllSelectedBookRecipes();
+        const chs = buildChapters(all, chapterMap[selectedBook.id]);
+        const names = chs ? chapterNameById(chs, t) : {};
+        const recs = all.map((r) => ({ title: r.title, chapter: (names && names[String(r.id)]) || '' }));
+        const firstPhoto = all.find((r) => /^https?:\/\//i.test(r.image || ''))?.image || '';
+        return (
+          <PublishGuideModal
+            visible
+            onClose={() => setPubOpen(false)}
+            onStuck={() => { setPubOpen(false); setTimeout(() => openChat(), 450); }}
+            book={{ id: selectedBook.id, title: selectedBook.title, author: user?.name || '', photoUrl: /^https?:\/\//i.test(selectedBook.cover || '') ? selectedBook.cover : firstPhoto, recipes: recs }}
+            pdf={pubSaved ? { url: pubSaved.pdfUrl, pages: pubSaved.pages } : null}
+            token={user?.token}
+          />
+        );
+      })() : null}
       <SaveToCookbookModal
         visible={!!pendingShared}
         books={data.books}

@@ -320,3 +320,11 @@ Writes made by the flow: confirmed dinners → `rv4_meal_plan` (`{ slot: 'Dinner
 ### `cookbook-pdf-background` — print-ready cookbook PDF (2026-10-28)
 
 `POST { jobId (uuid), shareId, token, author?, trim?: '8x10' | '6x9' | '8.5x11' }` → 202 at once (Netlify background function). `shareId` is the id of a `shared_cookbooks` row (made by `share-cookbook`); `token` is the signed-in user's access token (verified server-side). Poll `scan-circular-status?jobId=` → `{ status: 'done', result: { url, pages, trim, color, photos, recipes, bytes } }` or `{ status: 'error', error }`. The PDF is stored in the public `recipe-photos` bucket as `cookbookpdf_<jobId>.pdf` (not cleaned up yet). Callers: `src/services/cookbookPdfService.js` (from `RecipesScreen`). No new local storage key.
+
+| Key | Shape | Written by | Read by | Synced? |
+|---|---|---|---|---|
+| `fern_publish` | `{ [bookId]: { path, step, listing: { title, subtitle, description, price }, coverUrl, pdfUrl, pages, trim, finished } }` — progress of the publish walkthrough per cookbook. | `publishService.js` (`PublishGuideModal`, `RecipesScreen`) | same | Device-only |
+| `fern_publish_ctx` | `{ site, step, of, title, say, body, at }` — the step the person was last on; read by Ask Fern for 6 hours. | `PublishGuideModal` | `fernAgent.buildAgentContext` | Device-only |
+| `fern_publish_voice` | `'on'` \| `'off'` — Fern reads publish steps aloud (missing = on). | `PublishGuideModal` | same | Device-only |
+
+API: `publish-guide` (GET `?path=download&lang=en|es` -> `{ version, steps[] }`) and `cookbook-cover` (POST `{ token, title, author, photoUrl }` -> `{ url }`), both web-repo functions; callers in `publishService.js`.
