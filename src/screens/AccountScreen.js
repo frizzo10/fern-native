@@ -21,6 +21,7 @@ import { openChat } from '../services/chatBus';
 import * as Updates from 'expo-updates';
 import appJson from '../../app.json';
 import { CODE_VERSION } from '../constants/codeVersion';
+import { getNotes, addNote, removeNote, MAX_NOTES } from '../services/fernNotes';
 
 const TIER_BY_TOUR_KEY = TOUR_LIST.reduce((acc, entry) => {
     acc[entry.key] = entry.tier;
@@ -104,6 +105,21 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
             try { setAboutPrefs(JSON.parse(raw || '{}') || {}); } catch (e) { setAboutPrefs({}); }
         }).catch(() => {});
     }, [visible]);
+    // "What Fern knows": short notes about tastes and routines (device-only; Fern also adds them from chat).
+    const [fernNotes, setFernNotes] = useState([]);
+    const [noteInput, setNoteInput] = useState('');
+    useEffect(() => { if (visible) getNotes().then(setFernNotes).catch(() => {}); }, [visible]);
+    const submitNote = async () => {
+        const text = noteInput.trim();
+        if (!text) return;
+        setNoteInput('');
+        await addNote(text);
+        setFernNotes(await getNotes());
+    };
+    const deleteNote = async (text) => {
+        await removeNote(text);
+        setFernNotes(await getNotes());
+    };
     const { startTour } = useTour();
     const scrollRef = useRef(null);
     const toursY = useRef(0);
@@ -412,6 +428,29 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                                     </Text>
                                 </View>
                             )}
+                        </View>
+
+                        <View style={styles.infoCard}>
+                            <Text style={styles.infoLabel}>{t('fern_notes_title').toUpperCase()}</Text>
+                            <Text style={styles.aboutSummary}>{t('fern_notes_sub')}</Text>
+                            {fernNotes.length === 0 ? (
+                                <Text style={[styles.aboutSummary, { marginTop: 10 }]}>{t('fern_notes_empty')}</Text>
+                            ) : fernNotes.map((n) => (
+                                <View key={n} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#ECF2E6' }}>
+                                    <Text style={{ flex: 1, color: '#2F4535', fontFamily: 'Jost-Regular', fontSize: 15 }}>{n}</Text>
+                                    <TouchableOpacity onPress={() => deleteNote(n)} accessibilityLabel={t('fern_notes_remove_a11y')} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}>
+                                        <Text style={{ color: '#B3473F', fontSize: 18 }}>✕</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ))}
+                            {fernNotes.length < MAX_NOTES ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 8 }}>
+                                    <TextInput style={[styles.aboutInput, { flex: 1 }]} value={noteInput} onChangeText={setNoteInput} placeholder={t('fern_notes_hint')} placeholderTextColor="#A89883" maxLength={100} returnKeyType="done" onSubmitEditing={submitNote} />
+                                    <TouchableOpacity style={styles.aboutSave} activeOpacity={0.85} onPress={submitNote}>
+                                        <Text style={styles.aboutSaveText}>{t('fern_notes_add')}</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            ) : null}
                         </View>
 
                         <View style={styles.rowInfoCard}>
