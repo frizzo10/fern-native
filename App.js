@@ -558,6 +558,12 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           // Fern finished talking and asked to open something / close the card.
           setIsChatOpen(false);
           const item = String(p?.show_recipes_for || '').trim();
+          const tool = String(p?.open_tool || '').trim();
+          if (tool) {
+            // Open the built-in tool on Home (the tool's own modal opens ~250 ms after Home is up).
+            setTimeout(() => { navigationRef.current?.navigate('Home'); setTimeout(() => requestOpenTool(tool), 250); }, 350);
+            return;
+          }
           setTimeout(() => {
             if (item) navigationRef.current?.navigate('Shopping', { recipesFor: item, recipesNonce: Date.now() });
             else if (p?.go_to) navigationRef.current?.navigate(p.go_to);

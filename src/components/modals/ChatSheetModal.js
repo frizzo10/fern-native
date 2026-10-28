@@ -400,6 +400,7 @@ export default function ChatSheetModal({
         // Hand the "open / go / close" part to the caller once her voice has finished.
         parsed.show_recipes_for = done.showRecipesFor || parsed.show_recipes_for || '';
         parsed.go_to = done.goTo || '';
+        parsed.open_tool = done.openTool || '';
         if (done.close) parsed.close_chat = true;
       }
 
@@ -407,7 +408,7 @@ export default function ChatSheetModal({
         const confirmText = onAction(parsed);
         if (confirmText) setMessages(prev => [...prev, { role: 'fern', text: confirmText }]);
       }
-      if (onSpeechDone && (parsed?.close_chat === true || String(parsed?.show_recipes_for || '').trim() || String(parsed?.go_to || '').trim())) {
+      if (onSpeechDone && (parsed?.close_chat === true || String(parsed?.show_recipes_for || '').trim() || String(parsed?.go_to || '').trim() || String(parsed?.open_tool || '').trim())) {
         finishAction.current = parsed;
         // No voice to wait for (text mode): act right away.
         if (mode !== 'voice') { const p = finishAction.current; finishAction.current = null; onSpeechDone(p); }
