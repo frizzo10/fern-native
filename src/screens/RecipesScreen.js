@@ -197,6 +197,10 @@ export default function RecipesScreen({ user }) {
   }, []);
   const [tab, setTab] = useState('recipes');
   const [query, setQuery] = useState('');
+  // Quick sort: tap Meal, then Cuisine, then Dish to narrow the list step by step.
+  const [fMeal, setFMeal] = useState('');
+  const [fCuisine, setFCuisine] = useState('');
+  const [fDish, setFDish] = useState('');
   const [selectedBook, setSelectedBook] = useState(null);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [noteText, setNoteText] = useState('');
@@ -1023,23 +1027,49 @@ export default function RecipesScreen({ user }) {
     });
   }, [recipes]);
 
+  const mealOf = (r) => String(r.meal || '').trim() || 'Dinner';
+  const cuisineOf = (r) => String(r.category || '').trim();
+  const DISH_WORDS = ['pasta', 'chicken', 'beef', 'pork', 'seafood', 'fish', 'shrimp', 'soup', 'salad', 'tacos', 'pizza', 'sandwich', 'burger', 'steak', 'rice', 'cake', 'cookie', 'bread', 'eggs', 'vegetarian'];
+  const DISH_MATCH = {
+    pasta: /pasta|spaghetti|linguine|fettuccine|penne|lasagna|ravioli|gnocchi|macaroni|carbonara|rigatoni|tortellini/i,
+    seafood: /seafood|salmon|shrimp|fish|cod|tuna|crab|lobster|scallop|flounder|tilapia/i,
+    fish: /fish|salmon|cod|tuna|flounder|tilapia|trout/i,
+    tacos: /taco|burrito|fajita|quesadilla|enchilada/i,
+    sandwich: /sandwich|wrap|sub|panini|blt/i,
+    burger: /burger/i,
+    vegetarian: /vegetarian|veggie|vegan/i,
+  };
+  const dishMatches = (r, w) => (DISH_MATCH[w] || new RegExp(w, 'i')).test(r.title || '');
+  const afterMeal = useMemo(() => (fMeal ? recipes.filter((r) => mealOf(r) === fMeal) : recipes), [recipes, fMeal]);
+  const afterCuisine = useMemo(() => (fCuisine ? afterMeal.filter((r) => cuisineOf(r) === fCuisine) : afterMeal), [afterMeal, fCuisine]);
+  const cuisineCounts = useMemo(() => {
+    const c = {};
+    afterMeal.forEach((r) => { const k = cuisineOf(r); if (k) c[k] = (c[k] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [afterMeal]);
+  const dishCounts = useMemo(() => (
+    DISH_WORDS.map((w) => [w, afterCuisine.filter((r) => dishMatches(r, w)).length]).filter(([, n]) => n > 0)
+  ), [afterCuisine]);
+
   const filteredRecipes = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return recipes;
-    return recipes.filter((recipe) => {
+    let base = afterCuisine;
+    if (fDish) base = base.filter((r) => dishMatches(r, fDish));
+    if (!q) return base;
+    return base.filter((recipe) => {
       return [recipe.title, recipe.category, recipe.meal, recipe.difficulty]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
         .includes(q);
     });
-  }, [recipes, query]);
+  }, [afterCuisine, fDish, query]);
 
   // Total + per-meal-type counts for the summary line above the grid (all saved recipes).
   const mealTypeCounts = useMemo(() => {
     const counts = {};
     recipes.forEach((recipe) => {
-      const key = String(recipe.meal || '').trim() || 'Dinner';
+      const key = mealOf(recipe);
       counts[key] = (counts[key] || 0) + 1;
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
@@ -1288,11 +1318,49 @@ export default function RecipesScreen({ user }) {
             </Text>
             <View style={styles.countChips}>
               {mealTypeCounts.map(([type, n]) => (
-                <View key={type} style={styles.countChip}>
-                  <Text style={styles.countChipText}>{type} {n}</Text>
-                </View>
+                <TouchableOpacity
+                  key={type}
+                  activeOpacity={0.8}
+                  onPress={() => { setFMeal(fMeal === type ? '' : type); setFCuisine(''); setFDish(''); }}
+                  style={[styles.countChip, fMeal === type && styles.countChipOn]}
+                >
+                  <Text style={[styles.countChipText, fMeal === type && styles.countChipTextOn]}>{type} {n}</Text>
+                </TouchableOpacity>
               ))}
             </View>
+            {cuisineCounts.length > 1 ? (
+              <View style={styles.countChips}>
+                {cuisineCounts.map(([type, n]) => (
+                  <TouchableOpacity
+                    key={type}
+                    activeOpacity={0.8}
+                    onPress={() => { setFCuisine(fCuisine === type ? '' : type); setFDish(''); }}
+                    style={[styles.countChip, fCuisine === type && styles.countChipOn]}
+                  >
+                    <Text style={[styles.countChipText, fCuisine === type && styles.countChipTextOn]}>{type} {n}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+            {dishCounts.length > 0 ? (
+              <View style={styles.countChips}>
+                {dishCounts.map(([w, n]) => (
+                  <TouchableOpacity
+                    key={w}
+                    activeOpacity={0.8}
+                    onPress={() => setFDish(fDish === w ? '' : w)}
+                    style={[styles.countChip, fDish === w && styles.countChipOn]}
+                  >
+                    <Text style={[styles.countChipText, fDish === w && styles.countChipTextOn]}>{w.charAt(0).toUpperCase() + w.slice(1)} {n}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : null}
+            {(fMeal || fCuisine || fDish) ? (
+              <TouchableOpacity onPress={() => { setFMeal(''); setFCuisine(''); setFDish(''); }}>
+                <Text style={styles.countClear}>{t('sort_clear')}</Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
         ) : null}
 
@@ -1767,6 +1835,19 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     marginRight: 6,
     marginBottom: 6,
+  },
+  countChipOn: {
+    backgroundColor: '#3F5645',
+    borderColor: '#3F5645',
+  },
+  countChipTextOn: {
+    color: '#FFFFFF',
+  },
+  countClear: {
+    color: '#3F5645',
+    fontSize: 13,
+    fontFamily: 'Jost-SemiBold',
+    marginTop: 2,
   },
   countChipText: {
     color: '#5C7262',
