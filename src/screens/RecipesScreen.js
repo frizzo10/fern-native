@@ -1027,7 +1027,12 @@ export default function RecipesScreen({ user }) {
     });
   }, [recipes]);
 
-  const mealOf = (r) => String(r.meal || '').trim() || 'Dinner';
+  // "Main Course" / "Entree" are the same thing as Dinner, so they count and sort together.
+  const mealOf = (r) => {
+    const m = String(r.meal || '').trim();
+    if (!m || /^(main course|main|mains|entree|entrée|main dish)$/i.test(m)) return 'Dinner';
+    return m;
+  };
   const cuisineOf = (r) => String(r.category || '').trim();
   const DISH_WORDS = ['pasta', 'chicken', 'beef', 'pork', 'seafood', 'fish', 'shrimp', 'soup', 'salad', 'tacos', 'pizza', 'sandwich', 'burger', 'steak', 'rice', 'cake', 'cookie', 'bread', 'eggs', 'vegetarian'];
   const DISH_MATCH = {
