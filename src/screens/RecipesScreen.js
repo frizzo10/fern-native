@@ -1049,7 +1049,7 @@ export default function RecipesScreen({ user }) {
   const afterCuisine = useMemo(() => (fCuisine ? afterMeal.filter((r) => cuisineOf(r) === fCuisine) : afterMeal), [afterMeal, fCuisine]);
   const cuisineCounts = useMemo(() => {
     const c = {};
-    afterMeal.forEach((r) => { const k = cuisineOf(r); if (k) c[k] = (c[k] || 0) + 1; });
+    afterMeal.forEach((r) => { const k = cuisineOf(r); if (k && !/^(dinner|lunch|breakfast|dessert|snack|appetizer|main course|side dish|family)$/i.test(k)) c[k] = (c[k] || 0) + 1; });
     return Object.entries(c).sort((a, b) => b[1] - a[1]);
   }, [afterMeal]);
   const dishCounts = useMemo(() => (
@@ -1321,50 +1321,53 @@ export default function RecipesScreen({ user }) {
                 ? t('recipes_count_filtered', { shown: filteredRecipes.length, total: recipes.length })
                 : t(recipes.length === 1 ? 'recipes_count_one' : 'recipes_count_many', { count: recipes.length })}
             </Text>
-            <View style={styles.countChips}>
-              {mealTypeCounts.map(([type, n]) => (
-                <TouchableOpacity
-                  key={type}
-                  activeOpacity={0.8}
-                  onPress={() => { setFMeal(fMeal === type ? '' : type); setFCuisine(''); setFDish(''); }}
-                  style={[styles.countChip, fMeal === type && styles.countChipOn]}
-                >
-                  <Text style={[styles.countChipText, fMeal === type && styles.countChipTextOn]}>{type} {n}</Text>
+            {/* Nested sort: one level of chips at a time. Meal -> Cuisine -> Dish. The chosen path shows as tappable crumbs. */}
+            {(fMeal || fCuisine || fDish) ? (
+              <View style={styles.countChips}>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => { setFMeal(''); setFCuisine(''); setFDish(''); }} style={styles.countChip}>
+                  <Text style={styles.countChipText}>‹ {t('sort_all')}</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-            {cuisineCounts.length > 1 ? (
+                {fMeal ? (
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => { setFCuisine(''); setFDish(''); }} style={[styles.countChip, styles.countChipOn]}>
+                    <Text style={[styles.countChipText, styles.countChipTextOn]}>{fMeal}</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {fCuisine ? (
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => setFDish('')} style={[styles.countChip, styles.countChipOn]}>
+                    <Text style={[styles.countChipText, styles.countChipTextOn]}>{fCuisine}</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {fDish ? (
+                  <View style={[styles.countChip, styles.countChipOn]}>
+                    <Text style={[styles.countChipText, styles.countChipTextOn]}>{fDish.charAt(0).toUpperCase() + fDish.slice(1)}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+            {!fMeal ? (
+              <View style={styles.countChips}>
+                {mealTypeCounts.map(([type, n]) => (
+                  <TouchableOpacity key={type} activeOpacity={0.8} onPress={() => { setFMeal(type); setFCuisine(''); setFDish(''); }} style={styles.countChip}>
+                    <Text style={styles.countChipText}>{type} {n}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : !fCuisine && cuisineCounts.length > 0 ? (
               <View style={styles.countChips}>
                 {cuisineCounts.map(([type, n]) => (
-                  <TouchableOpacity
-                    key={type}
-                    activeOpacity={0.8}
-                    onPress={() => { setFCuisine(fCuisine === type ? '' : type); setFDish(''); }}
-                    style={[styles.countChip, fCuisine === type && styles.countChipOn]}
-                  >
-                    <Text style={[styles.countChipText, fCuisine === type && styles.countChipTextOn]}>{type} {n}</Text>
+                  <TouchableOpacity key={type} activeOpacity={0.8} onPress={() => { setFCuisine(type); setFDish(''); }} style={styles.countChip}>
+                    <Text style={styles.countChipText}>{type} {n}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            ) : null}
-            {dishCounts.length > 0 ? (
+            ) : !fDish && dishCounts.length > 0 ? (
               <View style={styles.countChips}>
                 {dishCounts.map(([w, n]) => (
-                  <TouchableOpacity
-                    key={w}
-                    activeOpacity={0.8}
-                    onPress={() => setFDish(fDish === w ? '' : w)}
-                    style={[styles.countChip, fDish === w && styles.countChipOn]}
-                  >
-                    <Text style={[styles.countChipText, fDish === w && styles.countChipTextOn]}>{w.charAt(0).toUpperCase() + w.slice(1)} {n}</Text>
+                  <TouchableOpacity key={w} activeOpacity={0.8} onPress={() => setFDish(w)} style={styles.countChip}>
+                    <Text style={styles.countChipText}>{w.charAt(0).toUpperCase() + w.slice(1)} {n}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-            ) : null}
-            {(fMeal || fCuisine || fDish) ? (
-              <TouchableOpacity onPress={() => { setFMeal(''); setFCuisine(''); setFDish(''); }}>
-                <Text style={styles.countClear}>{t('sort_clear')}</Text>
-              </TouchableOpacity>
             ) : null}
           </View>
         ) : null}
