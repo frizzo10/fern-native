@@ -10,6 +10,9 @@ import {
   TextInput,
   TouchableOpacity,
   Platform,
+  Linking,
+  Share,
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -34,7 +37,8 @@ import AddRecipesToCookbookModal from '../components/modals/AddRecipesToCookbook
 import ShareLinkModal from '../components/modals/ShareLinkModal';
 import { translateRecipes, translateStrings } from '../services/translateService';
 import AddSharedCookbookModal from '../components/modals/AddSharedCookbookModal';
-import { createCookbookShareLink, fetchSharedCookbook, fetchSharedRecipe, parseShareLink } from '../services/shareService';
+import { createCookbookShareLink, fetchSharedCookbook, fetchSharedRecipe, parseShareLink, parseCookbookShareId } from '../services/shareService';
+import { buildCookbookPdf } from '../services/cookbookPdfService';
 import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
@@ -374,6 +378,7 @@ export default function RecipesScreen({ user }) {
   const [isSavingCookbookEdit, setIsSavingCookbookEdit] = useState(false);
   const [isAddRecipesVisible, setIsAddRecipesVisible] = useState(false);
   const [isShareCookbookVisible, setIsShareCookbookVisible] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [isSavingAddRecipes, setIsSavingAddRecipes] = useState(false);
   const attemptedImageFetchIds = useRef(new Set());
 
@@ -962,6 +967,60 @@ export default function RecipesScreen({ user }) {
     setIsShareCookbookVisible(true);
   };
 
+  // Print-ready PDF (Amazon KDP interior / Lemon Squeezy download). The share link only carries the book to the server,
+  // which builds the PDF; nothing is sent to the person's contacts.
+  const runCookbookPdf = async (trim) => {
+    if (pdfBusy || !selectedBook) return;
+    setPdfBusy(true);
+    try {
+      const rawBook = (Array.isArray(booksLocal) ? booksLocal : []).find(
+        (book) => String(book?.id ?? book?.uuid ?? book?.book_id ?? '') === String(selectedBook.id),
+      );
+      const all = getAllSelectedBookRecipes();
+      const chapters = buildChapters(all, chapterMap[selectedBook.id]);
+      const ordered = chapters ? chapters.flatMap((c) => c.items) : all;
+      const link = await createCookbookShareLink({
+        title: selectedBook.title,
+        colorId: rawBook?.colorId,
+        recipes: ordered,
+        chapterById: chapters ? chapterNameById(chapters, t) : null,
+        coverUrl: selectedBook.cover,
+        senderName: user?.name || '',
+        message: '',
+        token: user?.token,
+      });
+      const shareId = parseCookbookShareId(link);
+      const out = await buildCookbookPdf({ shareId, token: user?.token, author: user?.name || '', trim });
+      Alert.alert(
+        t('pdf_ready_title'),
+        t('pdf_ready_desc', { pages: out.pages }),
+        [
+          { text: t('pdf_open'), onPress: () => Linking.openURL(out.url) },
+          { text: t('pdf_share_link'), onPress: () => Share.share(Platform.OS === 'ios' ? { url: out.url } : { message: out.url }) },
+          { text: t('close_btn'), style: 'cancel' },
+        ],
+      );
+    } catch (e) {
+      console.log('[cookbook-pdf] failed', e?.message || e);
+      Alert.alert(t('pdf_failed_title'), `${t('pdf_failed_desc')}\n\n${String(e?.message || e).slice(0, 160)}`);
+    } finally {
+      setPdfBusy(false);
+    }
+  };
+
+  const handlePressCookbookPdf = () => {
+    if (!selectedBook || pdfBusy) return;
+    if (!getAllSelectedBookRecipes().length) {
+      Alert.alert(t('share_cookbook_empty_title'), t('share_cookbook_empty_desc'));
+      return;
+    }
+    Alert.alert(t('pdf_pick_title'), t('pdf_pick_desc'), [
+      { text: t('pdf_size_8x10'), onPress: () => runCookbookPdf('8x10') },
+      { text: t('pdf_size_6x9'), onPress: () => runCookbookPdf('6x9') },
+      { text: t('cancel_btn'), style: 'cancel' },
+    ]);
+  };
+
   const handleCreateCookbookShareLink = async ({ senderName, message, translateTo }) => {
     const rawBook = (Array.isArray(booksLocal) ? booksLocal : []).find(
       (book) => String(book?.id ?? book?.uuid ?? book?.book_id ?? '') === String(selectedBook.id),
@@ -1471,6 +1530,18 @@ export default function RecipesScreen({ user }) {
                   <Text style={styles.bookActionTextLight}>{t('ask_fern_recipes')}</Text>
                 </TouchableOpacity> */}
               </View>
+
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={pdfBusy}
+                onPress={handlePressCookbookPdf}
+                style={styles.bookPdfBtn}
+                accessibilityRole="button"
+              >
+                {pdfBusy ? <ActivityIndicator color="#3F5645" style={{ marginRight: 8 }} /> : null}
+                <Text style={styles.bookPdfBtnText}>{pdfBusy ? t('pdf_making') : t('pdf_btn')}</Text>
+              </TouchableOpacity>
+              {pdfBusy ? <Text style={styles.bookPdfHint}>{t('pdf_wait')}</Text> : null}
 
               <TouchableOpacity activeOpacity={0.85} style={styles.bookTrashBtn} onPress={handleDeleteBook}>
                 <Text style={styles.bookTrashText}>🗑</Text>
@@ -2029,6 +2100,30 @@ const styles = StyleSheet.create({
     color: '#F1EFE8',
     fontSize: 10,
     fontFamily: 'Jost-Bold',
+  },
+  bookPdfBtn: {
+    marginTop: 10,
+    minHeight: 44,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#C8D6BE',
+    backgroundColor: '#ECF2E6',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bookPdfBtnText: {
+    color: '#3F5645',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  bookPdfHint: {
+    marginTop: 6,
+    color: '#5C7262',
+    fontSize: 12,
+    textAlign: 'center',
   },
   bookTrashBtn: {
     marginTop: 10,
