@@ -235,7 +235,7 @@ export default function ChatSheetModal({
     // for context but never added to `messages`, so no bubble for it ever
     // renders — only Fern's reply below does.
     // Voice-only keeps just the recent turns: a shorter request comes back faster.
-    const history = voiceOnly ? messagesRef.current.slice(-8) : messagesRef.current;
+    const history = messagesRef.current.slice(-8);
     const requestMessages = [...history, userMsg];
     if (!silent) {
       setMessages(requestMessages);
@@ -487,8 +487,8 @@ export default function ChatSheetModal({
   // Voice-only: load what Fern needs to know (list, week, coupon catalog) while she is still saying hello,
   // so the first answer doesn't wait for it.
   useEffect(() => {
-    if (voiceOnly && visible) buildAgentContext().catch(() => {});
-  }, [voiceOnly, visible]);
+    if (visible && agentOn) buildAgentContext().catch(() => {});
+  }, [visible, agentOn]);
 
   // Stop listening and any playback when the sheet closes.
   useEffect(() => {
