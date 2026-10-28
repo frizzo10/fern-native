@@ -388,7 +388,7 @@ export default function RecipesScreen({ user }) {
     let live = true;
     setPubSaved(null);
     if (selectedBook?.id != null) {
-      getPublish(selectedBook.id).then((p) => { if (live && p?.pdfUrl) setPubSaved({ pdfUrl: p.pdfUrl, pages: p.pages }); });
+      getPublish(selectedBook.id).then((p) => { if (live && p?.pdfUrl) setPubSaved({ pdfUrl: p.pdfUrl, pages: p.pages, trim: p.trim, color: p.color }); });
     }
     return () => { live = false; };
   }, [selectedBook?.id]);
@@ -1004,8 +1004,8 @@ export default function RecipesScreen({ user }) {
       });
       const shareId = parseCookbookShareId(link);
       const out = await buildCookbookPdf({ shareId, token: user?.token, author: user?.name || '', trim });
-      await setPublish(selectedBook.id, { pdfUrl: out.url, pages: out.pages, trim: out.trim || trim });
-      setPubSaved({ pdfUrl: out.url, pages: out.pages });
+      await setPublish(selectedBook.id, { pdfUrl: out.url, pages: out.pages, trim: out.trim || trim, color: !!out.color });
+      setPubSaved({ pdfUrl: out.url, pages: out.pages, trim: out.trim || trim, color: !!out.color });
       Alert.alert(
         t('pdf_ready_title'),
         t('pdf_ready_desc', { pages: out.pages }),
@@ -1768,8 +1768,8 @@ export default function RecipesScreen({ user }) {
             visible
             onClose={() => setPubOpen(false)}
             onStuck={() => { setPubOpen(false); setTimeout(() => openChat(), 450); }}
-            book={{ id: selectedBook.id, title: selectedBook.title, author: user?.name || '', photoUrl: /^https?:\/\//i.test(selectedBook.cover || '') ? selectedBook.cover : firstPhoto, recipes: recs }}
-            pdf={pubSaved ? { url: pubSaved.pdfUrl, pages: pubSaved.pages } : null}
+            book={{ id: selectedBook.id, title: selectedBook.title, author: user?.name || '', photoUrl: /^https?:\/\//i.test(selectedBook.cover || '') ? selectedBook.cover : firstPhoto, photoUrls: all.map((r) => r.image).filter((u) => /^https?:\/\//i.test(u || '')).slice(0, 24), recipes: recs }}
+            pdf={pubSaved ? { url: pubSaved.pdfUrl, pages: pubSaved.pages, trim: pubSaved.trim, color: pubSaved.color } : null}
             token={user?.token}
           />
         );

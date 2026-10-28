@@ -25,6 +25,7 @@ import {
     clearPublishContext,
     getPublish,
     makeCookbookCover,
+    makeKdpCover,
     setPublish,
     setPublishContext,
 } from '../../services/publishService';
@@ -58,6 +59,10 @@ export default function PublishGuideModal({ visible, onClose, onStuck, book, pdf
     const [voiceOn, setVoiceOn] = useState(true);
     const [copied, setCopied] = useState('');
     const [ready, setReady] = useState(false);
+    const [kdpPaper, setKdpPaper] = useState('');
+    const [kdpCoverUrl, setKdpCoverUrl] = useState('');
+    const [kdpBusy, setKdpBusy] = useState(false);
+    const [kdpFailed, setKdpFailed] = useState('');
     const coverStarted = useRef(false);
     const listingStarted = useRef(false);
     const bookId = book?.id;
@@ -79,6 +84,9 @@ export default function PublishGuideModal({ visible, onClose, onStuck, book, pdf
             setIdx(saved.step || 0);
             setListing(saved.listing || null);
             setCoverUrl(saved.coverUrl || '');
+            setKdpPaper(saved.kdpPaper || '');
+            setKdpCoverUrl(saved.kdpCoverUrl || '');
+            setKdpFailed('');
             setCoverFailed(false);
             setListingNote('');
             setReady(true);
@@ -136,7 +144,7 @@ export default function PublishGuideModal({ visible, onClose, onStuck, book, pdf
     useEffect(() => {
         if (!visible || !step) return undefined;
         setPublish(bookId, { path, step: idx });
-        setPublishContext({ site: 'Lemon Squeezy', step: idx + 1, of: steps.length, title: step.title, say: step.say, body: step.body });
+        setPublishContext({ site: path === 'kdp' ? 'Amazon KDP' : 'Lemon Squeezy', step: idx + 1, of: steps.length, title: step.title, say: step.say, body: step.body });
         if (voiceOn && step.say) speakText(step.say);
         return () => { stopSpeaking(); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -167,24 +175,53 @@ export default function PublishGuideModal({ visible, onClose, onStuck, book, pdf
     };
 
     const doFile = (which) => {
-        const url = which === 'pdf' ? pdf?.url : coverUrl;
+        const url = which === 'pdf' ? pdf?.url : which === 'kdpcover' ? kdpCoverUrl : coverUrl;
         if (!url) { Alert.alert(t('pub_cover_busy'), t('pub_cover_failed')); return; }
         Linking.openURL(url).catch(() => {});
     };
 
     const doSendAll = async () => {
+        const kdp = path === 'kdp';
         const lines = [
             listing?.title || book?.title || '',
             listing?.subtitle || '',
             '',
             listing?.description || '',
             '',
-            `${t('pub_send_price')}: $${listing?.price || ''}`,
-            '',
+            ...(kdp ? [] : [`${t('pub_send_price')}: $${listing?.price || ''}`, '']),
             `${t('pub_send_pdf')}: ${pdf?.url || ''}`,
-            `${t('pub_send_cover')}: ${coverUrl || ''}`,
+            kdp ? `${t('pub_send_kdpcover')}: ${kdpCoverUrl || ''}` : `${t('pub_send_cover')}: ${coverUrl || ''}`,
+            ...(kdp && kdpPaper ? [`${t('pub_send_paper')}: ${t(`pub_paper_${kdpPaper}`)}`] : []),
         ];
         try { await Share.share({ message: lines.join('\n') }); } catch (e) { /* cancelled */ }
+    };
+
+    // Pick the KDP paper, then make the full-wrap cover that matches it (the spine depends on paper and page count).
+    const pickPaper = async (paper) => {
+        if (kdpBusy || !book || !pdf?.pages) return;
+        setKdpPaper(paper);
+        setKdpBusy(true);
+        setKdpFailed('');
+        setKdpCoverUrl('');
+        await setPublish(bookId, { kdpPaper: paper, kdpCoverUrl: '' });
+        try {
+            const out = await makeKdpCover({
+                title: listing?.title || book.title,
+                author: book.author,
+                pages: pdf.pages,
+                paper,
+                trim: pdf.trim || '8x10',
+                blurb: (listing?.description || '').split('\n\n')[0],
+                photoUrls: book.photoUrls && book.photoUrls.length ? book.photoUrls : (book.photoUrl ? [book.photoUrl] : []),
+                token,
+            });
+            setKdpCoverUrl(out.url);
+            await setPublish(bookId, { kdpCoverUrl: out.url });
+        } catch (e) {
+            setKdpFailed(String(e?.message || e).slice(0, 140));
+        } finally {
+            setKdpBusy(false);
+        }
     };
 
     const runAction = (a) => {
@@ -242,13 +279,14 @@ export default function PublishGuideModal({ visible, onClose, onStuck, book, pdf
                 </View>
                 <Text style={styles.chev}>›</Text>
             </TouchableOpacity>
-            <View style={[styles.choiceCard, styles.choiceOff]}>
+            <TouchableOpacity activeOpacity={0.85} style={styles.choiceCard} onPress={() => pickPath('kdp')} accessibilityRole="button">
                 <Text style={styles.choiceEmoji}>📦</Text>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.choiceTitle}>{t('pub_kdp_title')}</Text>
                     <Text style={styles.choiceSub}>{t('pub_kdp_sub')}</Text>
                 </View>
-            </View>
+                <Text style={styles.chev}>›</Text>
+            </TouchableOpacity>
         </ScrollView>
     );
 
@@ -268,12 +306,35 @@ export default function PublishGuideModal({ visible, onClose, onStuck, book, pdf
                     <TextInput style={styles.input} value={listing.subtitle} onChangeText={(v) => updateListing('subtitle', v)} onBlur={saveListing} />
                     <Text style={styles.label}>{t('pub_field_desc')}</Text>
                     <TextInput style={[styles.input, styles.inputTall]} multiline value={listing.description} onChangeText={(v) => updateListing('description', v)} onBlur={saveListing} textAlignVertical="top" />
-                    <Text style={styles.label}>{t('pub_field_price')}</Text>
-                    <TextInput style={[styles.input, { width: 120 }]} keyboardType="decimal-pad" value={String(listing.price || '')} onChangeText={(v) => updateListing('price', v.replace(/[^0-9.]/g, ''))} onBlur={saveListing} />
+                    {step?.hidePrice ? null : <Text style={styles.label}>{t('pub_field_price')}</Text>}
+                    {step?.hidePrice ? null : <TextInput style={[styles.input, { width: 120 }]} keyboardType="decimal-pad" value={String(listing.price || '')} onChangeText={(v) => updateListing('price', v.replace(/[^0-9.]/g, ''))} onBlur={saveListing} />}
                 </View>
             )}
         </View>
     );
+
+    const renderPaper = () => {
+        const opts = pdf?.color === true ? ['premium', 'standard'] : pdf?.color === false ? ['white', 'cream'] : ['white', 'cream', 'premium', 'standard'];
+        return (
+            <View style={{ marginTop: 14, gap: 10 }}>
+                {opts.map((o) => (
+                    <TouchableOpacity
+                        key={o}
+                        activeOpacity={0.85}
+                        disabled={kdpBusy}
+                        onPress={() => pickPaper(o)}
+                        style={[styles.actionBtn, kdpPaper === o ? styles.actionPrimary : null, kdpBusy ? { opacity: 0.6 } : null]}
+                        accessibilityRole="button"
+                    >
+                        <Text style={[styles.actionText, kdpPaper === o ? styles.actionPrimaryText : null]}>{t(`pub_paper_${o}`)}</Text>
+                    </TouchableOpacity>
+                ))}
+                {kdpBusy ? <View style={styles.busyRow}><ActivityIndicator color={ACCENT} /><Text style={styles.busyText}>{t('pub_cover_busy')}</Text></View> : null}
+                {kdpFailed ? <Text style={styles.note}>{t('pub_cover_failed')} ({kdpFailed})</Text> : null}
+                {kdpCoverUrl && !kdpBusy ? <Text style={styles.note}>{t('pub_paper_ready')}</Text> : null}
+            </View>
+        );
+    };
 
     const renderStep = () => {
         if (loading) return <View style={styles.center}><ActivityIndicator color={ACCENT} /><Text style={styles.busyText}>{t('pub_loading')}</Text></View>;
@@ -298,6 +359,11 @@ export default function PublishGuideModal({ visible, onClose, onStuck, book, pdf
                     </View>
                 ) : null}
                 {step.kind === 'listing' ? renderListing() : null}
+                {step.kind === 'paper' ? renderPaper() : null}
+                {step.kind === 'kdpfiles' && kdpBusy ? (
+                    <View style={styles.busyRow}><ActivityIndicator color={ACCENT} /><Text style={styles.busyText}>{t('pub_cover_busy')}</Text></View>
+                ) : null}
+                {step.kind === 'kdpfiles' && !kdpCoverUrl && !kdpBusy ? <Text style={styles.note}>{t('pub_kdp_need_paper')}</Text> : null}
                 {step.kind === 'files' && coverBusy ? (
                     <View style={styles.busyRow}><ActivityIndicator color={ACCENT} /><Text style={styles.busyText}>{t('pub_cover_busy')}</Text></View>
                 ) : null}
@@ -355,8 +421,8 @@ export default function PublishGuideModal({ visible, onClose, onStuck, book, pdf
                             </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={goNext}
-                                disabled={step.kind === 'listing' && (listingBusy || !listing)}
-                                style={[styles.nextBtn, step.kind === 'listing' && (listingBusy || !listing) ? { opacity: 0.5 } : null]}
+                                disabled={(step.kind === 'listing' && (listingBusy || !listing)) || (step.kind === 'paper' && (kdpBusy || !kdpCoverUrl))}
+                                style={[styles.nextBtn, (step.kind === 'listing' && (listingBusy || !listing)) || (step.kind === 'paper' && (kdpBusy || !kdpCoverUrl)) ? { opacity: 0.5 } : null]}
                                 accessibilityRole="button"
                             >
                                 <Text style={styles.nextText}>{isLast ? t('pub_finish') : t('pub_next')}</Text>

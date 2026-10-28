@@ -80,6 +80,25 @@ export async function makeCookbookCover({ title, author, photoUrl, token }) {
     }
 }
 
+// Full-wrap Amazon KDP cover PDF (back + spine + front), sized from the page count and paper. -> { url, spineIn, ... }
+export async function makeKdpCover({ title, author, pages, paper, trim, blurb, photoUrls, token }) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 40000);
+    try {
+        const res = await fetch(`${FN}/cookbook-kdp-cover`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+            body: JSON.stringify({ token, title, author, pages, paper, trim, blurb, photoUrls: (photoUrls || []).slice(0, 6) }),
+            signal: ctrl.signal,
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json?.url) throw new Error(json?.error || `cover failed (${res.status})`);
+        return json;
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 function parseLoose(text) {
     const s = String(text || '').replace(/```json|```/g, '');
     try { return JSON.parse(s); } catch (e) { /* try the first {...} */ }
