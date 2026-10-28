@@ -546,7 +546,11 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
           // She just changed something: jump to where it is so the person watches it happen (the chat stays open and she keeps talking).
           if (!w?.screen) return;
           if (w.screen === 'Family') navigationRef.current?.navigate('Family', { showDayOffset: w.dayOffset || 0, showNonce: Date.now(), showKind: w.kind, showLabel: w.label, showSlot: w.slot });
-          else if (w.screen === 'Recipes' && w.recipeId != null) navigationRef.current?.navigate('Recipes', { openTab: 'recipes', requestKey: String(Date.now()), openRecipeId: w.recipeId, openRecipeTitle: w.recipeTitle });
+          else if (w.screen === 'Recipes' && w.recipeId != null) {
+            // The recipe viewer is a Modal; iOS drops a Modal opened while the chat Modal is still up, so close the chat first.
+            setIsChatOpen(false);
+            setTimeout(() => navigationRef.current?.navigate('Recipes', { openTab: 'recipes', requestKey: String(Date.now()), openRecipeId: w.recipeId, openRecipeTitle: w.recipeTitle }), 600);
+          }
           else if (w.screen === 'Shopping') navigationRef.current?.navigate('Shopping', { listOnly: Date.now() });
     else navigationRef.current?.navigate(w.screen);
         }}
