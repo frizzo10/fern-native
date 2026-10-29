@@ -1,3 +1,3 @@
 // Shown on the Account screen so we can tell which code a phone is running.
 // Bump this label with every change that ships (date + letter + what changed).
-export const CODE_VERSION = '10-29 c: clearing a circular resets scanned count';
+export const CODE_VERSION = '10-29 d: clear also resets pages-scanned line';

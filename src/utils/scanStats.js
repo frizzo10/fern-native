@@ -41,9 +41,13 @@ export async function resetStorePages(storeName) {
         const stats = await loadScanStats();
         const wk = weekKeyFor();
         if (!stats.weeks[wk] || !stats.weeks[wk][chain]) return;
+        const pages = stats.weeks[wk][chain] || 0;
         const week = { ...stats.weeks[wk] };
         delete week[chain];
-        await AsyncStorage.setItem(KEY, JSON.stringify({ ...stats, weeks: { ...stats.weeks, [wk]: week } }));
+        // the lifetime line ("You've scanned N pages and shared M sale items") also loses these pages
+        const total = Math.max(0, stats.total - pages);
+        const items = total === 0 ? 0 : stats.items;
+        await AsyncStorage.setItem(KEY, JSON.stringify({ total, items, weeks: { ...stats.weeks, [wk]: week } }));
     } catch (e) { /* best effort */ }
 }
 
