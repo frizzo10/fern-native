@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
+import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea, getLastDealIdeasNote } from '../services/scanCircularService';
 import { fetchMealPlanRecipeDetail } from '../services/mealPlanRecipeService';
 import { colors, radius } from '../constants/tokens';
 import { dealSaving, dedupeDeals, fmtMoney } from '../utils/savings';
@@ -47,9 +47,9 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
     setOpen({ key, loading: true, ideas: [] });
     try {
       const ideas = await fetchDealRecipeIdeas({ itemName: deal.name, locale, token });
-      setOpen((p) => (p?.key === key ? { key, loading: false, ideas, failed: !ideas.length } : p));
+      setOpen((p) => (p?.key === key ? { key, loading: false, ideas, failed: !ideas.length, err: ideas.length ? '' : getLastDealIdeasNote() } : p));
     } catch (e) {
-      setOpen((p) => (p?.key === key ? { key, loading: false, ideas: [], failed: true } : p));
+      setOpen((p) => (p?.key === key ? { key, loading: false, ideas: [], failed: true, err: String(e?.message || e).slice(0, 140) } : p));
     }
   };
 
@@ -177,6 +177,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                 <View style={styles.ideas}>
                   {open.loading ? <ActivityIndicator color={colors?.orange || '#4E7A54'} /> : null}
                   {open.failed ? <Text style={styles.sub}>{t('sale_list_recipes_failed')}</Text> : null}
+                  {open.failed && open.err ? <Text style={styles.sub}>{open.err}</Text> : null /* TEMP debug: remove once recipes load reliably */}
                   {(open.ideas || []).map((idea, i) => (
                     <View key={`${idea.title}-${i}`}>
                       <TouchableOpacity style={styles.ideaRow} activeOpacity={0.85} onPress={() => (open.idea === idea ? setOpen((p) => ({ ...p, idea: null, recipe: null })) : previewIdea(deal, idea))}>

@@ -36,21 +36,36 @@ function parseJsonLoose(text) {
     }
 }
 
+// TEMP debug: what the last recipe-ideas call came back with (shown on the phone when it fails).
+let lastDealIdeasNote = '';
+export function getLastDealIdeasNote() { return lastDealIdeasNote; }
+
 async function postToAi(payload) {
-    const res = await fetch(AI_URL, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'FernApp/1.0 (myaifern.com)',
-        },
-        body: JSON.stringify(payload),
-    });
+    // A stalled connection used to leave the spinner going forever; give up after 25 s.
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 25000) : null;
+    try {
+        const res = await fetch(AI_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'User-Agent': 'FernApp/1.0 (myaifern.com)',
+            },
+            body: JSON.stringify(payload),
+            signal: ctrl ? ctrl.signal : undefined,
+        });
 
-    if (!res.ok) {
-        throw new Error(`Scan Circular AI request failed (${res.status})`);
+        if (!res.ok) {
+            throw new Error(`Scan Circular AI request failed (${res.status})`);
+        }
+
+        return await res.json();
+    } catch (e) {
+        if (e?.name === 'AbortError') throw new Error('The recipe request timed out');
+        throw e;
+    } finally {
+        if (timer) clearTimeout(timer);
     }
-
-    return res.json();
 }
 
 export async function fetchDealRecipeIdeas({ itemName, locale, token, exclude = [], note = '' }) {
@@ -78,6 +93,7 @@ export async function fetchDealRecipeIdeas({ itemName, locale, token, exclude = 
             parsed = inner || (parsed.title ? [parsed] : []);
         }
         if (!Array.isArray(parsed) || !parsed.length) console.log('[deal-ideas] unreadable reply:', String(text).slice(0, 300));
+        lastDealIdeasNote = `reply: ${String(text || '(empty)').replace(/\s+/g, ' ').slice(0, 140)}`;
         return Array.isArray(parsed) ? parsed : [];
     };
 
@@ -86,10 +102,11 @@ export async function fetchDealRecipeIdeas({ itemName, locale, token, exclude = 
 
     const skipSet = new Set(skip.map((x) => x.toLowerCase()));
     return list
-        .filter((idea) => !skipSet.has(String(idea?.title || '').trim().toLowerCase()))
+        .filter((idea) => !skipSet.has(String(idea?.title || idea?.name || idea?.dish || '').trim().toLowerCase()))
         .map((idea, index) => ({
             id: `deal-idea-${Date.now()}-${index}`,
-            title: String(idea?.title || '').trim(),
+            // The model sometimes names the dish "name" or "dish" instead of "title".
+            title: String(idea?.title || idea?.name || idea?.dish || idea?.recipe || idea?.meal || '').trim(),
             time: String(idea?.time || '').trim(),
             emoji: idea?.emoji || '🍽️',
             why: String(idea?.why || '').trim(),
