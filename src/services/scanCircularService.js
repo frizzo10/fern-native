@@ -219,9 +219,11 @@ async function scanViaBackground(payload) {
         let url = null;
         try {
             const png = payload.mediaType === 'image/png';
-            url = await uploadPhoto(`data:${png ? 'image/png' : 'image/jpeg'};base64,${payload.imageData}`, `scanjob_${jobId}.${png ? 'png' : 'jpg'}`);
+            url = await uploadPhoto(`data:${png ? 'image/png' : 'image/jpeg'};base64,${payload.imageData}`, `scanjob_${jobId}.${png ? 'png' : 'jpg'}`, 60000);
         } catch (e) {
-            console.log('[scan-circular] photo upload failed, using the direct request:', e?.message || e);
+            console.log('[scan-circular] photo upload failed:', e?.message || e);
+            // A timeout means the connection is too slow to send the photo; the direct request would hang the same way, so say so.
+            if (/timed out/.test(String(e?.message))) throw new Error(`Couldn't send the photo (${e.message}). Check your Wi-Fi or signal and try again.`);
         }
         if (!url) return null;
         const { imageData, ...rest } = payload;
@@ -229,11 +231,16 @@ async function scanViaBackground(payload) {
     }
     let started;
     try {
-        started = await fetch(SCAN_BG_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
-            body: JSON.stringify(bgBody),
-        });
+        const c1 = new AbortController();
+        const t1 = setTimeout(() => c1.abort(), 20000);
+        try {
+            started = await fetch(SCAN_BG_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+                body: JSON.stringify(bgBody),
+                signal: c1.signal,
+            });
+        } finally { clearTimeout(t1); }
     } catch (e) {
         return null;
     }
@@ -245,9 +252,13 @@ async function scanViaBackground(payload) {
         await new Promise((r) => setTimeout(r, 2500));
         let st;
         try {
-            const r = await fetch(`${SCAN_STATUS_URL}?jobId=${encodeURIComponent(jobId)}`);
-            if (!r.ok) continue;
-            st = await r.json();
+            const c2 = new AbortController();
+            const t2 = setTimeout(() => c2.abort(), 15000);
+            try {
+                const r = await fetch(`${SCAN_STATUS_URL}?jobId=${encodeURIComponent(jobId)}`, { signal: c2.signal });
+                if (!r.ok) continue;
+                st = await r.json();
+            } finally { clearTimeout(t2); }
         } catch (e) {
             continue;
         }
@@ -283,6 +294,7 @@ async function scanDirect(send) {
 export async function scanCircular({ userId, base64, mimeType, token, zipCode, storeName: pickedStore }) {
     const zip = zipCode || (await defaultScanZip());
     const send = () => fetch(SCAN_CIRCULAR_URL, {
+        signal: (typeof AbortSignal !== 'undefined' && AbortSignal.timeout) ? AbortSignal.timeout(60000) : undefined,
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

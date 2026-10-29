@@ -1,12 +1,23 @@
-export async function uploadPhoto(photoBase64DataUri, fileName) {
-  const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/upload-photo', {
+export async function uploadPhoto(photoBase64DataUri, fileName, timeoutMs = 0) {
+  const ctrl = timeoutMs ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+  let res;
+  try {
+  res = await fetch('https://app.clickpickandcook.com/.netlify/functions/upload-photo', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'User-Agent': 'FernApp/1.0 (myaifern.com)',
     },
     body: JSON.stringify({ photoBase64: photoBase64DataUri, fileName }),
+    signal: ctrl ? ctrl.signal : undefined,
   });
+  } catch (e) {
+    if (ctrl && ctrl.signal.aborted) throw new Error(`upload timed out after ${Math.round(timeoutMs / 1000)}s (${Math.round((photoBase64DataUri || '').length / 1024)} KB): slow connection`);
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   const json = await res.json().catch(() => null);
   if (!res.ok || !json?.url) {
