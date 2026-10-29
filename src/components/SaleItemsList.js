@@ -27,6 +27,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
   const setSideAdd = (k, patch) => setSideAdds((p) => ({ ...p, [k]: { ...(p[k] || {}), ...patch } }));
   const [pinned, setPinned] = useState(null); // { deal, key }: the item Fern was asked to find recipes for, shown above the (collapsible) circular
   const [meal, setMeal] = useState('Dinner'); // which meal "Cook it on" puts the dish in
+  const [showOther, setShowOther] = useState(false); // the folded "Other deals" (drinks, snacks, household)
 
   // Tap a side to see how to make it (same lookup the Shopping week-of-dinners cards use).
   const previewSide = async (idea, side) => {
@@ -120,7 +121,21 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
     });
     // Biggest savers first inside each aisle.
     map.forEach((rows) => rows.sort((a, b) => dealSaving(b.deal).amount - dealSaving(a.deal).amount));
-    return Array.from(map.entries());
+    // Food you can cook with comes first; drinks, snacks, household and the like fold into "Other deals".
+    const food = [];
+    const other = [];
+    Array.from(map.entries()).forEach(([cat, rows]) => {
+      const f = rows.filter((r) => isFoodDeal(r.deal));
+      const o = rows.filter((r) => !isFoodDeal(r.deal));
+      if (f.length) food.push([cat, f]);
+      o.forEach((r) => {
+        const k = dealKind(r.deal);
+        const label = k ? t(k.labelKey) : cat;
+        const hit = other.find(([c]) => c === label);
+        if (hit) hit[1].push(r); else other.push([label, [r]]);
+      });
+    });
+    return { food, other, otherCount: other.reduce((n, [, rows]) => n + rows.length, 0) };
   }, [deals, query, t, pinned]);
 
   // What tells two look-alike items apart (grade, brand, size): the flyer's brand and unit, when the name doesn't already say it.
@@ -135,7 +150,11 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
   const renderRow = ({ deal, key }) => {
             const done = Boolean(added[key]) || Boolean(isOnList?.(deal));
             const saving = dealSaving(deal);
-            const price = deal.isBogo ? 'BOGO' : deal.salePrice;
+            // "Buy 1 Get 2 Free" keeps its own words; any other buy-one deal reads BOGO; items with no price but a deal line show that line.
+            const dealText = `${deal.salePrice || ''} ${deal.savings || ''}`;
+            const buyGet = dealText.match(/buy\s*(?:1|one)\s*,?\s*get\s*(?:1|one|2|two)\s*free/i);
+            const price = buyGet && /get\s*(?:2|two)/i.test(buyGet[0]) ? 'Buy 1 Get 2 Free' : (deal.isBogo || buyGet ? 'BOGO' : deal.salePrice);
+            const storeShown = String(deal.store || '').replace(/\b([a-z])/g, (m) => m.toUpperCase());
             const isOpen = open?.key === key;
             return (
               <View key={key}>
@@ -144,7 +163,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                   <Text style={styles.name} numberOfLines={2}>{`${deal.emoji ? `${deal.emoji} ` : ''}${deal.name}`}</Text>
                   {dealDetail(deal) ? <Text style={styles.sub} numberOfLines={2}>{dealDetail(deal)}</Text> : null}
                   <Text style={styles.sub} numberOfLines={1}>
-                    {[price, deal.originalPrice ? t('sale_list_was', { price: deal.originalPrice }) : '', deal.store].filter(Boolean).join(' · ')}
+                    {[price, deal.originalPrice ? t('sale_list_was', { price: deal.originalPrice }) : '', storeShown].filter(Boolean).join(' · ')}
                   </Text>
                   {saving.amount > 0 ? <Text style={styles.save}>{t('psp_save_amt', { amt: `${saving.est ? '~' : ''}${fmtMoney(saving.amount)}` })}</Text> : null}
                 </View>
@@ -325,13 +344,27 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
             autoCapitalize="none"
             clearButtonMode="while-editing"
           />
-          {!groups.length ? <Text style={styles.empty}>{t('sale_list_none')}</Text> : null}
-          {groups.map(([cat, rows]) => (
+          {!groups.food.length && !groups.otherCount ? <Text style={styles.empty}>{t('sale_list_none')}</Text> : null}
+          {groups.food.map(([cat, rows]) => (
             <View key={cat} style={styles.group}>
               <Text style={styles.groupLabel}>{cat}</Text>
               {rows.map(renderRow)}
             </View>
           ))}
+          {groups.otherCount ? (
+            <View>
+              <TouchableOpacity style={styles.otherBar} activeOpacity={0.85} onPress={() => setShowOther((v) => !v)}>
+                <Text style={styles.otherBarText}>{t('sale_other_deals', { n: groups.otherCount })}</Text>
+                <Text style={styles.toggleChevron}>{showOther || query.trim() ? '▾' : '▸'}</Text>
+              </TouchableOpacity>
+              {showOther || query.trim() ? groups.other.map(([cat, rows]) => (
+                <View key={`o-${cat}`} style={styles.group}>
+                  <Text style={styles.groupLabel}>{cat}</Text>
+                  {rows.map(renderRow)}
+                </View>
+              )) : null}
+            </View>
+          ) : null}
         </View>
       )}
       </View>
@@ -359,6 +392,8 @@ const styles = StyleSheet.create({
   toggleBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderWidth: 1.5, borderColor: '#4E7A54', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginTop: 10 },
   toggleText: { fontSize: 15, fontWeight: '800', color: '#2F4535', flex: 1 },
   toggleChevron: { fontSize: 18, color: '#4E7A54', fontWeight: '800' },
+  otherBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderWidth: 1, borderColor: '#C8D6BE', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginTop: 14 },
+  otherBarText: { fontSize: 14, fontWeight: '700', color: '#3F5645', flex: 1 },
   empty: { color: '#6B7F66', fontSize: 13, paddingVertical: 12, textAlign: 'center' },
   group: { marginTop: 8 },
   groupLabel: { fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#6B7F66', fontWeight: '700', marginBottom: 4 },

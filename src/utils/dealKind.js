@@ -7,6 +7,8 @@
 //   isFoodDeal(deal) -> false only for things you can't cook with (drinks, household, flowers...)
 const RULES = [
   { key: 'alcohol', labelKey: 'sale_cat_alcohol', food: false, re: /\b(beer|wine|vodka|whiske?y|bourbon|tequila|rum|liquor|seltzer|lager|ipa|prosecco|champagne|chardonnay|cabernet|merlot|pinot|bud|budweiser|miller|coors|corona|truly|michelob|heineken|modelo|stella artois|guinness|wente|i heart|barefoot)\b/i },
+  { key: 'drinks', labelKey: 'sale_cat_drinks', food: false, re: /\b(soda|cola|coca-cola|pepsi|sprite|7-?up|dr\.? pepper|tonic|sparkling water|bubly|seltzer water|energy drinks?|sports drinks?|gatorade|k-cups?|coffee pods?)\b/i },
+  { key: 'snacks', labelKey: 'sale_cat_snacks', food: false, not: /\bchocolate chips\b|\bchips? (for|to) bak/i, re: /\b(tortilla chips|potato chips|doritos|tostitos|ruffles|cheetos|pringles|cheez-?it|snap'?d|crunch'?d|oreo|chips ahoy|nutter butter|cookies|crackers|cereal|raisin bran|ice cream|h[aä]agen-?dazs|candy|donuts?|bagels?)\b/i },
   { key: 'household', labelKey: 'sale_cat_household', food: false, re: /\b(paper towels?|bath tissue|toilet (paper|tissue)|tissue|napkins?|detergent|laundry|bleach|trash bags?|garbage bags?|dish soap|cleaner|sponges?|aluminum foil|plastic wrap|gift cards?|batteries|light bulbs?)\b/i },
   { key: 'floral', labelKey: 'sale_cat_floral', food: false, re: /\b(mums?|chrysanthemums?|flowers?|bouquets?|poinsettias?|potting soil|mulch|garden)\b/i },
   { key: 'health', labelKey: 'sale_cat_health', food: false, re: /\b(vitamins?|shampoo|conditioner|toothpaste|deodorant|lotion|razors?|body wash)\b/i },

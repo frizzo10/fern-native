@@ -139,7 +139,7 @@ function toNumber(value) {
 
 function isBogoItem(item) {
     const haystack = `${item?.salePrice || ''} ${item?.savings || ''}`.toLowerCase();
-    return haystack.includes('bogo') || haystack.includes('buy one');
+    return haystack.includes('bogo') || haystack.includes('buy one') || /buy\s*1\s*,?\s*get\s*(1|2|one|two)/.test(haystack);
 }
 
 // "99¢", "$99¢" or "69 ¢" -> "$0.99" (the scan sometimes echoes a cents price with a dollar sign).
