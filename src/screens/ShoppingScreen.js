@@ -74,6 +74,7 @@ import {
   weekKeyFor,
   weekLabel,
 } from '../utils/savings';
+import { resetStorePages } from '../utils/scanStats';
 import { onePerSlot } from '../utils/onePerSlot';
 import AlexaHint from '../components/AlexaHint';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
@@ -495,6 +496,7 @@ export default function ShoppingScreen({ user }) {
           const gone = new Set(guideStoreName && chainKey(guideStoreName) ? dealsForStore(all, guideStoreName) : all);
           await replaceWeekDeals(all.filter((d) => !gone.has(d)));
           await markStoreCleared(guideStoreName);
+          await resetStorePages(guideStoreName);
           reloadDeals();
           setMealCards(null);
           setMealsKey((k) => k + 1);

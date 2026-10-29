@@ -33,6 +33,20 @@ export async function recordScan(storeName, itemCount) {
     } catch (e) { return null; }
 }
 
+// Forgets this week's page count for one store (used when the shopper clears that store's circular).
+export async function resetStorePages(storeName) {
+    const chain = chainKey(storeName);
+    if (!chain) return;
+    try {
+        const stats = await loadScanStats();
+        const wk = weekKeyFor();
+        if (!stats.weeks[wk] || !stats.weeks[wk][chain]) return;
+        const week = { ...stats.weeks[wk] };
+        delete week[chain];
+        await AsyncStorage.setItem(KEY, JSON.stringify({ ...stats, weeks: { ...stats.weeks, [wk]: week } }));
+    } catch (e) { /* best effort */ }
+}
+
 // Consecutive ad weeks with at least one scan, counting back from this week (or last week if this one has none yet).
 export function streakWeeks(stats) {
     const weeks = stats?.weeks || {};

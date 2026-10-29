@@ -642,6 +642,7 @@ export default function HomeScreen({ user, route }) {
   useFocusEffect(
     useMemo(() => () => {
       pull();
+      setScanTick((n) => n + 1);
     }, [pull])
   );
 
@@ -818,7 +819,9 @@ export default function HomeScreen({ user, route }) {
       try {
         const zip = Object.values(zipsByStoreName(userStoresLocal))[0] || '';
         const list = await fetchCircularStores({ token: user.token, zip });
-        if (live) setSharedChains(new Set(list.map((x) => chainKey(x.store)).filter(Boolean)));
+        const keep = [];
+        for (const x of list) { if (!(await isStoreCleared(x.store))) keep.push(x); }
+        if (live) setSharedChains(new Set(keep.map((x) => chainKey(x.store)).filter(Boolean)));
       } catch (e) { /* offline: no badges */ }
     })();
     return () => { live = false; };
