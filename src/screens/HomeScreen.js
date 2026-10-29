@@ -2748,6 +2748,22 @@ export default function HomeScreen({ user, route }) {
                 shopCount={(data.shopping || []).filter((it) => !it.checked).length}
                 onOpenList={() => navigation.navigate('Shopping', { listOnly: Date.now() })}
                 onOpenRecipes={() => navigation.navigate('Recipes')}
+                recipeCount={(data.recipes || []).length}
+                featuredRecipe={(() => {
+                  const list = (data.recipes || []).filter((r) => r && r.title);
+                  if (!list.length) return null;
+                  const d = new Date();
+                  const day = Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86400000);
+                  return list[day % list.length];
+                })()}
+                onOpenFeatured={() => {
+                  const list = (data.recipes || []).filter((r) => r && r.title);
+                  if (!list.length) return;
+                  const d = new Date();
+                  const day = Math.floor(new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() / 86400000);
+                  const r = list[day % list.length];
+                  navigation.navigate('Recipes', { openTab: 'recipes', openRecipeId: r.id, openRecipeTitle: r.title, requestKey: Date.now() });
+                }}
                 onStorePress={chooseFlyerStore}
                 stores={userStoresLocal}
                 sharedChains={sharedChains}

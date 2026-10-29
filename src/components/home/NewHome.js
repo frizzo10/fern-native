@@ -68,6 +68,9 @@ export default function NewHome({
   shopCount,
   onOpenList,
   onOpenRecipes,
+  recipeCount,
+  featuredRecipe,
+  onOpenFeatured,
   stores,
   sharedChains,
   scanStats,
@@ -217,12 +220,19 @@ export default function NewHome({
           <Text style={styles.listOpen}>{t('home_open')}</Text>
         </TouchableOpacity>
 
-        <View style={styles.quickRow}>
-          <TouchableOpacity style={styles.quickBtn} activeOpacity={0.85} onPress={onOpenRecipes} accessibilityRole="button">
-            <Ionicons name="book-outline" size={22} color={FOREST} />
-            <Text style={styles.quickText}>{t('home_my_recipes')}</Text>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={[styles.listRow, { marginTop: 10 }]} activeOpacity={0.85} onPress={onOpenRecipes} accessibilityRole="button">
+          <Ionicons name="book-outline" size={26} color={FOREST} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.listTitle}>{t('home_my_recipes')}</Text>
+            <Text style={styles.listSub}>{recipeCount > 0 ? t(recipeCount === 1 ? 'home_recipes_count_one' : 'home_recipes_count_other', { count: recipeCount }) : t('home_recipes_count_none')}</Text>
+            {featuredRecipe?.title ? (
+              <TouchableOpacity activeOpacity={0.7} onPress={onOpenFeatured} accessibilityRole="button" style={{ marginTop: 4 }}>
+                <Text style={styles.recipePick} numberOfLines={1}>{`✨ ${t('home_recipes_pick', { title: featuredRecipe.title })}`}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <Text style={styles.listOpen}>{t('home_open')}</Text>
+        </TouchableOpacity>
 
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <Text style={styles.storeHint}>{t('home_stores_tap_hint')}</Text>
@@ -520,6 +530,7 @@ const styles = StyleSheet.create({
   listOpen: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: BERRY },
   quickRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   quickBtn: { flex: 1, height: 72, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  recipePick: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#4E7A54' },
   quickText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: FOREST },
   storeHint: { fontFamily: 'Jost-Regular', fontSize: 14, color: MUTE, marginTop: -6, marginBottom: 6, marginLeft: 2 },
   addStoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: BERRY, marginTop: 10 },
