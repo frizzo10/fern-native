@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { setGrant } from '../services/grantStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -45,6 +45,33 @@ function fixCorruptedEmojis(recipes) {
   return { fixed, hadCorruption };
 }
 
+// One shared, time-limited pull request. Every screen has its own useSync, so
+// a burst of screens used to fire a burst of identical requests with no time
+// limit; now requests made while one is in flight share its answer, and a
+// request that hangs gives up after 40 s instead of blocking forever.
+let sharedPull = null;
+let sharedPullKey = '';
+function fetchPullShared(user) {
+  const key = `${user.id}|${user.token}`;
+  if (sharedPull && sharedPullKey === key) return sharedPull;
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), 40000) : null;
+  sharedPullKey = key;
+  const p = fetch(SYNC_URL, {
+    method: 'POST',
+    headers: API_HEADERS,
+    body: JSON.stringify({ action: 'pull', userId: user.id, token: user.token }),
+    signal: ctrl ? ctrl.signal : undefined,
+  })
+    .then((res) => res.json())
+    .finally(() => {
+      if (timer) clearTimeout(timer);
+      if (sharedPull === p) { sharedPull = null; sharedPullKey = ''; }
+    });
+  sharedPull = p;
+  return p;
+}
+
 export function useSync(user) {
   const [data, setData] = useState({
     recipes: [],
@@ -62,22 +89,21 @@ export function useSync(user) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastSync, setLastSync] = useState(null);
+  // pull() used to depend on `loading`, so finishing the first pull changed pull's
+  // identity and re-ran the load effect, which pulled a second time.
+  const loadingRef = useRef(true);
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
 
   const pull = useCallback(async () => {
     if (!user?.id || !user?.token) return;
-    if (loading) {
+    if (loadingRef.current) {
       setLoading(true);
     } else {
       setRefreshing(true);
     }
 
     try {
-      const res = await fetch(SYNC_URL, {
-        method: 'POST',
-        headers: API_HEADERS,
-        body: JSON.stringify({ action: 'pull', userId: user.id, token: user.token }),
-      });
-      const result = await res.json();
+      const result = await fetchPullShared(user);
       const dd = result.data;
       if (!dd) return;
 
@@ -158,7 +184,7 @@ export function useSync(user) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user, loading]);
+  }, [user]);
 
   const loadCache = useCallback(async () => {
     try {
@@ -186,6 +212,8 @@ export function useSync(user) {
   }, [user]);
 
   const pushChangedFromStorage = useCallback(async (changedData = {}) => {
+    // A pull already in flight may predate this change; later pulls must ask again.
+    sharedPull = null; sharedPullKey = '';
     if (!user?.id || !user?.token) return null;
     try {
       const saved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || '[]');

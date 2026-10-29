@@ -107,17 +107,28 @@ export function useAuth() {
   // ── Sync pull after login ────────────────────────────────────────────────────
   const syncPull = async (userId, token) => {
     try {
-      const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'pull', userId, token })
-      });
+      // Give up after 40 s: a stalled request used to hold the whole app on its
+      // start-up screen and then show "Couldn't sync your data".
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 40000) : null;
+      let res;
+      let result;
+      try {
+        res = await fetch('https://app.clickpickandcook.com/.netlify/functions/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'pull', userId, token }),
+          signal: ctrl ? ctrl.signal : undefined,
+        });
+        if (!res.ok) throw new Error(`Sync pull failed: HTTP ${res.status}`);
+        result = await res.json();
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
       // A non-2xx response used to fall straight through to `result.data`
       // being undefined, silently treated the same as "no data in the
       // cloud" instead of "the pull itself failed" -- route every failure
       // mode through the same catch() below.
-      if (!res.ok) throw new Error(`Sync pull failed: HTTP ${res.status}`);
-      const result = await res.json();
       const d = result.data || {};
       await AsyncStorage.setItem('rv4_saved',            JSON.stringify(d.saved            || []));
       await AsyncStorage.setItem('rv4_books',            JSON.stringify(d.books            || []));

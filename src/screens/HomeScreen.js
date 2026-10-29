@@ -2637,7 +2637,7 @@ export default function HomeScreen({ user, route }) {
     }
   };
 
-  const userName = user?.name?.split(' ')[0] || 'Frank';
+  const userName = (user?.name || data?.userProfile?.userName || '').trim().split(' ')[0] || '';
   const dietary = data?.userProfile?.dietary || data?.profile?.dietary || user?.dietary || t('dietary_fallback_vegan');
 
   const handleAskFernPress = () => {
@@ -2744,7 +2744,7 @@ export default function HomeScreen({ user, route }) {
                 tierBadgeLabel={tierBadgeLabel}
                 onOpenAccount={openAccount}
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
-                greeting={`${getGreeting(t)}, ${userName}`}
+                greeting={userName ? `${getGreeting(t)}, ${userName}` : getGreeting(t)}
                 shopCount={(data.shopping || []).filter((it) => !it.checked).length}
                 onOpenList={() => navigation.navigate('Shopping', { listOnly: Date.now() })}
                 onOpenRecipes={() => navigation.navigate('Recipes')}
@@ -2773,7 +2773,7 @@ export default function HomeScreen({ user, route }) {
               <>
             <View style={styles.header}>
               <View style={styles.headerLeft}>
-                <Text style={styles.greeting}>{getGreeting(t)}, {"\n"}{userName}</Text>
+                <Text style={styles.greeting}>{userName ? <>{getGreeting(t)}, {"\n"}{userName}</> : getGreeting(t)}</Text>
                 <Text style={styles.subheading}>{t('food_life_glance')}</Text>
               </View>
 
