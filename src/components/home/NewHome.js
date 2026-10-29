@@ -225,14 +225,28 @@ export default function NewHome({
           <View style={{ flex: 1 }}>
             <Text style={styles.listTitle}>{t('home_my_recipes')}</Text>
             <Text style={styles.listSub}>{recipeCount > 0 ? t(recipeCount === 1 ? 'home_recipes_count_one' : 'home_recipes_count_other', { count: recipeCount }) : t('home_recipes_count_none')}</Text>
-            {featuredRecipe?.title ? (
-              <TouchableOpacity activeOpacity={0.7} onPress={onOpenFeatured} accessibilityRole="button" style={{ marginTop: 4 }}>
-                <Text style={styles.recipePick} numberOfLines={1}>{`✨ ${t('home_recipes_pick', { title: featuredRecipe.title })}`}</Text>
-              </TouchableOpacity>
-            ) : null}
           </View>
           <Text style={styles.listOpen}>{t('home_open')}</Text>
         </TouchableOpacity>
+
+        {featuredRecipe?.title ? (
+          <TouchableOpacity style={[styles.listRow, { marginTop: 10 }]} activeOpacity={0.85} onPress={onOpenFeatured} accessibilityRole="button">
+            <View style={styles.pickPhoto}>
+              {(() => {
+                const own = (Array.isArray(featuredRecipe._cloudPhotos) && featuredRecipe._cloudPhotos[0]) || featuredRecipe._photoUrl || featuredRecipe.image || null;
+                const fb = <Text style={{ fontSize: 28 }}>{featuredRecipe.emoji || '🍽️'}</Text>;
+                return /^https?:/.test(String(own || ''))
+                  ? <Image source={{ uri: own }} style={styles.pickImg} />
+                  : <MealPlannerImage title={featuredRecipe.title} variant="thumb" fallback={fb} />;
+              })()}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.pickLabel}>{`✨ ${t('home_recipes_pick', { title: '' }).replace(/:?\s*$/, '')}`}</Text>
+              <Text style={styles.listTitle} numberOfLines={2}>{featuredRecipe.title}</Text>
+            </View>
+            <Text style={styles.listOpen}>{t('home_open')}</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <Text style={styles.storeHint}>{t('home_stores_tap_hint')}</Text>
@@ -530,6 +544,9 @@ const styles = StyleSheet.create({
   listOpen: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: BERRY },
   quickRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
   quickBtn: { flex: 1, height: 72, borderRadius: 18, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  pickPhoto: { width: 64, height: 64, borderRadius: 12, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: '#DDE7D5' },
+  pickImg: { width: 64, height: 64 },
+  pickLabel: { fontFamily: 'Jost-SemiBold', fontSize: 12, color: '#4E7A54' },
   recipePick: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#4E7A54' },
   quickText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: FOREST },
   storeHint: { fontFamily: 'Jost-Regular', fontSize: 14, color: MUTE, marginTop: -6, marginBottom: 6, marginLeft: 2 },

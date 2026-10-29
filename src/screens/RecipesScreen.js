@@ -1303,11 +1303,11 @@ export default function RecipesScreen({ user }) {
   // Opened with a recipe to show (e.g. right after an import): open its card once it is in the list.
   const openedRecipeKeyRef = useRef('');
   React.useEffect(() => {
-    const wantId = route?.params?.openRecipeId;
-    if (wantId == null) return;
+    const wantId = route?.params?.openRecipeId ?? route?.params?.openRecipeTitle;
+    if (wantId == null || wantId === '') return;
     const key = `${wantId}:${route?.params?.requestKey || ''}`;
     if (openedRecipeKeyRef.current === key) return;
-    const found = recipes.find((r) => String(r.id) === String(wantId))
+    const found = recipes.find((r) => r.id != null && String(r.id) === String(wantId))
       || recipes.find((r) => route?.params?.openRecipeTitle && r.title === route.params.openRecipeTitle);
     if (found) {
       openedRecipeKeyRef.current = key;
@@ -1319,7 +1319,7 @@ export default function RecipesScreen({ user }) {
     openedRecipeKeyRef.current = key;
     AsyncStorage.getItem('rv4_saved').then((raw) => {
       const list = JSON.parse(raw || '[]');
-      const row = (Array.isArray(list) ? list : []).find((r) => r && String(r.id) === String(wantId));
+      const row = (Array.isArray(list) ? list : []).find((r) => r && ((r.id != null && String(r.id) === String(wantId)) || r.title === route?.params?.openRecipeTitle));
       if (row) openRecipeDetail(normalizeRecipe(row));
     }).catch(() => {});
   }, [route?.params?.openRecipeId, route?.params?.requestKey, recipes]);
