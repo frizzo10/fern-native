@@ -10,6 +10,7 @@ import { dealSaving, fmtMoney } from '../../utils/savings';
 import MealPlannerImage from '../MealPlannerImage';
 import ListAddPreview from '../ListAddPreview';
 import SaveRecipeButton from './SaveRecipeButton';
+import { stripStepNumber } from '../../utils/recipeNormalize';
 import { planShoppingAdditions } from '../../utils/shoppingListSync';
 import useEntitlement from '../../hooks/useEntitlement';
 import { TIERS } from '../../constants/tiers';
@@ -361,7 +362,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                                     <Text style={styles.sub}>{[sp.recipe.time, sp.recipe.servings ? t('trip_side_servings', { n: sp.recipe.servings }) : ''].filter(Boolean).join(' · ')}</Text>
                                     {(sp.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                                     {(sp.recipe.ingredients || []).map((ing, n) => <Text key={`si${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
-                                    {(sp.recipe.directions || []).map((st, n) => <Text key={`sd${n}`} style={styles.previewText}>{`${n + 1}. ${st}`}</Text>)}
+                                    {(sp.recipe.directions || []).map((st, n) => <Text key={`sd${n}`} style={styles.previewText}>{`${n + 1}. ${stripStepNumber(st)}`}</Text>)}
                                     {(() => {
                                       const sk = `side:${idea.id}::${side}`;
                                       const sa = extras[sk] || {};
@@ -393,7 +394,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
                           })}
                           {(pv.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                           {(pv.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
-                          {(pv.recipe.instructions || []).map((s, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${s}`}</Text>)}
+                          {(pv.recipe.instructions || []).map((s, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${stripStepNumber(s)}`}</Text>)}
                           {(() => {
                             const ex = extras[idea.id] || {};
                             const meal = ex.meal || 'Dinner';

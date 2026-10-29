@@ -51,6 +51,12 @@ function splitNumberedSteps(text) {
   return [str.replace(/^\d{1,2}[.)]\s+/, '')];
 }
 
+// Drop a leading "2." / "Step 2:" from a step that already carries its own number,
+// so screens that add their own numbering do not show "2. 2. ...".
+export function stripStepNumber(step) {
+  return String(step == null ? '' : step).replace(/^\s*(?:step\s*)?\d{1,2}\s*[.):]\s+/i, '');
+}
+
 export function toSteps(value) {
   if (Array.isArray(value)) {
     return toList(value).flatMap((item) => (typeof item === 'string' ? splitNumberedSteps(item) : [item]));

@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resolveOptionRecipe } from '../services/fernAgent';
 import { ListAddPreviewBody } from './ListAddPreview';
 import { planShoppingAdditions } from '../utils/shoppingListSync';
+import { stripStepNumber } from '../utils/recipeNormalize';
 
 function dayLabel(offset) {
   const d = new Date();
@@ -78,7 +79,7 @@ function OptionCard({ option, onAction }) {
           {recipe.ingredients.length ? <Text style={styles.sub}>{t('option_ingredients')}</Text> : null}
           {recipe.ingredients.map((x, i) => <Text key={`i${i}`} style={styles.line}>• {x}</Text>)}
           {recipe.instructions.length ? <Text style={styles.sub}>{t('option_steps')}</Text> : null}
-          {recipe.instructions.map((x, i) => <Text key={`s${i}`} style={styles.line}>{i + 1}. {x}</Text>)}
+          {recipe.instructions.map((x, i) => <Text key={`s${i}`} style={styles.line}>{i + 1}. {stripStepNumber(x)}</Text>)}
         </View>
       ) : null}
       <View style={styles.btnRow}>

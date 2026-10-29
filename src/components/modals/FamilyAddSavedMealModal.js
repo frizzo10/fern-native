@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
-import { normalizeRecipe } from '../../utils/recipeNormalize';
+import { normalizeRecipe, stripStepNumber } from '../../utils/recipeNormalize';
 import { fetchRecipeImage } from '../../utils/recipeImage';
 import { useContinuousMic } from '../../hooks/useContinuousMic';
 import { findRecipes } from '../../services/recipeFindService';
@@ -137,7 +137,7 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, dayActivit
                                 ))}
                                 <Text style={styles.previewHead}>{t('meal_preview_steps')}</Text>
                                 {(preview.recipe.methodSteps || []).map((step, i) => (
-                                    <Text key={`s${i}`} style={styles.previewLine}>{`${i + 1}. ${typeof step === 'string' ? step : (step?.text || '')}`}</Text>
+                                    <Text key={`s${i}`} style={styles.previewLine}>{`${i + 1}. ${stripStepNumber(typeof step === 'string' ? step : (step?.text || ''))}`}</Text>
                                 ))}
                             </ScrollView>
                             <View style={styles.previewFooter}>

@@ -8,6 +8,7 @@ import { dealKind, isFoodDeal, isUnreliableCategory } from '../utils/dealKind';
 import MealPlannerImage from './MealPlannerImage';
 import ListAddPreview from './ListAddPreview';
 import SaveRecipeButton from './trip/SaveRecipeButton';
+import { stripStepNumber } from '../utils/recipeNormalize';
 import { planShoppingAdditions } from '../utils/shoppingListSync';
 import { buildRollingWeekDateKeys, parseDateKey } from '../utils/familyDates';
 
@@ -213,7 +214,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                                       <View style={{ marginLeft: 8 }}>
                                         <Text style={styles.sub}>{[sp.recipe.time, sp.recipe.servings ? t('trip_side_servings', { n: sp.recipe.servings }) : ''].filter(Boolean).join(' · ')}</Text>
                                         {(sp.recipe.ingredients || []).map((ing, n) => <Text key={`si${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
-                                        {(sp.recipe.directions || []).map((st, n) => <Text key={`sd${n}`} style={styles.previewText}>{`${n + 1}. ${st}`}</Text>)}
+                                        {(sp.recipe.directions || []).map((st, n) => <Text key={`sd${n}`} style={styles.previewText}>{`${n + 1}. ${stripStepNumber(st)}`}</Text>)}
                                         {(() => {
                                           const sk = `${idea.title}::${side}`;
                                           const sa = sideAdds[sk] || {};
@@ -245,7 +246,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
                               })}
                               {(open.recipe.ingredients || []).length ? <Text style={[styles.previewText, { fontWeight: '700' }]}>{t('trip_preview_ingredients')}</Text> : null}
                               {(open.recipe.ingredients || []).map((ing, n) => <Text key={`i${n}`} style={styles.previewText}>{`• ${ing}`}</Text>)}
-                              {(open.recipe.instructions || []).map((step, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${step}`}</Text>)}
+                              {(open.recipe.instructions || []).map((step, n) => <Text key={n} style={styles.previewText}>{`${n + 1}. ${stripStepNumber(step)}`}</Text>)}
                               {onSaveRecipe ? (
                                 <SaveRecipeButton t={t} books={books} onSave={(o) => onSaveRecipe({ ...open.recipe, emoji: idea.emoji, sides: idea.sides || [] }, o)} />
                               ) : null}
