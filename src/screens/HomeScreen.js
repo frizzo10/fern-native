@@ -8,7 +8,7 @@ import { claimArrival, storeKey, notifyArrival } from '../services/storeGeofenci
 import { dealsForStore, splitCombinedStores, storeAtPosition, chainKey } from '../utils/flyerStore';
 import { fetchStoreDeals, sharedStoresToDeals } from '../services/storeDealsService';
 import { fetchCircularStores } from '../services/circularsService';
-import { loadScanStats, streakWeeks, pagesThisWeek } from '../utils/scanStats';
+import { loadScanStats, streakWeeks, pagesThisWeek, resetStorePages } from '../utils/scanStats';
 import { zipsByStoreName } from '../utils/storeZip';
 import * as Location from 'expo-location';
 import {
@@ -814,7 +814,11 @@ export default function HomeScreen({ user, route }) {
   useEffect(() => {
     let live = true;
     (async () => {
-      try { const st = await loadScanStats(); if (live) setScanStatsState(st); } catch (e) { /* ignore */ }
+      try {
+        // A store cleared earlier (its Clear button is gone once the circular is empty) forgets its scanned pages here.
+        for (const st0 of userStoresLocal) { if (await isStoreCleared(st0?.name)) await resetStorePages(st0?.name); }
+        const st = await loadScanStats(); if (live) setScanStatsState(st);
+      } catch (e) { /* ignore */ }
       if (!user?.token || !userStoresLocal.length) return;
       try {
         const zip = Object.values(zipsByStoreName(userStoresLocal))[0] || '';
