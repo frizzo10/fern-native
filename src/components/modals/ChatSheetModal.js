@@ -216,6 +216,39 @@ export default function ChatSheetModal({
       setInputText('');
       return;
     }
+    // Fast path: a plain "add milk and eggs to my list" is done on the phone at once, with no AI call (and no count against
+    // the daily cap). Dishes, days, meals and anything that matches a saved recipe still go to Fern so she can show cards.
+    if (!silent && agentOn && mode !== 'voice') {
+      const m = text.trim().match(/^(?:(?:please|hey fern|fern)[, ]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?(?:add|put)\s+(.+?)\s+(?:to|on|onto|in|into)\s+(?:my|the|our)\s+(?:shopping\s+|grocery\s+)?list[.!?]*$/i);
+      if (m) {
+        const NOT_PLAIN = /\b(recipes?|menu|dinner|lunch|breakfast|tonight|tomorrow|today|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday|for|with|tacos?|pasta|lasagna|spaghetti|soup|salad|pizza|burgers?|casserole|sandwich(?:es)?|wellington|stew|curry|chili|meatloaf|enchiladas?|stir.?fry|parm|parmesan|alfredo|carbonara|roast|kabobs?|wings|hot ?dogs?|cake|pie|cookies)\b/i;
+        const items = m[1].split(/\s*(?:,|&|\band\b)\s*/i).map((x) => x.replace(/^(?:some|a|an|the)\s+/i, '').trim()).filter(Boolean);
+        if (items.length && items.length <= 8 && items.every((x) => x.split(/\s+/).length <= 4 && !NOT_PLAIN.test(x))) {
+          let savedTitles = [];
+          try { savedTitles = (JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]') || []).map((r) => String(r?.title || '').toLowerCase()); } catch (e) { savedTitles = []; }
+          const clash = items.some((x) => savedTitles.some((tt) => tt && (tt === x.toLowerCase() || tt.includes(x.toLowerCase()) && x.split(/\s+/).length > 1)));
+          if (!clash) {
+            const names = items.map((x) => x.charAt(0).toUpperCase() + x.slice(1));
+            try {
+              const { addedCount, checkedCount } = await addRecipeIngredientsToShoppingList(
+                { id: 'ask-fern', title: 'Ask Fern', ingredients: names },
+                shoppingRef.current
+              );
+              if (addedCount > 0 || checkedCount > 0) {
+                await pushAllFromStorage();
+                await pull();
+                emitAgentChange();
+                setInputText('');
+                if (compact) { Keyboard.dismiss(); startPeek(); }
+                onShowRef.current?.({ screen: 'Shopping' });
+                setMessages((prev) => [...prev, { role: 'user', text: text.trim() }, { role: 'fern', text: t('chat_shopping_list_confirm', { items: names.join(', ') }) }]);
+                return;
+              }
+            } catch (e) { /* fall through to the normal AI path */ }
+          }
+        }
+      }
+    }
     const chatExempt = CHAT_LIMIT_EXEMPT.includes(String(user?.email || '').toLowerCase());
     if (!silent && LAUNCH_ALL_FREE) {
       if (!chatExempt && (await freeChatUsedToday()) >= LAUNCH_CHAT_PER_DAY) {
