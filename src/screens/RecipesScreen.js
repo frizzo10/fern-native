@@ -1302,11 +1302,14 @@ export default function RecipesScreen({ user }) {
 
   // Opened with a recipe to show (e.g. right after an import): open its card once it is in the list.
   const openedRecipeKeyRef = useRef('');
+  const [openingRecipe, setOpeningRecipe] = useState(false);
   React.useEffect(() => {
     const wantId = route?.params?.openRecipeId ?? route?.params?.openRecipeTitle;
     if (wantId == null || wantId === '') return;
     const key = `${wantId}:${route?.params?.requestKey || ''}`;
     if (openedRecipeKeyRef.current === key) return;
+    setOpeningRecipe(true);
+    setTimeout(() => setOpeningRecipe(false), 1500);
     const found = recipes.find((r) => r.id != null && String(r.id) === String(wantId))
       || recipes.find((r) => route?.params?.openRecipeTitle && r.title === route.params.openRecipeTitle);
     if (found) {
@@ -1859,6 +1862,7 @@ export default function RecipesScreen({ user }) {
           url,
         })}
       />
+      {openingRecipe ? <View pointerEvents="auto" style={{ ...StyleSheet.absoluteFillObject, backgroundColor: '#F7FAF3' }} /> : null}
     </View>
   );
 }
