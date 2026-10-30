@@ -221,32 +221,30 @@ export default function NewHome({
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.listRow, { marginTop: 10 }]} activeOpacity={0.85} onPress={onOpenRecipes} accessibilityRole="button">
-          <Ionicons name="book-outline" size={26} color={FOREST} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.listTitle}>{t('home_my_recipes')}</Text>
-            <Text style={styles.listSub}>{recipeCount > 0 ? t(recipeCount === 1 ? 'home_recipes_count_one' : 'home_recipes_count_other', { count: recipeCount }) : t('home_recipes_count_none')}</Text>
-          </View>
-          <Text style={styles.listOpen}>{t('home_open')}</Text>
-        </TouchableOpacity>
-
-        {featuredRecipe?.title ? (
-          <TouchableOpacity style={[styles.listRow, { marginTop: 10 }]} activeOpacity={0.85} onPress={onOpenFeatured} accessibilityRole="button">
+          {featuredRecipe?.title ? (
             <View style={styles.pickPhoto}>
               {(() => {
                 const own = (Array.isArray(featuredRecipe._cloudPhotos) && featuredRecipe._cloudPhotos[0]) || featuredRecipe._photoUrl || featuredRecipe.image || null;
-                const fb = <Text style={{ fontSize: 28 }}>{featuredRecipe.emoji || '🍽️'}</Text>;
+                const fb = <Ionicons name="book-outline" size={26} color={FOREST} />;
                 return /^https?:/.test(String(own || ''))
                   ? <Image source={{ uri: own }} style={styles.pickImg} />
                   : <MealPlannerImage title={featuredRecipe.title} variant="thumb" fallback={fb} />;
               })()}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.pickLabel}>{`✨ ${t('home_recipes_pick', { title: '' }).replace(/:?\s*$/, '')}`}</Text>
-              <Text style={styles.listTitle} numberOfLines={2}>{featuredRecipe.title}</Text>
-            </View>
-            <Text style={styles.listOpen}>{t('home_open')}</Text>
-          </TouchableOpacity>
-        ) : null}
+          ) : (
+            <Ionicons name="book-outline" size={26} color={FOREST} />
+          )}
+          <View style={{ flex: 1 }}>
+            <Text style={styles.listTitle}>{t('home_my_recipes')}</Text>
+            <Text style={styles.listSub}>{recipeCount > 0 ? t(recipeCount === 1 ? 'home_recipes_count_one' : 'home_recipes_count_other', { count: recipeCount }) : t('home_recipes_count_none')}</Text>
+            {featuredRecipe?.title ? (
+              <TouchableOpacity activeOpacity={0.7} onPress={onOpenFeatured} accessibilityRole="button" style={{ marginTop: 4 }}>
+                <Text style={styles.recipePick} numberOfLines={2}>{`✨ ${t('home_recipes_pick', { title: featuredRecipe.title })}`}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <Text style={styles.listOpen}>{t('home_open')}</Text>
+        </TouchableOpacity>
 
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <Text style={styles.storeHint}>{t('home_stores_tap_hint')}</Text>
