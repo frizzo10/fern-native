@@ -197,7 +197,7 @@ export default function RecipesScreen({ user }) {
   const { t, locale } = useLanguage();
   const route = useRoute();
   const { maybeAutoStart } = useTour();
-  const { data, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
+  const { data, loading: syncLoading, pull, pushAllFromStorage, pushChangedFromStorage } = useSync(user);
 
   useEffect(() => {
     maybeAutoStart('recipes');
@@ -1512,7 +1512,7 @@ export default function RecipesScreen({ user }) {
                 </TouchableOpacity>
               ))}
             </View>
-          ) : (
+          ) : (recipes.length === 0 && syncLoading) ? null : (
             <View style={styles.emptyState}>
               <Text style={styles.emptyTitle}>{t('no_saved_recipes_title')}</Text>
               <Text style={styles.emptySub}>{t('no_saved_recipes_sub')}</Text>
