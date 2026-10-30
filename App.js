@@ -42,6 +42,7 @@ import { useLanguage } from './src/hooks/useLanguage';
 import ChatSheetModal from './src/components/modals/ChatSheetModal';
 import { subscribeOpenChat } from './src/services/chatBus';
 import { subscribeOpenHelp, requestToursScroll } from './src/services/helpBus';
+import { subscribeShowList } from './src/services/listBus';
 import { requestOpenTool } from './src/services/toolBus';
 import AccountScreen from './src/screens/AccountScreen';
 import HelpModal from './src/components/modals/HelpModal';
@@ -305,6 +306,10 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   // Lets screens (the new Home's "Ask Fern" bar) open this global chat sheet.
   useEffect(() => subscribeOpenChat(() => setIsChatOpen(true)), []);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  useEffect(() => subscribeShowList(() => {
+    setIsChatOpen(false);
+    setTimeout(() => navigationRef.current?.navigate('Shopping', { listOnly: Date.now() }), 600);
+  }), []);
   useEffect(() => subscribeOpenHelp(() => { requestToursScroll(); openAccountModal(); }), [openAccountModal]);
   const [showArrivalUpsell, setShowArrivalUpsell] = useState(false);
   const navigationRef = React.useRef(null);

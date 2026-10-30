@@ -35,6 +35,7 @@ import UpgradeGateModal from './UpgradeGateModal';
 import { ListAddPreviewBody } from './ListAddPreview';
 import { planShoppingAdditions, setPendingSkip } from '../utils/shoppingListSync';
 import AlexaHint from './AlexaHint';
+import { showShoppingList } from '../services/listBus';
 import { copyAlexaPhrase } from '../services/alexaPromo';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
@@ -243,6 +244,9 @@ export default function RecipeDetailModal({
     try {
       setPendingSkip(skip);
       await Promise.resolve(onAddToList?.());
+      // No "added" popup: close the recipe and take the person to their list.
+      onClose?.();
+      showShoppingList();
     } finally {
       setPendingSkip(null);
       setListBusy(false);

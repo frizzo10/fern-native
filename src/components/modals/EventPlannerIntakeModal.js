@@ -489,7 +489,7 @@ export default function EventPlannerIntakeModal({ visible, onClose, user, locale
       await pushAllFromStorage();
       await pull();
 
-      Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
+      // (no success popup: the viewer closes and the app opens the list)
     } catch (e) {
       console.warn('[EventPlanner] Add to list failed:', e);
       Alert.alert(t('error'), t('save_error_desc'));

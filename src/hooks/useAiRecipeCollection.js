@@ -289,7 +289,7 @@ export function useAiRecipeCollection({ source, data, pushAllFromStorage, pull, 
             await pushAllFromStorage();
             await pull();
 
-            Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
+            // (no success popup: the viewer closes and the app opens the list)
         } catch (e) {
             console.log(`[${source}] add to shopping list failed`, e?.message || e);
             Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));

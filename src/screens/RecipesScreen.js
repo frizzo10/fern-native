@@ -558,7 +558,7 @@ export default function RecipesScreen({ user }) {
       await pushAllFromStorage();
       await pull();
 
-      Alert.alert(t('added_title'), t('shopping_list_updated_desc', { added: addedCount, checked: checkedCount }));
+      // (no success popup: the viewer closes and the app opens the list)
     } catch (e) {
       console.warn('Add to shopping list failed:', e);
       Alert.alert(t('could_not_add_items_title'), t('save_error_desc'));

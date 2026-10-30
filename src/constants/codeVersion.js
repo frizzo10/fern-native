@@ -1,3 +1,1 @@
-// Shown on the Account screen so we can tell which code a phone is running.
-// Bump this label with every change that ships (date + letter + what changed).
-export const CODE_VERSION = '10-29 m: plain page while a recipe opens';
+export const CODE_VERSION = '10-29 n: degree sign fix, recipe List goes to list';

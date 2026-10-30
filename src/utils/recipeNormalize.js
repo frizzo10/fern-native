@@ -57,6 +57,12 @@ export function stripStepNumber(step) {
   return String(step == null ? '' : step).replace(/^\s*(?:step\s*)?\d{1,2}\s*[.):]\s+/i, '');
 }
 
+// Saved text sometimes lost its degree sign and holds U+FFFD instead ("375 + ? + F"). Repair at display time.
+export function fixDegrees(text) {
+  if (typeof text !== 'string' || text.indexOf('\uFFFD') === -1) return text;
+  return text.replace(/(\d)\s*\uFFFD+\s*([FC])\b/g, '$1\u00B0$2').replace(/\uFFFD+/g, '');
+}
+
 export function toSteps(value) {
   if (Array.isArray(value)) {
     return toList(value).flatMap((item) => (typeof item === 'string' ? splitNumberedSteps(item) : [item]));
@@ -165,8 +171,8 @@ export function normalizeRecipe(item, index) {
     photos,
     description,
     servings,
-    ingredients: ingredients.length ? ingredients : ['No ingredients listed yet'],
-    methodSteps: methodSteps.length ? methodSteps : ['No method steps listed yet'],
+    ingredients: ingredients.length ? ingredients.map(fixDegrees) : ['No ingredients listed yet'],
+    methodSteps: methodSteps.length ? methodSteps.map(fixDegrees) : ['No method steps listed yet'],
     note,
     bookIds,
   };
