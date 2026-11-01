@@ -5,8 +5,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView
+  KeyboardAvoidingView, Platform, ActivityIndicator, Alert, ScrollView, Linking
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useLanguage from '../hooks/useLanguage';
@@ -38,6 +39,27 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
   const [newPassword, setNewPassword] = useState('');
   const [resetStatus, setResetStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  // A synchronous guard: a fast double tap would otherwise send two requests before `loading` re-renders.
+  const busyRef = React.useRef(false);
+  const begin = () => { if (busyRef.current) return false; busyRef.current = true; setLoading(true); return true; };
+  const end = () => { busyRef.current = false; setLoading(false); };
+  const cleanEmail = () => String(email || '').trim().toLowerCase();
+  const validEmail = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+  // Server and network errors in plain words (and translated), never raw technical text.
+  const friendly = (e) => {
+    const m = String(e?.message || '');
+    if (m === 'slow_connection' || /network request failed|timed? ?out|abort/i.test(m)) return t('auth_err_slow');
+    if (m === 'account_exists' || /already registered|already exists/i.test(m)) return t('auth_err_exists');
+    if (m === 'check_email' || /confirm/i.test(m)) return t('auth_err_check_email');
+    if (/invalid login|invalid credentials|invalid grant|login failed/i.test(m)) return t('auth_err_wrong');
+    if (/password/i.test(m)) return t('password_too_short');
+    if (/email/i.test(m)) return t('enter_valid_email');
+    return t('auth_err_generic');
+  };
+  // A fresh install (no account used on this phone yet) opens on Create account.
+  useEffect(() => {
+    AsyncStorage.getItem('rv4_auth').then((v) => { if (!v) setMode((m) => (m === 'signin' ? 'signup' : m)); }).catch(() => {});
+  }, []);
   const [showApple, setShowApple] = useState(false);
   const showGoogle = !!(googleAvailable && googleAvailable());
   useEffect(() => {
@@ -47,78 +69,89 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
   }, [appleAvailable]);
 
   async function handleSocial(fn) {
-    if (!fn || loading) return;
-    setLoading(true);
+    if (!fn || !begin()) return;
     try {
       const user = await fn();
       if (user) onAuthSuccess(user);
     } catch (e) {
-      Alert.alert(t('auth_social_failed'), e.message);
+      Alert.alert(t('auth_social_failed'), friendly(e));
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
   async function handleSignIn() {
     console.log('🔵 handleSignIn called');
-    if (!email || !password) return Alert.alert(t('enter_email_password'));
-    console.log('📧 Email:', email, 'Password length:', password.length);
-    setLoading(true);
+    const em = cleanEmail();
+    if (!em || !password) return Alert.alert(t('enter_email_password'));
+    if (!validEmail(em)) return Alert.alert(t('enter_valid_email'));
+    if (!begin()) return;
     try {
-      console.log('🔄 Calling signInWithSupabase...');
-      const user = await signInWithSupabase(email, password);
+      const user = await signInWithSupabase(em, password);
       console.log('✅ Sign in successful, user:', user);
       console.log('🔄 Calling onAuthSuccess callback...');
       onAuthSuccess(user);
       console.log('✅ onAuthSuccess callback completed');
     } catch (e) {
       console.error('❌ Sign in error:', e);
-      Alert.alert(t('sign_in_failed'), e.message);
+      Alert.alert(t('sign_in_failed'), friendly(e));
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
   async function handleSignUp() {
-    if (!email || !password || !name) return Alert.alert(t('fill_all_fields'));
-    setLoading(true);
+    const em = cleanEmail();
+    const nm = String(name || '').trim().slice(0, 40);
+    if (!em || !password || !nm) return Alert.alert(t('fill_all_fields'));
+    if (!validEmail(em)) return Alert.alert(t('enter_valid_email'));
+    if (password.length < 6) return Alert.alert(t('password_too_short'));
+    if (!begin()) return;
     try {
-      const user = await signUpWithSupabase(email, password, name);
+      const user = await signUpWithSupabase(em, password, nm);
       onAuthSuccess(user);
     } catch (e) {
-      Alert.alert(t('sign_up_failed'), e.message);
+      const m = String(e?.message || '');
+      if (m === 'account_exists' || /already registered|already exists/i.test(m)) {
+        Alert.alert(t('sign_up_failed'), t('auth_err_exists'), [{ text: t('sign_in'), onPress: () => setMode('signin') }]);
+      } else {
+        Alert.alert(t('sign_up_failed'), friendly(e));
+      }
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
   async function handleForgot() {
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const em = cleanEmail();
+    if (!validEmail(em)) {
       return Alert.alert(t('enter_valid_email'));
     }
-    setLoading(true);
+    if (!begin()) return;
     try {
-      await forgotPassword(email);
+      await forgotPassword(em);
       setResetStatus(t('check_email_for_code'));
       setMode('reset');
     } catch (e) {
-      Alert.alert(t('forgot_password_failed'), e.message);
+      Alert.alert(t('forgot_password_failed'), friendly(e));
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
   async function handleReset() {
-    if (!code || !newPassword) return Alert.alert(t('enter_code_new_password'));
+    const cd = String(code || '').replace(/\s+/g, '');
+    if (!cd || !newPassword) return Alert.alert(t('enter_code_new_password'));
+    if (!/^\d{4,10}$/.test(cd)) return Alert.alert(t('enter_code_new_password'));
     if (newPassword.length < 6) return Alert.alert(t('password_too_short'));
-    setLoading(true);
+    if (!begin()) return;
     try {
-      const user = await resetPassword({ email, code, newPassword });
+      const user = await resetPassword({ email: cleanEmail(), code: cd, newPassword });
       onAuthSuccess(user);
     } catch (e) {
-      Alert.alert(t('reset_password_failed'), e.message);
+      Alert.alert(t('reset_password_failed'), friendly(e));
     } finally {
-      setLoading(false);
+      end();
     }
   }
 
@@ -292,6 +325,12 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
           </View>
 
           <Text style={s.footer}>{t('always_free')}</Text>
+          <Text style={s.legal}>
+            {t('auth_legal_pre')}{' '}
+            <Text style={s.legalLink} onPress={() => Linking.openURL('https://app.clickpickandcook.com/terms.html')}>{t('auth_legal_terms')}</Text>
+            {' '}{t('auth_legal_and')}{' '}
+            <Text style={s.legalLink} onPress={() => Linking.openURL('https://app.clickpickandcook.com/privacy.html')}>{t('auth_legal_privacy')}</Text>.
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -305,7 +344,7 @@ const s = StyleSheet.create({
   scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   header: { alignItems: 'center', marginBottom: 32 },
   logo: { fontSize: 42, color: '#FDFAF6', fontFamily: 'PlayfairDisplay-Bold', letterSpacing: -1 },
-  tagline: { fontSize: 9, color: C.sage, letterSpacing: 1.5, marginTop: 4, fontFamily: 'Jost-Regular' },
+  tagline: { fontSize: 12, color: C.sage, letterSpacing: 1.5, marginTop: 4, fontFamily: 'Jost-Regular' },
   card: { backgroundColor: C.parch, borderRadius: 20, padding: 20 },
   tabs: { flexDirection: 'row', backgroundColor: C.border, borderRadius: 10, padding: 3, marginBottom: 20 },
   tab: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
@@ -336,4 +375,6 @@ const s = StyleSheet.create({
   link: { color: C.forest, fontSize: 13, fontFamily: 'Jost-SemiBold', textDecorationLine: 'underline' },
   helperText: { color: C.brown, fontSize: 13, fontFamily: 'Jost-Regular', lineHeight: 18, marginBottom: 12, textAlign: 'center' },
   footer: { textAlign: 'center', color: C.sage, fontSize: 12, marginTop: 24, fontFamily: 'Jost-Regular' },
+  legal: { textAlign: 'center', color: C.sage, fontSize: 12, marginTop: 10, lineHeight: 18, fontFamily: 'Jost-Regular' },
+  legalLink: { textDecorationLine: 'underline', fontWeight: '700' },
 });

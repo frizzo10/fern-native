@@ -154,7 +154,7 @@ export default function SaleItemsList({ deals, isOnList, onAdd, t, token, locale
             // "Buy 1 Get 2 Free" keeps its own words; any other buy-one deal reads BOGO; items with no price but a deal line show that line.
             const dealText = `${deal.salePrice || ''} ${deal.savings || ''}`;
             const buyGet = dealText.match(/buy\s*(?:1|one)\s*,?\s*get\s*(?:1|one|2|two)\s*free/i);
-            const price = buyGet && /get\s*(?:2|two)/i.test(buyGet[0]) ? 'Buy 1 Get 2 Free' : (deal.isBogo || buyGet ? 'BOGO' : deal.salePrice);
+            const price = buyGet && /get\s*(?:2|two)/i.test(buyGet[0]) ? t('deal_buy1get2') : (deal.isBogo || buyGet ? t('deal_bogo') : deal.salePrice);
             const storeShown = String(deal.store || '').replace(/\b([a-z])/g, (m) => m.toUpperCase());
             const isOpen = open?.key === key;
             return (

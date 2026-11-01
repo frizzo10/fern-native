@@ -4,6 +4,7 @@ import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { clearGrant } from '../services/grantStore';
+import { UNSENT_KEY, resetUnsentChanges } from './useSync';
 
 // Native modules for Apple / Google sign-in. Guarded: an OTA that reaches an app binary built before
 // these modules were added must not crash, it just hides the buttons.
@@ -23,6 +24,42 @@ const supabase = createClient(
   { auth: { storage: AsyncStorage } }
 );
 
+// A fetch that gives up after `ms` (a stalled request on a slow connection used to hang sign-in forever).
+async function fetchWithTimeout(url, opts, ms) {
+  const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+  try {
+    return await fetch(url, { ...opts, ...(ctrl ? { signal: ctrl.signal } : {}) });
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error('slow_connection');
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// After sign-up: send the name typed on the sign-up screen to the server (a full push from what syncPull
+// just wrote, because a sync push replaces every field), so the next pull does not wipe it.
+async function pushProfileName(authUser, profile) {
+  try {
+    const get = async (k, d) => { try { return JSON.parse((await AsyncStorage.getItem(k)) || 'null') ?? d; } catch (e) { return d; } };
+    const coupons = await get('rv4_wallet_coupons', []);
+    const data = {
+      saved: await get('rv4_saved', []), books: await get('rv4_books', []), meal_plan: await get('rv4_meal_plan', {}),
+      shopping: await get('rv4_master_shop', []), remi_explicit: profile, followed_bloggers: await get('cpc_followed_bloggers', []),
+      user_stores: await get('cpc_user_stores', []), coupons, wallet_coupons: coupons, activities: await get('rv4_activities', []),
+    };
+    await fetchWithTimeout('https://app.clickpickandcook.com/.netlify/functions/sync', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'push', userId: authUser.id, token: authUser.token, data }),
+    }, 20000);
+  } catch (e) { /* best effort; the name is still on the phone */ }
+}
+
+async function readJson(res) {
+  try { return await res.json(); } catch (e) { return {}; }
+}
+
 export function useAuth() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,12 +75,12 @@ export function useAuth() {
     console.log('🔁🔁🔁  refreshToken:', refreshToken);
     console.log('🔁🔁🔁 ============================================\n');
     try {
-      const res = await fetch(AUTH_URL, {
+      const res = await fetchWithTimeout(AUTH_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'refresh', refreshToken }),
-      });
-      const data = await res.json();
+      }, 15000);
+      const data = await readJson(res);
       console.log('🔁 Refresh response status:', res.status);
       console.log('🔁 Refresh response data:', JSON.stringify(data));
       if (!data.success || !data.token) {
@@ -130,6 +167,13 @@ export function useAuth() {
       // cloud" instead of "the pull itself failed" -- route every failure
       // mode through the same catch() below.
       const d = result.data || {};
+      // Changes made on this phone that never reached the server (slow or no connection) are kept, not overwritten
+      // by the older server copy; the next useSync pull uploads them first.
+      if ((await AsyncStorage.getItem(UNSENT_KEY)) === '1') {
+        let lastId = null;
+        try { lastId = JSON.parse((await AsyncStorage.getItem('rv4_auth')) || 'null')?.id || null; } catch (e) { lastId = null; }
+        if (lastId === userId) { setSyncError(false); return; }
+      }
       await AsyncStorage.setItem('rv4_saved',            JSON.stringify(d.saved            || []));
       await AsyncStorage.setItem('rv4_books',            JSON.stringify(d.books            || []));
       await AsyncStorage.setItem('rv4_meal_plan',        JSON.stringify(d.meal_plan        || {}));
@@ -164,14 +208,14 @@ export function useAuth() {
     console.log('🔷 signInWithSupabase (REST API) called with email:', email);
     try {
       console.log('🔷 Calling REST API endpoint:', AUTH_URL);
-      const res = await fetch(AUTH_URL, {
+      const res = await fetchWithTimeout(AUTH_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'login', email, password }),
-      });
+      }, 20000);
       console.log('🔷 REST API response status:', res.status);
 
-      const data = await res.json();
+      const data = await readJson(res);
       console.log('🔷 REST API response data:', data);
 
       // Login failed — attempt refresh token fallback before surfacing the error
@@ -179,7 +223,8 @@ export function useAuth() {
         console.log('🔷 Login did not return a user (error:', data.error, ') — attempting refresh token fallback...');
         const stored = await AsyncStorage.getItem('rv4_auth').catch(() => null);
         const storedAuth = stored ? JSON.parse(stored) : null;
-        if (storedAuth?.refreshToken) {
+        // Only for the same email: a wrong password must never sign someone into the account last used on this phone.
+        if (storedAuth?.refreshToken && String(storedAuth.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase()) {
           const refreshed = await tryRefreshToken(storedAuth.refreshToken);
           if (refreshed) {
             console.log('🔷✅ Refresh token fallback succeeded — restoring session');
@@ -248,11 +293,12 @@ export function useAuth() {
       const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) throw error;
       
-      const authUser = data.user;
       const session = data.session;
-      
-      // Save name to profile
-      await AsyncStorage.setItem('remi_explicit', JSON.stringify({ userName: name }));
+      // An email that already has an account comes back with no identities and no session.
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) throw new Error('account_exists');
+      // No session = the account needs its email confirmed first; don't sign in without a token.
+      if (!session || !data.user) throw new Error('check_email');
+      const authUser = { ...data.user, token: session.access_token, refreshToken: session.refresh_token };
       
       // Save auth tokens
       await AsyncStorage.setItem('rv4_auth', JSON.stringify({
@@ -262,8 +308,15 @@ export function useAuth() {
         refreshToken: session?.refresh_token
       }));
       
-      // Sync data if session exists
-      if (session) await syncPull(authUser.id, session.access_token);
+      await syncPull(authUser.id, session.access_token);
+      // The name is written after the pull, which would otherwise overwrite it with the empty server profile.
+      try {
+        const prof = JSON.parse((await AsyncStorage.getItem('remi_explicit')) || '{}') || {};
+        if (name && !prof.userName) {
+          await AsyncStorage.setItem('remi_explicit', JSON.stringify({ ...prof, userName: name }));
+          pushProfileName(authUser, { ...prof, userName: name });
+        }
+      } catch (e) { /* the name is optional */ }
       
       // Save to secure storage and update state
       await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(authUser));
@@ -413,10 +466,29 @@ export function useAuth() {
     return authUser;
   };
 
+  // ── Delete account ───────────────────────────────────────────────────────────
+  const deleteAccount = async () => {
+    if (!user?.token) throw new Error('Not signed in');
+    const res = await fetchWithTimeout(AUTH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'delete_account', token: user.token }),
+    }, 30000);
+    const data = await readJson(res);
+    if (!res.ok || !data.success) throw new Error(data.error || `delete failed (${res.status})`);
+    await AsyncStorage.clear().catch(() => {});
+    await SecureStore.deleteItemAsync(AUTH_KEY).catch(() => {});
+    try { await supabase.auth.signOut(); } catch (e) { /* already gone */ }
+    clearGrant();
+    setUser(null);
+  };
+
   // ── Sign out ─────────────────────────────────────────────────────────────────
   const signOut = async () => {
     await supabase.auth.signOut();
     await SecureStore.deleteItemAsync(AUTH_KEY);
+    await AsyncStorage.removeItem('rv4_auth').catch(() => {});
+    await resetUnsentChanges();
     clearGrant(); // an admin-granted plan belongs to the account, not the device
     setUser(null);
   };
@@ -426,6 +498,7 @@ export function useAuth() {
     loading, 
     signInWithSupabase, 
     signUpWithSupabase, 
+    deleteAccount,
     forgotPassword,
     resetPassword,
     signInWithApple,

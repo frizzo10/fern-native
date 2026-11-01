@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { TOURS, TOUR_LIST } from '../constants/tourContent';
 
@@ -27,11 +27,27 @@ export function TourProvider({ children }) {
     }
   }, []);
 
+  // While the first-run setup screen (location / notifications) is up, an automatic tour waits and starts after it,
+  // so two overlays never open at once (iOS drops one of them). App.js holds it during that screen.
+  const holdRef = useRef(true);
+  const pendingRef = useRef(null);
   const maybeAutoStart = useCallback(async (key) => {
     const storageKey = STORAGE_KEY_BY_TOUR[key];
     if (!storageKey || !TOURS[key]) return;
     const seen = await AsyncStorage.getItem(storageKey);
+    if (!seen && holdRef.current) { pendingRef.current = key; return; }
     if (!seen) {
+      setStepIndex(0);
+      setStartedManually(false);
+      setActiveTourKey(key);
+    }
+  }, []);
+
+  const setAutoStartHold = useCallback((on) => {
+    holdRef.current = !!on;
+    if (!on && pendingRef.current) {
+      const key = pendingRef.current;
+      pendingRef.current = null;
       setStepIndex(0);
       setStartedManually(false);
       setActiveTourKey(key);
@@ -52,8 +68,9 @@ export function TourProvider({ children }) {
     storageKey: activeTourKey ? STORAGE_KEY_BY_TOUR[activeTourKey] : null,
     startTour,
     maybeAutoStart,
+    setAutoStartHold,
     closeTour,
-  }), [activeTourKey, startedManually, stepIndex, startTour, maybeAutoStart, closeTour]);
+  }), [activeTourKey, startedManually, stepIndex, startTour, maybeAutoStart, setAutoStartHold, closeTour]);
 
   return (
     <TourContext.Provider value={value}>

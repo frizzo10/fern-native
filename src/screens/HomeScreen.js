@@ -83,7 +83,7 @@ import ScanBoardModal from '../components/modals/ScanBoardModal';
 import PersonalShopperModal from '../components/modals/PersonalShopperModal';
 import { onePerSlot } from '../utils/onePerSlot';
 import { buildWeeklyReviewData } from '../utils/buildWeeklyReviewData';
-import { buildRollingWeekDateKeys, daysBetween, dateToKey, formatDayLabel, normalizeSlot } from '../utils/familyDates';
+import { buildRollingWeekDateKeys, daysBetween, dateToKey, formatDayLabel, normalizeSlot, parseDateKey } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
 
 const WEEKLY_REVIEW_LAST_SHOWN_KEY = 'fern_weekly_review_last_shown';
@@ -882,6 +882,7 @@ export default function HomeScreen({ user, route }) {
     setFoundStoreCandidate(null);
     setIsFindingStore(false);
     setIsSavingStore(false);
+    findReqRef.current += 1; // a lookup still running from before is ignored
   };
 
   const openAddStoreModal = () => {
@@ -894,30 +895,37 @@ export default function HomeScreen({ user, route }) {
     resetAddStoreForm();
   };
 
-  const handleFindStore = async () => {
+  // Store name and ZIP are checked on the phone: junk never reaches the lookup or the saved list.
+  const cleanStoreName = (v) => String(v || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const findReqRef = useRef(0);
+  const savingStoreRef = useRef(false);
+
+  // Looks the store up and returns the found store (or null); also shows it in the sheet.
+  const runStoreLookup = async () => {
     Keyboard.dismiss();
-    const trimmedName = storeNameInput.trim();
+    const trimmedName = cleanStoreName(storeNameInput);
     const trimmedZip = zipCodeInput.trim();
 
     if (!trimmedName) {
       Alert.alert(t('dish_required'), t('store_name_req'));
-      return;
+      return null;
     }
-    if (!trimmedZip) {
+    if (!/^\d{5}$/.test(trimmedZip)) {
       Alert.alert(t('dish_required'), t('zip_code_req'));
-      return;
+      return null;
     }
 
+    const reqId = ++findReqRef.current;
     setIsFindingStore(true);
     setFoundStoreCandidate(null);
 
     try {
       const location = await findStoreLocationByZip(trimmedName, trimmedZip, user?.token);
-      console.log('[stores-sync] finding store', { storeName: trimmedName, zipCode: trimmedZip, found: Boolean(location) });
+      if (reqId !== findReqRef.current) return null; // the sheet was closed or a newer lookup started
 
       if (!location) {
         Alert.alert(t('not_found'), t('no_loc_found'));
-        return;
+        return null;
       }
 
       const candidate = {
@@ -927,37 +935,30 @@ export default function HomeScreen({ user, route }) {
         lng: location.lng,
         source: location.source,
       };
-
-      console.log('[stores-sync] find store result', candidate);
       setFoundStoreCandidate(candidate);
+      return candidate;
     } catch (e) {
+      if (reqId !== findReqRef.current) return null;
       console.log('[stores-sync] failed to find store', e?.message || e);
       Alert.alert(t('lookup_failed'), t('lookup_failed_desc'));
+      return null;
     } finally {
-      setIsFindingStore(false);
+      if (reqId === findReqRef.current) setIsFindingStore(false);
     }
   };
 
-  const handleAddStore = async () => {
-    const trimmedName = storeNameInput.trim();
-    const trimmedZip = zipCodeInput.trim();
+  const handleFindStore = () => { runStoreLookup(); };
 
-    if (!trimmedName) {
-      Alert.alert(t('dish_required'), t('store_name_req'));
-      return;
-    }
-    if (!trimmedZip) {
-      Alert.alert(t('dish_required'), t('zip_code_req'));
-      return;
-    }
-    if (!foundStoreCandidate) {
-      Alert.alert(t('find_req'), t('find_req_desc'));
-      return;
-    }
+  const handleAddStore = async () => {
+    if (savingStoreRef.current || isFindingStore) return;
+    // "Add this store" before "Find" just finds it first.
+    const candidate = foundStoreCandidate || (await runStoreLookup());
+    if (!candidate) return;
+    const storeName = candidate.name;
 
     const exists = userStoresLocal.some((s) => {
-      const sameName = String(s?.name || '').trim().toLowerCase() === trimmedName.toLowerCase();
-      const sameAddress = String(s?.address || '').trim().toLowerCase() === String(foundStoreCandidate.address || '').trim().toLowerCase();
+      const sameName = String(s?.name || '').trim().toLowerCase() === storeName.toLowerCase();
+      const sameAddress = String(s?.address || '').trim().toLowerCase() === String(candidate.address || '').trim().toLowerCase();
       return sameName && sameAddress;
     });
     if (exists) {
@@ -967,44 +968,26 @@ export default function HomeScreen({ user, route }) {
 
     const nextStores = [
       ...userStoresLocal,
-      {
-        lat: foundStoreCandidate.lat,
-        lng: foundStoreCandidate.lng,
-        name: trimmedName,
-        address: foundStoreCandidate.address,
-      },
+      { lat: candidate.lat, lng: candidate.lng, name: storeName, address: candidate.address },
     ];
 
+    savingStoreRef.current = true;
     setIsSavingStore(true);
     setUserStoresLocal(nextStores);
 
     try {
       await AsyncStorage.setItem('cpc_user_stores', JSON.stringify(nextStores));
-
       const cache = JSON.parse(await AsyncStorage.getItem('fern_sync_cache') || '{}');
-      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({
-        ...cache,
-        userStores: nextStores,
-      }));
-
-      console.log('[stores-sync] adding store', {
-        name: trimmedName,
-        zipCode: trimmedZip,
-        address: foundStoreCandidate.address,
-        lat: foundStoreCandidate.lat,
-        lng: foundStoreCandidate.lng,
-        total: nextStores.length,
-      });
-
-      await pushAllFromStorage();
-      await pull();
-      console.log('[stores-sync] backend sync complete after add');
-
+      await AsyncStorage.setItem('fern_sync_cache', JSON.stringify({ ...cache, userStores: nextStores }));
+      // Saved on the phone: close the sheet now and send it to the server in the background
+      // (a slow connection used to keep "Saving…" up for up to a minute).
       closeAddStoreModal();
+      pushAllFromStorage().then(() => pull()).catch((e) => console.log('[stores-sync] background sync failed', e?.message || e));
     } catch (e) {
-      console.log('[stores-sync] failed to add/sync store', e?.message || e);
+      console.log('[stores-sync] failed to add store', e?.message || e);
       Alert.alert(t('sync_error'), t('sync_error_desc'));
     } finally {
+      savingStoreRef.current = false;
       setIsSavingStore(false);
     }
   };
@@ -1637,6 +1620,7 @@ export default function HomeScreen({ user, route }) {
 
   // Tap a store: if its circular is already on file (scanned on this phone, or by any other Fern shopper) go straight
   // to it on Shopping; only ask for a photo when nobody has scanned it this week.
+  const lookRunRef = useRef(0);
   const chooseFlyerStore = async (store) => {
     const shortName = String(store?.name || '').split(/ - |#/)[0].trim();
     const goToCircular = () => { setFlyerScan(null); navigation.navigate('Shopping', { guide: Date.now(), guideStore: shortName }); };
@@ -1646,12 +1630,14 @@ export default function HomeScreen({ user, route }) {
     if (await isStoreCleared(store?.name)) { goToCircular(); return; }
     // Only show the "looking" overlay if the check is slow; a quick "nobody scanned it" answer used to flash it
     // (and its fade-out) behind the photo prompt.
-    const lookingTimer = setTimeout(() => setFlyerScan({ phase: 'looking' }), 800);
+    const run = ++lookRunRef.current;
+    const lookingTimer = setTimeout(() => setFlyerScan({ phase: 'looking', store: shortName }), 800);
     let shared = [];
     try {
       shared = await fetchStoreDeals({ token: user?.token, stores: [store?.name], zips: zipsByStoreName(userStoresLocal) });
     } catch (e) { shared = []; }
     clearTimeout(lookingTimer);
+    if (run !== lookRunRef.current) return; // the shopper tapped Skip and already went on
     const sharedDeals = sharedStoresToDeals(shared);
     if (sharedDeals.length) {
       await saveWeekDeals(sharedDeals);
@@ -3139,8 +3125,9 @@ export default function HomeScreen({ user, route }) {
           style={styles.addStoreBackdrop}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.addStoreSheet}>
+          <View style={styles.addStoreSheet}>
+            {/* Scrolls on small phones with the keyboard up, and the first tap on a button is not lost. */}
+            <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}>
               <View style={styles.addStoreHeaderRow}>
                 <Text style={styles.addStoreTitle}>{t('add_store_title')}</Text>
                 <TouchableOpacity style={styles.addStoreCloseBtn} activeOpacity={0.85} onPress={closeAddStoreModal}>
@@ -3148,6 +3135,7 @@ export default function HomeScreen({ user, route }) {
                 </TouchableOpacity>
               </View>
 
+              <Text style={styles.addStoreFieldLabel}>{t('pick_your_store')}</Text>
               <View style={styles.addStorePresetRow}>
                 {STORE_PRESETS.map((label) => {
                   const plainName = toPlainStoreName(label);
@@ -3156,7 +3144,7 @@ export default function HomeScreen({ user, route }) {
                     <TouchableOpacity
                       key={label}
                       activeOpacity={0.85}
-                      onPress={() => setStoreNameInput(plainName)}
+                      onPress={() => { setStoreNameInput(plainName); setFoundStoreCandidate(null); }}
                       style={[styles.addStorePresetChip, selected ? styles.addStorePresetChipActive : null]}
                     >
                       <Text style={[styles.addStorePresetText, selected ? styles.addStorePresetTextActive : null]}>{label}</Text>
@@ -3168,7 +3156,8 @@ export default function HomeScreen({ user, route }) {
               <Text style={styles.addStoreFieldLabel}>{t('or_enter_store')}</Text>
               <TextInput
                 value={storeNameInput}
-                onChangeText={setStoreNameInput}
+                onChangeText={(v) => { setStoreNameInput(v); setFoundStoreCandidate(null); }}
+                maxLength={60}
                 placeholder={t('store_name_placeholder')}
                 placeholderTextColor="#A3A3A3"
                 style={styles.addStoreInput}
@@ -3178,7 +3167,8 @@ export default function HomeScreen({ user, route }) {
               <View style={styles.addStoreZipRow}>
                 <TextInput
                   value={zipCodeInput}
-                  onChangeText={setZipCodeInput}
+                  onChangeText={(v) => { setZipCodeInput(v.replace(/[^0-9]/g, '').slice(0, 5)); setFoundStoreCandidate(null); }}
+                  maxLength={5}
                   placeholder={t('zip_code_placeholder')}
                   placeholderTextColor="#A3A3A3"
                   style={[styles.addStoreInput, styles.addStoreZipInput]}
@@ -3207,10 +3197,10 @@ export default function HomeScreen({ user, route }) {
                 onPress={handleAddStore}
                 disabled={isSavingStore}
               >
-                <Text style={styles.addStoreSaveBtnText}>{isSavingStore ? t('saving_btn') : t('add_this_store_btn')}</Text>
+                <Text style={styles.addStoreSaveBtnText}>{isSavingStore ? t('saving_btn') : isFindingStore ? t('finding_btn') : t('add_this_store_btn')}</Text>
               </TouchableOpacity>
-            </View>
-          </TouchableWithoutFeedback>
+            </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -3253,6 +3243,12 @@ export default function HomeScreen({ user, route }) {
             <>
               <ActivityIndicator size="large" color="#4E7A54" />
               <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 22, textAlign: 'center', marginTop: 20 }}>{t('flyer_looking_title')}</Text>
+              <TouchableOpacity
+                onPress={() => { lookRunRef.current += 1; const st = flyerScan?.store; setFlyerScan(null); navigation.navigate('Shopping', { guide: Date.now(), guideStore: st }); }}
+                style={{ marginTop: 28, minHeight: 44, paddingHorizontal: 22, justifyContent: 'center', borderRadius: 22, borderWidth: 1, borderColor: '#DDE7D5' }}
+              >
+                <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 16 }}>{t('flyer_looking_skip')}</Text>
+              </TouchableOpacity>
             </>
           ) : flyerScan?.phase === 'done' ? (
             <>
@@ -3278,7 +3274,7 @@ export default function HomeScreen({ user, route }) {
         visible={Boolean(homeAddMeal)}
         slotLabel={homeAddMeal?.slotLabel}
         dayActivities={homeAddMeal ? (Array.isArray(actsNow) ? actsNow : []).filter((a) => a.dateKey === homeAddMeal.dateKey) : []}
-        dayLabel={homeAddMeal ? formatDayLabel(homeAddMeal.dateKey) : ''}
+        dayLabel={homeAddMeal ? (() => { const d = parseDateKey(homeAddMeal.dateKey); return `${t('day_' + d.getDay())} ${d.getDate()}`; })() : ''}
         savedRecipes={data.recipes}
         token={user?.token}
         userId={user?.id}
@@ -4244,16 +4240,16 @@ const styles = StyleSheet.create({
     lineHeight: 56,
   },
   addStoreCloseBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#EEE7DD',
   },
   addStoreCloseText: {
-    fontSize: 22,
-    color: '#2886E8',
+    fontSize: 24,
+    color: '#2F4535',
     marginTop: -2,
   },
   addStorePresetRow: {
@@ -4266,8 +4262,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#C8D6BE',
     borderRadius: 24,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minHeight: 40,
+    justifyContent: 'center',
     backgroundColor: '#F8F5F0',
   },
   addStorePresetChipActive: {
@@ -4275,9 +4273,9 @@ const styles = StyleSheet.create({
     borderColor: '#1B4F22',
   },
   addStorePresetText: {
-    color: '#0F7BEA',
+    color: '#2F4535',
     fontFamily: 'Jost-Bold',
-    fontSize: 12,
+    fontSize: 14,
   },
   addStorePresetTextActive: {
     color: '#FFFFFF',
@@ -4296,7 +4294,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ECF2E6',
     color: '#2F4535',
     fontFamily: 'Jost-Regular',
-    fontSize: 12,
+    fontSize: 16,
     paddingHorizontal: 12,
     paddingVertical: 12,
     marginBottom: 10,

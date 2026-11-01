@@ -5,6 +5,7 @@ import { STATIONERY, STATIONERY_KEY, stationeryById, firstName } from '../consta
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Image,
   Platform,
   Clipboard,
@@ -130,13 +131,15 @@ const GUIDE_SPEECH_DELAY_MS = 3000; // how long the person gets to read the Shop
 export default function ShoppingScreen({ user }) {
   const { t, locale } = useLanguage();
   const [voiceErr, setVoiceErr] = useState('');
-  const { speakText, prepareSpeech, playPrepared, isSpeaking } = useFernVoice({ onError: (m) => { console.warn('[Shopping] voice error:', m); setVoiceErr(String(m || '').slice(0, 120)); }, token: user?.token, enabled: true });
+  const { speakText, prepareSpeech, playPrepared, isSpeaking, stopSpeaking } = useFernVoice({ onError: (m) => { console.warn('[Shopping] voice error:', m); setVoiceErr(String(m || '').slice(0, 120)); }, token: user?.token, enabled: true });
   const { maybeAutoStart, tourKey: activeTourKey, stepIndex: activeTourStepIndex } = useTour();
   const { data, pull, pushChangedFromStorage } = useSync(user);
   const { hasAccess } = useEntitlement();
   const route = useRoute();
   const navigation = useNavigation();
   const [items, setItems] = useState([]);
+  const latestItemsRef = useRef([]);
+  latestItemsRef.current = items;
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
   const [alexaOpen, setAlexaOpen] = useState(false);
@@ -189,6 +192,16 @@ export default function ShoppingScreen({ user }) {
   useEffect(() => subscribeReview(setReview), []);
   const [spot, setSpot] = useState(null); // which section Fern is talking about right now (scrolled to and outlined)
   const walkWaitRef = useRef(null);
+  // The walkthrough scrolls the page by itself; the moment the person scrolls, it stops (it used to move the page under them).
+  const walkActiveRef = useRef(false);
+  const walkStopRef = useRef(false);
+  const stopWalkthroughByUser = () => {
+    if (!walkActiveRef.current) return;
+    walkStopRef.current = true;
+    try { stopSpeaking?.(); } catch (e) { /* nothing playing */ }
+    const w = walkWaitRef.current;
+    if (w) { walkWaitRef.current = null; w.resolve(); }
+  };
   const hasCouponsRef = useRef(false);
   const hasDealsRef = useRef(false);
   const hasListRef = useRef(false);
@@ -361,9 +374,12 @@ export default function ShoppingScreen({ user }) {
     const lines = active.map((seg, i) => (i === 0 && greeting ? `${greeting} ${seg.text}` : seg.text));
     const prepared = lines.map((line) => prepareSpeech(line).catch(() => null));
     let first = true;
+    walkActiveRef.current = true;
+    walkStopRef.current = false;
     try {
       for (let i = 0; i < active.length; i += 1) {
         const seg = active[i];
+        if (walkStopRef.current) return true; // they took over: count it as heard
         if (!navigation.isFocused()) return first ? false : true;
         setSpot(seg.key);
         scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current[seg.key] || 0) - 8), animated: true });
@@ -373,6 +389,7 @@ export default function ShoppingScreen({ user }) {
       }
       return true;
     } finally {
+      walkActiveRef.current = false;
       setSpot(null);
     }
   };
@@ -852,6 +869,7 @@ export default function ShoppingScreen({ user }) {
       flashAdded(canonical.filter((it) => !had.has(it.id)));
     }
     setItems(canonical);
+    latestItemsRef.current = canonical;
     setSaving(true);
     try {
       await AsyncStorage.setItem('rv4_master_shop', JSON.stringify(canonical));
@@ -874,8 +892,11 @@ export default function ShoppingScreen({ user }) {
   };
 
   const addItem = async (rawValue) => {
-    const text = String(rawValue || '').trim();
-    if (!text) return;
+    // Plain words only, at most 80 characters (pasted junk used to go straight to the list and the server).
+    const text = String(rawValue || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80);
+    if (!text || !/[\p{L}\p{N}]/u.test(text)) { setDraft(''); return; }
+    // Two quick adds in a row: build on the newest list, not the one this tap started with.
+    const items = latestItemsRef.current || [];
 
     const exists = items.some((item) => item.text.toLowerCase() === text.toLowerCase());
     if (exists) {
@@ -978,7 +999,13 @@ export default function ShoppingScreen({ user }) {
 
   // Share list: a real link (/s/l/<id>) that previews in Messages, opens on the sender's stationery and lets the
   // friend tick items off. If the link can't be made (offline, server down) the tidied text goes instead.
+  const sharingRef = useRef(false);
   const shareList = async () => {
+    if (sharingRef.current) return; // a double tap made two links and two share sheets
+    sharingRef.current = true;
+    try { await shareListNow(); } finally { sharingRef.current = false; }
+  };
+  const shareListNow = async () => {
     try {
       const aisles = aisleSections.map((section) => ({
         name: t(section.aisle.labelKey),
@@ -1086,13 +1113,16 @@ export default function ShoppingScreen({ user }) {
           <Text style={styles.addedToastLink}>{t('added_toast_view')}</Text>
         </TouchableOpacity>
       ) : null}
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" automaticallyAdjustKeyboardInsets onScrollBeginDrag={stopWalkthroughByUser}>
         {guideStep && guideStoreName ? (
           <View style={styles.headerRow}>
-            <TouchableOpacity activeOpacity={0.8} accessibilityRole="link" onPress={() => Linking.openURL(storeCouponUrl(guideStoreName)).catch(() => {})}>
+            {/* Only the small line opens the store's website; the store name itself is just a title. */}
+            <View style={{ flexShrink: 1 }}>
               <Text style={styles.title} numberOfLines={1}>{`🛒 ${guideStoreName.split(/ - |#/)[0].trim()}`}</Text>
-              <Text style={{ fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#4E7A54', marginTop: 2 }}>{t('store_coupons_link')}</Text>
-            </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.8} accessibilityRole="link" onPress={() => Linking.openURL(storeCouponUrl(guideStoreName)).catch(() => {})} style={{ minHeight: 32, justifyContent: 'center' }}>
+                <Text style={{ fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#4E7A54' }}>{t('store_coupons_link')}</Text>
+              </TouchableOpacity>
+            </View>
             {!listOnly ? (
               <TouchableOpacity onPress={() => setStationeryOpen((v) => !v)} activeOpacity={0.88} style={styles.paperPill} accessibilityRole="button">
                 <Text style={styles.paperPillText} numberOfLines={2}>{`🎨 ${stationeryOpen ? t('stat_close') : t('paper_pill')}`}</Text>
@@ -1149,7 +1179,7 @@ export default function ShoppingScreen({ user }) {
                   ].map((chip) => (
                     <TouchableOpacity key={chip.key} style={[styles.bagChip, chip.n > 0 ? styles.bagChipOn : null]} activeOpacity={0.85} onPress={() => goTo(sectionY.current[chip.target] != null ? chip.target : (chip.target === 'couponCard' ? 'coupons' : chip.target))}>
                       <Text style={styles.bagChipEmoji}>{chip.emoji}</Text>
-                      <Text style={[styles.bagChipText, chip.n > 0 ? styles.bagChipTextOn : null]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75}>{chip.n > 0 ? chip.full : chip.empty}</Text>
+                      <Text style={[styles.bagChipText, chip.n > 0 ? styles.bagChipTextOn : null]} numberOfLines={2} adjustsFontSizeToFit minimumFontScale={0.75} maxFontSizeMultiplier={1.3}>{chip.n > 0 ? chip.full : chip.empty}</Text>
                       <Text style={styles.bagChipArrow}>›</Text>
                     </TouchableOpacity>
                   ))}
@@ -1302,6 +1332,7 @@ export default function ShoppingScreen({ user }) {
             weekDeals={weekDeals}
             onAddToList={addRecipesToList}
             onPlanDay={planDinnerOnDay}
+            onPlanOwn={() => navigation.navigate('Family')}
             books={data.books}
             onSaveRecipe={saveRecipeToLibrary}
             shoppingItems={items}
@@ -1315,7 +1346,7 @@ export default function ShoppingScreen({ user }) {
           <Text style={[styles.checkoutSub, { marginBottom: 10 }]}>
             {catalogState === 'loading' ? t('sav_status_loading')
               : coupons.length ? t('sav_status_none', { n: coupons.length })
-              : `${t('sav_status_empty')} (${catalogError || '…'})`}
+              : t('sav_status_empty')}
           </Text>
         ) : null}
 
@@ -1453,13 +1484,15 @@ export default function ShoppingScreen({ user }) {
             placeholderTextColor="#AAA39A"
             style={styles.input}
             returnKeyType="done"
+            maxLength={80}
+            blurOnSubmit={false}
             onSubmitEditing={() => addItem(draft)}
           />
           <TouchableOpacity
-            style={[styles.addBtn, saving ? styles.addBtnDisabled : null]}
+            style={styles.addBtn}
             activeOpacity={0.88}
             onPress={() => addItem(draft)}
-            disabled={saving}
+            accessibilityLabel={t('add_item_a11y')}
           >
             <Text style={styles.addBtnText}>+</Text>
           </TouchableOpacity>
@@ -1779,6 +1812,9 @@ export default function ShoppingScreen({ user }) {
   );
 }
 
+// Small phones (iPhone SE, 667 pt tall): a smaller bag so its four buttons fit on its front and the page below shows.
+const SMALL_SCREEN = Dimensions.get('window').height < 700;
+
 const styles = StyleSheet.create({
   reviewScreen: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#F7FAF3', zIndex: 50 },
   reviewBar: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 6 },
@@ -1954,9 +1990,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Jost-SemiBold',
   },
   addBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: '#4E7A54',
     alignItems: 'center',
     justifyContent: 'center',
@@ -2047,14 +2083,14 @@ const styles = StyleSheet.create({
   shopBtnSub: { color: '#FFE9D6', fontSize: 12, fontFamily: 'Jost-Regular', marginTop: 2 },
   stepHead: { color: '#3F6845', fontSize: 12, letterSpacing: 1.2, fontFamily: 'Jost-Bold', marginTop: 14, marginBottom: 6 },
   bagWrap: { marginBottom: 8 },
-  bagPic: { width: '94%', alignSelf: 'center', aspectRatio: 365 / 497 },
+  bagPic: { width: SMALL_SCREEN ? '80%' : '94%', alignSelf: 'center', aspectRatio: 365 / 497 },
   bagImg: { width: '100%', height: '100%' },
   bagFront: { position: 'absolute', left: '27%', right: '7%', top: '45%', bottom: '19%', justifyContent: 'center', transform: [{ rotate: '-1.2deg' }] },
   bagLabel: { alignSelf: 'center', backgroundColor: '#FFF9EE', borderRadius: 999, borderWidth: 1.5, borderColor: '#1F3D2B', paddingHorizontal: 12, paddingVertical: 5, marginBottom: 8, maxWidth: '100%' },
   bagLabelText: { color: '#1F3D2B', fontSize: 14, fontFamily: 'Jost-Bold', textAlign: 'center' },
   bagSub: { color: '#4A3418', fontSize: 13, lineHeight: 18, fontFamily: 'Jost-Regular', marginBottom: 8, textAlign: 'center' },
   bagGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-  bagChip: { width: '48.5%', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.6)', borderRadius: 12, borderWidth: 1.5, borderBottomWidth: 4, borderColor: 'rgba(120,84,36,0.5)', paddingVertical: 6, paddingLeft: 4, paddingRight: 14, marginBottom: 10, height: 72, justifyContent: 'center', shadowColor: '#3C280A', shadowOpacity: 0.35, shadowRadius: 4, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
+  bagChip: { width: '48.5%', alignItems: 'center', backgroundColor: 'rgba(255,249,238,0.6)', borderRadius: 12, borderWidth: 1.5, borderBottomWidth: 4, borderColor: 'rgba(120,84,36,0.5)', paddingVertical: 6, paddingLeft: 4, paddingRight: 14, marginBottom: SMALL_SCREEN ? 6 : 10, height: SMALL_SCREEN ? 60 : 72, justifyContent: 'center', shadowColor: '#3C280A', shadowOpacity: 0.35, shadowRadius: 4, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   bagChipArrow: { position: 'absolute', right: 5, top: 20, fontSize: 22, lineHeight: 26, color: '#E8742A', fontFamily: 'Jost-Bold' },
   bagSideAnchor: { position: 'absolute', left: '14%', top: '62%', width: 0, height: 0 },
   bagSideText: { position: 'absolute', left: -100, top: -16, width: 200, height: 32, textAlign: 'center', fontSize: 25, letterSpacing: 3, fontWeight: '700', color: '#5A3D1C', opacity: 0.85, fontFamily: Platform.OS === 'ios' ? 'Georgia' : 'serif', transform: [{ rotate: '-90deg' }, { skewX: '-8deg' }] },

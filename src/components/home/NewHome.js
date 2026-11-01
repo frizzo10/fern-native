@@ -4,6 +4,7 @@
 // Purely presentational: HomeScreen owns all state, handlers and tier checks and
 // passes them in, so no feature, gate or label logic lives (or can drift) here.
 import React, { useEffect, useRef, useState } from 'react';
+import { LAUNCH_ALL_FREE } from '../../constants/launch';
 import { Alert, Image, Linking, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getAutopilotMode, setAutopilotMode } from '../../services/autopilot';
 import { formatDayLabel } from '../../utils/familyDates';
@@ -154,9 +155,12 @@ export default function NewHome({
       {/* Top bar */}
       <View style={styles.topBar}>
         <View style={styles.topActions}>
-          <View style={styles.tierPill}>
-            <Text style={styles.tierPillText}>{tierBadgeLabel}</Text>
-          </View>
+          {/* Everything is free during the launch: no paid-sounding "PRO MAX" badge. */}
+          {!LAUNCH_ALL_FREE ? (
+            <View style={styles.tierPill}>
+              <Text style={styles.tierPillText}>{tierBadgeLabel}</Text>
+            </View>
+          ) : null}
           <TouchableOpacity ref={tourTargetRef('help')} collapsable={false} style={styles.roundBtn} activeOpacity={0.85} onPress={openHelp} accessibilityRole="button" accessibilityLabel={t('faq_a11y')}>
             <Ionicons name="help-circle-outline" size={22} color={FOREST} />
           </TouchableOpacity>
@@ -248,7 +252,9 @@ export default function NewHome({
 
         <Text style={styles.heroLabel}>{t('home_your_stores')}</Text>
         <Text style={styles.storeHint}>{t('home_stores_tap_hint')}</Text>
-        <View ref={tourTargetRef('stores')} collapsable={false} style={styles.storeList}>
+        {/* The tour ring covers the stores AND the Add a store button (a new account has no stores yet). */}
+        <View ref={tourTargetRef('stores')} collapsable={false}>
+        <View style={styles.storeList}>
           {visibleStores.map((s, i) => {
             const st = storeStatus(s);
             const shortName = String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label');
@@ -271,10 +277,12 @@ export default function NewHome({
             );
           })}
         </View>
-        <TouchableOpacity style={styles.addStoreBtn} activeOpacity={0.85} onPress={onAddStore} accessibilityRole="button">
-          <Ionicons name="add" size={18} color={ROSE} />
-          <Text style={styles.addStoreText}>{t('home_add_store_a11y')}</Text>
+        {/* With no stores yet this is the first thing to do, so it is a big filled button. */}
+        <TouchableOpacity style={[styles.addStoreBtn, !visibleStores.length && styles.addStoreBtnFirst]} activeOpacity={0.85} onPress={onAddStore} accessibilityRole="button">
+          <Ionicons name="add" size={visibleStores.length ? 18 : 22} color={visibleStores.length ? ROSE : '#FFFFFF'} />
+          <Text style={[styles.addStoreText, !visibleStores.length && styles.addStoreTextFirst]}>{t('home_add_store_a11y')}</Text>
         </TouchableOpacity>
+        </View>
         {scanStats && scanStats.total > 0 ? (
           <Text style={styles.scanStatsLine}>{`📷 ${t('scan_game_stats', { pages: scanStats.total, items: scanStats.items })}${streak > 1 ? `  ·  🔥 ${t('scan_game_streak_short', { n: streak })}` : ''}`}</Text>
         ) : null}
@@ -352,7 +360,7 @@ export default function NewHome({
             activeOpacity={0.8}
             onPress={() => setSelectedKey(d.key)}
             accessibilityRole="button"
-            accessibilityLabel={formatDayLabel(d.key)}
+            accessibilityLabel={`${d.day} ${d.date}`}
             accessibilityState={{ selected: d.key === selectedDay.key }}
             style={[styles.dayCell, d.isToday ? styles.dayCellToday : null, d.key === selectedDay.key ? styles.dayCellSelected : null]}
           >
@@ -370,7 +378,7 @@ export default function NewHome({
 
       {selectedDay.key !== todayEntry.key ? (
       <View style={styles.dayPanel}>
-        <Text style={styles.dayPanelTitle}>{formatDayLabel(selectedDay.key || '')}</Text>
+        <Text style={styles.dayPanelTitle}>{`${selectedDay.day || ''} ${selectedDay.date || ''}`.trim()}</Text>
         {!Object.keys(selectedDay.meals || {}).length && !(selectedDay.activities || []).length ? (
           <Text style={styles.sheetEmpty}>{t('home_day_nothing')}</Text>
         ) : null}
@@ -432,7 +440,7 @@ const styles = StyleSheet.create({
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   tierPill: { backgroundColor: '#ECF2E6', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
   tierPillText: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 0.8, color: '#3F6845' },
-  roundBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: BORDER, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  roundBtn: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, borderColor: BORDER, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
   langBtn: { width: undefined, paddingHorizontal: 12 },
   langText: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: FOREST },
 
@@ -548,6 +556,8 @@ const styles = StyleSheet.create({
   recipePick: { fontFamily: 'Jost-SemiBold', fontSize: 13, color: '#4E7A54' },
   quickText: { fontFamily: 'Jost-SemiBold', fontSize: 14, color: FOREST },
   storeHint: { fontFamily: 'Jost-Regular', fontSize: 14, color: MUTE, marginTop: -6, marginBottom: 6, marginLeft: 2 },
+  addStoreBtnFirst: { backgroundColor: '#4E7A54', borderColor: '#4E7A54', height: 56, borderStyle: 'solid' },
+  addStoreTextFirst: { color: '#FFFFFF', fontSize: 17 },
   addStoreBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 24, borderWidth: 1, borderStyle: 'dashed', borderColor: BERRY, marginTop: 10 },
   addStoreText: { fontFamily: 'Jost-SemiBold', fontSize: 16, color: ROSE },
   pickPage: { flex: 1, backgroundColor: '#FBF8F1', paddingTop: 56, paddingHorizontal: 20, paddingBottom: 28 },

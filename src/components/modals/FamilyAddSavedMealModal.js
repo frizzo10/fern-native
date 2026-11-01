@@ -187,16 +187,28 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, dayActivit
                         </View>
                     ) : null}
 
-                    <View style={styles.searchWrap}>
+                    <View style={[styles.searchWrap, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
                         <TextInput
                             value={search}
                             onChangeText={setSearch}
+                            maxLength={80}
                             returnKeyType={onAddFound ? 'search' : 'done'}
                             onSubmitEditing={() => { if (onAddFound && search.trim()) runFind(search); }}
                             placeholder={t('search_recipes_placeholder')}
                             placeholderTextColor="#9A8D7F"
-                            style={styles.searchInput}
+                            style={[styles.searchInput, { flex: 1 }]}
                         />
+                        {/* A visible button: the Fern search used to run only from the keyboard's Return key. */}
+                        {onAddFound ? (
+                            <TouchableOpacity
+                                style={{ minHeight: 44, paddingHorizontal: 14, borderRadius: 22, backgroundColor: '#4E7A54', justifyContent: 'center', opacity: search.trim() && !finding ? 1 : 0.5 }}
+                                activeOpacity={0.85}
+                                disabled={!search.trim() || finding}
+                                onPress={() => runFind(search)}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Jost-Bold', fontSize: 15 }}>{t('find_with_fern_btn')}</Text>
+                            </TouchableOpacity>
+                        ) : null}
                     </View>
 
                     <FlatList

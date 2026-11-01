@@ -72,6 +72,21 @@ function fetchPullShared(user) {
   return p;
 }
 
+
+// Device-only flag: '1' while a change made on the phone has not reached the server yet.
+export const UNSENT_KEY = 'fern_sync_unsent';
+let unsentMem = null;
+async function hasUnsentChanges() {
+  if (unsentMem !== null) return unsentMem;
+  try { unsentMem = (await AsyncStorage.getItem(UNSENT_KEY)) === '1'; } catch (e) { unsentMem = false; }
+  return unsentMem;
+}
+async function setUnsentChanges(on) {
+  unsentMem = !!on;
+  try { if (on) await AsyncStorage.setItem(UNSENT_KEY, '1'); else await AsyncStorage.removeItem(UNSENT_KEY); } catch (e) { /* best effort */ }
+}
+export function resetUnsentChanges() { unsentMem = false; return AsyncStorage.removeItem(UNSENT_KEY).catch(() => {}); }
+
 export function useSync(user) {
   const [data, setData] = useState({
     recipes: [],
@@ -94,8 +109,15 @@ export function useSync(user) {
   const loadingRef = useRef(true);
   useEffect(() => { loadingRef.current = loading; }, [loading]);
 
+  // Changes saved on the phone whose upload failed (slow or no connection). Until they reach the server, a pull must
+  // not overwrite them with the older server copy: it first retries the upload, and keeps the phone's copy if that fails.
+  const pushRef = useRef(null);
   const pull = useCallback(async () => {
     if (!user?.id || !user?.token) return;
+    if (await hasUnsentChanges()) {
+      await pushRef.current?.();
+      if (await hasUnsentChanges()) { setLoading(false); return; }
+    }
     if (loadingRef.current) {
       setLoading(true);
     } else {
@@ -261,13 +283,23 @@ export function useSync(user) {
       lastPush.error = null;
       const bodyText = JSON.stringify(requestBody);
       lastPush.bytes = bodyText.length;
-      const res = await fetch(SYNC_URL, {
-        method: 'POST',
-        headers: API_HEADERS,
-        body: bodyText,
-      });
+      // Give up after 30 s: a stalled upload used to keep every "Saving…" spinner up forever.
+      const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 30000) : null;
+      let res;
+      try {
+        res = await fetch(SYNC_URL, {
+          method: 'POST',
+          headers: API_HEADERS,
+          body: bodyText,
+          ...(ctrl ? { signal: ctrl.signal } : {}),
+        });
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
 
       const responseJson = await res.json().catch(() => null);
+      await setUnsentChanges(res.status >= 500); // only a server or network failure; a 4xx would never succeed on retry
       lastPush.status = res.status;
       lastPush.error = responseJson?.error || responseJson?.message || null;
       console.log('[sync] push response status', res.status);
@@ -277,6 +309,7 @@ export function useSync(user) {
       return responseJson;
     } catch (e) {
       console.warn('Sync changed push failed:', e);
+      await setUnsentChanges(true);
       lastPush.error = String(e?.message || e);
       return null;
     }
@@ -285,6 +318,7 @@ export function useSync(user) {
   const pushAllFromStorage = useCallback(async () => {
     await pushChangedFromStorage();
   }, [pushChangedFromStorage]);
+  pushRef.current = pushAllFromStorage;
 
   // Load cache first, then refresh from API silently
   useEffect(() => {

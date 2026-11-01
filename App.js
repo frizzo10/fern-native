@@ -265,7 +265,7 @@ function shortStoreName(name) {
   return String(name || '').split(/ - |#/)[0].trim() || String(name || '');
 }
 
-function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, retrySync }) {
+function AppNavigator({ user, signOut, deleteAccount, userStores: rawUserStores, syncError, retrySync }) {
   const { t } = useLanguage();
   const { visible: isAccountOpen, open: openAccountModal, close: closeAccount } = useAccountModal();
   const {
@@ -276,6 +276,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
     setStepIndex: setActiveTourStepIndex,
     storageKey: activeTourStorageKey,
     closeTour,
+    setAutoStartHold,
   } = useTour();
   const [arrivedStore, setArrivedStore] = useState(null);
   const [syncBannerDismissed, setSyncBannerDismissed] = useState(false);
@@ -383,18 +384,21 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
   useEffect(() => {
     if (!user?.id) return;
     let alive = true;
+    setAutoStartHold(true);
     shouldShowLocationSetup(dateToKey(new Date())).then((show) => {
       if (!alive) return;
+      // One overlay at a time on first run: the setup screen first, then the Home tour. The paper picker is no longer
+      // part of first run (it is on the Shopping page as "Design your shopping list").
       if (show) setShowLocationSetup(true);
-      else maybeAskPaper(2500);
-    });
+      else setAutoStartHold(false);
+    }).catch(() => setAutoStartHold(false));
     return () => { alive = false; };
   }, [user?.id]);
   const finishLocationSetup = async () => {
     setShowLocationSetup(false);
     await markLocationSetupShown(dateToKey(new Date()));
     startGeofence(); // pick up whatever was just granted
-    maybeAskPaper(900);
+    setTimeout(() => setAutoStartHold(false), 800); // then the Home tour, once this screen has finished closing
   };
 
   // Tapping the "you've arrived" notification (from the background geofence or the
@@ -594,7 +598,10 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
         onClose={closeAccount}
         user={user}
         signOut={signOut}
+        deleteAccount={deleteAccount}
         onOpenShopping={() => navigationRef.current?.navigate('Shopping')}
+        onOpenHome={() => navigationRef.current?.navigate('Home')}
+        onOpenCoupons={() => navigationRef.current?.navigate('Home', { openCouponWallet: Date.now() })}
       />
 
       <LocationSetupModal visible={showLocationSetup} onDone={finishLocationSetup} />
@@ -754,7 +761,7 @@ function AppNavigator({ user, signOut, userStores: rawUserStores, syncError, ret
 }
 
 function MainAppContent() {
-  const { user, loading, signInWithSupabase, signUpWithSupabase, forgotPassword, resetPassword, signInWithApple, signInWithGoogle, appleAvailable, googleAvailable, signOut, syncError, retrySync } = useAuth();
+  const { user, loading, signInWithSupabase, signUpWithSupabase, forgotPassword, resetPassword, signInWithApple, signInWithGoogle, appleAvailable, googleAvailable, signOut, deleteAccount, syncError, retrySync } = useAuth();
   const { loginPurchaser, logoutPurchaser, tier: rcTier, loading: rcLoading } = useRevenueCat();
   const { pushChangedFromStorage, data: syncData } = useSync(user);
   console.log('📱 App rendering, current user:', user?.email || 'none', 'loading:', loading);
@@ -824,13 +831,24 @@ function MainAppContent() {
     return () => sub.remove();
   }, [user?.id, user?.token]);
 
+  const handleDeleteAccount = async () => {
+    await deleteAccount(); // throws on failure so the Account screen can say so
+    try { await stopStoreGeofencing(); } catch (e) { /* nothing to stop */ }
+    try { await logoutPurchaser(); } catch (e) { /* not signed in to purchases */ }
+  };
+
   const handleSignOut = async () => {
     await stopStoreGeofencing(); // stop the OS watching this user's stores
     await logoutPurchaser();
     await signOut();
   };
 
-  if (loading) return null;
+  // A plain splash while the saved session is checked (a slow connection used to leave a blank screen).
+  if (loading) return (
+    <View style={{ flex: 1, backgroundColor: '#F7FAF3', alignItems: 'center', justifyContent: 'center' }}>
+      <ActivityIndicator size="large" color="#4E7A54" />
+    </View>
+  );
 
   if (!user) {
     console.log(user)
@@ -857,7 +875,7 @@ function MainAppContent() {
 
   return (
     <>
-      <AppNavigator user={user} signOut={handleSignOut} userStores={syncData.userStores} syncError={syncError} retrySync={retrySync} />
+      <AppNavigator user={user} signOut={handleSignOut} deleteAccount={handleDeleteAccount} userStores={syncData.userStores} syncError={syncError} retrySync={retrySync} />
       <ShoppingDayPrompt userId={user?.id} />
     </>
   );

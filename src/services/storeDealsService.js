@@ -8,13 +8,22 @@ export async function fetchStoreDeals({ token, stores, zips }) {
     const names = [...new Set((Array.isArray(stores) ? stores : []).map((s) => String(s || '').trim()).filter(Boolean))];
     if (!token || !names.length) return [];
     try {
-        const res = await fetch(STORE_DEALS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
-            body: JSON.stringify({ token, stores: names, ...(zips && Object.keys(zips).length ? { zips } : {}) }),
-        });
-        if (!res.ok) return [];
-        const json = await res.json();
+        // Give up after 10 s: a stalled request used to keep "Looking for this week's circular" on screen with no way out.
+        const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = ctrl ? setTimeout(() => ctrl.abort(), 10000) : null;
+        let json;
+        try {
+            const res = await fetch(STORE_DEALS_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+                body: JSON.stringify({ token, stores: names, ...(zips && Object.keys(zips).length ? { zips } : {}) }),
+                ...(ctrl ? { signal: ctrl.signal } : {}),
+            });
+            if (!res.ok) return [];
+            json = await res.json();
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
         return (Array.isArray(json?.stores) ? json.stores : []).filter((s) => Array.isArray(s?.items) && s.items.length);
     } catch (e) {
         console.log('[store-deals] fetch failed', e?.message || e);

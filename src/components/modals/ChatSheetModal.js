@@ -207,7 +207,7 @@ export default function ChatSheetModal({
     if (p) onSpeechDoneRef.current?.(p);
   };
 
-  const askFern = useCallback(async (text, { silent = false } = {}) => {
+  const askFernInner = useCallback(async (text, { silent = false } = {}) => {
     if (!text || !text.trim()) return;
     // Typing or saying just "clear" / "new chat" wipes this conversation on the phone (no AI call, not counted).
     if (!silent && /^\/?\s*(clear|new chat|start over)[.!]?$/i.test(text.trim())) {
@@ -222,7 +222,7 @@ export default function ChatSheetModal({
       const m = text.trim().match(/^(?:(?:please|hey fern|fern)[, ]+)?(?:(?:can|could|would) you\s+)?(?:please\s+)?(?:add|put)\s+(.+?)\s+(?:to|on|onto|in|into)\s+(?:my|the|our)\s+(?:shopping\s+|grocery\s+)?list[.!?]*$/i);
       if (m) {
         const NOT_PLAIN = /\b(recipes?|menu|dinner|lunch|breakfast|tonight|tomorrow|today|night|monday|tuesday|wednesday|thursday|friday|saturday|sunday|for|with|tacos?|pasta|lasagna|spaghetti|soup|salad|pizza|burgers?|casserole|sandwich(?:es)?|wellington|stew|curry|chili|meatloaf|enchiladas?|stir.?fry|parm|parmesan|alfredo|carbonara|roast|kabobs?|wings|hot ?dogs?|cake|pie|cookies)\b/i;
-        const items = m[1].split(/\s*(?:,|&|\band\b)\s*/i).map((x) => x.replace(/^(?:some|a|an|the)\s+/i, '').trim()).filter(Boolean);
+        const items = m[1].split(/\s*(?:,|&|\band\b)\s*/i).map((x) => x.replace(/^(?:some|a|an|the)\s+/i, '').replace(/[<>]/g, '').trim().slice(0, 40)).filter((x) => x && /\p{L}/u.test(x));
         if (items.length && items.length <= 8 && items.every((x) => x.split(/\s+/).length <= 4 && !NOT_PLAIN.test(x))) {
           let savedTitles = [];
           try { savedTitles = (JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]') || []).map((r) => String(r?.title || '').toLowerCase()); } catch (e) { savedTitles = []; }
@@ -454,6 +454,13 @@ export default function ChatSheetModal({
       setThinking(false);
     }
   }, [locale, user, speakText, speakChunks, voiceOnly, pull, pushAllFromStorage, pushChangedFromStorage, t, systemPrompt, agentOn, agentExtra, onAction, onSpeechDone, mode, silent, compact, startPeek]);
+  // One question at a time: Return pressed again while Fern is answering used to send a second (counted) request.
+  const askingRef = useRef(false);
+  const askFern = useCallback(async (text, opts) => {
+    if (askingRef.current) return;
+    askingRef.current = true;
+    try { return await askFernInner(opts?.silent ? text : String(text || '').slice(0, 500), opts); } finally { askingRef.current = false; }
+  }, [askFernInner]);
 
   const { isListening, start, stop } = useContinuousMic({
     locale,
@@ -681,6 +688,7 @@ export default function ChatSheetModal({
             placeholder={t('chat_input_placeholder')}
             placeholderTextColor={'#5C7262'}
             onSubmitEditing={() => askFern(inputText)}
+            maxLength={500}
             returnKeyType="send"
           />
           <TouchableOpacity style={styles.sendBtn} onPress={() => askFern(inputText)} disabled={thinking}>

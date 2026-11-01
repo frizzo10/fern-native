@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, StyleSheet, Linking, ActivityIndicator, AppState } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, StyleSheet, Linking, ActivityIndicator, AppState, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useLanguage from '../../hooks/useLanguage';
 import { getLocationSetupStatus, isSetupComplete, needsAlways, requestLocationSetup } from '../../services/locationSetup';
@@ -48,7 +48,7 @@ export default function LocationSetupModal({ visible, onDone }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={() => onDone(status)}>
       <SafeAreaView style={s.safe}>
-        <View style={s.body}>
+        <ScrollView contentContainerStyle={s.body}>
           <Text style={s.emoji}>📍</Text>
           <Text style={s.title}>{t('loc_setup_title')}</Text>
           <Text style={s.sub}>{t('loc_setup_sub')}</Text>
@@ -62,13 +62,23 @@ export default function LocationSetupModal({ visible, onDone }) {
             ))}
           </View>
           {needsAlways ? <Text style={s.hint}>{t('loc_setup_always_hint')}</Text> : null}
-        </View>
+        </ScrollView>
 
         <View style={s.footer}>
           {complete ? (
             <TouchableOpacity style={s.primary} onPress={() => onDone(status)}>
               <Text style={s.primaryText}>{t('loc_setup_done')}</Text>
             </TouchableOpacity>
+          ) : needsSettings && status.foreground ? (
+            // Location works already (only "Always" is missing): going on is the main choice, Settings the extra one.
+            <>
+              <TouchableOpacity style={s.primary} onPress={() => onDone(status)}>
+                <Text style={s.primaryText}>{t('loc_setup_continue')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => Linking.openSettings()} style={s.later}>
+                <Text style={s.laterText}>{t('loc_setup_settings')}</Text>
+              </TouchableOpacity>
+            </>
           ) : needsSettings ? (
             <TouchableOpacity style={s.primary} onPress={() => Linking.openSettings()}>
               <Text style={s.primaryText}>{t('loc_setup_settings')}</Text>
@@ -79,7 +89,7 @@ export default function LocationSetupModal({ visible, onDone }) {
             </TouchableOpacity>
           )}
           {needsSettings && <Text style={s.settingsNote}>{t('loc_setup_settings_note')}</Text>}
-          {!complete && (
+          {!complete && !(needsSettings && status.foreground) && (
             <TouchableOpacity onPress={() => onDone(status)} style={s.later}>
               <Text style={s.laterText}>{t('loc_setup_later')}</Text>
             </TouchableOpacity>
@@ -92,7 +102,7 @@ export default function LocationSetupModal({ visible, onDone }) {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.parch },
-  body: { flex: 1, paddingHorizontal: 24, justifyContent: 'center' },
+  body: { flexGrow: 1, paddingHorizontal: 24, paddingVertical: 16, justifyContent: 'center' },
   emoji: { fontSize: 44, textAlign: 'center', marginBottom: 12 },
   title: { fontSize: 26, fontFamily: 'Playfair-Bold', color: C.ink, textAlign: 'center' },
   sub: { fontSize: 16, fontFamily: 'Jost-Regular', color: C.brown, textAlign: 'center', marginTop: 10, lineHeight: 23 },

@@ -55,7 +55,7 @@ async function readJson(key, fallback) {
 // nights in Family Hub and every ingredient to the shopping list.
 //   onAddToList(recipes)  recipes: [{ title, ingredients: [] }] -> shopping list
 //   pushChangedFromStorage, onChanged  keep sync/UI fresh after the meal plan is written
-export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, moodHint = '', moodLabel = '', onReady, onSaveRecipe, books }) {
+export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToList, pushChangedFromStorage, onChanged, shoppingItems, onPlanDay, autoStart = false, moodHint = '', moodLabel = '', onReady, onSaveRecipe, books, onPlanOwn }) {
   const { hasAccess } = useEntitlement();
   const [gate, setGate] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | loading | ready | checking | review | saving | done
@@ -221,10 +221,12 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
   };
 
   // Step 2: after the preview is confirmed, write the dinners and the list. `skip` = names un-ticked in the preview.
+  const confirmingRef = useRef(false);
   const confirm = async (skip) => {
     const picks = pending?.picks || [];
     const recipes = pending?.recipes || [];
-    if (!picks.length) return;
+    if (!picks.length || confirmingRef.current) return; // a double tap used to add everything twice
+    confirmingRef.current = true;
     setPhase('saving');
     try {
       const keys = openKeys.current.slice(0, picks.length);
@@ -239,15 +241,19 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
         lines.push({ day: parseDateKey(key).toLocaleDateString(locale === 'es' ? 'es' : 'en-US', { weekday: 'long' }), title: p.title, emoji: p.emoji, sides: p.sides || [], star: p.star?.name || '' });
       });
       await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
-      await pushChangedFromStorage?.({ meal_plan: next });
-      await onAddToList?.(recipes, { skip });
+      // The week is saved on the phone: show "done" now and send it to the server in the background
+      // (on a slow connection the spinner used to stay up for as long as the upload took).
       if (!hasAccess(TIERS.PRO)) await markFreePlanUsed();
       setSummary({ n: picks.length, lines });
       setPending(null);
       setPhase('done');
+      confirmingRef.current = false;
+      Promise.resolve(pushChangedFromStorage?.({ meal_plan: next })).catch(() => {});
+      try { await onAddToList?.(recipes, { skip }); } catch (e) { console.log('[trip] list add failed', e?.message || e); }
       onChanged?.();
     } catch (e) {
       console.log('[trip] confirm week failed', e?.message || e);
+      confirmingRef.current = false;
       setFailed(t('save_error_desc'));
       setPhase('review');
     }
@@ -269,7 +275,17 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
               <Text style={styles.primaryText}>{t('trip_week_plan_btn')}</Text>
             </TouchableOpacity>
           </View>
-        ) : <Text style={[styles.sub, { marginTop: 8 }]}>{t('trip_week_need_deals')}</Text>
+        ) : (
+          <View style={{ marginTop: 8 }}>
+            <Text style={styles.sub}>{t('trip_week_need_deals')}</Text>
+            {/* No flyer is not a dead end: plan a dinner from saved recipes or Fern's ideas on Family Hub. */}
+            {onPlanOwn ? (
+              <TouchableOpacity style={[styles.primary, { marginTop: 10 }]} activeOpacity={0.88} onPress={onPlanOwn}>
+                <Text style={styles.primaryText}>{t('trip_week_plan_own')}</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )
       ) : null}
       {failed ? <Text style={styles.err}>{failed}</Text> : null}
 
@@ -322,7 +338,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
               <View key={c.key} style={styles.star}>
                 <Text style={styles.fromCircular}>{t('trip_week_from_circular')}</Text>
                 <Text style={styles.starName}>{t('trip_week_star_sale', { item: c.deal.name })}</Text>
-                <Text style={styles.sub}>{[c.deal.isBogo ? 'BOGO' : c.deal.salePrice, c.deal.store, sv.amount > 0 ? t('psp_save_amt', { amt: `${sv.est ? '~' : ''}${fmtMoney(sv.amount)}` }) : ''].filter(Boolean).join(' · ')}</Text>
+                <Text style={styles.sub}>{[c.deal.isBogo ? t('deal_bogo') : c.deal.salePrice, c.deal.store, sv.amount > 0 ? t('psp_save_amt', { amt: `${sv.est ? '~' : ''}${fmtMoney(sv.amount)}` }) : ''].filter(Boolean).join(' · ')}</Text>
                 {c.loading ? <ActivityIndicator color={'#4E7A54'} style={{ marginVertical: 8 }} /> : c.ideas.map((idea, ii) => {
                   const pv = previews[idea.id];
                   return (

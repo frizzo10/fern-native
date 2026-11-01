@@ -1,1 +1,1 @@
-export const CODE_VERSION = '10-29 o: instant add to list in chat';
+export const CODE_VERSION = '11-01 a: launch QA fixes';

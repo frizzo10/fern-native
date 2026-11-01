@@ -82,7 +82,7 @@ const TOOL_SECTIONS = [
     },
 ];
 
-export default function AccountScreen({ visible, onClose, user, signOut, onOpenShopping }) {
+export default function AccountScreen({ visible, onClose, user, signOut, deleteAccount, onOpenShopping, onOpenHome, onOpenCoupons }) {
     const { t } = useLanguage();
     const [shoppingDayValue, setShoppingDayValue] = useState(null);
     useEffect(() => { getShoppingDay().then(setShoppingDayValue); }, []);
@@ -210,6 +210,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
     const recipesCount = Array.isArray(data.recipes) ? data.recipes.length : 0;
     const booksCount = Array.isArray(data.books) ? data.books.length : 0;
     const shoppingCount = Array.isArray(data.shopping) ? data.shopping.length : 0;
+    const walletCount = Array.isArray(data.walletCoupons) ? data.walletCoupons.length : 0;
     const rawStores = data.userStores || data.userProfile?.user_stores || [];
     const storesCount = Array.isArray(rawStores) ? rawStores.length : 0;
 
@@ -269,7 +270,14 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
             t('account_delete_confirm_desc'),
             [
                 { text: t('account_cancel'), style: 'cancel' },
-                { text: t('account_delete_title'), style: 'destructive', onPress: () => comingSoon(t('account_delete_title')) },
+                { text: t('account_delete_title'), style: 'destructive', onPress: async () => {
+                    try {
+                        onClose();
+                        await deleteAccount?.();
+                    } catch (e) {
+                        Alert.alert(t('account_delete_title'), t('account_delete_failed'));
+                    }
+                } },
             ]
         );
     };
@@ -455,14 +463,14 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
 
                         <View style={styles.rowInfoCard}>
                             <View style={styles.rowInfoTextWrap}>
-                                <Text style={styles.rowInfoLabel}>{`${t('account_shopping_zip').toUpperCase()} · ${t('account_no_zip_set').toUpperCase()}`}</Text>
+                                <Text style={styles.rowInfoLabel}>{t('account_your_stores').toUpperCase()}</Text>
                                 <Text style={styles.rowInfoValue}>
                                     {storesCount > 0
                                         ? t('account_stores_selected', { count: storesCount })
                                         : t('account_no_stores_selected')}
                                 </Text>
                             </View>
-                            <TouchableOpacity activeOpacity={0.85} onPress={() => comingSoon(t('account_shopping_zip'))}>
+                            <TouchableOpacity activeOpacity={0.85} onPress={() => { onClose(); onOpenHome?.(); }}>
                                 <Text style={styles.rowEditText}>{t('account_edit')}</Text>
                             </TouchableOpacity>
                         </View>
@@ -486,15 +494,13 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             <TouchableOpacity
                                 style={styles.topTwoUpCard}
                                 activeOpacity={0.85}
-                                onPress={() => comingSoon(t('account_coupons'))}
+                                onPress={() => { onClose(); onOpenCoupons?.(); }}
                             >
                                 <Text style={styles.topTwoUpEmoji}>🎟️</Text>
                                 <Text style={styles.topTwoUpTitle}>{t('account_coupons')}</Text>
-                                <Text style={styles.topTwoUpSub}>{t('account_none_saved')}</Text>
+                                <Text style={styles.topTwoUpSub}>{walletCount > 0 ? t('account_items_count', { count: walletCount }) : t('account_none_saved')}</Text>
                             </TouchableOpacity>
                         </View>
-
-                        <Text style={styles.cloudSyncText}>✓ {t('account_photos_synced')}</Text>
 
                         <View style={styles.freeBadgePill}>
                             <Text style={styles.freeBadgePillText}>✓ {t('account_free_badge')} →</Text>
@@ -532,18 +538,8 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                             </TouchableOpacity>
                         </View>
 
-                        <View style={styles.settingCard}>
-                            <View style={styles.settingTextWrap}>
-                                <Text style={styles.settingTitle}>✍️ {t('account_blogger_mode')}</Text>
-                                <Text style={styles.settingDesc}>
-                                    {isBloggerModeOn ? t('account_blogger_active_desc') : t('account_blogger_inactive_desc')}
-                                </Text>
-                            </View>
-                            <View style={styles.statePill}>
-                                <Text style={styles.statePillText}>✓ {isBloggerModeOn ? t('account_on') : t('account_off')}</Text>
-                            </View>
-                        </View>
-
+                        {/* Everything is free during the launch: no plan card or restore button to confuse anyone. */}
+                        {!LAUNCH_ALL_FREE ? (<>
                         <View style={styles.settingCard}>
                             <View style={styles.settingTextWrap}>
                                 <Text style={styles.settingTitle}>💎 {t('account_manage_subscription')}</Text>
@@ -563,6 +559,8 @@ export default function AccountScreen({ visible, onClose, user, signOut, onOpenS
                                 {restoring ? t('account_restore_purchases') + '…' : t('account_restore_purchases')}
                             </Text>
                         </TouchableOpacity>
+
+                        </>) : null}
 
                         <View style={styles.versionBox}>
                             {versionLines().map((line) => (

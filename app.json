@@ -23,13 +23,12 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.clickpickandcook.app",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Fern uses your microphone for hands-free voice cooking \u2014 say recipes, add items, and plan your week without touching your phone.",
-        "NSSpeechRecognitionUsageDescription": "Fern listens for your voice commands to plan meals and navigate the app hands-free.",
-        "NSLocationWhenInUseUsageDescription": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping.",
-        "NSLocationAlwaysUsageDescription": "Fern uses background location to detect when you arrive at your grocery store and notify you to start shopping.",
-        "NSCameraUsageDescription": "Fern uses your camera to photograph your fridge or pantry so it can suggest recipes from what you have.",
-        "NSPhotoLibraryUsageDescription": "Fern needs access to your photos so you can pick fridge or pantry photos to find recipes from what you have."
+        "NSMicrophoneUsageDescription": "Fern uses your microphone when you tap to talk to her. Your recording is sent to our speech service only to turn it into text.",
+        "NSLocationWhenInUseUsageDescription": "Fern checks whether you are at one of your saved stores so it can open that store's list and sale items.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Fern checks in the background whether you have arrived at one of your saved stores, so it can send a store alert. Only your saved stores are checked.",
+        "NSLocationAlwaysUsageDescription": "Fern checks in the background whether you have arrived at one of your saved stores, so it can send a store alert. Only your saved stores are checked.",
+        "NSCameraUsageDescription": "Fern uses your camera to photograph store flyers, add photos to your recipes and cookbooks, and snap your fridge for recipe ideas.",
+        "NSPhotoLibraryUsageDescription": "Fern uses your photos so you can pick a store flyer, a recipe or cookbook photo, or a fridge photo for recipe ideas."
       },
       "usesAppleSignIn": true,
       "associatedDomains": [
@@ -61,9 +60,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
-          "locationAlwaysPermission": "Fern uses background location to detect when you arrive at your grocery store.",
-          "locationWhenInUsePermission": "Fern detects when you arrive at your grocery store so it can open your shopping list automatically.",
+          "locationAlwaysAndWhenInUsePermission": "Fern checks in the background whether you have arrived at one of your saved stores, so it can send a store alert. Only your saved stores are checked.",
+          "locationAlwaysPermission": "Fern checks in the background whether you have arrived at one of your saved stores, so it can send a store alert. Only your saved stores are checked.",
+          "locationWhenInUsePermission": "Fern checks whether you are at one of your saved stores so it can open that store's list and sale items.",
           "isIosBackgroundLocationEnabled": true,
           "isAndroidBackgroundLocationEnabled": false
         }
@@ -73,7 +72,7 @@
       [
         "expo-audio",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to record audio.",
+          "microphonePermission": "Fern uses your microphone when you tap to talk to her. Your recording is sent to our speech service only to turn it into text.",
           "enableBackgroundPlayback": true,
           "enableBackgroundRecording": true
         }
@@ -82,8 +81,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Fern needs access to your photos so you can pick fridge or pantry photos to find recipes from what you have.",
-          "cameraPermission": "Fern uses your camera to photograph your fridge or pantry so it can suggest recipes from what you have."
+          "photosPermission": "Fern uses your photos so you can pick a store flyer, a recipe or cookbook photo, or a fridge photo for recipe ideas.",
+          "cameraPermission": "Fern uses your camera to photograph store flyers, add photos to your recipes and cookbooks, and snap your fridge for recipe ideas."
         }
       ],
       "expo-apple-authentication",
