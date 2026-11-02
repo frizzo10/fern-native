@@ -68,11 +68,13 @@ export function useAuth() {
   // silent console.warn nobody sees (see syncPull below).
   const [syncError, setSyncError] = useState(false);
 
+  // Remembered across sign-outs: a phone that has signed in before opens the login screen on Sign In, a fresh install on Create account.
+  useEffect(() => { if (user?.id) AsyncStorage.setItem('fern_has_signed_in', '1').catch(() => {}); }, [user?.id]);
+
   // ── Refresh token ────────────────────────────────────────────────────────────
   const tryRefreshToken = async (refreshToken) => {
     console.log('\n🔁🔁🔁 ============================================');
     console.log('🔁🔁🔁  TOKEN REFRESH INITIATED');
-    console.log('🔁🔁🔁  refreshToken:', refreshToken);
     console.log('🔁🔁🔁 ============================================\n');
     try {
       const res = await fetchWithTimeout(AUTH_URL, {
@@ -108,6 +110,12 @@ export function useAuth() {
     SecureStore.getItemAsync(AUTH_KEY).then(async (val) => {
       if (val) {
         const savedUser = JSON.parse(val);
+        // An account saved by an older build with no sign-in key at all can never sync: ask them to sign in again.
+        if (!savedUser?.token && !savedUser?.refreshToken) {
+          await SecureStore.deleteItemAsync(AUTH_KEY).catch(() => {});
+          setLoading(false);
+          return;
+        }
         // Try to silently refresh the token so the session stays alive
         if (savedUser.refreshToken) {
           const refreshed = await tryRefreshToken(savedUser.refreshToken);
@@ -169,11 +177,7 @@ export function useAuth() {
       const d = result.data || {};
       // Changes made on this phone that never reached the server (slow or no connection) are kept, not overwritten
       // by the older server copy; the next useSync pull uploads them first.
-      if ((await AsyncStorage.getItem(UNSENT_KEY)) === '1') {
-        let lastId = null;
-        try { lastId = JSON.parse((await AsyncStorage.getItem('rv4_auth')) || 'null')?.id || null; } catch (e) { lastId = null; }
-        if (lastId === userId) { setSyncError(false); return; }
-      }
+      if (userId && (await AsyncStorage.getItem(UNSENT_KEY)) === String(userId)) { setSyncError(false); return; }
       await AsyncStorage.setItem('rv4_saved',            JSON.stringify(d.saved            || []));
       await AsyncStorage.setItem('rv4_books',            JSON.stringify(d.books            || []));
       await AsyncStorage.setItem('rv4_meal_plan',        JSON.stringify(d.meal_plan        || {}));
@@ -468,15 +472,22 @@ export function useAuth() {
 
   // ── Delete account ───────────────────────────────────────────────────────────
   const deleteAccount = async () => {
-    if (!user?.token) throw new Error('Not signed in');
+    if (!user?.token && !user?.refreshToken) throw new Error('Not signed in');
+    // A fresh sign-in key first: the saved one may have expired while the app was open.
+    let token = user.token;
+    if (user.refreshToken) {
+      const refreshed = await tryRefreshToken(user.refreshToken);
+      if (refreshed?.token) token = refreshed.token;
+    }
     const res = await fetchWithTimeout(AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'delete_account', token: user.token }),
+      body: JSON.stringify({ action: 'delete_account', token }),
     }, 30000);
     const data = await readJson(res);
     if (!res.ok || !data.success) throw new Error(data.error || `delete failed (${res.status})`);
     await AsyncStorage.clear().catch(() => {});
+    await resetUnsentChanges();
     await SecureStore.deleteItemAsync(AUTH_KEY).catch(() => {});
     try { await supabase.auth.signOut(); } catch (e) { /* already gone */ }
     clearGrant();
@@ -485,7 +496,7 @@ export function useAuth() {
 
   // ── Sign out ─────────────────────────────────────────────────────────────────
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try { await supabase.auth.signOut(); } catch (e) { /* offline: still sign out on this phone */ }
     await SecureStore.deleteItemAsync(AUTH_KEY);
     await AsyncStorage.removeItem('rv4_auth').catch(() => {});
     await resetUnsentChanges();

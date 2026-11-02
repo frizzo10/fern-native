@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { chainKey, dealsForStore } from '../utils/flyerStore';
 import PaperChips from '../components/trip/PaperChips';
 import { STATIONERY, STATIONERY_KEY, stationeryById, firstName } from '../constants/stationery';
+import { dateToKey } from '../utils/familyDates';
 import {
   ActivityIndicator,
   Alert,
@@ -1332,7 +1333,7 @@ export default function ShoppingScreen({ user }) {
             weekDeals={weekDeals}
             onAddToList={addRecipesToList}
             onPlanDay={planDinnerOnDay}
-            onPlanOwn={() => navigation.navigate('Family')}
+            onPlanOwn={() => navigation.navigate('Family', { addAction: 'dinner', addDateKey: dateToKey(new Date()), requestKey: Date.now() })}
             books={data.books}
             onSaveRecipe={saveRecipeToLibrary}
             shoppingItems={items}

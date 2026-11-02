@@ -73,19 +73,24 @@ function fetchPullShared(user) {
 }
 
 
-// Device-only flag: '1' while a change made on the phone has not reached the server yet.
+// Device-only flag: holds the user id while a change made on the phone has not reached the server yet
+// (so another account signed in later is never affected).
 export const UNSENT_KEY = 'fern_sync_unsent';
-let unsentMem = null;
-async function hasUnsentChanges() {
-  if (unsentMem !== null) return unsentMem;
-  try { unsentMem = (await AsyncStorage.getItem(UNSENT_KEY)) === '1'; } catch (e) { unsentMem = false; }
-  return unsentMem;
+let unsentMem = null; // the user id, '' for none, null = not read yet
+async function hasUnsentChanges(userId) {
+  if (unsentMem === null) {
+    try { unsentMem = (await AsyncStorage.getItem(UNSENT_KEY)) || ''; } catch (e) { unsentMem = ''; }
+  }
+  return !!userId && unsentMem === String(userId);
 }
-async function setUnsentChanges(on) {
-  unsentMem = !!on;
-  try { if (on) await AsyncStorage.setItem(UNSENT_KEY, '1'); else await AsyncStorage.removeItem(UNSENT_KEY); } catch (e) { /* best effort */ }
+async function setUnsentChanges(userId) {
+  unsentMem = userId ? String(userId) : '';
+  try { if (unsentMem) await AsyncStorage.setItem(UNSENT_KEY, unsentMem); else await AsyncStorage.removeItem(UNSENT_KEY); } catch (e) { /* best effort */ }
 }
-export function resetUnsentChanges() { unsentMem = false; return AsyncStorage.removeItem(UNSENT_KEY).catch(() => {}); }
+export function resetUnsentChanges() { unsentMem = ''; return AsyncStorage.removeItem(UNSENT_KEY).catch(() => {}); }
+// Pushes run one after another, each reading the newest data from storage when its turn comes,
+// so an older snapshot can never reach the server after a newer one.
+let pushQueue = Promise.resolve();
 
 export function useSync(user) {
   const [data, setData] = useState({
@@ -114,9 +119,9 @@ export function useSync(user) {
   const pushRef = useRef(null);
   const pull = useCallback(async () => {
     if (!user?.id || !user?.token) return;
-    if (await hasUnsentChanges()) {
+    if (await hasUnsentChanges(user.id)) {
       await pushRef.current?.();
-      if (await hasUnsentChanges()) { setLoading(false); return; }
+      if (await hasUnsentChanges(user.id)) { setLoading(false); setRefreshing(false); return; }
     }
     if (loadingRef.current) {
       setLoading(true);
@@ -233,9 +238,13 @@ export function useSync(user) {
     }
   }, [user]);
 
-  const pushChangedFromStorage = useCallback(async (changedData = {}) => {
+  const pushChangedFromStorage = useCallback((changedData = {}) => {
     // A pull already in flight may predate this change; later pulls must ask again.
     sharedPull = null; sharedPullKey = '';
+    const turn = pushQueue.then(() => doPush(changedData));
+    pushQueue = turn.catch(() => null);
+    return turn;
+  async function doPush(changedData) {
     if (!user?.id || !user?.token) return null;
     try {
       const saved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || '[]');
@@ -283,9 +292,9 @@ export function useSync(user) {
       lastPush.error = null;
       const bodyText = JSON.stringify(requestBody);
       lastPush.bytes = bodyText.length;
-      // Give up after 30 s: a stalled upload used to keep every "Saving…" spinner up forever.
+      // Give up after 60 s: a stalled upload used to keep every "Saving…" spinner up forever.
       const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-      const timer = ctrl ? setTimeout(() => ctrl.abort(), 30000) : null;
+      const timer = ctrl ? setTimeout(() => ctrl.abort(), 60000) : null;
       let res;
       try {
         res = await fetch(SYNC_URL, {
@@ -299,7 +308,8 @@ export function useSync(user) {
       }
 
       const responseJson = await res.json().catch(() => null);
-      await setUnsentChanges(res.status >= 500); // only a server or network failure; a 4xx would never succeed on retry
+      // Anything but success keeps the phone's copy as unsent (an expired sign-in, a 413, a 5xx…), so a pull never overwrites it.
+      await setUnsentChanges(res.ok ? '' : user.id);
       lastPush.status = res.status;
       lastPush.error = responseJson?.error || responseJson?.message || null;
       console.log('[sync] push response status', res.status);
@@ -309,10 +319,11 @@ export function useSync(user) {
       return responseJson;
     } catch (e) {
       console.warn('Sync changed push failed:', e);
-      await setUnsentChanges(true);
+      await setUnsentChanges(user.id);
       lastPush.error = String(e?.message || e);
       return null;
     }
+  }
   }, [user]);
 
   const pushAllFromStorage = useCallback(async () => {

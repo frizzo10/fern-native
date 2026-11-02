@@ -50,15 +50,16 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
     const m = String(e?.message || '');
     if (m === 'slow_connection' || /network request failed|timed? ?out|abort/i.test(m)) return t('auth_err_slow');
     if (m === 'account_exists' || /already registered|already exists/i.test(m)) return t('auth_err_exists');
-    if (m === 'check_email' || /confirm/i.test(m)) return t('auth_err_check_email');
+    if (m === 'check_email' || /email not confirmed|confirm your email/i.test(m)) return t('auth_err_check_email');
     if (/invalid login|invalid credentials|invalid grant|login failed/i.test(m)) return t('auth_err_wrong');
-    if (/password/i.test(m)) return t('password_too_short');
+    // A password problem is only "too short" when the server says so; otherwise it is a wrong email/password.
+    if (/password/i.test(m)) return /at least|too short|characters/i.test(m) ? t('password_too_short') : t('auth_err_wrong');
     if (/email/i.test(m)) return t('enter_valid_email');
     return t('auth_err_generic');
   };
   // A fresh install (no account used on this phone yet) opens on Create account.
   useEffect(() => {
-    AsyncStorage.getItem('rv4_auth').then((v) => { if (!v) setMode((m) => (m === 'signin' ? 'signup' : m)); }).catch(() => {});
+    AsyncStorage.getItem('fern_has_signed_in').then((v) => { if (!v) setMode((m) => (m === 'signin' ? 'signup' : m)); }).catch(() => {});
   }, []);
   const [showApple, setShowApple] = useState(false);
   const showGoogle = !!(googleAvailable && googleAvailable());
@@ -325,12 +326,14 @@ export default function LoginScreen({ onAuthSuccess, signInWithSupabase, signUpW
           </View>
 
           <Text style={s.footer}>{t('always_free')}</Text>
+          {mode === 'signup' ? (
           <Text style={s.legal}>
             {t('auth_legal_pre')}{' '}
             <Text style={s.legalLink} onPress={() => Linking.openURL('https://app.clickpickandcook.com/terms.html')}>{t('auth_legal_terms')}</Text>
             {' '}{t('auth_legal_and')}{' '}
             <Text style={s.legalLink} onPress={() => Linking.openURL('https://app.clickpickandcook.com/privacy.html')}>{t('auth_legal_privacy')}</Text>.
           </Text>
+          ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

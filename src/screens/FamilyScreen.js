@@ -9,6 +9,8 @@ import useLanguage from '../hooks/useLanguage';
 import { useTour } from '../services/TourContext';
 import useEntitlement from '../hooks/useEntitlement';
 import { FEATURE_TIERS } from '../constants/featureAccess';
+import { TIERS } from '../constants/tiers';
+import { FREE_RECIPE_LIMIT } from '../utils/freeLimits';
 import UpgradeGateModal from '../components/UpgradeGateModal';
 import FamilyVoiceExampleScreen from '../components/FamilyVoiceExampleScreen';
 import RecipeDetailModal from '../components/RecipeDetailModal';
@@ -127,7 +129,10 @@ export default function FamilyScreen({ user }) {
         // On a cold open the day pager may not be mounted yet; re-sync its position once it is.
         setTimeout(() => dayScrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: false }), 350);
         const dateKey = dateKeys[idx];
-        if (params.addAction === 'activity') {
+        if (params.addAction === 'dinner') {
+            // From Shopping's "Plan a dinner yourself": straight to the dinner picker (after the screen has settled).
+            setTimeout(() => openAddMealModal(dateKey, 'Dinner', t('meal_planner_slot_dinner')), 500);
+        } else if (params.addAction === 'activity') {
             setIsAddActivityOpen(true);
         } else if (params.addAction === 'meal') {
             Alert.alert(t('home_add_meal'), undefined, [
@@ -340,6 +345,28 @@ export default function FamilyScreen({ user }) {
             : onePerSlot([...dayMeals, newEntry]);
         persistMealPlan({ ...mealPlanLocal, [dateKey]: nextDayMeals });
         setAddMealModal(null);
+    };
+
+    // A recipe Fern found (typed or spoken in the add-meal sheet): keep it in My Recipes too, then plan it like a saved one.
+    // Before, only Home's sheet had the Find button, so "Plan a dinner yourself" from Shopping was a dead end for a new user.
+    const handleAddFoundMeal = async (recipe) => {
+        try {
+            let saved = [];
+            try { saved = JSON.parse((await AsyncStorage.getItem('rv4_saved')) || '[]'); } catch (e) { saved = []; }
+            if (!Array.isArray(saved)) saved = [];
+            const titleKey = String(recipe?.title || '').trim().toLowerCase();
+            const full = !hasAccess(TIERS.PRO) && saved.length >= FREE_RECIPE_LIMIT;
+            if (titleKey && !full && !saved.some((item) => String(item?.title || '').trim().toLowerCase() === titleKey)) {
+                saved = [...saved, {
+                    id: `find-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: recipe.title, emoji: recipe.emoji, cuisine: recipe.category, mealType: recipe.meal,
+                    time: recipe.time, difficulty: recipe.difficulty, description: recipe.description,
+                    ingredients: recipe.ingredients, instructions: recipe.methodSteps, note: '', _cloudPhotos: [],
+                }];
+                await AsyncStorage.setItem('rv4_saved', JSON.stringify(saved));
+            }
+        } catch (e) { /* the meal still gets planned */ }
+        handleSelectSavedMealForAdd(recipe);
     };
 
     const [isSharingWeek, setIsSharingWeek] = useState(false);
@@ -771,8 +798,10 @@ export default function FamilyScreen({ user }) {
                 dayLabel={addMealModal ? formatDayLabel(addMealModal.dateKey) : ''}
                 savedRecipes={data.recipes}
                 token={user?.token}
+                userId={user?.id}
                 onClose={() => setAddMealModal(null)}
                 onSelect={handleSelectSavedMealForAdd}
+                onAddFound={handleAddFoundMeal}
             />
 
             <FamilyAddActivityModal
