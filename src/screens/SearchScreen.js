@@ -51,12 +51,53 @@ function parseAiRecipeList(rawText) {
         .replace(/```$/, '')
         .trim();
 
+    const fromParsed = (parsed) => {
+        if (Array.isArray(parsed)) return parsed;
+        if (parsed && typeof parsed === 'object') {
+            const list = parsed.recipes || parsed.results || parsed.items;
+            if (Array.isArray(list)) return list;
+            if (parsed.title) return [parsed];
+        }
+        return null;
+    };
+
     try {
-        const parsed = JSON.parse(cleaned);
-        return Array.isArray(parsed) ? parsed : [];
-    } catch {
-        return [];
+        const got = fromParsed(JSON.parse(cleaned));
+        if (got) return got;
+    } catch {}
+
+    // Text around the array, or a reply cut off mid-recipe: keep every complete {...} object.
+    const start = cleaned.indexOf('[');
+    const body = start >= 0 ? cleaned.slice(start + 1) : cleaned;
+    const out = [];
+    let depth = 0;
+    let objStart = -1;
+    let inStr = false;
+    let esc = false;
+    for (let i = 0; i < body.length; i += 1) {
+        const ch = body[i];
+        if (inStr) {
+            if (esc) esc = false;
+            else if (ch === '\\') esc = true;
+            else if (ch === '"') inStr = false;
+            continue;
+        }
+        if (ch === '"') inStr = true;
+        else if (ch === '{') {
+            if (depth === 0) objStart = i;
+            depth += 1;
+        } else if (ch === '}') {
+            depth -= 1;
+            if (depth === 0 && objStart >= 0) {
+                try {
+                    const obj = JSON.parse(body.slice(objStart, i + 1));
+                    if (obj && obj.title) out.push(obj);
+                } catch {}
+                objStart = -1;
+            }
+        }
     }
+    return out;
 }
 
 function SearchResultCard({ recipe, isSaved, onPress, t }) {
@@ -405,25 +446,48 @@ export default function SearchScreen({ user }) {
         scrollRef.current?.scrollTo({ y: 0, animated: false });
 
         try {
-            const res = await fetch(AI_SEARCH_URL, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'User-Agent': 'FernApp/1.0 (myaifern.com)',
-                },
-                body: JSON.stringify({
-                    system: SEARCH_SYSTEM_PROMPT,
-                    messages: [{ role: 'user', content: buildSearchUserMessage(query) }],
-                    feature: 'recipe_search',
-                    userId: user?.id || '',
-                    token: user?.token,
-                    locale: locale,
-                }),
-            });
+            const askAi = async () => {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 40000);
+                try {
+                    const res = await fetch(AI_SEARCH_URL, {
+                        method: 'POST',
+                        signal: controller.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'FernApp/1.0 (myaifern.com)',
+                        },
+                        body: JSON.stringify({
+                            system: SEARCH_SYSTEM_PROMPT,
+                            messages: [{ role: 'user', content: buildSearchUserMessage(query) }],
+                            feature: 'recipe_search',
+                            userId: user?.id || '',
+                            token: user?.token,
+                            locale: locale,
+                        }),
+                    });
+                    if (!res.ok) throw new Error(`ai ${res.status}`);
+                    const json = await res.json();
+                    const rawText = Array.isArray(json?.content)
+                        ? json.content.filter((p) => p?.type === 'text' || typeof p?.text === 'string').map((p) => p.text || '').join('')
+                        : (json?.message || json?.reply || '[]');
+                    return parseAiRecipeList(rawText).map(normalizeAiRecipe);
+                } finally {
+                    clearTimeout(timer);
+                }
+            };
 
-            const json = await res.json();
-            const rawText = json?.content?.[0]?.text ?? '[]';
-            const recipes = parseAiRecipeList(rawText).map(normalizeAiRecipe);
+            let recipes = [];
+            let lastError = null;
+            for (let attempt = 0; attempt < 2 && recipes.length === 0; attempt += 1) {
+                try {
+                    recipes = await askAi();
+                    lastError = null;
+                } catch (err) {
+                    lastError = err;
+                }
+            }
+            if (recipes.length === 0 && lastError) throw lastError;
             setSearchResults(recipes);
 
             // Emoji is just a placeholder until each recipe's real photo loads in.
