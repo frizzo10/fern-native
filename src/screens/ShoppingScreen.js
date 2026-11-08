@@ -264,6 +264,10 @@ export default function ShoppingScreen({ user }) {
 
   useFocusEffect(
     useMemo(() => () => {
+      // Show what is on the phone right away (a recipe's List button writes there before this screen opens).
+      AsyncStorage.getItem('rv4_master_shop').then((v) => {
+        try { const a = JSON.parse(v || '[]'); if (Array.isArray(a) && a.length) setItems(toUiItems(a)); } catch (e) { /* ignore */ }
+      }).catch(() => {});
       pull();
     }, [pull])
   );

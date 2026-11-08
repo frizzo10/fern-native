@@ -639,10 +639,16 @@ export default function HomeScreen({ user, route }) {
     }
   };
 
+  const [storedShop, setStoredShop] = React.useState(null);
+  React.useEffect(() => { setStoredShop(null); }, [data.shopping]);
   useFocusEffect(
     useMemo(() => () => {
       pull();
       setScanTick((n) => n + 1);
+      // Items added or deleted on Shopping are written to storage first; read the count from there so Home is never stale.
+      AsyncStorage.getItem('rv4_master_shop').then((v) => {
+        try { const a = JSON.parse(v || '[]'); if (Array.isArray(a)) setStoredShop(a); } catch (e) { /* ignore */ }
+      }).catch(() => {});
     }, [pull])
   );
 
@@ -2731,7 +2737,7 @@ export default function HomeScreen({ user, route }) {
                 onOpenAccount={openAccount}
                 onOpenLanguage={() => setIsLanguageModalOpen(true)}
                 greeting={userName ? `${getGreeting(t)}, ${userName}` : getGreeting(t)}
-                shopCount={(data.shopping || []).filter((it) => !it.checked).length}
+                shopCount={(storedShop || data.shopping || []).filter((it) => !it.checked).length}
                 onOpenList={() => navigation.navigate('Shopping', { listOnly: Date.now() })}
                 onOpenRecipes={() => navigation.navigate('Recipes')}
                 recipeCount={(data.recipes || []).length}
@@ -2769,7 +2775,7 @@ export default function HomeScreen({ user, route }) {
                 onEditActivity={setHomeEditActivity}
                 tools={newHomeTools}
                 libraryItems={newHomeLibrary}
-                notice={<><AutopilotCard user={user} ready={!loading} pushChangedFromStorage={pushChangedFromStorage} pull={pull} /><AlwaysLocationReminder /><AlexaCard shopCount={(data.shopping || []).filter((it) => !it.checked).length} onSetup={() => setIsAlexaModalOpen(true)} /></>}
+                notice={<><AutopilotCard user={user} ready={!loading} pushChangedFromStorage={pushChangedFromStorage} pull={pull} /><AlwaysLocationReminder /><AlexaCard shopCount={(storedShop || data.shopping || []).filter((it) => !it.checked).length} onSetup={() => setIsAlexaModalOpen(true)} /></>}
               />
             ) : (
               <>
