@@ -657,6 +657,59 @@ export default function SearchScreen({ user }) {
         }
     };
 
+    // Add / replace the photos of the open recipe. Saves the recipe first if it
+    // is not in the library yet. Keeps the viewer open (patches in place).
+    const writeSelectedRecipePhotos = async (mode, value) => {
+        if (!selectedRecipe) return;
+        try {
+            const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
+            const baseSaved = Array.isArray(storedSaved) ? storedSaved : (Array.isArray(data.recipes) ? data.recipes : []);
+            const target = String(selectedRecipe.title || '').trim().toLowerCase();
+            const titleOf = (item) => String(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, '')).trim().toLowerCase();
+            const currentPhotos = (item) => {
+                let list = Array.isArray(item?._cloudPhotos) ? item._cloudPhotos.filter((u) => typeof u === 'string' && u) : [];
+                if (!list.length && typeof item?._photoUrl === 'string' && /^https?:\/\//i.test(item._photoUrl)) list = [item._photoUrl];
+                return list;
+            };
+            let found = false;
+            let nextSaved = baseSaved.map((item) => {
+                if (!target || titleOf(item) !== target) return item;
+                found = true;
+                return { ...item, _cloudPhotos: mode === 'set' ? value : [...currentPhotos(item), value] };
+            });
+            if (!found) {
+                const d = selectedRecipe;
+                const base = (d.photos && d.photos.length) ? d.photos : (d.image && /^https?:\/\//i.test(d.image) ? [d.image] : []);
+                nextSaved = [...baseSaved, {
+                    id: `search-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                    title: d.title,
+                    emoji: d.emoji,
+                    cuisine: d.category,
+                    mealType: d.meal,
+                    time: d.time,
+                    difficulty: d.difficulty,
+                    description: d.description,
+                    ingredients: d.ingredients,
+                    instructions: d.methodSteps,
+                    note: noteText.trim(),
+                    photoSearch: d.photoSearch || '',
+                    _cloudPhotos: mode === 'set' ? value : [...base, value],
+                    _bookIds: [],
+                }];
+            }
+            await AsyncStorage.setItem('rv4_saved', JSON.stringify(nextSaved));
+            await syncRecipeCache(nextSaved);
+            const mine = nextSaved.find((item) => titleOf(item) === target);
+            const finalPhotos = mine ? currentPhotos(mine) : [];
+            setSelectedRecipe((prev) => (prev ? { ...prev, image: finalPhotos[0] || null, photos: finalPhotos } : prev));
+            await pushAllFromStorage();
+            await pull();
+        } catch (e) {
+            console.warn('[ai-search] photo save failed', e);
+            Alert.alert(t('save_failed'), String(e?.message || t('save_recipe_failed_desc')));
+        }
+    };
+
     // Deliberately does NOT close selectedRecipe on success (unlike
     // persistSelectedRecipeNote above) — this runs from inside
     // SaveToCookbookModal, a second Modal nested within RecipeDetailModal's
@@ -1432,6 +1485,8 @@ export default function SearchScreen({ user }) {
                     onAddToList={handleAddSelectedRecipeToShoppingList}
                     books={data.books}
                     onSaveToCookbook={persistSelectedRecipeToCookbook}
+                    onUpdateImage={(url) => (url ? writeSelectedRecipePhotos('add', url) : undefined)}
+                    onSetPhotos={(list) => (Array.isArray(list) ? writeSelectedRecipePhotos('set', list) : undefined)}
                     user={user}
                 />
 

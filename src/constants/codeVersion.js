@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-04 a: Find search retries and reads cut-off replies';
+export const CODE_VERSION = '11-08 a: photos can be added from Find recipes';
