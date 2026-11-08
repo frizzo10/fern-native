@@ -40,7 +40,8 @@ const AI_SEARCH_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 
 const SEARCH_SYSTEM_PROMPT = 'You are a world-class chef and culinary expert with deep knowledge of celebrity recipes, viral dishes, restaurant classics, and home cooking. The user will give you a search query. IMPORTANT: If the query is not related to food, cooking, ingredients, cuisines, or dishes — respond with exactly: [] (an empty JSON array, nothing else). If it is food-related, respond ONLY with a raw JSON array of 6 recipe objects, no markdown, no backticks, no explanation. SEARCH RULES: (1) If the query mentions a specific person, celebrity, chef, or restaurant — your FIRST result must be that exact named recipe as accurately as possible, followed by 4 closely related variations. (2) If the query is a specific dish — your FIRST result must be the most classic/authentic version, followed by 4 variations. (3) If the query is an ingredient — return 5 distinct dishes featuring it. Each title must name the whole dish a person would cook, not just one component (e.g. "Roasted Potatoes with Lemon-Rosemary Garlic Butter", not "Lemon-Rosemary Garlic Butter"). Each object must have: title, emoji (1 emoji), cuisine, mealType (Breakfast/Lunch/Dinner/Dessert/Snack/Appetizer), time (e.g. "40 min"), difficulty (Easy/Medium/Hard), description (2 sentences), ingredients (string array with QUANTITIES: "2 cups flour", "1 egg", "3 tbsp butter"), instructions (string[] — a COMPLETE method of 5 to 8 separate steps, each one or two sentences, covering EVERY ingredient and every component in the title, including any sauce or side, from prep through serving; never just one step), notes (string or ""), photoSearch (a SPECIFIC plain English phrase of 3-5 words that includes the cuisine/style AND key visual distinguishing detail — e.g. "Korean gochujang glazed chicken" not just "grilled chicken", "tandoori chicken naan basmati" not just "grilled chicken" — must be different enough between similar recipes in this same response that photo searches return visually distinct images), matchType ("exact" if this is the specific named recipe the user searched for, "variation" for related recipes).';
 
-function buildSearchUserMessage(query) {
+function buildSearchUserMessage(query, light) {
+    if (light) return `The user searched for: "${query}". Return ONLY a valid JSON array of exactly 3 realistic recipes, each with a short 4-step method.`;
     return `The user searched for: "${query}". Apply the search rules strictly: if this mentions a specific person or named recipe lead with that exact recipe first then 4 close variations. If it is a dish lead with the most authentic classic version then 4 variations. Make all 5 recipes realistic achievable and distinct. Return ONLY valid JSON array of exactly 6 recipes.`;
 }
 
@@ -446,7 +447,7 @@ export default function SearchScreen({ user }) {
         scrollRef.current?.scrollTo({ y: 0, animated: false });
 
         try {
-            const askAi = async () => {
+            const askAi = async (light) => {
                 const controller = new AbortController();
                 const timer = setTimeout(() => controller.abort(), 40000);
                 try {
@@ -459,7 +460,7 @@ export default function SearchScreen({ user }) {
                         },
                         body: JSON.stringify({
                             system: SEARCH_SYSTEM_PROMPT,
-                            messages: [{ role: 'user', content: buildSearchUserMessage(query) }],
+                            messages: [{ role: 'user', content: buildSearchUserMessage(query, light) }],
                             feature: 'recipe_search',
                             userId: user?.id || '',
                             token: user?.token,
@@ -481,13 +482,25 @@ export default function SearchScreen({ user }) {
             let lastError = null;
             for (let attempt = 0; attempt < 2 && recipes.length === 0; attempt += 1) {
                 try {
-                    recipes = await askAi();
+                    recipes = await askAi(attempt > 0);
                     lastError = null;
                 } catch (err) {
                     lastError = err;
                 }
             }
-            if (recipes.length === 0 && lastError) throw lastError;
+            if (recipes.length === 0) {
+                // The AI gave nothing: show the saved recipes that match any word of the search.
+                const words = String(query).toLowerCase().split(/[^a-z\u00c0-\u024f]+/).filter((w) => w.length > 2 && !['and', 'the', 'with', 'for'].includes(w));
+                const mine = savedRecipes.filter((r) => {
+                    const hay = `${r.title} ${(r.ingredients || []).join(' ')}`.toLowerCase();
+                    return words.length > 0 && words.some((w) => hay.includes(w));
+                }).slice(0, 12);
+                if (mine.length > 0) {
+                    setSearchResults(mine);
+                    return;
+                }
+                if (lastError) throw lastError;
+            }
             setSearchResults(recipes);
 
             // Emoji is just a placeholder until each recipe's real photo loads in.
