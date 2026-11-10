@@ -242,6 +242,7 @@ export default function SearchScreen({ user }) {
     const [loadingBloggerFeedId, setLoadingBloggerFeedId] = useState(null);
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
+    const [searchNote, setSearchNote] = useState('');
     const [activeQuery, setActiveQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showOnlyMyRecipes, setShowOnlyMyRecipes] = useState(false);
@@ -443,6 +444,7 @@ export default function SearchScreen({ user }) {
         setHasSearched(true);
         setShowOnlyMyRecipes(false);
         setSearchResults([]);
+        setSearchNote('');
         setIsSearching(true);
         scrollRef.current?.scrollTo({ y: 0, animated: false });
 
@@ -472,7 +474,9 @@ export default function SearchScreen({ user }) {
                     const rawText = Array.isArray(json?.content)
                         ? json.content.filter((p) => p?.type === 'text' || typeof p?.text === 'string').map((p) => p.text || '').join('')
                         : (json?.message || json?.reply || '[]');
-                    return parseAiRecipeList(rawText).map(normalizeAiRecipe);
+                    const list = parseAiRecipeList(rawText).map(normalizeAiRecipe);
+                    if (list.length === 0) setSearchNote(`AI reply (${rawText.length} chars): ${String(rawText).slice(0, 160)} ... ${String(rawText).slice(-80)}`);
+                    return list;
                 } finally {
                     clearTimeout(timer);
                 }
@@ -1321,6 +1325,10 @@ export default function SearchScreen({ user }) {
                                             ? t('turn_off_filter')
                                             : t('try_different_search')}
                                     </Text>
+                                    {/* TEMPORARY debug line: remove once empty Find results are explained */}
+                                    {!showOnlyMyRecipes && searchNote ? (
+                                        <Text style={{ marginTop: 10, fontSize: 11, color: '#888' }}>{searchNote}</Text>
+                                    ) : null}
                                 </View>
                             )}
                         </View>
