@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
+import { useState, useEffect, useRef } from 'react';
+import { Platform, AppState } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import { clearGrant } from '../services/grantStore';
+import { setAuthToken } from '../services/authToken';
 import { UNSENT_KEY, resetUnsentChanges } from './useSync';
 
 // Native modules for Apple / Google sign-in. Guarded: an OTA that reaches an app binary built before
@@ -83,7 +84,17 @@ async function readJson(res) {
 }
 
 export function useAuth() {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
+  // Every change of user also updates the in-memory token that index.js attaches to our server calls (`x-fern-token`).
+  const userRef = useRef(null);
+  userRef.current = user;
+  const lastRefreshRef = useRef(Date.now()); // when the access token was last known to be new
+  const refreshingRef = useRef(false);
+  const setUser = (next) => {
+    setAuthToken(next && next.token ? next.token : '');
+    if (next && next.token && next.token !== (userRef.current && userRef.current.token)) lastRefreshRef.current = Date.now();
+    setUserState(next);
+  };
   const [loading, setLoading] = useState(true);
   // Tracks whether the last cloud sync pull failed, so the UI can show a
   // visible "couldn't sync -- retry" banner instead of the failure being a
@@ -160,6 +171,7 @@ export function useAuth() {
             // just warns and leaves the empty defaults, same as it already does today.
             await syncPull(savedUser.id, savedUser.token);
             setUser(savedUser);
+            lastRefreshRef.current = 0; // the saved key may already be expired: renew at the first chance
             console.warn('🔁⚠️  Refresh failed on startup — using cached session, may be expired');
           }
         } else {
@@ -491,6 +503,37 @@ export function useAuth() {
 
     return authUser;
   };
+
+  // ── Keep the sign-in key fresh while the app stays open ────────────────────────
+  // The access token lasts about an hour and was only renewed at launch, so a long session ended up sending an expired
+  // one (the server then treats the person as a guest, and sync can fail). Renew it when it is older than 40 minutes:
+  // checked every 5 minutes and whenever the app comes back to the front. One renewal at a time; a failed try
+  // (offline) simply runs again at the next check.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const keepFresh = async () => {
+      const u = userRef.current;
+      if (!u?.refreshToken || refreshingRef.current) return;
+      if (Date.now() - lastRefreshRef.current < 40 * 60 * 1000) return;
+      refreshingRef.current = true;
+      try {
+        const refreshed = await tryRefreshToken(u.refreshToken);
+        const still = userRef.current;
+        if (refreshed?.token && still && still.id === u.id) {
+          const updated = { ...still, token: refreshed.token, refreshToken: refreshed.refreshToken || still.refreshToken };
+          await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(updated)).catch(() => {});
+          await saveAuthMirror(JSON.stringify({ id: updated.id, email: updated.email, token: updated.token, refreshToken: updated.refreshToken }));
+          lastRefreshRef.current = Date.now();
+          setUser(updated);
+        }
+      } catch (e) { /* try again at the next check */ } finally {
+        refreshingRef.current = false;
+      }
+    };
+    const timer = setInterval(keepFresh, 5 * 60 * 1000);
+    const sub = AppState.addEventListener('change', (st) => { if (st === 'active') keepFresh(); });
+    return () => { clearInterval(timer); sub?.remove?.(); };
+  }, [user?.id]);
 
   // ── Delete account ───────────────────────────────────────────────────────────
   const deleteAccount = async () => {

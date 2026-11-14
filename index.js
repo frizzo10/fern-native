@@ -25,6 +25,40 @@ try {
   });
 } catch (e) { /* never block startup */ }
 
+// Security (2026-11-13): every request to our own server carries the signed-in person's access token in an
+// `x-fern-token` header, so the server can tell an account from a stranger (per-account limits, and it can require
+// sign-in for the functions that cost money). One wrapper here covers every call site; requests to any other host
+// are passed through untouched, and any problem inside the wrapper falls back to the plain request.
+try {
+  const { getAuthToken } = require('./src/services/authToken');
+  const FERN_FN = 'https://app.clickpickandcook.com/.netlify/functions/';
+  const plainFetch = global.fetch;
+  if (typeof plainFetch === 'function') {
+    global.fetch = function fernFetch(input, init) {
+      try {
+        if (typeof input === 'string' && input.indexOf(FERN_FN) === 0) {
+          const token = getAuthToken();
+          if (token) {
+            const src = (init && init.headers) || {};
+            let headers;
+            if (typeof Headers !== 'undefined' && src instanceof Headers) {
+              headers = new Headers(src);
+              if (!headers.has('x-fern-token')) headers.set('x-fern-token', token);
+            } else if (Array.isArray(src)) {
+              headers = src.concat([['x-fern-token', token]]);
+            } else {
+              headers = { ...src };
+              if (!Object.keys(headers).some((k) => String(k).toLowerCase() === 'x-fern-token')) headers['x-fern-token'] = token;
+            }
+            return plainFetch.call(this, input, { ...(init || {}), headers });
+          }
+        }
+      } catch (e) { /* fall through to the plain request */ }
+      return plainFetch.apply(this, arguments);
+    };
+  }
+} catch (e) { /* never block startup */ }
+
 // People with iPhone "Larger Text" / accessibility sizes on saw the layout break (text overflowing circles, headers
 // overlapping). Let text grow a little for readability, but never past 1.3x. In React Native 0.85 Text is a plain
 // function component (no .render, defaultProps ignored), so add the limit when every <Text>/<TextInput> element

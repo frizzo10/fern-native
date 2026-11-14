@@ -140,7 +140,7 @@ Mirrors the web app's save dialog (cookbook picker + Cuisine + Meal Type dropdow
 
 ## API reference
 
-All endpoints are `POST https://app.clickpickandcook.com/.netlify/functions/<name>` with `Content-Type: application/json` unless noted otherwise. Most calls also send a `User-Agent: FernApp/1.0 (myaifern.com)` header (a few inline call sites omit it — not meaningful, just inconsistent).
+All endpoints are `POST https://app.clickpickandcook.com/.netlify/functions/<name>` with `Content-Type: application/json` unless noted otherwise. **Since 2026-11-13 every call to these functions also carries the signed-in person's access token in an `x-fern-token` header**, added in one place (the `global.fetch` wrapper in `index.js`, token from `src/services/authToken.js`, which `useAuth`'s `setUser` keeps current); call sites don't add it themselves, and the per-endpoint notes below that say "no `token`" describe the JSON body only. The server (web repo `_guard.js`) uses it to count the paid functions per account and can require it (`REQUIRE_SIGNIN`). Most calls also send a `User-Agent: FernApp/1.0 (myaifern.com)` header (a few inline call sites omit it — not meaningful, just inconsistent).
 
 ### `ai` — general-purpose AI proxy (heaviest-used endpoint, 10 call sites)
 
@@ -187,6 +187,8 @@ See "Local-first sync architecture" above for the full pull/push shape. Payload 
 Payload: `{ query, token }`. Response: `{ url }` (returns `null` silently on any error — callers treat a missing image as normal, not exceptional). Called from `src/utils/recipeImage.js`'s `fetchRecipeImage`, used by `eventPlannerService.js`, `useAiRecipeCollection.js`, `SearchScreen.js`, `HomeScreen.js`, `RecipesScreen.js`, `EventPlanResultModal.js` (dead), `TwentyMinDinnerModal.js`, `EventPlannerIntakeModal.js`, `MealPlannerImage.js` (the AI Meal Planner's per-meal photos on the day cards and detail view — looked up by meal title, remembered for the session, emoji fallback; mirrors the web planner).
 
 ### `upload-photo`
+
+**Ownership (2026-11-13):** a signed-in upload (the `x-fern-token` header) records the account as the file's owner (server table `photo_owners`); only that account can replace the file (403 for anyone else), and a call with no valid token can add a new file name but never replace one (409). File names made here already contain a timestamp or a uuid, so normal uploads are always new names.
 
 Payload: `{ photoBase64, fileName }` — `photoBase64` is a full data URI (`data:image/jpeg;base64,...`), not bare base64; `fileName` is caller-generated (no `token`/`userId` in the payload). Response: `{ success, url }`, where `url` points at Supabase storage (`https://axqkdhzcfcroxlkducea.supabase.co/storage/v1/object/public/recipe-photos/<fileName>`). Caller: `src/services/uploadPhotoService.js`'s `uploadPhoto`, used by `RecipesScreen.js`'s `NewCookbookModal` to upload a cookbook cover photo — the returned `url` is stored in `rv4_cb_covers` (see local storage key table), not on the book object itself.
 
