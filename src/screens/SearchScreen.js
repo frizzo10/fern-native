@@ -508,20 +508,23 @@ export default function SearchScreen({ user }) {
             setSearchResults(recipes);
 
             // Emoji is just a placeholder until each recipe's real photo loads in.
-            // Each recipe sends its position as `index` so get-recipe-image picks a different
-            // Pexels result per recipe. As a backup, track URLs already used in this search
-            // and retry a repeat with a more specific query (title + cuisine).
+            // Track photos already used in this search so two cards never share one.
             const usedImageUrls = new Set();
-            const loadImageFor = async (recipe, index) => {
+            const loadImageFor = async (recipe) => {
                 const category = recipe.category || '';
-                const queries = [
-                    recipe.photoSearch || recipe.title,
-                    `${recipe.title} ${category}`.trim(),
-                    `${recipe.title} ${category} food photo`.trim(),
+                const main = recipe.photoSearch || recipe.title;
+                // Always the best match first (offset 0); only step to the next-best of the
+                // same search when another card already took that photo. Deeper results drift
+                // off-topic, so we stop early and keep the emoji instead of showing a wrong picture.
+                const attempts = [
+                    [main, 0],
+                    [main, 1],
+                    [`${recipe.title} ${category}`.trim(), 0],
+                    [`${recipe.title} ${category}`.trim(), 1],
                 ];
-                for (const query of queries) {
-                    const url = await fetchRecipeImage(query, user?.token, index);
-                    if (!url) return;
+                for (const [query, offset] of attempts) {
+                    const url = await fetchRecipeImage(query, user?.token, offset);
+                    if (!url) continue;
                     if (usedImageUrls.has(url)) continue;
                     usedImageUrls.add(url);
                     setSearchResults((prev) => prev.map((item) => (
@@ -533,7 +536,7 @@ export default function SearchScreen({ user }) {
                     return;
                 }
             };
-            recipes.forEach((recipe, index) => { loadImageFor(recipe, index); });
+            recipes.forEach((recipe) => { loadImageFor(recipe); });
         } catch (e) {
             console.warn('[ai-search] request failed', e);
             Alert.alert(t('search_failed'), t('ai_search_failed_desc'));
