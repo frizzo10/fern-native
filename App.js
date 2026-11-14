@@ -815,7 +815,6 @@ function MainAppContent() {
         console.log(`🔔🔔🔔  TIER SYNCED TO BACKEND ${isLaunchSync ? '(APP LAUNCH)' : '(PLAN CHANGED)'}`);
         console.log(`🔔🔔🔔  user: ${user.email || user.id}`);
         console.log(`🔔🔔🔔  plan: ${rcTier}`);
-        console.log(`🔔🔔🔔  token: ${user.token}`);
         console.log('🔔🔔🔔 ============================================\n');
       })
       .catch((e) => console.warn('⚠️ Failed to push tier to sync:', e.message));

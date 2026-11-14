@@ -15,6 +15,28 @@ try { WebBrowser = require('expo-web-browser'); } catch (e) { WebBrowser = null;
 const OAUTH_REDIRECT = 'fern://auth';
 
 const AUTH_KEY = 'fern_user';
+
+// SECURITY (2026-11-13): the second copy of the sign-in keys ('rv4_auth': id, email, token, refreshToken) used to sit in
+// AsyncStorage, which is not encrypted. It now lives in the Keychain (SecureStore) under the same name, and any old
+// AsyncStorage copy is removed the first time it is read or written.
+const AUTH_MIRROR_KEY = 'rv4_auth';
+async function saveAuthMirror(json) {
+  try { await SecureStore.setItemAsync(AUTH_MIRROR_KEY, json); } catch (e) { /* the primary copy (AUTH_KEY) is still saved by the caller */ }
+  await AsyncStorage.removeItem(AUTH_MIRROR_KEY).catch(() => {});
+}
+async function readAuthMirror() {
+  let v = null;
+  try { v = await SecureStore.getItemAsync(AUTH_MIRROR_KEY); } catch (e) { v = null; }
+  if (v) return v;
+  // Older builds kept it in AsyncStorage: move it over once.
+  const old = await AsyncStorage.getItem(AUTH_MIRROR_KEY).catch(() => null);
+  if (old) await saveAuthMirror(old);
+  return old;
+}
+async function clearAuthMirror() {
+  await SecureStore.deleteItemAsync(AUTH_MIRROR_KEY).catch(() => {});
+  await AsyncStorage.removeItem(AUTH_MIRROR_KEY).catch(() => {});
+}
 const AUTH_URL = 'https://app.clickpickandcook.com/.netlify/functions/auth';
 
 // ── Supabase ────────────────────────────────────────────────────────────────
@@ -84,7 +106,7 @@ export function useAuth() {
       }, 15000);
       const data = await readJson(res);
       console.log('🔁 Refresh response status:', res.status);
-      console.log('🔁 Refresh response data:', JSON.stringify(data));
+      console.log('🔁 Refresh response:', data && data.success ? 'ok' : (data && data.error) || 'failed');
       if (!data.success || !data.token) {
         console.warn('🔁❌ Refresh failed — no token in response');
         return null;
@@ -122,7 +144,7 @@ export function useAuth() {
           if (refreshed) {
             const updatedUser = { ...savedUser, token: refreshed.token, refreshToken: refreshed.refreshToken };
             await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(updatedUser));
-            await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+            await saveAuthMirror(JSON.stringify({
               id: updatedUser.id,
               email: updatedUser.email,
               token: updatedUser.token,
@@ -220,12 +242,12 @@ export function useAuth() {
       console.log('🔷 REST API response status:', res.status);
 
       const data = await readJson(res);
-      console.log('🔷 REST API response data:', data);
+      console.log('🔷 REST API response:', data && data.user ? 'user returned' : (data && data.error) || 'no user');
 
       // Login failed — attempt refresh token fallback before surfacing the error
       if (!data.user || !res.ok || data.error) {
         console.log('🔷 Login did not return a user (error:', data.error, ') — attempting refresh token fallback...');
-        const stored = await AsyncStorage.getItem('rv4_auth').catch(() => null);
+        const stored = await readAuthMirror();
         const storedAuth = stored ? JSON.parse(stored) : null;
         // Only for the same email: a wrong password must never sign someone into the account last used on this phone.
         if (storedAuth?.refreshToken && String(storedAuth.email || '').trim().toLowerCase() === String(email || '').trim().toLowerCase()) {
@@ -237,7 +259,7 @@ export function useAuth() {
               token: refreshed.token,
               refreshToken: refreshed.refreshToken,
             };
-            await AsyncStorage.setItem('rv4_auth', JSON.stringify(updatedUser));
+            await saveAuthMirror(JSON.stringify(updatedUser));
             await SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(updatedUser));
             await syncPull(updatedUser.id, updatedUser.token);
             setUser(updatedUser);
@@ -260,13 +282,13 @@ export function useAuth() {
       console.log('🔷 Auth user ID:', authUser?.id, 'Token:', token ? 'exists' : 'missing');
       
       // Save auth tokens
-      await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+      await saveAuthMirror(JSON.stringify({
         id: authUser.id,
         email: authUser.email,
         token: authUser.token,
         refreshToken: authUser.refreshToken,
       }));
-      console.log('🔷 Saved auth tokens to AsyncStorage');
+      console.log('🔷 Saved auth tokens');
       
       // Sync data
       console.log('🔷 Starting syncPull...');
@@ -305,7 +327,7 @@ export function useAuth() {
       const authUser = { ...data.user, token: session.access_token, refreshToken: session.refresh_token };
       
       // Save auth tokens
-      await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+      await saveAuthMirror(JSON.stringify({
         id: authUser.id,
         email: authUser.email,
         token: session?.access_token,
@@ -335,7 +357,7 @@ export function useAuth() {
   // ── Apple / Google sign-in ───────────────────────────────────────────────────
   // Both end the same way as email login: store the session, pull the cloud data, set the user.
   const finishSocialSignIn = async (authUser) => {
-    await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+    await saveAuthMirror(JSON.stringify({
       id: authUser.id, email: authUser.email, token: authUser.token, refreshToken: authUser.refreshToken,
     }));
     await syncPull(authUser.id, authUser.token);
@@ -456,7 +478,7 @@ export function useAuth() {
     const refreshToken = data.refreshToken;
     const authUser = { ...data.user, token, refreshToken };
 
-    await AsyncStorage.setItem('rv4_auth', JSON.stringify({
+    await saveAuthMirror(JSON.stringify({
       id: authUser.id,
       email: authUser.email,
       token: authUser.token,
@@ -498,7 +520,7 @@ export function useAuth() {
   const signOut = async () => {
     try { await supabase.auth.signOut(); } catch (e) { /* offline: still sign out on this phone */ }
     await SecureStore.deleteItemAsync(AUTH_KEY);
-    await AsyncStorage.removeItem('rv4_auth').catch(() => {});
+    await clearAuthMirror();
     await resetUnsentChanges();
     clearGrant(); // an admin-granted plan belongs to the account, not the device
     setUser(null);
