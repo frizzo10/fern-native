@@ -474,7 +474,13 @@ export default function SearchScreen({ user }) {
                     const rawText = Array.isArray(json?.content)
                         ? json.content.filter((p) => p?.type === 'text' || typeof p?.text === 'string').map((p) => p.text || '').join('')
                         : (json?.message || json?.reply || '[]');
-                    const list = parseAiRecipeList(rawText).map(normalizeAiRecipe);
+                    // The AI sometimes sends a bare name, or `name` instead of `title`; and sometimes an
+                    // empty object. Fix the first two and drop anything with no title (no "Untitled recipe" card).
+                    const list = parseAiRecipeList(rawText)
+                        .map((r) => (typeof r === 'string' ? { title: r } : r))
+                        .map((r) => (r && typeof r === 'object' ? { ...r, title: r.title || r.name || r.recipe || r.dish || '' } : null))
+                        .filter((r) => r && String(r.title).trim())
+                        .map(normalizeAiRecipe);
                     if (list.length === 0) setSearchNote(`AI reply (${rawText.length} chars): ${String(rawText).slice(0, 160)} ... ${String(rawText).slice(-80)}`);
                     return list;
                 } finally {
