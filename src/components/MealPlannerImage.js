@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Image, View } from 'react-native';
-import { fetchRecipeImage } from '../utils/recipeImage';
+import { fetchRecipeImages } from '../utils/recipeImage';
 
 // Photo for a meal in the AI Meal Planner (matches the web planner, which
 // fetches a photo per meal title via get-recipe-image and keeps the emoji as
@@ -11,11 +11,12 @@ import { fetchRecipeImage } from '../utils/recipeImage';
 export const cache = new Map(); // title -> url | null (null = looked up, none found)
 const inflight = new Map(); // title -> Promise
 
-export function lookup(title, index) {
+// Only a photo whose caption names the dish is used (see fetchRecipeImages); none = the emoji stays.
+export function lookup(title) {
     if (cache.has(title)) return Promise.resolve(cache.get(title));
     if (inflight.has(title)) return inflight.get(title);
-    const p = fetchRecipeImage(title, undefined, index)
-        .then((url) => { cache.set(title, url || null); return url || null; })
+    const p = fetchRecipeImages(title, undefined, { title })
+        .then((urls) => { const url = urls[0] || null; cache.set(title, url); return url; })
         .finally(() => inflight.delete(title));
     inflight.set(title, p);
     return p;
@@ -32,7 +33,7 @@ export default function MealPlannerImage({ title, index, variant = 'thumb', fall
         setFailed(false);
         setUrl(cache.get(title) || null);
         if (title && !cache.has(title)) {
-            lookup(title, index).then((u) => { if (alive) setUrl(u); });
+            lookup(title).then((u) => { if (alive) setUrl(u); });
         }
         return () => { alive = false; };
     }, [title, index]);

@@ -27,7 +27,8 @@ import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import { pickFirst, getRawRecipeId, normalizeRecipe, normalizeAiRecipe } from '../utils/recipeNormalize';
-import { fetchRecipeImage } from '../utils/recipeImage';
+import { fetchRecipeImage, fetchRecipeImages } from '../utils/recipeImage';
+import { cache as photoCache } from '../components/MealPlannerImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
 import { scanCircular, fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../services/scanCircularService';
@@ -38,7 +39,7 @@ import { useTour } from '../services/TourContext';
 
 const AI_SEARCH_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 
-const SEARCH_SYSTEM_PROMPT = 'You are a world-class chef and culinary expert with deep knowledge of celebrity recipes, viral dishes, restaurant classics, and home cooking. The user will give you a search query. IMPORTANT: If the query is not related to food, cooking, ingredients, cuisines, or dishes — respond with exactly: [] (an empty JSON array, nothing else). If it is food-related, respond ONLY with a raw JSON array of 6 recipe objects, no markdown, no backticks, no explanation. SEARCH RULES: (1) If the query mentions a specific person, celebrity, chef, or restaurant — your FIRST result must be that exact named recipe as accurately as possible, followed by 4 closely related variations. (2) If the query is a specific dish — your FIRST result must be the most classic/authentic version, followed by 4 variations. (3) If the query is an ingredient — return 5 distinct dishes featuring it. Each title must name the whole dish a person would cook, not just one component (e.g. "Roasted Potatoes with Lemon-Rosemary Garlic Butter", not "Lemon-Rosemary Garlic Butter"). Each object must have: title, emoji (1 emoji), cuisine, mealType (Breakfast/Lunch/Dinner/Dessert/Snack/Appetizer), time (e.g. "40 min"), difficulty (Easy/Medium/Hard), description (2 sentences), ingredients (string array with QUANTITIES: "2 cups flour", "1 egg", "3 tbsp butter"), instructions (string[] — a COMPLETE method of 5 to 8 separate steps, each one or two sentences, covering EVERY ingredient and every component in the title, including any sauce or side, from prep through serving; never just one step), notes (string or ""), photoSearch (a SPECIFIC plain English phrase of 3-5 words that includes the cuisine/style AND key visual distinguishing detail — e.g. "Korean gochujang glazed chicken" not just "grilled chicken", "tandoori chicken naan basmati" not just "grilled chicken" — must be different enough between similar recipes in this same response that photo searches return visually distinct images), matchType ("exact" if this is the specific named recipe the user searched for, "variation" for related recipes).';
+const SEARCH_SYSTEM_PROMPT = 'You are a world-class chef and culinary expert with deep knowledge of celebrity recipes, viral dishes, restaurant classics, and home cooking. The user will give you a search query. IMPORTANT: If the query is not related to food, cooking, ingredients, cuisines, or dishes — respond with exactly: [] (an empty JSON array, nothing else). If it is food-related, respond ONLY with a raw JSON array of 6 recipe objects, no markdown, no backticks, no explanation. SEARCH RULES: (1) If the query mentions a specific person, celebrity, chef, or restaurant — your FIRST result must be that exact named recipe as accurately as possible, followed by 4 closely related variations. (2) If the query is a specific dish — your FIRST result must be the most classic/authentic version, followed by 4 variations. (3) If the query is an ingredient — return 5 distinct dishes featuring it. Each title must name the whole dish a person would cook, not just one component (e.g. "Roasted Potatoes with Lemon-Rosemary Garlic Butter", not "Lemon-Rosemary Garlic Butter"). Each object must have: title, emoji (1 emoji), cuisine, mealType (Breakfast/Lunch/Dinner/Dessert/Snack/Appetizer), time (e.g. "40 min"), difficulty (Easy/Medium/Hard), description (2 sentences), ingredients (string array with QUANTITIES: "2 cups flour", "1 egg", "3 tbsp butter"), instructions (string[] — a COMPLETE method of 5 to 8 separate steps, each one or two sentences, covering EVERY ingredient and every component in the title, including any sauce or side, from prep through serving; never just one step), notes (string or ""), photoSearch (a SPECIFIC plain English phrase of 3-5 words that includes the cuisine/style AND key visual distinguishing detail — e.g. "Korean gochujang glazed chicken" not just "grilled chicken", "tandoori chicken naan basmati" not just "grilled chicken" — must be different enough between similar recipes in this same response that photo searches return visually distinct images), dishWord (1 or 2 plain English words naming what the dish IS, the words a photo of it would be captioned with, e.g. "tuile", "clam chowder", "grilled cheese", "tacos"; never a flavor or a single ingredient), matchType ("exact" if this is the specific named recipe the user searched for, "variation" for related recipes).';
 
 function buildSearchUserMessage(query, light) {
     if (light) return `The user searched for: "${query}". Return ONLY a valid JSON array of exactly 3 realistic recipes, each with a short 4-step method.`;
@@ -511,36 +512,27 @@ export default function SearchScreen({ user }) {
                 }
                 if (lastError) throw lastError;
             }
+            // The cards' own by-title photo lookup stays out of the way: loadImageFor below decides each photo.
+            recipes.forEach((r) => { if (!photoCache.has(r.title)) photoCache.set(r.title, null); });
             setSearchResults(recipes);
 
             // Emoji is just a placeholder until each recipe's real photo loads in.
             // Track photos already used in this search so two cards never share one.
             const usedImageUrls = new Set();
             const loadImageFor = async (recipe) => {
-                const category = recipe.category || '';
-                const main = recipe.photoSearch || recipe.title;
-                // Always the best match first (offset 0); only step to the next-best of the
-                // same search when another card already took that photo. Deeper results drift
-                // off-topic, so we stop early and keep the emoji instead of showing a wrong picture.
-                const attempts = [
-                    [main, 0],
-                    [main, 1],
-                    [`${recipe.title} ${category}`.trim(), 0],
-                    [`${recipe.title} ${category}`.trim(), 1],
-                ];
-                for (const [query, offset] of attempts) {
-                    const url = await fetchRecipeImage(query, user?.token, offset);
-                    if (!url) continue;
-                    if (usedImageUrls.has(url)) continue;
-                    usedImageUrls.add(url);
-                    setSearchResults((prev) => prev.map((item) => (
-                        item.id === recipe.id ? { ...item, image: url, _cloudPhotos: [url] } : item
-                    )));
-                    setSelectedRecipe((prev) => (
-                        prev && prev.id === recipe.id ? { ...prev, image: url, _cloudPhotos: [url] } : prev
-                    ));
-                    return;
-                }
+                // The server only returns photos whose caption names the dish (best first).
+                // None = keep the emoji: no picture beats a wrong picture.
+                const urls = await fetchRecipeImages(recipe.photoSearch || recipe.title, user?.token, {
+                    title: recipe.title,
+                    must: recipe.dishWord,
+                });
+                const url = urls.find((u) => !usedImageUrls.has(u)) || null;
+                photoCache.set(recipe.title, url);
+                if (!url) return;
+                usedImageUrls.add(url);
+                const withImage = (r) => (r.id === recipe.id ? { ...r, image: url, _cloudPhotos: [url] } : r);
+                setSearchResults((prev) => prev.map(withImage));
+                setSelectedRecipe((prev) => (prev && prev.id === recipe.id ? withImage(prev) : prev));
             };
             recipes.forEach((recipe) => { loadImageFor(recipe); });
         } catch (e) {
