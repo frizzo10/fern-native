@@ -27,7 +27,7 @@ import { colors, radius, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import { pickFirst, getRawRecipeId, normalizeRecipe, normalizeAiRecipe } from '../utils/recipeNormalize';
-import { fetchRecipeImage, fetchRecipeImages } from '../utils/recipeImage';
+import { fetchRecipeImage, fetchRecipeImages, fetchRecipePicture } from '../utils/recipeImage';
 import { cache as photoCache } from '../components/MealPlannerImage';
 import { addRecipeIngredientsToShoppingList } from '../utils/shoppingListSync';
 import { pickPhotoFromCamera, pickPhotoFromLibrary } from '../services/photoPickerService';
@@ -244,6 +244,7 @@ export default function SearchScreen({ user }) {
     const [isSearching, setIsSearching] = useState(false);
     const [hasSearched, setHasSearched] = useState(false);
     const [searchNote, setSearchNote] = useState('');
+    const [photoNote, setPhotoNote] = useState(''); // why a recipe picture could not be made (shown small, for diagnosis)
     const [activeQuery, setActiveQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
     const [showOnlyMyRecipes, setShowOnlyMyRecipes] = useState(false);
@@ -446,6 +447,7 @@ export default function SearchScreen({ user }) {
         setShowOnlyMyRecipes(false);
         setSearchResults([]);
         setSearchNote('');
+        setPhotoNote('');
         setIsSearching(true);
         scrollRef.current?.scrollTo({ y: 0, animated: false });
 
@@ -520,14 +522,19 @@ export default function SearchScreen({ user }) {
             // Track photos already used in this search so two cards never share one.
             const usedImageUrls = new Set();
             const loadImageFor = async (recipe) => {
-                // The server only returns photos whose caption names the dish, or failing that the
-                // look-alike food the AI named (photoAlt), best first. None = keep the emoji.
-                const urls = await fetchRecipeImages(recipe.photoSearch || recipe.title, user?.token, {
-                    title: recipe.title,
-                    must: recipe.dishWord,
-                    alt: recipe.photoAlt,
-                });
-                const url = urls.find((u) => !usedImageUrls.has(u)) || null;
+                // 1. A picture made for this exact dish (AI; made once per title on the server, then reused).
+                // 2. If that fails: a stock photo whose caption names the dish. 3. Else the emoji stays.
+                const made = await fetchRecipePicture(recipe.title, recipe.description);
+                let url = made.url;
+                if (!url) {
+                    setPhotoNote((prev) => prev || `Picture problem: ${made.error}`);
+                    const urls = await fetchRecipeImages(recipe.photoSearch || recipe.title, user?.token, {
+                        title: recipe.title,
+                        must: recipe.dishWord,
+                        alt: recipe.photoAlt,
+                    });
+                    url = urls.find((u) => !usedImageUrls.has(u)) || null;
+                }
                 photoCache.set(recipe.title, url);
                 if (!url) return;
                 usedImageUrls.add(url);
@@ -1287,6 +1294,10 @@ export default function SearchScreen({ user }) {
                                     <Text style={styles.newSearchBtnText}>{t('new_search_btn')}</Text>
                                 </TouchableOpacity>
                             </View>
+
+                            {photoNote ? (
+                                <Text style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>{photoNote}</Text>
+                            ) : null}
 
                             <View style={styles.filterPillRow}>
                                 <View style={styles.filterPillLine} />

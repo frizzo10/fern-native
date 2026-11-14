@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Image, View } from 'react-native';
-import { fetchRecipeImages } from '../utils/recipeImage';
+import { fetchRecipeImage } from '../utils/recipeImage';
 
 // Photo for a meal in the AI Meal Planner (matches the web planner, which
 // fetches a photo per meal title via get-recipe-image and keeps the emoji as
@@ -11,12 +11,12 @@ import { fetchRecipeImages } from '../utils/recipeImage';
 export const cache = new Map(); // title -> url | null (null = looked up, none found)
 const inflight = new Map(); // title -> Promise
 
-// Only a photo whose caption names the dish is used (see fetchRecipeImages); none = the emoji stays.
+// The best stock-photo match for the title (as before 2026-11-14); none = the emoji stays.
 export function lookup(title) {
     if (cache.has(title)) return Promise.resolve(cache.get(title));
     if (inflight.has(title)) return inflight.get(title);
-    const p = fetchRecipeImages(title, undefined, { title })
-        .then((urls) => { const url = urls[0] || null; cache.set(title, url); return url; })
+    const p = fetchRecipeImage(title)
+        .then((url) => { cache.set(title, url || null); return url || null; })
         .finally(() => inflight.delete(title));
     inflight.set(title, p);
     return p;

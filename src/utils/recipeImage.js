@@ -48,3 +48,26 @@ export async function fetchRecipeImages(query, token, { title, must, alt } = {})
         return [];
     }
 }
+
+// A picture made by AI for this exact dish (web function `recipe-picture`; made once per title, then reused).
+// Returns { url, error }: url is null when it could not be made, and error says why.
+export async function fetchRecipePicture(title, hint) {
+    if (!title) return { url: null, error: 'no title' };
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 30000);
+    try {
+        const res = await fetch('https://app.clickpickandcook.com/.netlify/functions/recipe-picture', {
+            method: 'POST',
+            signal: ctl.signal,
+            headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+            body: JSON.stringify({ title, hint: hint || '' }),
+        });
+        if (!res.ok) return { url: null, error: `server ${res.status}` };
+        const json = await res.json();
+        return { url: json?.url || null, error: json?.url ? '' : (json?.error || 'no picture') };
+    } catch (e) {
+        return { url: null, error: e?.name === 'AbortError' ? 'timed out' : String(e?.message || e) };
+    } finally {
+        clearTimeout(timer);
+    }
+}
