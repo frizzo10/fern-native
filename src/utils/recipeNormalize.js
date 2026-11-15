@@ -203,7 +203,5 @@ export function normalizeAiRecipe(item, index) {
     bookIds: [],
     matchType: pickFirst(item?.matchType, 'variation'),
     photoSearch: pickFirst(item?.photoSearch, ''),
-    dishWord: pickFirst(item?.dishWord, ''),
-    photoAlt: pickFirst(item?.photoAlt, ''),
   };
 }

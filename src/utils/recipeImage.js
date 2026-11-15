@@ -24,31 +24,6 @@ export async function fetchRecipeImage(query, token, index) {
     }
 }
 
-// Photos whose own caption names the dish, best first ([] = none, show the emoji instead).
-// `title` is the dish name the caption is checked against; `must` (optional) is the one or two
-// words the AI says the dish is ("tuile", "clam chowder"); `alt` (optional) is a common look-alike
-// food to fall back on ("thin crisp cookies"). An older server that doesn't know
-// `strict` answers with a single `url`, which is used as is.
-export async function fetchRecipeImages(query, token, { title, must, alt } = {}) {
-    if (!query) return [];
-    try {
-        const res = await fetch(RECIPE_IMAGE_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': 'FernApp/1.0 (myaifern.com)',
-            },
-            body: JSON.stringify({ query, token, strict: true, title: title || query, must: must || undefined, alt: alt || undefined }),
-        });
-        const json = await res.json();
-        if (Array.isArray(json?.urls)) return json.urls.filter(Boolean);
-        return json?.url ? [json.url] : [];
-    } catch (e) {
-        console.warn('[recipe-image] fetch failed', query, e);
-        return [];
-    }
-}
-
 // A picture made by AI for this exact dish (web function `recipe-picture`; made once per title, then reused).
 // Returns { url, error }: url is null when it could not be made, and error says why.
 export async function fetchRecipePicture(title, hint) {
