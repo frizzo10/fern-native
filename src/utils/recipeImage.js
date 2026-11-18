@@ -26,7 +26,7 @@ export async function fetchRecipeImage(query, token, index) {
 
 // A picture made by AI for this exact dish (web function `recipe-picture`; made once per title, then reused).
 // Returns { url, error }: url is null when it could not be made, and error says why.
-export async function fetchRecipePicture(title, hint) {
+export async function fetchRecipePicture(title, hint, ingredients) {
     if (!title) return { url: null, error: 'no title' };
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 30000);
@@ -35,7 +35,7 @@ export async function fetchRecipePicture(title, hint) {
             method: 'POST',
             signal: ctl.signal,
             headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
-            body: JSON.stringify({ title, hint: hint || '' }),
+            body: JSON.stringify({ title, hint: hint || '', ingredients: Array.isArray(ingredients) ? ingredients.slice(0, 8) : [] }),
         });
         if (!res.ok) return { url: null, error: `server ${res.status}` };
         const json = await res.json();

@@ -520,7 +520,8 @@ export default function SearchScreen({ user }) {
             const loadImageFor = async (recipe) => {
                 // A picture made for this exact dish (AI; made once per title on the server, then reused).
                 // If it can't be made the card keeps its emoji: no picture beats a wrong stock photo.
-                const made = await fetchRecipePicture(recipe.title, recipe.description);
+                const realIngredients = (recipe.ingredients || []).filter((x) => typeof x === 'string' && !/^no ingredients listed/i.test(x));
+                const made = await fetchRecipePicture(recipe.title, recipe.description, realIngredients);
                 const url = made.url || null;
                 if (!url) console.warn('[recipe-picture]', recipe.title, made.error);
                 photoCache.set(recipe.title, url);
