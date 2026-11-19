@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-19 c: cookbook theme + clearer Edit cookbook';
+export const CODE_VERSION = '11-19 d: cookbook chapters use ingredients';

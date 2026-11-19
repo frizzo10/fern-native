@@ -1228,7 +1228,12 @@ export default function RecipesScreen({ user }) {
     organizeTriedRef.current[due.book.id] = due.members.length; // one try per size; a failure is not retried in a loop
     organizeBook({
       bookId: due.book.id,
-      recipes: due.members.map((r) => ({ id: r.id, title: r.title })),
+      recipes: due.members.map((r) => {
+        const ings = (Array.isArray(r.ingredients) ? r.ingredients : []).slice(0, 5)
+          .map((i) => String(typeof i === 'string' ? i : (i?.item || i?.name || i?.text || '')).replace(/\s+/g, ' ').trim().slice(0, 32))
+          .filter(Boolean).join(', ');
+        return { id: r.id, title: r.title, hint: [r.meal, ings].filter(Boolean).join(' | ') };
+      }),
       locale,
       token: user.token,
     })

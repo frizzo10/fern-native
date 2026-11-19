@@ -7,6 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEY = 'fern_book_chapters';
 export const MIN_RECIPES_FOR_CHAPTERS = 8;
 const MAX_RECIPES = 250;
+const LAYOUT_VERSION = 2;
 
 export async function loadChapterMap() {
   try {
@@ -27,6 +28,7 @@ async function saveChapters(bookId, entry) {
 export function needsOrganizing(entry, count) {
   if (count < MIN_RECIPES_FOR_CHAPTERS || count > MAX_RECIPES) return false;
   if (!entry) return true;
+  if (entry.v !== LAYOUT_VERSION) return true; // older layouts were made from titles alone and mis-filed dishes
   return Math.abs(count - (entry.count || 0)) >= Math.max(3, Math.round((entry.count || 0) * 0.1));
 }
 
@@ -44,6 +46,8 @@ function systemPrompt(locale) {
     'You organize a cookbook into chapters, the way a well-edited printed cookbook is laid out.',
     'You get numbered recipe titles. Decide what grouping makes sense for THIS book (for example type of dish, cookie type, course, main ingredient, cuisine or occasion) and group the recipes.',
     'Return ONLY JSON, no markdown: {"chapters":[{"name":"...","items":[1,2,3]}]}',
+    'Each line is "number. title | meal type | main ingredients". Decide from the ingredients, not from words in the title: a restaurant or place name (like Anchor Bar) says nothing about the dish.',
+    'A chapter named for an ingredient or food (seafood, chicken, beef, pasta...) may only hold recipes that really contain it as the main ingredient; chicken wings are poultry, never seafood.',
     'Rules: 3 to 10 chapters; every recipe number appears in exactly one chapter; do not invent or drop numbers;',
     'put chapters in a natural reading order (for example starters, mains, sides, desserts; or simple to fancy);',
     'avoid chapters with only one recipe unless unavoidable; no catch-all chapter called "Other" or "Miscellaneous";',
@@ -53,7 +57,7 @@ function systemPrompt(locale) {
 
 // recipes: [{ id, title }]. Returns [{ name, ids }] or throws.
 export async function organizeRecipes({ recipes, locale, token }) {
-  const list = recipes.map((r, i) => `${i + 1}. ${String(r.title || '').trim()}`).join('\n');
+  const list = recipes.map((r, i) => `${i + 1}. ${String(r.title || '').trim()}${r.hint ? ` | ${r.hint}` : ''}`).join('\n');
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 45000);
   let res;
@@ -100,6 +104,6 @@ export async function organizeRecipes({ recipes, locale, token }) {
 
 export async function organizeBook({ bookId, recipes, locale, token }) {
   const chapters = await organizeRecipes({ recipes, locale, token });
-  await saveChapters(bookId, { count: recipes.length, chapters, at: Date.now() });
+  await saveChapters(bookId, { v: LAYOUT_VERSION, count: recipes.length, chapters, at: Date.now() });
   return chapters;
 }
