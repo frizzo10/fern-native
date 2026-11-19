@@ -188,6 +188,7 @@ function normalizeBook(item, index) {
     cover,
     color,
     colorId: pickFirst(item?.colorId, null),
+    theme: typeof item?.theme === 'string' ? item.theme : '',
     recipeCount,
     recipeIds,
   };
@@ -690,7 +691,7 @@ export default function RecipesScreen({ user }) {
     );
   };
 
-  const handleCreateCookbook = async ({ name, photo, color }) => {
+  const handleCreateCookbook = async ({ name, photo, color, theme }) => {
     setIsCreatingCookbook(true);
     try {
       let coverUrl = null;
@@ -715,6 +716,7 @@ export default function RecipesScreen({ user }) {
         title: name,
         name,
         subtitle: 'My cookbook',
+        theme: theme || '',
         color,
         cover: coverUrl,
         recipeIds: [],
@@ -739,7 +741,7 @@ export default function RecipesScreen({ user }) {
     }
   };
 
-  const handleEditCookbook = async ({ name, photo, color }) => {
+  const handleEditCookbook = async ({ name, photo, color, theme }) => {
     if (!selectedBook) return;
     setIsSavingCookbookEdit(true);
     try {
@@ -770,6 +772,7 @@ export default function RecipesScreen({ user }) {
           title: name,
           name,
           color,
+          theme: theme || '',
           cover: coverUrl,
         };
       });
@@ -782,7 +785,7 @@ export default function RecipesScreen({ user }) {
 
       await pushChangedFromStorage({ books: nextBooks });
 
-      setSelectedBook((prev) => (prev ? { ...prev, title: name, color, cover: coverUrl } : prev));
+      setSelectedBook((prev) => (prev ? { ...prev, title: name, color, theme: theme || '', cover: coverUrl } : prev));
       setIsEditCookbookVisible(false);
       await pull();
     } catch (e) {
@@ -1574,7 +1577,7 @@ export default function RecipesScreen({ user }) {
                   onPress={() => setIsEditCookbookVisible(true)}
                   style={[styles.bookActionBtn, styles.bookActionBtnGreen]}
                 >
-                  <Text style={styles.bookActionTextLight}>{t('edit_btn_recipes')}</Text>
+                  <Text style={styles.bookActionTextLight}>{t('book_edit_btn')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity activeOpacity={0.85} style={[styles.bookActionBtn, styles.bookActionBtnShare]} onPress={handlePressShareCookbook}>
                   <Text style={styles.bookActionTextLight}>{t('share_btn')}</Text>
@@ -1619,6 +1622,7 @@ export default function RecipesScreen({ user }) {
                   ) : null}
                   <View style={styles.bookDetailHeaderContent}>
                     <Text style={styles.bookDetailTitle}>{selectedBook.title}</Text>
+                    {selectedBook.theme ? <Text style={styles.bookDetailTheme}>{selectedBook.theme}</Text> : null}
                     <Text style={styles.bookDetailCount}>
                       {t(selectedBookRecipes.length === 1 ? 'recipe_count_singular' : 'recipe_count_plural', { count: selectedBookRecipes.length })}
                     </Text>
@@ -1786,6 +1790,7 @@ export default function RecipesScreen({ user }) {
                       )}
                       <View style={{ flex: 1 }}>
                         <Text style={styles.peekTitle} numberOfLines={2}>{pk.title}</Text>
+                        {pk.theme ? <Text style={styles.peekTheme} numberOfLines={1}>{pk.theme}</Text> : null}
                         <Text style={styles.peekCount}>
                           {t(pk.matchedRecipeCount === 1 ? 'recipes_count_one' : 'recipes_count_many', { count: pk.matchedRecipeCount })}
                         </Text>
@@ -2566,6 +2571,8 @@ const styles = StyleSheet.create({
   peekCover: { width: 48, height: 64, borderRadius: 6 },
   peekCoverEmpty: { backgroundColor: '#E6D9C0', alignItems: 'center', justifyContent: 'center' },
   peekTitle: { fontSize: 17, fontFamily: 'PlayfairDisplay-Bold', color: '#3A2A1C' },
+  peekTheme: { color: '#4E7A54', fontFamily: 'Jost-Bold', fontSize: 13, marginTop: 2 },
+  bookDetailTheme: { color: '#F3EEE4', fontFamily: 'Jost-Bold', fontSize: 15, letterSpacing: 1, textAlign: 'center', marginTop: 4, marginBottom: 2 },
   peekCount: { fontSize: 13, color: '#6B5645', marginTop: 2 },
   peekOpenBtn: { backgroundColor: '#3F5645', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, minHeight: 44, justifyContent: 'center' },
   peekOpenText: { color: '#fff', fontWeight: '700', fontSize: 15 },

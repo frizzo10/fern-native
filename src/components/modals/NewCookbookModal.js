@@ -29,6 +29,7 @@ export default function NewCookbookModal({ visible, onClose, onCreate, isCreatin
   const [name, setName] = useState('');
   const [photo, setPhoto] = useState(null);
   const [color, setColor] = useState(COVER_COLORS[0]);
+  const [theme, setTheme] = useState('');
   // A cookbook already has a remote cover URL rather than a locally-picked
   // photo when editing — keep it separate from `photo` (which always means
   // "a new photo was just picked") so we know whether to re-upload.
@@ -37,6 +38,7 @@ export default function NewCookbookModal({ visible, onClose, onCreate, isCreatin
   useEffect(() => {
     if (visible) {
       setName(book?.title || '');
+      setTheme(book?.theme || '');
       setPhoto(null);
       setColor(book?.color || COVER_COLORS[0]);
       setExistingCoverUri(book?.cover || null);
@@ -81,9 +83,9 @@ export default function NewCookbookModal({ visible, onClose, onCreate, isCreatin
     const trimmed = name.trim();
     if (!trimmed || isBusy) return;
     if (isEditMode) {
-      onSave({ name: trimmed, photo, color });
+      onSave({ name: trimmed, photo, color, theme: theme.trim() });
     } else {
-      onCreate({ name: trimmed, photo, color });
+      onCreate({ name: trimmed, photo, color, theme: theme.trim() });
     }
   };
 
@@ -114,6 +116,30 @@ export default function NewCookbookModal({ visible, onClose, onCreate, isCreatin
                 placeholderTextColor="#B0AEA9"
                 style={styles.nameInput}
               />
+
+              <Text style={styles.sectionLabel}>{t('theme_label')}</Text>
+              <TextInput
+                value={theme}
+                onChangeText={(v) => setTheme(v.slice(0, 40))}
+                placeholder={t('theme_placeholder')}
+                placeholderTextColor="#B0AEA9"
+                style={styles.nameInput}
+              />
+              <View style={styles.themeChips}>
+                {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => {
+                  const label = t(`theme_chip_${n}`);
+                  return (
+                    <TouchableOpacity
+                      key={n}
+                      activeOpacity={0.85}
+                      onPress={() => setTheme(label)}
+                      style={[styles.themeChip, theme === label ? styles.themeChipOn : null]}
+                    >
+                      <Text style={[styles.themeChipText, theme === label ? styles.themeChipTextOn : null]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
               <Text style={styles.sectionLabel}>{t('cover_image_optional_label')}</Text>
               <View style={styles.coverRow}>
@@ -242,6 +268,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 14,
   },
+  themeChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  themeChip: { borderWidth: 1, borderColor: '#C8D6BE', backgroundColor: '#F7FAF3', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8 },
+  themeChipOn: { backgroundColor: '#3F5645', borderColor: '#3F5645' },
+  themeChipText: { color: '#3F5645', fontFamily: 'Jost-Bold', fontSize: 13 },
+  themeChipTextOn: { color: '#F3EEE4' },
   sectionLabel: {
     marginTop: 20,
     marginBottom: 10,
