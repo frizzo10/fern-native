@@ -208,6 +208,7 @@ export default function RecipesScreen({ user }) {
   const [fMeal, setFMeal] = useState('');
   const [fCuisine, setFCuisine] = useState('');
   const [fDish, setFDish] = useState('');
+  const [peekId, setPeekId] = useState(null); // shelf: tapped spine shows a preview card first
   const [bMeal, setBMeal] = useState('');
   const [bCuisine, setBCuisine] = useState('');
   const [bDish, setBDish] = useState('');
@@ -1773,6 +1774,37 @@ export default function RecipesScreen({ user }) {
                   <Text style={styles.newBookBtnText}>{t('shared_cb_btn')}</Text>
                 </TouchableOpacity>
 
+                {(() => {
+                  const pk = booksWithMatchedCounts.find((b) => b.id === peekId);
+                  if (!pk) return null;
+                  return (
+                    <View style={styles.peekCard}>
+                      {pk.cover ? (
+                        <Image source={{ uri: resolveCoverUri(pk.cover) }} style={styles.peekCover} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.peekCover, styles.peekCoverEmpty]}><Text style={{ fontSize: 22 }}>📖</Text></View>
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.peekTitle} numberOfLines={2}>{pk.title}</Text>
+                        <Text style={styles.peekCount}>
+                          {t(pk.matchedRecipeCount === 1 ? 'recipes_count_one' : 'recipes_count_many', { count: pk.matchedRecipeCount })}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.peekOpenBtn}
+                        activeOpacity={0.85}
+                        onPress={() => {
+                          setPeekId(null);
+                          setSelectedBook(pk);
+                          setQuery('');
+                        }}
+                      >
+                        <Text style={styles.peekOpenText}>{t('home_open')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })()}
+
                 <View style={styles.bookshelfDeck}>
                   <ScrollView
                     horizontal
@@ -1786,12 +1818,10 @@ export default function RecipesScreen({ user }) {
                         <TouchableOpacity
                           key={book.id}
                           activeOpacity={0.9}
-                          onPress={() => {
-                            setSelectedBook(book);
-                            setQuery('');
-                          }}
+                          onPress={() => setPeekId((p) => (p === book.id ? null : book.id))}
                           style={[
                             styles.bookSpine,
+                            peekId === book.id ? styles.bookSpinePicked : null,
                             { width: spineWidth, height: spineHeight },
                             spinePalette ? { backgroundColor: spinePalette.bg, borderColor: spinePalette.dark } : null,
                           ]}
@@ -2519,9 +2549,29 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 5,
   },
+  bookSpinePicked: {
+    borderColor: '#D3AE52',
+    borderWidth: 2,
+  },
+  peekCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#F5ECE0',
+    borderRadius: 14,
+    padding: 10,
+    marginTop: 14,
+    marginHorizontal: 4,
+  },
+  peekCover: { width: 48, height: 64, borderRadius: 6 },
+  peekCoverEmpty: { backgroundColor: '#E6D9C0', alignItems: 'center', justifyContent: 'center' },
+  peekTitle: { fontSize: 17, fontFamily: 'PlayfairDisplay-Bold', color: '#3A2A1C' },
+  peekCount: { fontSize: 13, color: '#6B5645', marginTop: 2 },
+  peekOpenBtn: { backgroundColor: '#3F5645', borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, minHeight: 44, justifyContent: 'center' },
+  peekOpenText: { color: '#fff', fontWeight: '700', fontSize: 15 },
   bookOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(54, 30, 14, 0.55)',
+    backgroundColor: 'rgba(54, 30, 14, 0.7)',
     borderRadius: 5,
   },
   bookSpineLeftEdge: {
