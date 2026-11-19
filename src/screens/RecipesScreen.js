@@ -208,6 +208,9 @@ export default function RecipesScreen({ user }) {
   const [fMeal, setFMeal] = useState('');
   const [fCuisine, setFCuisine] = useState('');
   const [fDish, setFDish] = useState('');
+  const [bMeal, setBMeal] = useState('');
+  const [bCuisine, setBCuisine] = useState('');
+  const [bDish, setBDish] = useState('');
   const [selectedBook, setSelectedBook] = useState(null);
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [noteText, setNoteText] = useState('');
@@ -1256,6 +1259,29 @@ export default function RecipesScreen({ user }) {
     [selectedBookRecipes, selectedBook, chapterMap],
   );
 
+  // Quick sort inside an open cookbook (meal -> cuisine -> dish), same idea as the Recipes tab.
+  const bActive = !!(bMeal || bCuisine || bDish);
+  const bAfterMeal = useMemo(() => (bMeal ? selectedBookRecipes.filter((r) => mealOf(r) === bMeal) : selectedBookRecipes), [selectedBookRecipes, bMeal]);
+  const bAfterCuisine = useMemo(() => (bCuisine ? bAfterMeal.filter((r) => cuisineOf(r) === bCuisine) : bAfterMeal), [bAfterMeal, bCuisine]);
+  const bShown = useMemo(() => (bDish ? bAfterCuisine.filter((r) => dishMatches(r, bDish)) : bAfterCuisine), [bAfterCuisine, bDish]);
+  const bMealCounts = useMemo(() => {
+    const c = {};
+    selectedBookRecipes.forEach((r) => { const k = mealOf(r); c[k] = (c[k] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [selectedBookRecipes]);
+  const bCuisineCounts = useMemo(() => {
+    const c = {};
+    bAfterMeal.forEach((r) => { const k = cuisineOf(r); if (k && !/^(dinner|lunch|breakfast|dessert|snack|appetizer|main course|side dish|family)$/i.test(k)) c[k] = (c[k] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [bAfterMeal]);
+  const bDishCounts = useMemo(() => (
+    DISH_WORDS.map((w) => [w, bAfterCuisine.filter((r) => dishMatches(r, w)).length]).filter(([, n]) => n > 0)
+  ), [bAfterCuisine]);
+
+  React.useEffect(() => {
+    setBMeal(''); setBCuisine(''); setBDish('');
+  }, [selectedBook?.id]);
+
   React.useEffect(() => {
     const debugBooks = (Array.isArray(data.books) ? data.books : []).map((book) => ({
       id: pickFirst(book?.id, book?.uuid, book?.book_id, null),
@@ -1600,8 +1626,59 @@ export default function RecipesScreen({ user }) {
                 </View>
 
                 <View style={styles.bookDetailPage}>
+                  {selectedBookRecipes.length > 1 ? (
+                    <View style={{ marginBottom: 10 }}>
+                      {bActive ? (
+                        <View style={styles.countChips}>
+                          <TouchableOpacity activeOpacity={0.8} onPress={() => { setBMeal(''); setBCuisine(''); setBDish(''); }} style={styles.countChip}>
+                            <Text style={styles.countChipText}>‹ {t('sort_all')}</Text>
+                          </TouchableOpacity>
+                          {bMeal ? (
+                            <TouchableOpacity activeOpacity={0.8} onPress={() => { setBCuisine(''); setBDish(''); }} style={[styles.countChip, styles.countChipOn]}>
+                              <Text style={[styles.countChipText, styles.countChipTextOn]}>{bMeal}</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                          {bCuisine ? (
+                            <TouchableOpacity activeOpacity={0.8} onPress={() => setBDish('')} style={[styles.countChip, styles.countChipOn]}>
+                              <Text style={[styles.countChipText, styles.countChipTextOn]}>{bCuisine}</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                          {bDish ? (
+                            <View style={[styles.countChip, styles.countChipOn]}>
+                              <Text style={[styles.countChipText, styles.countChipTextOn]}>{bDish.charAt(0).toUpperCase() + bDish.slice(1)}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
+                      {!bMeal ? (
+                        <View style={styles.countChips}>
+                          {bMealCounts.map(([type, n]) => (
+                            <TouchableOpacity key={type} activeOpacity={0.8} onPress={() => { setBMeal(type); setBCuisine(''); setBDish(''); }} style={styles.countChip}>
+                              <Text style={styles.countChipText}>{type} {n}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      ) : !bCuisine && bCuisineCounts.length > 0 ? (
+                        <View style={styles.countChips}>
+                          {bCuisineCounts.map(([type, n]) => (
+                            <TouchableOpacity key={type} activeOpacity={0.8} onPress={() => { setBCuisine(type); setBDish(''); }} style={styles.countChip}>
+                              <Text style={styles.countChipText}>{type} {n}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      ) : !bDish && bDishCounts.length > 0 ? (
+                        <View style={styles.countChips}>
+                          {bDishCounts.map(([w, n]) => (
+                            <TouchableOpacity key={w} activeOpacity={0.8} onPress={() => setBDish(w)} style={styles.countChip}>
+                              <Text style={styles.countChipText}>{w.charAt(0).toUpperCase() + w.slice(1)} {n}</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
                   {selectedBookRecipes.length ? (
-                    bookChapters ? (
+                    bookChapters && !bActive ? (
                       <View>
                         {bookChapters.map((chapter, ci) => (
                           <View key={`chapter-${chapter.key}`} style={ci > 0 ? styles.bookChapter : null}>
@@ -1635,7 +1712,7 @@ export default function RecipesScreen({ user }) {
                       </View>
                     ) : (
                     <View style={styles.bookRecipeGrid}>
-                      {selectedBookRecipes.map((recipe, idx) => (
+                      {bShown.map((recipe, idx) => (
                         <TouchableOpacity
                           key={`book-${selectedBook.id}-${recipe.id}`}
                           activeOpacity={0.9}
