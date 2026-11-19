@@ -63,6 +63,12 @@ export function fixDegrees(text) {
   return text.replace(/(\d)\s*\uFFFD+\s*([FC])\b/g, '$1\u00B0$2').replace(/\uFFFD+/g, '');
 }
 
+// A lost hyphen/dash in a title ("Herb-Marinated") shows as U+FFFD: between two letters it was a hyphen.
+export function fixTitle(text) {
+  if (typeof text !== 'string' || text.indexOf('\uFFFD') === -1) return text;
+  return text.replace(/([A-Za-z])\s*\uFFFD+\s*([A-Za-z])/g, '$1-$2').replace(/\s*\uFFFD+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+}
+
 export function toSteps(value) {
   if (Array.isArray(value)) {
     return toList(value).flatMap((item) => (typeof item === 'string' ? splitNumberedSteps(item) : [item]));
@@ -114,7 +120,7 @@ export function getRawRecipeId(item, index) {
 }
 
 export function normalizeRecipe(item, index) {
-  const title = pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, 'Untitled recipe');
+  const title = fixTitle(pickFirst(item?.title, item?.name, item?.recipe_name, item?.recipeTitle, 'Untitled recipe'));
   const emoji = sanitizeEmoji(pickFirst(item?.emoji, item?.icon, item?.symbol, '🍽'));
   const category = pickFirst(item?.cuisine, item?.category, item?.type, item?.mealType, 'Dinner');
   const meal = pickFirst(item?.slot, item?.meal, item?.mealType, item?.course, 'Dinner');
