@@ -41,9 +41,21 @@ export function buildChapters(recipes, saved) {
       if (items.length) out.push({ name: c.name, items });
     });
     // Recipes added after the layout was made go in a trailing chapter until it is redone.
+    // That chapter is named "More Recipes", and the organizer's own leftover chapter has the
+    // same name, so join any chapters that share a name instead of showing it twice.
     const extra = list.filter((r) => !placed.has(String(r.id)));
     if (extra.length) out.push({ key: 'ch_more', items: extra });
-    if (out.length >= 2) return out;
+    const isMore = (c) => c.key === 'ch_more' || /^(more recipes|m[aá]s recetas)$/i.test(String(c.name || '').trim());
+    const merged = [];
+    out.forEach((c) => {
+      const same = merged.find((m) => (isMore(m) && isMore(c)) || (m.name && c.name && String(m.name).trim().toLowerCase() === String(c.name).trim().toLowerCase()));
+      if (same) same.items = same.items.concat(c.items);
+      else merged.push(c);
+    });
+    // A "More Recipes" chapter always reads last.
+    const rest = merged.filter((c) => !isMore(c));
+    const more = merged.filter(isMore);
+    if (rest.length + more.length >= 2) return rest.concat(more);
   }
 
   let matched = 0;
