@@ -55,6 +55,64 @@ function systemPrompt(locale) {
   ].join(' ');
 }
 
+// Puts recipes into the closest existing chapter (mutates `chapters`' ids). One small `ai` call.
+// Returns the recipes that fit no chapter (or all of them if the call fails).
+export async function assignToChapters({ chapters, recipes, locale, token }) {
+  const names = chapters.map((c, i) => `${i + 1}. ${c.name}`).join('\n');
+  const list = recipes.map((r, i) => `${i + 1}. ${String(r.title || '').trim()}${r.hint ? ` | ${r.hint}` : ''}`).join('\n');
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 30000);
+  let res;
+  try {
+    res = await fetch('https://app.clickpickandcook.com/.netlify/functions/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
+      body: JSON.stringify({
+        system: 'You file recipes into the closest existing cookbook chapter. Return ONLY JSON, no markdown: {"assign":[{"item":1,"chapter":2}]}. "item" is the recipe number, "chapter" the chapter number; use chapter 0 only if no chapter fits at all. Decide from the main ingredients, not from words in the title.',
+        messages: [{ role: 'user', content: `Chapters:\n${names}\n\nRecipes:\n${list}` }],
+        feature: 'fern_chat',
+        locale: locale || 'en',
+        token,
+      }),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    return recipes;
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!res.ok) return recipes;
+  let parsed = null;
+  try {
+    const json = await res.json();
+    parsed = parseJsonObject(json?.content?.find((p) => p?.type === 'text')?.text || json?.message || json?.reply || '');
+  } catch (e) { return recipes; }
+  const arr = Array.isArray(parsed?.assign) ? parsed.assign : [];
+  const done = new Set();
+  arr.forEach((a) => {
+    const i = Number.parseInt(a?.item, 10) - 1;
+    const c = Number.parseInt(a?.chapter, 10) - 1;
+    if (i >= 0 && i < recipes.length && c >= 0 && c < chapters.length && !done.has(i)) {
+      done.add(i);
+      chapters[c].ids.push(String(recipes[i].id));
+    }
+  });
+  return recipes.filter((_, i) => !done.has(i));
+}
+
+// An existing layout plus recipes added since: file the new ones into the closest chapters and save.
+export async function placeNewRecipes({ bookId, entry, recipes, locale, token }) {
+  const placed = new Set();
+  (entry?.chapters || []).forEach((c) => (c.ids || []).forEach((id) => placed.add(String(id))));
+  const fresh = recipes.filter((r) => !placed.has(String(r.id)));
+  if (!fresh.length || !entry?.chapters?.length) return false;
+  const chapters = entry.chapters.map((c) => ({ name: c.name, ids: [...(c.ids || [])] }));
+  const rest = await assignToChapters({ chapters, recipes: fresh, locale, token });
+  if (rest.length === fresh.length) return false; // nothing placed; leave the layout alone
+  await saveChapters(bookId, { ...entry, count: recipes.length, chapters, at: Date.now() });
+  return true;
+}
+
 // recipes: [{ id, title }]. Returns [{ name, ids }] or throws.
 export async function organizeRecipes({ recipes, locale, token }) {
   const list = recipes.map((r, i) => `${i + 1}. ${String(r.title || '').trim()}${r.hint ? ` | ${r.hint}` : ''}`).join('\n');
@@ -95,9 +153,14 @@ export async function organizeRecipes({ recipes, locale, token }) {
     const name = String(c?.name || '').trim();
     if (name && ids.length) chapters.push({ name, ids });
   });
-  // Anything the AI forgot goes in a last chapter instead of vanishing.
-  const left = recipes.filter((_, i) => !used.has(i)).map((r) => String(r.id));
-  if (left.length) chapters.push({ name: locale === 'es' ? 'Más recetas' : 'More Recipes', ids: left });
+  // Anything the AI forgot goes into the closest chapter; only what fits nowhere lands in "More Recipes".
+  const leftRecipes = recipes.filter((_, i) => !used.has(i));
+  if (leftRecipes.length && chapters.length) {
+    const rest = await assignToChapters({ chapters, recipes: leftRecipes, locale, token }).catch(() => leftRecipes);
+    if (rest.length) chapters.push({ name: locale === 'es' ? 'Más recetas' : 'More Recipes', ids: rest.map((r) => String(r.id)) });
+  } else if (leftRecipes.length) {
+    chapters.push({ name: locale === 'es' ? 'Más recetas' : 'More Recipes', ids: leftRecipes.map((r) => String(r.id)) });
+  }
   if (chapters.length < 2) throw new Error('organize: too few chapters');
   return chapters;
 }

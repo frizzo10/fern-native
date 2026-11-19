@@ -18,7 +18,7 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { buildChapters, chapterNameById } from '../utils/cookbookChapters';
-import { loadChapterMap, needsOrganizing, organizeBook } from '../services/cookbookOrganizer';
+import { loadChapterMap, needsOrganizing, organizeBook, placeNewRecipes } from '../services/cookbookOrganizer';
 import { useSync, lastPush } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import {
@@ -1214,26 +1214,50 @@ export default function RecipesScreen({ user }) {
   useEffect(() => { loadChapterMap().then(setChapterMap); }, []);
   useEffect(() => {
     if (organizingRef.current || !user?.token || !recipes.length) return;
-    const due = booksWithMatchedCounts
-      .map((book) => ({
-        book,
-        members: recipes.filter((r) => r.bookIds.includes(book.id) || (book.recipeIds || []).includes(String(r.id))),
-      }))
-      .find(({ book, members }) => (
-        needsOrganizing(chapterMap[book.id], members.length)
-        && organizeTriedRef.current[book.id] !== members.length
-      ));
-    if (!due) return;
+    const hintOf = (r) => {
+      const ings = (Array.isArray(r.ingredients) ? r.ingredients : []).slice(0, 5)
+        .map((i) => String(typeof i === 'string' ? i : (i?.item || i?.name || i?.text || '')).replace(/\s+/g, ' ').trim().slice(0, 32))
+        .filter(Boolean).join(', ');
+      return { id: r.id, title: r.title, hint: [r.meal, ings].filter(Boolean).join(' | ') };
+    };
+    const withMembers = booksWithMatchedCounts.map((book) => ({
+      book,
+      members: recipes.filter((r) => r.bookIds.includes(book.id) || (book.recipeIds || []).includes(String(r.id))),
+    }));
+    const due = withMembers.find(({ book, members }) => (
+      needsOrganizing(chapterMap[book.id], members.length)
+      && organizeTriedRef.current[book.id] !== members.length
+    ));
+    if (!due) {
+      // A saved layout with recipes added since (below the re-sort threshold): file them into the closest chapters.
+      const fill = withMembers.find(({ book, members }) => {
+        const e = chapterMap[book.id];
+        if (!e || e.v !== 2 || !Array.isArray(e.chapters) || members.length < 8) return false;
+        if (organizeTriedRef.current[`fill:${book.id}`] === members.length) return false;
+        const placed = new Set();
+        e.chapters.forEach((c) => (c.ids || []).forEach((id) => placed.add(String(id))));
+        return members.some((r) => !placed.has(String(r.id)));
+      });
+      if (!fill) return;
+      organizingRef.current = true;
+      organizeTriedRef.current[`fill:${fill.book.id}`] = fill.members.length;
+      placeNewRecipes({
+        bookId: fill.book.id,
+        entry: chapterMap[fill.book.id],
+        recipes: fill.members.map(hintOf),
+        locale,
+        token: user.token,
+      })
+        .then((changed) => (changed ? loadChapterMap().then(setChapterMap) : null))
+        .catch(() => {})
+        .finally(() => { organizingRef.current = false; });
+      return;
+    }
     organizingRef.current = true;
     organizeTriedRef.current[due.book.id] = due.members.length; // one try per size; a failure is not retried in a loop
     organizeBook({
       bookId: due.book.id,
-      recipes: due.members.map((r) => {
-        const ings = (Array.isArray(r.ingredients) ? r.ingredients : []).slice(0, 5)
-          .map((i) => String(typeof i === 'string' ? i : (i?.item || i?.name || i?.text || '')).replace(/\s+/g, ' ').trim().slice(0, 32))
-          .filter(Boolean).join(', ');
-        return { id: r.id, title: r.title, hint: [r.meal, ings].filter(Boolean).join(' | ') };
-      }),
+      recipes: due.members.map(hintOf),
       locale,
       token: user.token,
     })
