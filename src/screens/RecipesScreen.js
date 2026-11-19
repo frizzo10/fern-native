@@ -18,7 +18,7 @@ import { useFocusEffect, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { buildChapters, chapterNameById } from '../utils/cookbookChapters';
-import { loadChapterMap, needsOrganizing, organizeBook, placeNewRecipes } from '../services/cookbookOrganizer';
+import { loadChapterMap, needsOrganizing, organizeBook, placeNewRecipes, LAYOUT_VERSION } from '../services/cookbookOrganizer';
 import { useSync, lastPush } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import {
@@ -1232,7 +1232,7 @@ export default function RecipesScreen({ user }) {
       // A saved layout with recipes added since (below the re-sort threshold): file them into the closest chapters.
       const fill = withMembers.find(({ book, members }) => {
         const e = chapterMap[book.id];
-        if (!e || e.v !== 2 || !Array.isArray(e.chapters) || members.length < 8) return false;
+        if (!e || e.v !== LAYOUT_VERSION || !Array.isArray(e.chapters) || members.length < 8) return false;
         if (organizeTriedRef.current[`fill:${book.id}`] === members.length) return false;
         const placed = new Set();
         e.chapters.forEach((c) => (c.ids || []).forEach((id) => placed.add(String(id))));

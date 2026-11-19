@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const KEY = 'fern_book_chapters';
 export const MIN_RECIPES_FOR_CHAPTERS = 8;
 const MAX_RECIPES = 250;
-const LAYOUT_VERSION = 2;
+export const LAYOUT_VERSION = 3;
 
 export async function loadChapterMap() {
   try {
@@ -48,6 +48,7 @@ function systemPrompt(locale) {
     'Return ONLY JSON, no markdown: {"chapters":[{"name":"...","items":[1,2,3]}]}',
     'Each line is "number. title | meal type | main ingredients". Decide from the ingredients, not from words in the title: a restaurant or place name (like Anchor Bar) says nothing about the dish.',
     'A chapter named for an ingredient or food (seafood, chicken, beef, pasta...) may only hold recipes that really contain it as the main ingredient; chicken wings are poultry, never seafood.',
+    'Keep course apart from ingredient: dips, spreads, party bites and finger foods (meal type Appetizer or Snack) go in their own appetizer chapter, soups and stews in a soup chapter, salads and sides in theirs, desserts in theirs, even if they contain meat or seafood. A meat, poultry or seafood chapter holds only main dishes.',
     'Rules: 3 to 10 chapters; every recipe number appears in exactly one chapter; do not invent or drop numbers;',
     'put chapters in a natural reading order (for example starters, mains, sides, desserts; or simple to fancy);',
     'avoid chapters with only one recipe unless unavoidable; no catch-all chapter called "Other" or "Miscellaneous";',
