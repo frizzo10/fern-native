@@ -141,7 +141,19 @@ export default function RecipeDetailModal({
   // Photo links that failed to load (a dead stock-photo link): show a plain tile instead of a blank space.
   const [badPhotos, setBadPhotos] = useState({});
   const markBad = (uri) => setBadPhotos((p) => (p[uri] ? p : { ...p, [uri]: true }));
-  useEffect(() => { setHeroIdx(0); setViewer(null); setBadPhotos((p) => (Object.keys(p).length ? {} : p)); }, [recipe?.id, recipe?.title]);
+  // Photos that have finished loading; until then a pale tile with a spinner shows, so a slow photo doesn't look like a broken app.
+  const [loadedPhotos, setLoadedPhotos] = useState({});
+  const markLoaded = (uri) => setLoadedPhotos((p) => (p[uri] ? p : { ...p, [uri]: true }));
+  const photoSpinner = (uri) => (loadedPhotos[uri] || badPhotos[uri] ? null : (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: '#DDE7D5', alignItems: 'center', justifyContent: 'center' }]}>
+      <ActivityIndicator color="#5C7262" />
+    </View>
+  ));
+  useEffect(() => {
+    setHeroIdx(0); setViewer(null);
+    setBadPhotos((p) => (Object.keys(p).length ? {} : p));
+    setLoadedPhotos((p) => (Object.keys(p).length ? {} : p));
+  }, [recipe?.id, recipe?.title]);
   const gallery = Array.isArray(recipe?.photos) && recipe.photos.length > 0
     ? recipe.photos
     : (photoUrl ? [photoUrl] : []);
@@ -452,7 +464,11 @@ export default function RecipeDetailModal({
                             source={gallerySources[i]}
                             style={{ width: screenW, height: 300 }}
                             imageStyle={styles.overlayImageInner}
-                          />
+                            onError={() => markBad(uri)}
+                            onLoad={() => markLoaded(uri)}
+                          >
+                            {photoSpinner(uri)}
+                          </ImageBackground>
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -469,7 +485,10 @@ export default function RecipeDetailModal({
                           style={styles.overlayImage}
                           imageStyle={styles.overlayImageInner}
                           onError={() => markBad(photoUrl || gallery[0])}
-                        />
+                          onLoad={() => markLoaded(photoUrl || gallery[0])}
+                        >
+                          {photoSpinner(photoUrl || gallery[0])}
+                        </ImageBackground>
                       ) : (
                         <View style={[styles.overlayImage, { backgroundColor: '#DDE7D5', alignItems: 'center', justifyContent: 'center' }]}>
                           <Text style={{ fontSize: 96 }}>{recipe.emoji || '🍽️'}</Text>
@@ -628,7 +647,9 @@ export default function RecipeDetailModal({
                             style={[styles.overlayThumbImage, badPhotos[uri] ? { backgroundColor: '#DDE7D5' } : null]}
                             imageStyle={styles.overlayThumbImageInner}
                             onError={() => markBad(uri)}
+                            onLoad={() => markLoaded(uri)}
                           >
+                            {photoSpinner(uri)}
                             {photoIdx === 0 && recipe.photos.length > 1 ? (
                               <View style={styles.photoMainTag}>
                                 <Text style={styles.photoMainTagText}>{t('photo_main_tag')}</Text>
