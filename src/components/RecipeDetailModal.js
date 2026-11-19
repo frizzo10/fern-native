@@ -138,7 +138,10 @@ export default function RecipeDetailModal({
   const { width: screenW, height: screenH } = useWindowDimensions();
   const [heroIdx, setHeroIdx] = useState(0);
   const [viewer, setViewer] = useState(null);
-  useEffect(() => { setHeroIdx(0); setViewer(null); }, [recipe?.id, recipe?.title]);
+  // Photo links that failed to load (a dead stock-photo link): show a plain tile instead of a blank space.
+  const [badPhotos, setBadPhotos] = useState({});
+  const markBad = (uri) => setBadPhotos((p) => (p[uri] ? p : { ...p, [uri]: true }));
+  useEffect(() => { setHeroIdx(0); setViewer(null); setBadPhotos((p) => (Object.keys(p).length ? {} : p)); }, [recipe?.id, recipe?.title]);
   const gallery = Array.isArray(recipe?.photos) && recipe.photos.length > 0
     ? recipe.photos
     : (photoUrl ? [photoUrl] : []);
@@ -460,11 +463,18 @@ export default function RecipeDetailModal({
                       disabled={!gallery.length}
                       onPress={() => openViewer(0)}
                     >
-                      <ImageBackground
-                        source={photoUrl ? { uri: photoUrl } : require('../../assets/icon.png')}
-                        style={styles.overlayImage}
-                        imageStyle={styles.overlayImageInner}
-                      />
+                      {(photoUrl || gallery[0]) && !badPhotos[photoUrl || gallery[0]] ? (
+                        <ImageBackground
+                          source={{ uri: photoUrl || gallery[0] }}
+                          style={styles.overlayImage}
+                          imageStyle={styles.overlayImageInner}
+                          onError={() => markBad(photoUrl || gallery[0])}
+                        />
+                      ) : (
+                        <View style={[styles.overlayImage, { backgroundColor: '#DDE7D5', alignItems: 'center', justifyContent: 'center' }]}>
+                          <Text style={{ fontSize: 96 }}>{recipe.emoji || '🍽️'}</Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   )}
                   {gallery.length > 1 ? (
@@ -615,8 +625,9 @@ export default function RecipeDetailModal({
                         >
                           <ImageBackground
                             source={{ uri }}
-                            style={styles.overlayThumbImage}
+                            style={[styles.overlayThumbImage, badPhotos[uri] ? { backgroundColor: '#DDE7D5' } : null]}
                             imageStyle={styles.overlayThumbImageInner}
+                            onError={() => markBad(uri)}
                           >
                             {photoIdx === 0 && recipe.photos.length > 1 ? (
                               <View style={styles.photoMainTag}>

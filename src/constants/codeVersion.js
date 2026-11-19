@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-17 a: pictures use ingredients';
+export const CODE_VERSION = '11-18 a: dead photo shows a tile';
