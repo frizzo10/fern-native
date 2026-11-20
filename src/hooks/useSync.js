@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { setGrant } from '../services/grantStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HOUSEHOLD_KEY, HOUSEHOLD_HV_KEY } from '../services/householdService';
 
 const SYNC_URL = 'https://app.clickpickandcook.com/.netlify/functions/sync';
 const API_HEADERS = {
@@ -179,6 +180,23 @@ export function useSync(user) {
       await AsyncStorage.setItem('rv4_cb_covers', JSON.stringify(dd.cb_covers || {}));
       await AsyncStorage.setItem('fern_user_tier', JSON.stringify(dd.tier || 'free'));
 
+      // Household: remember which shared version this phone now holds (sent with every push so the server can tell
+      // what this phone has seen), who the shopper is, and the shared cookbook chapter layouts.
+      if (dd.household) {
+        if (dd.book_chapters && typeof dd.book_chapters === 'object') {
+          try {
+            const local = JSON.parse((await AsyncStorage.getItem('fern_book_chapters')) || '{}') || {};
+            const merged = { ...dd.book_chapters };
+            Object.keys(local).forEach((id) => { if (!merged[id] || (local[id]?.at || 0) > (merged[id]?.at || 0)) merged[id] = local[id]; });
+            await AsyncStorage.setItem('fern_book_chapters', JSON.stringify(merged));
+          } catch (e) { /* layouts are derived; best effort */ }
+        }
+        await AsyncStorage.setItem(HOUSEHOLD_KEY, JSON.stringify(dd.household));
+        await AsyncStorage.setItem(HOUSEHOLD_HV_KEY, String(dd.household.hv || 0));
+      } else {
+        await AsyncStorage.multiRemove([HOUSEHOLD_KEY, HOUSEHOLD_HV_KEY]).catch(() => {});
+      }
+
       if (hadCorruption) {
         console.log('[sync] Pushing fixed emoji back to backend');
         await fetch(SYNC_URL, {
@@ -201,6 +219,7 @@ export function useSync(user) {
               activities: dd.activities || [],
               cb_covers: dd.cb_covers || {},
               tier: dd.tier || 'free',
+              ...(dd.household ? { hv: dd.household.hv || 0 } : {}),
             },
           }),
         });
@@ -258,6 +277,10 @@ export function useSync(user) {
       const activities = JSON.parse(await AsyncStorage.getItem('rv4_activities') || '[]');
       const cbCovers = JSON.parse(await AsyncStorage.getItem('rv4_cb_covers') || '{}');
       const tier = JSON.parse(await AsyncStorage.getItem('fern_user_tier') || '"free"');
+      // Household: the shared version this phone last pulled, and the chapter layouts (shared too).
+      const hv = Number(await AsyncStorage.getItem(HOUSEHOLD_HV_KEY)) || 0;
+      let bookChapters = null;
+      if (hv) { try { bookChapters = JSON.parse((await AsyncStorage.getItem('fern_book_chapters')) || 'null'); } catch (e) { bookChapters = null; } }
 
       const dataToPush = {
         saved,
@@ -276,6 +299,8 @@ export function useSync(user) {
         activities,
         cb_covers: cbCovers,
         tier,
+        ...(hv ? { hv } : {}),
+        ...(bookChapters && typeof bookChapters === 'object' ? { book_chapters: bookChapters } : {}),
         ...changedData,
       };
 

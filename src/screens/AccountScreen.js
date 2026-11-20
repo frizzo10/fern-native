@@ -22,6 +22,8 @@ import * as Updates from 'expo-updates';
 import appJson from '../../app.json';
 import { CODE_VERSION } from '../constants/codeVersion';
 import { getNotes, addNote, removeNote, MAX_NOTES } from '../services/fernNotes';
+import HouseholdCard from '../components/HouseholdCard';
+import { householdCall, getCachedHousehold } from '../services/householdService';
 
 const TIER_BY_TOUR_KEY = TOUR_LIST.reduce((acc, entry) => {
     acc[entry.key] = entry.tier;
@@ -90,7 +92,7 @@ export default function AccountScreen({ visible, onClose, user, signOut, deleteA
         setShoppingDayValue(day);
         await saveShoppingDay(day, { title: t('everyday_nudge_title'), body: t('everyday_nudge_body') });
     };
-    const { data, pushChangedFromStorage } = useSync(user);
+    const { data, pushChangedFromStorage, pull } = useSync(user);
     // "About you": name (synced in remi_explicit.userName), people cooked for and diet (device-only fern_shopper_prefs, the same
     // answers the dinner planner reads), edited inline in the profile card.
     const [editingProfile, setEditingProfile] = useState(false);
@@ -254,6 +256,13 @@ export default function AccountScreen({ visible, onClose, user, signOut, deleteA
             if (name) setSavedName(name);
             setEditingProfile(false);
             pushChangedFromStorage?.({ remi_explicit: nextProf });
+            // In a household, my own "foods to avoid" line is shared so Fern plans dinners around everyone.
+            try {
+                if (await getCachedHousehold()) {
+                    await householdCall(user?.token, 'set_avoids', { avoids: dietInput.trim() });
+                    pull?.();
+                }
+            } catch (e) { /* the line is kept on the phone either way */ }
         } catch (e) {
             Alert.alert(t('save_error_title'), t('save_error_desc'));
         }
@@ -437,6 +446,8 @@ export default function AccountScreen({ visible, onClose, user, signOut, deleteA
                                 </View>
                             )}
                         </View>
+
+                        <HouseholdCard user={user} onChanged={pull} />
 
                         <View style={styles.infoCard}>
                             <Text style={styles.infoLabel}>{t('fern_notes_title').toUpperCase()}</Text>

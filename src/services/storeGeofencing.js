@@ -18,6 +18,7 @@
 // event, no React tree is ever mounted. If the task isn't defined at that moment
 // expo-task-manager unregisters the geofences.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { isStoreShopper } from './householdService';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { translations } from '../constants/translations';
@@ -142,6 +143,7 @@ export async function notifyArrival(name) {
 // marked used, both from the savings ledger since they arrived). Nothing saved = no notification.
 export async function notifyDeparture(name) {
   if (!(await hasProMax())) return;
+  if (!(await isStoreShopper())) return;
   const trip = await readJson(TRIP_KEY, null);
   // Only report savings for a trip we actually saw begin at THIS store (arrival recorded in the last 12 hours).
   // Without that, any stray exit event (e.g. when regions are re-registered on app open) sent a "you saved" alert per store.

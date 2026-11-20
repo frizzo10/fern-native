@@ -3,6 +3,7 @@
 // (she just does it, with an Undo). 'off' or never chosen = she does nothing by herself.
 // She only drafts here; the changes are made by the same executor the chat uses (fernAgent.executeAgentActions),
 // so what the card says happened is what happened. Runs at most once per local day (`fern_autopilot_last`).
+import { mergedDietary } from './householdService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { buildRollingWeekDateKeys, dateToKey, formatDayLabel } from '../utils/familyDates';
 import { loadWeekDeals } from '../utils/savings';
@@ -56,7 +57,7 @@ export async function draftWeek({ user, locale }) {
     alreadyPlanned: planned.slice(0, 20),
     busyDaysWithActivities: busy,
     peopleCookedFor: prefs?.householdSize || '',
-    dietOrAvoid: prefs?.dietary || '',
+    dietOrAvoid: (await mergedDietary(prefs?.dietary).catch(() => '')) || prefs?.dietary || '',
     saleItemsThisWeek: star,
     savedRecipeTitles: saved.map((r) => r?.title).filter(Boolean).slice(0, 60),
     alreadyOnShoppingList: list.filter((i) => !i.checked).map((i) => i.text).slice(0, 40),

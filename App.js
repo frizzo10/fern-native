@@ -29,6 +29,7 @@ import PaperPickModal from './src/components/modals/PaperPickModal';
 import { STATIONERY_KEY } from './src/constants/stationery';
 import { shouldShowLocationSetup, markLocationSetupShown } from './src/services/locationSetup';
 import { stopStoreGeofencing } from './src/services/storeGeofencing';
+import { isStoreShopper } from './src/services/householdService';
 import useEntitlement from './src/hooks/useEntitlement';
 import { FEATURE_TIERS } from './src/constants/featureAccess';
 import { TIERS } from './src/constants/tiers';
@@ -348,7 +349,9 @@ function AppNavigator({ user, signOut, deleteAccount, userStores: rawUserStores,
 
   const { start: startGeofence } = useGeofence({
     stores: userStores,
-    onArrival: (store, distMeters) => {
+    onArrival: async (store, distMeters) => {
+      // In a household only the shopper is greeted and shown the arrival banner.
+      try { if (!(await isStoreShopper())) return; } catch (e) { /* no household info: carry on */ }
       setArrivedStore(store);
       // Fern greets you out loud the moment you arrive (app open), and says she's here to help.
       try { speakWelcome(t('arrival_greet_say', { store: shortStoreName(store?.name || store) })); } catch (e) { /* ignore */ }

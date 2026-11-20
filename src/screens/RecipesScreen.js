@@ -1248,7 +1248,7 @@ export default function RecipesScreen({ user }) {
         locale,
         token: user.token,
       })
-        .then((changed) => (changed ? loadChapterMap().then(setChapterMap) : null))
+        .then((changed) => (changed ? loadChapterMap().then((m) => { setChapterMap(m); AsyncStorage.getItem('fern_household_hv').then((v) => { if (Number(v)) pushChangedFromStorage?.(); }).catch(() => {}); }) : null))
         .catch(() => {})
         .finally(() => { organizingRef.current = false; });
       return;
@@ -1261,7 +1261,7 @@ export default function RecipesScreen({ user }) {
       locale,
       token: user.token,
     })
-      .then(() => loadChapterMap().then(setChapterMap))
+      .then(() => loadChapterMap().then((m) => { setChapterMap(m); AsyncStorage.getItem('fern_household_hv').then((v) => { if (Number(v)) pushChangedFromStorage?.(); }).catch(() => {}); }))
       .catch(() => {})
       .finally(() => { organizingRef.current = false; });
   }, [booksWithMatchedCounts, recipes, chapterMap, user?.token, locale]);

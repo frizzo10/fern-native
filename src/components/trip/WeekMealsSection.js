@@ -1,3 +1,4 @@
+import { mergedDietary } from '../../services/householdService';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -101,6 +102,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
     setPhase('loading');
     try {
       prefs.current = await readJson('fern_shopper_prefs', {});
+      try { const dietAll = await mergedDietary(prefs.current.dietary); if (dietAll) prefs.current = { ...prefs.current, dietary: dietAll }; } catch (e) { /* own line only */ }
       const mealPlan = await readJson('rv4_meal_plan', {});
       // Empty dinner nights in the rolling week: weekdays (Mon-Fri) first, then the weekend, at most three.
       // The three cards always show; only as many are ticked as there are open nights.
