@@ -53,6 +53,7 @@ import TourModal from './src/components/TourModal';
 import { TOUR_PREVIEW_ROUTE } from './src/constants/tourContent';
 import { RevenueCatProvider, useRevenueCat } from './src/services/RevenueCatContext';
 import { useSync } from './src/hooks/useSync';
+import { startJoin } from './src/services/householdJoin';
 import { startLinkListener, subscribeLink, checkShareClipboardOnce } from './src/services/linkBus';
 
 startLinkListener(); // fern://cookbook?id=... links: listen from the very first moment (cold start included)
@@ -318,6 +319,11 @@ function AppNavigator({ user, signOut, deleteAccount, userStores: rawUserStores,
 
   // A fern:// cookbook/recipe link was tapped: open Recipes and import it (RecipesScreen does the import).
   useEffect(() => subscribeLink((p) => {
+    if (p.kind === 'join') {
+      // A household invite: ask in plain words, then join (same flow as typing the code).
+      if (user?.token) setTimeout(() => startJoin({ token: user.token, code: p.id, t }), 600);
+      return;
+    }
     let tries = 0;
     const go = () => {
       const nav = navigationRef.current;
@@ -326,7 +332,7 @@ function AppNavigator({ user, signOut, deleteAccount, userStores: rawUserStores,
       nav.navigate('Recipes', { openTab: 'cookbooks', requestKey: String(Date.now()), importLink: p.link, importNonce: String(Date.now()) });
     };
     go();
-  }), []);
+  }), [user?.token]);
   // First launch after installing from a share link: pick up the cookbook the share page copied.
   useEffect(() => { const t = setTimeout(() => checkShareClipboardOnce(AsyncStorage), 3000); return () => clearTimeout(t); }, []);
 

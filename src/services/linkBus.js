@@ -16,6 +16,8 @@ function build(kind, id) {
 // cookbook-share.html / share.html ?id= pages.
 export function parseFernUrl(url) {
   const u = String(url || '');
+  let j = u.match(/^fern:\/\/join\/?\?(?:[^#]*&)?code=([a-z0-9]{4,8})/i) || u.match(/^https?:\/\/app\.clickpickandcook\.com\/join\/([a-z0-9]{4,8})/i);
+  if (j) return { kind: 'join', id: j[1].toUpperCase(), link: '' };
   let m = u.match(/^fern:\/\/(cookbook|recipe)\/?\?(?:[^#]*&)?id=([a-z0-9]{1,16})/i);
   if (m) return build(m[1].toLowerCase(), m[2]);
   m = u.match(/^https?:\/\/app\.clickpickandcook\.com\/s\/(c|r)\/([a-z0-9]{1,16})/i);
@@ -34,8 +36,9 @@ export async function checkShareClipboardOnce(AsyncStorage) {
     let Clipboard = null;
     try { Clipboard = require('expo-clipboard'); } catch (e) { return; }
     const txt = await Clipboard.getStringAsync();
-    const m = String(txt || '').match(/^fern-share:(cookbook|recipe):([a-z0-9]{1,16})$/i);
+    const m = String(txt || '').match(/^fern-share:(cookbook|recipe|join):([a-z0-9]{1,16})$/i);
     if (!m) return;
+    if (m[1].toLowerCase() === 'join') { try { await Clipboard.setStringAsync(''); } catch (e) { /* ignore */ } deliver({ kind: 'join', id: m[2].toUpperCase(), link: '' }); return; }
     try { await Clipboard.setStringAsync(''); } catch (e) { /* ignore */ }
     deliver(build(m[1].toLowerCase(), m[2]));
   } catch (e) { /* never block the app */ }

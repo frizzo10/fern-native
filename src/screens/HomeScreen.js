@@ -99,6 +99,7 @@ import { FEATURE_TIERS } from '../constants/featureAccess';
 import AlwaysLocationReminder from '../components/home/AlwaysLocationReminder';
 import AutopilotCard from '../components/home/AutopilotCard';
 import AlexaCard from '../components/home/AlexaCard';
+import HouseholdHomeCard from '../components/home/HouseholdHomeCard';
 import { FREE_RECIPE_LIMIT } from '../utils/freeLimits';
 
 const FRIDGE_CHALLENGE_LAST_PLAYED_KEY = 'fern_fridge_challenge_last_played';
@@ -2775,7 +2776,7 @@ export default function HomeScreen({ user, route }) {
                 onEditActivity={setHomeEditActivity}
                 tools={newHomeTools}
                 libraryItems={newHomeLibrary}
-                notice={<><AutopilotCard user={user} ready={!loading} pushChangedFromStorage={pushChangedFromStorage} pull={pull} /><AlwaysLocationReminder /><AlexaCard shopCount={(storedShop || data.shopping || []).filter((it) => !it.checked).length} onSetup={() => setIsAlexaModalOpen(true)} /></>}
+                notice={<><HouseholdHomeCard user={user} pull={pull} onOpenAccount={openAccount} /><AutopilotCard user={user} ready={!loading} pushChangedFromStorage={pushChangedFromStorage} pull={pull} /><AlwaysLocationReminder /><AlexaCard shopCount={(storedShop || data.shopping || []).filter((it) => !it.checked).length} onSetup={() => setIsAlexaModalOpen(true)} /></>}
               />
             ) : (
               <>

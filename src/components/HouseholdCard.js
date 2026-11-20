@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Share, StyleSheet, Text, TextInput, Touchable
 import useLanguage from '../hooks/useLanguage';
 import { householdCall, saveHouseholdLocally } from '../services/householdService';
 import { discardPendingPull } from '../hooks/useSync';
+import { startJoin, JOIN_SITE } from '../services/householdJoin';
 
 export default function HouseholdCard({ user, onChanged }) {
   const { t } = useLanguage();
@@ -50,31 +51,10 @@ export default function HouseholdCard({ user, onChanged }) {
     { text: t('hh_create'), onPress: () => run('create') },
   ]);
 
-  const join = async () => {
+  const join = () => {
     const c = code.trim();
     if (c.length < 6 || busy) return;
-    setBusy(true);
-    try {
-      const r = await householdCall(user.token, 'preview', { code: c });
-      const n = r.counts || {};
-      const parts = [
-        n.recipes ? t('hh_n_recipes', { n: n.recipes }) : '',
-        n.books ? t('hh_n_books', { n: n.books }) : '',
-        n.list ? t('hh_n_list', { n: n.list }) : '',
-        n.activities ? t('hh_n_acts', { n: n.activities }) : '',
-        n.stores ? t('hh_n_stores', { n: n.stores }) : '',
-      ].filter(Boolean);
-      const who = (r.with || []).join(', ') || t('hh_someone');
-      const body = parts.length ? t('hh_join_confirm_body', { who, adds: parts.join(', ') }) : t('hh_join_confirm_none', { who });
-      setBusy(false);
-      Alert.alert(t('hh_join_confirm_title'), body, [
-        { text: t('cancel_btn'), style: 'cancel' },
-        { text: t('hh_join_btn'), onPress: () => run('join', { code: c }, () => setCode('')) },
-      ]);
-    } catch (e) {
-      setBusy(false);
-      fail(e);
-    }
+    startJoin({ token: user.token, code: c, t, onJoined: async (h) => { setHh(h || null); setCode(''); await onChanged?.(); } });
   };
 
   const leave = () => Alert.alert(t('hh_leave_confirm_title'), t('hh_leave_confirm_body'), [
@@ -86,7 +66,7 @@ export default function HouseholdCard({ user, onChanged }) {
     { text: t('hh_new_code'), onPress: () => run('new_code') },
   ]);
   const shareCode = () => {
-    try { Share.share({ message: t('hh_share_msg', { code: hh.code }) }); } catch (e) { /* closed */ }
+    try { Share.share({ message: t('hh_invite_msg', { link: JOIN_SITE + hh.code, code: hh.code }) }); } catch (e) { /* closed */ }
   };
 
   if (hh === undefined) {
