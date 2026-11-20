@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import useLanguage from '../hooks/useLanguage';
 import { householdCall, saveHouseholdLocally } from '../services/householdService';
+import { discardPendingPull } from '../hooks/useSync';
 
 export default function HouseholdCard({ user, onChanged }) {
   const { t } = useLanguage();
@@ -33,6 +34,7 @@ export default function HouseholdCard({ user, onChanged }) {
       if (action !== 'preview') {
         setHh(r.household || null);
         await saveHouseholdLocally(r.household || null);
+        discardPendingPull();
         await onChanged?.();
       }
       if (after) after(r);

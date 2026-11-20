@@ -561,6 +561,7 @@ export function useAuth() {
 
   // ── Sign out ─────────────────────────────────────────────────────────────────
   const signOut = async () => {
+    try { await AsyncStorage.multiRemove(['fern_household', 'fern_household_hv']); } catch (e) { /* best effort */ }
     try { await supabase.auth.signOut(); } catch (e) { /* offline: still sign out on this phone */ }
     await SecureStore.deleteItemAsync(AUTH_KEY);
     await clearAuthMirror();

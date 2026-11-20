@@ -92,6 +92,11 @@ export function resetUnsentChanges() { unsentMem = ''; return AsyncStorage.remov
 // Pushes run one after another, each reading the newest data from storage when its turn comes,
 // so an older snapshot can never reach the server after a newer one.
 let pushQueue = Promise.resolve();
+// Bumped when a push starts and again when it ends. A household pull that began before a push is discarded when it
+// lands: its snapshot lacks what the push just saved, and applying it would make the next push delete that change.
+let pushGen = 0;
+// Used by the household card after create/join so the next pull is a fresh request.
+export function discardPendingPull() { sharedPull = null; sharedPullKey = ''; pushGen += 1; }
 
 export function useSync(user) {
   const [data, setData] = useState({
@@ -118,6 +123,8 @@ export function useSync(user) {
   // Changes saved on the phone whose upload failed (slow or no connection). Until they reach the server, a pull must
   // not overwrite them with the older server copy: it first retries the upload, and keeps the phone's copy if that fails.
   const pushRef = useRef(null);
+  const pullRetryRef = useRef(false);
+  const pullSelfRef = useRef(null);
   const pull = useCallback(async () => {
     if (!user?.id || !user?.token) return;
     if (await hasUnsentChanges(user.id)) {
@@ -131,9 +138,15 @@ export function useSync(user) {
     }
 
     try {
+      const genAtStart = pushGen;
       const result = await fetchPullShared(user);
       const dd = result.data;
       if (!dd) return;
+      if (dd.household && genAtStart !== pushGen) {
+        // a push ran meanwhile: skip this older snapshot and ask again shortly
+        if (!pullRetryRef.current) { pullRetryRef.current = true; setTimeout(() => { pullRetryRef.current = false; pullSelfRef.current?.(); }, 2500); }
+        return;
+      }
 
       const { fixed: fixedSaved, hadCorruption } = fixCorruptedEmojis(dd.saved || []);
 
@@ -232,6 +245,8 @@ export function useSync(user) {
     }
   }, [user]);
 
+  pullSelfRef.current = pull;
+
   const loadCache = useCallback(async () => {
     try {
       const cached = await AsyncStorage.getItem('fern_sync_cache');
@@ -259,8 +274,8 @@ export function useSync(user) {
 
   const pushChangedFromStorage = useCallback((changedData = {}) => {
     // A pull already in flight may predate this change; later pulls must ask again.
-    sharedPull = null; sharedPullKey = '';
-    const turn = pushQueue.then(() => doPush(changedData));
+    sharedPull = null; sharedPullKey = ''; pushGen += 1;
+    const turn = pushQueue.then(() => doPush(changedData)).finally(() => { pushGen += 1; });
     pushQueue = turn.catch(() => null);
     return turn;
   async function doPush(changedData) {
@@ -279,6 +294,13 @@ export function useSync(user) {
       const tier = JSON.parse(await AsyncStorage.getItem('fern_user_tier') || '"free"');
       // Household: the shared version this phone last pulled, and the chapter layouts (shared too).
       const hv = Number(await AsyncStorage.getItem(HOUSEHOLD_HV_KEY)) || 0;
+      let dev = '';
+      if (hv) {
+        try {
+          dev = (await AsyncStorage.getItem('fern_device_id')) || '';
+          if (!dev) { dev = Math.random().toString(36).slice(2, 8); await AsyncStorage.setItem('fern_device_id', dev); }
+        } catch (e) { dev = ''; }
+      }
       let bookChapters = null;
       if (hv) { try { bookChapters = JSON.parse((await AsyncStorage.getItem('fern_book_chapters')) || 'null'); } catch (e) { bookChapters = null; } }
 
@@ -299,7 +321,7 @@ export function useSync(user) {
         activities,
         cb_covers: cbCovers,
         tier,
-        ...(hv ? { hv } : {}),
+        ...(hv ? { hv, dev } : {}),
         ...(bookChapters && typeof bookChapters === 'object' ? { book_chapters: bookChapters } : {}),
         ...changedData,
       };
