@@ -5,6 +5,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -14,6 +19,7 @@ import { createAudioPlayer, setAudioModeAsync } from 'expo-audio';
 import useLanguage from '../../hooks/useLanguage';
 import TechniqueHelpModal from './TechniqueHelpModal';
 import { useFernVoice } from '../../hooks/useFernVoice';
+import { askWhileCooking } from '../../services/cookAskService';
 
 // Quiet background music while cooking (same three loops as the Alexa Cook Mode).
 const MUSIC_BASE = 'https://app.clickpickandcook.com/assets/music/';
@@ -24,11 +30,15 @@ const MUSIC_VOL = 0.3;
 const MUSIC_VOL_DUCKED = 0.07;
 
 export default function CookModeModal({ visible, recipe, user, onClose }) {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const insets = useSafeAreaInsets();
   const [stepIndex, setStepIndex] = useState(0);
   const [isIngredientsOpen, setIsIngredientsOpen] = useState(false);
   const [isHelpVisible, setIsHelpVisible] = useState(false);
+  const [askOpen, setAskOpen] = useState(false);
+  const [askText, setAskText] = useState('');
+  const [askBusy, setAskBusy] = useState(false);
+  const [askAnswer, setAskAnswer] = useState('');
   const [music, setMusic] = useState('jazz');
   const [musicLoaded, setMusicLoaded] = useState(false);
   const playerRef = useRef(null);
@@ -171,6 +181,9 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
       setStepIndex(0);
       setIsIngredientsOpen(false);
       setIsHelpVisible(false);
+      setAskOpen(false);
+      setAskText('');
+      setAskAnswer('');
     }
   }, [visible, recipe?.id]);
 
@@ -181,6 +194,23 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
   const currentStep = steps[stepIndex] || '';
   const isLastStep = stepIndex >= total - 1;
   const progressPct = total ? ((stepIndex + 1) / total) * 100 : 0;
+
+  const sendAsk = async () => {
+    const q = askText.trim();
+    if (!q || askBusy) return;
+    Keyboard.dismiss();
+    setAskBusy(true);
+    setAskAnswer('');
+    try {
+      const a = await askWhileCooking({ recipe, stepIndex, question: q, locale });
+      setAskAnswer(a);
+      setAskText('');
+    } catch (e) {
+      setAskAnswer(t('cook_ask_failed'));
+    } finally {
+      setAskBusy(false);
+    }
+  };
 
   const handleClose = () => {
     setIsHelpVisible(false);
@@ -270,6 +300,49 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
         </View>
       </ImageBackground>
 
+      {askOpen ? (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.askWrap}
+          pointerEvents="box-none"
+        >
+          <View style={styles.askCard}>
+            <View style={styles.askHead}>
+              <Text style={styles.askTitle}>🌿 {t('cook_ask_title')}</Text>
+              <TouchableOpacity onPress={() => setAskOpen(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={styles.askX}>×</Text>
+              </TouchableOpacity>
+            </View>
+            {askBusy ? <ActivityIndicator color="#ECF2E6" style={{ marginVertical: 8 }} /> : null}
+            {askAnswer ? <Text style={styles.askAnswer}>{askAnswer}</Text> : null}
+            <View style={styles.askRow}>
+              <TextInput
+                style={styles.askInput}
+                value={askText}
+                onChangeText={setAskText}
+                placeholder={t('cook_ask_placeholder')}
+                placeholderTextColor="rgba(236,242,230,0.55)"
+                maxLength={300}
+                returnKeyType="send"
+                onSubmitEditing={sendAsk}
+              />
+              <TouchableOpacity style={styles.askSend} onPress={sendAsk} disabled={askBusy} activeOpacity={0.85}>
+                <Text style={styles.askSendText}>{t('cook_ask_send')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      ) : (
+        <TouchableOpacity
+          style={[styles.askFab, { bottom: insets.bottom + 90 }]}
+          activeOpacity={0.85}
+          onPress={() => setAskOpen(true)}
+          accessibilityLabel={t('cook_ask_title')}
+        >
+          <Text style={styles.askFabText}>🌿</Text>
+        </TouchableOpacity>
+      )}
+
       <TechniqueHelpModal
         visible={isHelpVisible}
         recipeTitle={recipe.title}
@@ -282,6 +355,18 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
 }
 
 const styles = StyleSheet.create({
+  askFab: { position: 'absolute', right: 18, width: 56, height: 56, borderRadius: 28, backgroundColor: '#4E7A54', alignItems: 'center', justifyContent: 'center', elevation: 6, shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 6, shadowOffset: { width: 0, height: 3 } },
+  askFabText: { fontSize: 26 },
+  askWrap: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, justifyContent: 'flex-end' },
+  askCard: { margin: 12, padding: 14, borderRadius: 18, backgroundColor: 'rgba(30,50,36,0.96)' },
+  askHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+  askTitle: { color: '#ECF2E6', fontSize: 16, fontWeight: '700' },
+  askX: { color: '#ECF2E6', fontSize: 24, lineHeight: 26 },
+  askAnswer: { color: '#FFFFFF', fontSize: 16, lineHeight: 22, marginVertical: 8 },
+  askRow: { flexDirection: 'row', gap: 8, marginTop: 6 },
+  askInput: { flex: 1, height: 44, borderRadius: 12, paddingHorizontal: 12, color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.14)', fontSize: 16 },
+  askSend: { paddingHorizontal: 16, height: 44, borderRadius: 12, backgroundColor: '#4E7A54', alignItems: 'center', justifyContent: 'center' },
+  askSendText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   musicBtn: {
     paddingHorizontal: 12,
     height: 34,
