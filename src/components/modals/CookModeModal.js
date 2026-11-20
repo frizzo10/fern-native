@@ -21,6 +21,7 @@ import useLanguage from '../../hooks/useLanguage';
 import TechniqueHelpModal from './TechniqueHelpModal';
 import { useFernVoice } from '../../hooks/useFernVoice';
 import { askWhileCooking } from '../../services/cookAskService';
+import screenOrientation from '../../utils/screenOrientation';
 
 // Quiet background music while cooking (same three loops as the Alexa Cook Mode).
 const MUSIC_BASE = 'https://app.clickpickandcook.com/assets/music/';
@@ -166,8 +167,7 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
 
   // Cook Mode may rotate sideways; everything else is locked to portrait again on close.
   useEffect(() => {
-    let so = null;
-    try { so = require('expo-screen-orientation'); } catch (e) { so = null; }
+    const so = screenOrientation;
     if (!so || !visible) return undefined;
     // The JS package can be present while the native part is missing (older binary): the call then throws
     // synchronously, so a try/catch is needed, not just .catch.
