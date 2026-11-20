@@ -169,8 +169,12 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
     let so = null;
     try { so = require('expo-screen-orientation'); } catch (e) { so = null; }
     if (!so || !visible) return undefined;
-    so.unlockAsync().catch(() => {});
-    return () => { so.lockAsync(so.OrientationLock.PORTRAIT_UP).catch(() => {}); };
+    // The JS package can be present while the native part is missing (older binary): the call then throws
+    // synchronously, so a try/catch is needed, not just .catch.
+    try { Promise.resolve(so.unlockAsync()).catch(() => {}); } catch (e) { return undefined; }
+    return () => {
+      try { Promise.resolve(so.lockAsync(so.OrientationLock.PORTRAIT_UP)).catch(() => {}); } catch (e) {}
+    };
   }, [visible]);
 
   // Fresh cache per recipe / each time Cook Mode opens; make sure the ramp timer never outlives the modal.
