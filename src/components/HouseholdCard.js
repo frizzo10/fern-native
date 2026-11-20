@@ -121,7 +121,7 @@ export default function HouseholdCard({ user, onChanged }) {
             </TouchableOpacity>
           </View>
           <Text style={[styles.label, { marginTop: 18 }]}>{t('hh_members').toUpperCase()}</Text>
-          {(hh.members || []).map((m) => (
+          {(Array.isArray(hh.members) ? hh.members : []).map((m) => (
             <View key={m.id} style={styles.member}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.memberName}>

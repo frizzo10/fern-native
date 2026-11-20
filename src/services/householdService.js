@@ -66,7 +66,7 @@ export async function saveHouseholdLocally(h) {
     if (h) {
       await AsyncStorage.setItem(HOUSEHOLD_KEY, JSON.stringify({
         id: h.id, code: h.code, shopperId: h.shopperId, isShopper: !!h.isShopper, hv: h.version || h.hv || 0,
-        members: Array.isArray(h.members) ? h.members.length : h.members || 0,
+        members: Array.isArray(h.members) ? h.members : [],
         avoids: (Array.isArray(h.members) ? h.members.map((m) => m.avoids).filter(Boolean).join('; ') : h.avoids) || '',
       }));
     } else {

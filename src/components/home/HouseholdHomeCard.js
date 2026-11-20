@@ -60,7 +60,7 @@ export default function HouseholdHomeCard({ user, pull, onOpenAccount }) {
   if (hh === undefined || !user?.token) return null;
 
   if (hh) {
-    const others = (hh.members || []).filter((m) => !m.isMe).map((m) => m.name || t('hh_someone'));
+    const others = (Array.isArray(hh.members) ? hh.members : []).filter((m) => !m.isMe).map((m) => m.name || t('hh_someone'));
     const line = others.length ? t('hh_home_with', { names: others.join(', ') }) : t('hh_home_alone');
     return (
       <View style={s.card}>
