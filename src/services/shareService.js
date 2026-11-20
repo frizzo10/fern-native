@@ -190,6 +190,7 @@ export async function fetchSharedCookbook(input) {
         })(),
         })).filter((r) => r.title),
         cover: /^https?:\/\//i.test(d.cv || '') ? d.cv : '',
+        sharedBy: String(d.s || '').trim().slice(0, 40),
     };
 }
 
@@ -230,6 +231,8 @@ export async function fetchSharedRecipe(id) {
         ingredients: Array.isArray(r.i) ? r.i : [],
         instructions: Array.isArray(r.ins) ? r.ins : [],
         note: r.n || '',
+        _shared: true,
+        _sharedBy: String(r.s || '').trim().slice(0, 40),
         _cloudPhotos: (() => {
             const list = (Array.isArray(r.ps) ? r.ps : []).filter(isWebUrl);
             if (isWebUrl(r.p) && !list.includes(r.p)) list.unshift(r.p);

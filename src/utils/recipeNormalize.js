@@ -181,6 +181,8 @@ export function normalizeRecipe(item, index) {
     methodSteps: methodSteps.length ? methodSteps.map(fixDegrees) : ['No method steps listed yet'],
     note,
     bookIds,
+    shared: !!item?._shared || typeof item?._sharedBy === 'string' && item._sharedBy.length > 0,
+    sharedBy: typeof item?._sharedBy === 'string' ? item._sharedBy : '',
   };
 }
 

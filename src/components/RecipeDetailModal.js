@@ -536,6 +536,11 @@ export default function RecipeDetailModal({
                   ) : (
                     <Text style={styles.overlayTitle}>{recipe.title}</Text>
                   )}
+                  {!isEditMode && recipe.shared ? (
+                    <Text style={styles.sharedByTag}>
+                      {recipe.sharedBy ? t('shared_by_label', { name: recipe.sharedBy }) : t('shared_with_you')}
+                    </Text>
+                  ) : null}
 
                   {isEditMode ? (
                     <View style={styles.editFieldsGrid}>
@@ -1121,6 +1126,19 @@ const styles = StyleSheet.create({
   },
   overlayFoodEmoji: {
     fontSize: 30,
+  },
+  sharedByTag: {
+    alignSelf: 'center',
+    marginTop: 6,
+    marginBottom: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#ECF2E6',
+    color: '#3F5645',
+    fontSize: 12,
+    fontWeight: '700',
   },
   overlayTitle: {
     marginTop: 8,

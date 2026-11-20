@@ -189,6 +189,8 @@ function normalizeBook(item, index) {
     color,
     colorId: pickFirst(item?.colorId, null),
     theme: typeof item?.theme === 'string' ? item.theme : '',
+    shared: !!item?.sharedFrom,
+    sharedBy: typeof item?.sharedBy === 'string' ? item.sharedBy : '',
     recipeCount,
     recipeIds,
   };
@@ -270,12 +272,13 @@ export default function RecipesScreen({ user }) {
       const newBook = {
         id: bookId, title: shared.name, name: shared.name, subtitle: 'Shared cookbook',
         color: '#1F5C3A', cover: shared.cover || '', recipeIds: [], sharedFrom: shared.id,
+        sharedBy: shared.sharedBy || '',
       };
       const storedSaved = JSON.parse(await AsyncStorage.getItem('rv4_saved') || 'null');
       const baseSaved = Array.isArray(storedSaved) ? storedSaved : [];
       const nextSaved = [
         ...baseSaved,
-        ...shared.recipes.map((r, i) => ({ ...r, id: `shared-${stamp}-${i}`, _bookIds: [bookId] })),
+        ...shared.recipes.map((r, i) => ({ ...r, id: `shared-${stamp}-${i}`, _bookIds: [bookId], _shared: true, _sharedBy: shared.sharedBy || '' })),
       ];
       const nextBooks = [...baseBooks, newBook];
 
@@ -1652,6 +1655,11 @@ export default function RecipesScreen({ user }) {
                   <View style={styles.bookDetailHeaderContent}>
                     <Text style={styles.bookDetailTitle}>{selectedBook.title}</Text>
                     {selectedBook.theme ? <Text style={styles.bookDetailTheme}>{selectedBook.theme}</Text> : null}
+                    {selectedBook.shared ? (
+                      <Text style={styles.bookDetailTheme}>
+                        {selectedBook.sharedBy ? t('shared_by_label', { name: selectedBook.sharedBy }) : t('shared_with_you')}
+                      </Text>
+                    ) : null}
                     <Text style={styles.bookDetailCount}>
                       {t(selectedBookRecipes.length === 1 ? 'recipe_count_singular' : 'recipe_count_plural', { count: selectedBookRecipes.length })}
                     </Text>
@@ -1820,6 +1828,11 @@ export default function RecipesScreen({ user }) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.peekTitle} numberOfLines={2}>{pk.title}</Text>
                         {pk.theme ? <Text style={styles.peekTheme} numberOfLines={1}>{pk.theme}</Text> : null}
+                        {pk.shared ? (
+                          <Text style={styles.peekTheme} numberOfLines={1}>
+                            {pk.sharedBy ? t('shared_by_label', { name: pk.sharedBy }) : t('shared_with_you')}
+                          </Text>
+                        ) : null}
                         <Text style={styles.peekCount}>
                           {t(pk.matchedRecipeCount === 1 ? 'recipes_count_one' : 'recipes_count_many', { count: pk.matchedRecipeCount })}
                         </Text>
