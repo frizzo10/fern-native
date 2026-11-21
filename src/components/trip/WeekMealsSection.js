@@ -91,6 +91,9 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
 
   // Opened for a freshly loaded flyer: build dinner ideas for the three best-value items without a tap.
   const autoStarted = useRef(false);
+  // A different flyer (or a cleared one) means any old failure line and the "already auto-started" mark are stale.
+  const dealCount = (weekDeals || []).length;
+  useEffect(() => { setFailed(''); autoStarted.current = false; }, [dealCount]);
   useEffect(() => {
     if (!autoStart || autoStarted.current || phase !== 'idle' || !(weekDeals || []).length) return;
     autoStarted.current = true;
@@ -111,7 +114,7 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       openKeys.current = open;
       setMaxOpen(open.length);
       const stars = pickStarDeals(weekDeals, DINNER_COUNT, '');
-      if (!stars.length) { setFailed(t('trip_week_failed')); setPhase('idle'); return; }
+      if (!stars.length) { setFailed(t('trip_week_need_deals')); setPhase('idle'); return; }
       const exclude = Object.values(mealPlan).flat().map((e) => String(e?.title || '')).filter(Boolean);
       const errs = [];
       const results = await Promise.all(stars.map((d) => fetchDealRecipeIdeas({ itemName: d.name, locale, token, exclude, note: noteFor() }).catch((e) => { errs.push(String(e?.message || e)); return []; })));
