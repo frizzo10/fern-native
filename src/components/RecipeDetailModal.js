@@ -33,6 +33,7 @@ import SaveToCookbookModal from './modals/SaveToCookbookModal';
 import IngredientSubstitutionModal from './modals/IngredientSubstitutionModal';
 import UpgradeGateModal from './UpgradeGateModal';
 import { ListAddPreviewBody } from './ListAddPreview';
+import PlanOnDayPanel from './PlanOnDayPanel';
 import { planShoppingAdditions, setPendingSkip } from '../utils/shoppingListSync';
 import AlexaHint from './AlexaHint';
 import { showShoppingList } from '../services/listBus';
@@ -246,6 +247,8 @@ export default function RecipeDetailModal({
   // "List" button: show which ingredients will be added (un-tick what you already have) before anything is written.
   const [listReview, setListReview] = useState(null); // lines, or null
   const [listBusy, setListBusy] = useState(false);
+  const [planOpen, setPlanOpen] = useState(false);
+  useEffect(() => { setPlanOpen(false); }, [recipe?.id, recipe?.title]);
   const openListReview = async () => {
     const ingredients = (Array.isArray(recipe?.ingredients) ? recipe.ingredients : []).map((ing, idx) => ingredientOverrides[idx] ?? ing);
     if (!ingredients.length) { onAddToList?.(); return; }
@@ -865,7 +868,10 @@ export default function RecipeDetailModal({
                     />
                   ) : null}
 
+                  {planOpen ? <PlanOnDayPanel recipe={recipe} user={user} onClose={() => setPlanOpen(false)} /> : null}
+
                   <View style={styles.overlayBottomActionsWrap}>
+                    {!isAlreadySaved ? (
                     <TouchableOpacity
                       style={[
                         styles.overlayBottomBtn,
@@ -873,15 +879,11 @@ export default function RecipeDetailModal({
                         onSaveToCookbook ? styles.overlayBottomBtnSplit : null,
                         isSaving ? styles.disabledBtn : null,
                       ]}
-                      // A recipe that isn't saved yet asks which cookbook first (like the web
-                      // app); an already-saved one keeps updating its note in place.
-                      onPress={!isAlreadySaved && onSaveToCookbook ? handleOpenSaveToCookbook : guardedSaveNote}
+                      onPress={onSaveToCookbook ? handleOpenSaveToCookbook : guardedSaveNote}
                       onLongPress={onSaveToCookbook ? handleOpenSaveToCookbook : undefined}
                       disabled={isSaving}
                     >
-                      <Text style={styles.overlayBottomBtnTextLight}>
-                        {isAlreadySaved ? t('save_short_btn') : t('save_to_recipes_btn')}
-                      </Text>
+                      <Text style={styles.overlayBottomBtnTextLight}>{t('save_to_recipes_btn')}</Text>
                       {onSaveToCookbook ? (
                         <>
                           <View style={styles.overlaySaveDropdownDivider} />
@@ -895,6 +897,22 @@ export default function RecipeDetailModal({
                           </TouchableOpacity>
                         </>
                       ) : null}
+                    </TouchableOpacity>
+                    ) : onSaveToCookbook ? (
+                      // Already saved: the note has its own Save button above, so this one moves the recipe to a cookbook.
+                      <TouchableOpacity
+                        style={[styles.overlayBottomBtn, styles.overlayBottomBtnDark, isSaving ? styles.disabledBtn : null]}
+                        onPress={handleOpenSaveToCookbook}
+                        disabled={isSaving}
+                      >
+                        <Text style={styles.overlayBottomBtnTextLight}>{t('move_cookbook_btn')}</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                    <TouchableOpacity
+                      style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen]}
+                      onPress={() => setPlanOpen((o) => !o)}
+                    >
+                      <Text style={styles.overlayBottomBtnTextLight}>{t('plan_family_btn')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.overlayBottomBtn, styles.overlayBottomBtnGreen, isSharing ? styles.disabledBtn : null]}
