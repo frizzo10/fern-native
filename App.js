@@ -53,6 +53,7 @@ import TourModal from './src/components/TourModal';
 import { TOUR_PREVIEW_ROUTE } from './src/constants/tourContent';
 import { RevenueCatProvider, useRevenueCat } from './src/services/RevenueCatContext';
 import { useSync } from './src/hooks/useSync';
+import { scheduleActivityReminders } from './src/services/activityReminders';
 import { startJoin } from './src/services/householdJoin';
 import { startLinkListener, subscribeLink, checkShareClipboardOnce } from './src/services/linkBus';
 
@@ -790,6 +791,19 @@ function MainAppContent() {
       scheduleEverydayNudge(day, { title: dict.everyday_nudge_title, body: dict.everyday_nudge_body });
     })();
   }, [user?.id]);
+
+  // Warn 20 minutes before each timed activity. Household activities are shared, so every member's phone
+  // schedules the same warning from the synced list (refreshes whenever the list changes or the app syncs).
+  const activitiesSig = JSON.stringify((syncData?.activities || []).map((a) => [a.dateKey, a.startTime || a.time, a.label, a.emoji]));
+  useEffect(() => {
+    if (!user?.id) return;
+    (async () => {
+      let locale = 'en';
+      try { locale = (await AsyncStorage.getItem('fern_user_locale')) || 'en'; } catch (e) { /* default */ }
+      const dict = translations[locale] || translations.en;
+      scheduleActivityReminders(syncData?.activities || [], { body: dict.activity_reminder_body });
+    })();
+  }, [user?.id, activitiesSig]);
 
   // Attach the RevenueCat purchaser to the real backend user id once auth
   // resolves, so purchases (and entitlements already on that account from
