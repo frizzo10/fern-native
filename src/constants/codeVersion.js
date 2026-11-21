@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-21 c: all of today\'s activities on Home';
+export const CODE_VERSION = '11-21 d: moved meal keeps its photo';

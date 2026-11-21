@@ -272,6 +272,9 @@ async function saveRecipe(a, env) {
   return { ok: true, text: `Saved "${title}" to ${book ? bookName(book) : 'My Recipes'}`, changed: 'recipes', recipeId: savedId, recipeTitle: title };
 }
 
+// A meal Fern just took off a day (remove_meal), so a following plan_meal of the same title (a "move") keeps its photo.
+let lastRemovedMeal = null;
+
 async function planMeal(a, env) {
   const title = clip(a.title, 120);
   if (!title) return { ok: false, text: 'I could not plan that meal (no title).' };
@@ -281,7 +284,21 @@ async function planMeal(a, env) {
   const day = Array.isArray(plan[dk]) ? plan[dk] : [];
   const kept = a.replace ? day.filter((m) => lc(m.slot || 'Dinner') !== lc(slot)) : day;
   const sides = Array.isArray(a.sides) ? a.sides.map((s) => String(s)).filter(Boolean) : [];
-  const next = { ...plan, [dk]: onePerSlot([...kept, { slot, title, emoji: a.emoji || '🍽️', ...(sides.length ? { sides } : {}) }]) };
+  // Moving a meal: reuse the same-titled entry already in the plan (or just removed) so its photo and sides come along.
+  let prior = null;
+  for (const k of Object.keys(plan)) {
+    if (!Array.isArray(plan[k])) continue;
+    const hit = plan[k].find((m) => m && lc(m.title) === lc(title) && (m.image || m.recipeId || m.sides));
+    if (hit) { prior = hit; break; }
+  }
+  if (!prior && lastRemovedMeal && lc(lastRemovedMeal.title) === lc(title)) prior = lastRemovedMeal;
+  const carry = {};
+  if (prior) {
+    for (const f of ['image', 'recipeId', 'recipe']) if (prior[f]) carry[f] = prior[f];
+  }
+  const useSides = sides.length ? sides : (Array.isArray(prior?.sides) ? prior.sides : []);
+  const entry = { ...carry, slot, title, emoji: a.emoji || prior?.emoji || '🍽️', ...(useSides.length ? { sides: useSides } : {}) };
+  const next = { ...plan, [dk]: onePerSlot([...kept, entry]) };
   await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
   await patchCache({ mealPlan: next });
   await env.pushChangedFromStorage({ meal_plan: next });
@@ -297,6 +314,7 @@ async function removeMeal(a, env) {
   const matches = (m) => lc(m.slot || 'Dinner') === lc(slot) && (!want || lc(m.title) === want || lc(m.title).includes(want) || want.includes(lc(m.title)));
   const removed = day.filter(matches);
   if (!removed.length) return { ok: false, text: `I did not find ${slot.toLowerCase()} planned on ${formatDayLabel(dk)}.` };
+  lastRemovedMeal = removed[0];
   const next = { ...plan, [dk]: day.filter((m) => !matches(m)) };
   await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
   await patchCache({ mealPlan: next });
