@@ -541,6 +541,9 @@ export default function RecipeDetailModal({
                       {recipe.sharedBy ? t('shared_by_label', { name: recipe.sharedBy }) : t('shared_with_you')}
                     </Text>
                   ) : null}
+                  {!isEditMode && recipe.addedBy ? (
+                    <Text style={styles.sharedByTag}>{t('added_by_label', { name: recipe.addedBy })}</Text>
+                  ) : null}
 
                   {isEditMode ? (
                     <View style={styles.editFieldsGrid}>

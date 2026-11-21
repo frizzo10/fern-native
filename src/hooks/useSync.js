@@ -26,6 +26,41 @@ function logPayload(label, obj) {
   ), 2));
 }
 
+
+// Household "added by": a recipe saved while in a household is stamped with the saver's first name (`_addedBy`).
+// `fern_known_titles` = recipe titles this phone had at its last pull (so only genuinely new saves get stamped);
+// `fern_added_by` = { title: name } this phone stamped, re-applied if a screen's own save drops the field.
+const KNOWN_TITLES_KEY = 'fern_known_titles';
+const ADDED_BY_KEY = 'fern_added_by';
+const titleKeyOf = (r) => String((r && (r.title || r.name)) || '').trim().toLowerCase();
+async function stampAddedBy(saved, name, cacheRecipes) {
+  try {
+    if (!name || !Array.isArray(saved)) return { saved, stampedTitles: [] };
+    let known = null;
+    try { known = JSON.parse((await AsyncStorage.getItem(KNOWN_TITLES_KEY)) || 'null'); } catch (e) { known = null; }
+    if (!Array.isArray(known)) known = (Array.isArray(cacheRecipes) ? cacheRecipes : []).map(titleKeyOf).filter(Boolean);
+    const knownSet = new Set(known);
+    let map = {};
+    try { map = JSON.parse((await AsyncStorage.getItem(ADDED_BY_KEY)) || '{}') || {}; } catch (e) { map = {}; }
+    let changed = false;
+    const out = saved.map((r) => {
+      if (!r || typeof r !== 'object' || r._addedBy) return r;
+      const k = titleKeyOf(r);
+      if (!k) return r;
+      if (map[k]) { changed = true; return { ...r, _addedBy: map[k] }; }
+      if (!knownSet.has(k)) { map[k] = name; changed = true; return { ...r, _addedBy: name }; }
+      return r;
+    });
+    if (changed) {
+      await AsyncStorage.setItem(ADDED_BY_KEY, JSON.stringify(map));
+      await AsyncStorage.setItem('rv4_saved', JSON.stringify(out));
+    }
+    return { saved: changed ? out : saved, stampedTitles: out.map(titleKeyOf).filter(Boolean) };
+  } catch (e) {
+    return { saved, stampedTitles: [] };
+  }
+}
+
 // Result of the most recent push (status, server error text, payload size), so a caller can tell the
 // person when a save did not reach the server. Read it right after awaiting pushChangedFromStorage.
 export const lastPush = { status: null, error: null, bytes: 0 };
@@ -204,6 +239,7 @@ export function useSync(user) {
             await AsyncStorage.setItem('fern_book_chapters', JSON.stringify(merged));
           } catch (e) { /* layouts are derived; best effort */ }
         }
+        await AsyncStorage.setItem(KNOWN_TITLES_KEY, JSON.stringify((fixedSaved || []).map(titleKeyOf).filter(Boolean))).catch(() => {});
         await AsyncStorage.setItem(HOUSEHOLD_KEY, JSON.stringify(dd.household));
         await AsyncStorage.setItem(HOUSEHOLD_HV_KEY, String(dd.household.hv || 0));
       } else {
@@ -301,11 +337,19 @@ export function useSync(user) {
           if (!dev) { dev = Math.random().toString(36).slice(2, 8); await AsyncStorage.setItem('fern_device_id', dev); }
         } catch (e) { dev = ''; }
       }
+      // In a household: stamp recipes this phone just added with the saver's name (see stampAddedBy).
+      let savedOut = saved;
+      if (hv) {
+        const nm = String(remiExplicit?.userName || '').trim().split(/\s+/)[0] || '';
+        let cacheRecipes = null;
+        try { cacheRecipes = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || 'null')?.recipes; } catch (e) { cacheRecipes = null; }
+        savedOut = (await stampAddedBy(saved, nm, cacheRecipes)).saved;
+      }
       let bookChapters = null;
       if (hv) { try { bookChapters = JSON.parse((await AsyncStorage.getItem('fern_book_chapters')) || 'null'); } catch (e) { bookChapters = null; } }
 
       const dataToPush = {
-        saved,
+        saved: savedOut,
         books,
         meal_plan: mealPlan,
         shopping,
@@ -357,6 +401,7 @@ export function useSync(user) {
       const responseJson = await res.json().catch(() => null);
       // Anything but success keeps the phone's copy as unsent (an expired sign-in, a 413, a 5xx…), so a pull never overwrites it.
       await setUnsentChanges(res.ok ? '' : user.id);
+      if (res.ok && hv) { await AsyncStorage.setItem(KNOWN_TITLES_KEY, JSON.stringify((savedOut || []).map(titleKeyOf).filter(Boolean))).catch(() => {}); }
       lastPush.status = res.status;
       lastPush.error = responseJson?.error || responseJson?.message || null;
       console.log('[sync] push response status', res.status);

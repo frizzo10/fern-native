@@ -183,6 +183,7 @@ export function normalizeRecipe(item, index) {
     bookIds,
     shared: !!item?._shared || typeof item?._sharedBy === 'string' && item._sharedBy.length > 0,
     sharedBy: typeof item?._sharedBy === 'string' ? item._sharedBy : '',
+    addedBy: typeof item?._addedBy === 'string' ? item._addedBy : '',
   };
 }
 
