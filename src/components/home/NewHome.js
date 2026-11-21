@@ -74,6 +74,7 @@ export default function NewHome({
   onOpenFeatured,
   stores,
   sharedChains,
+  storeTaps,
   scanStats,
   onOpenScanBoard,
   onStorePress,
@@ -130,6 +131,14 @@ export default function NewHome({
   const affirmNo = ((nowD.getFullYear() * 372 + nowD.getMonth() * 31 + nowD.getDate()) % 14) + 1;
 
   const visibleStores = stores || [];
+  // The most-tapped store (fallback: the first saved one) is shown alone; the others fold into an accordion.
+  const [othersOpen, setOthersOpen] = useState(false);
+  let topIdx = 0;
+  let topCount = 0;
+  visibleStores.forEach((s, i) => {
+    const c = (storeTaps && storeTaps[String(s?.name || '').split(/ - |#/)[0].trim().toLowerCase()]) || 0;
+    if (c > topCount) { topCount = c; topIdx = i; }
+  });
   // Scan game: a one-line status under each saved store (nobody has scanned it yet this week -> "be the first").
   // One short status per store: 'mine' (you scanned pages), 'shared' (someone scanned it), 'first' (nobody yet), or '' while unknown.
   const storeStatus = (s) => {
@@ -147,6 +156,27 @@ export default function NewHome({
     if (onRemoveStore) buttons.push({ text: t('store_remove_a11y'), style: 'destructive', onPress: () => setTimeout(() => onRemoveStore(i), 400) });
     buttons.push({ text: t('cancel_btn'), style: 'cancel' });
     Alert.alert(String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label'), undefined, buttons);
+  };
+  const renderStore = (s, i) => {
+    const st = storeStatus(s);
+    const shortName = String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label');
+    return (
+      <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeCard} activeOpacity={0.85} onPress={() => onStorePress && onStorePress(s)} accessibilityRole="button">
+        <View style={{ flex: 1 }}>
+          <Text style={styles.storeCardName} numberOfLines={1}>{shortName}</Text>
+          {st ? (
+            <View style={styles.storeStatusRow}>
+              <View style={[styles.storeDot, { backgroundColor: st.kind === 'ready' ? '#6FAF88' : '#B8741F' }]} />
+              <Text style={[styles.storeStatusText, { color: st.kind === 'ready' ? '#4E8F6A' : '#B8741F' }]} numberOfLines={1}>{st.text}</Text>
+            </View>
+          ) : null}
+        </View>
+        <TouchableOpacity style={styles.storeMoreBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} onPress={() => openStoreMenu(s, i)} accessibilityRole="button" accessibilityLabel={t('store_more_a11y')}>
+          <Ionicons name="ellipsis-horizontal" size={20} color={ROSE} />
+        </TouchableOpacity>
+        <Ionicons name="chevron-forward" size={18} color={MUTE} />
+      </TouchableOpacity>
+    );
   };
   const streak = scanStats ? streakWeeks(scanStats) : 0; // every saved store (the page scrolls); it used to stop at 5
 
@@ -255,8 +285,16 @@ export default function NewHome({
         {/* The tour ring covers the stores AND the Add a store button (a new account has no stores yet). */}
         <View ref={tourTargetRef('stores')} collapsable={false}>
         <View style={styles.storeList}>
-          {visibleStores.map((s, i) => {
-            const st = storeStatus(s);
+          {renderStore(visibleStores[topIdx], topIdx)}
+          {visibleStores.length > 1 ? (
+            <TouchableOpacity style={styles.othersBtn} activeOpacity={0.85} onPress={() => setOthersOpen((o) => !o)} accessibilityRole="button">
+              <Text style={styles.othersText}>{t('home_other_stores', { n: visibleStores.length - 1 })}</Text>
+              <Ionicons name={othersOpen ? 'chevron-up' : 'chevron-down'} size={18} color={ROSE} />
+            </TouchableOpacity>
+          ) : null}
+          {othersOpen ? visibleStores.map((s, i) => (i === topIdx ? null : renderStore(s, i))) : null}
+
+    const st = storeStatus(s);
             const shortName = String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label');
             return (
               <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeCard} activeOpacity={0.85} onPress={() => onStorePress && onStorePress(s)} accessibilityRole="button">
@@ -452,6 +490,8 @@ const styles = StyleSheet.create({
   guideBtn: { marginTop: 16, height: 50, borderRadius: 25, backgroundColor: CREAM, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16 },
   guideBtnText: { fontFamily: 'Jost-Bold', fontSize: 16, color: FOREST },
   heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: MUTE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
+  othersBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderColor: LINE, backgroundColor: '#FFFFFF' },
+  othersText: { fontSize: 15, fontWeight: '700', color: ROSE },
   storeList: { marginTop: 2, gap: 10 },
   storeCard: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 68, paddingVertical: 12, paddingLeft: 16, paddingRight: 12, borderRadius: 18, backgroundColor: CARD, borderWidth: 1, borderColor: LINE },
   storeCardName: { fontFamily: 'Jost-Bold', fontSize: 19, color: ROSE },

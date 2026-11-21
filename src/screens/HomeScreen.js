@@ -213,6 +213,11 @@ export default function HomeScreen({ user, route }) {
   const [userStoresLocal, setUserStoresLocal] = useState([]);
   // Scan game: which saved stores already have a shared circular this week, and this shopper's scan stats.
   const [scanTick, setScanTick] = useState(0);
+  // How often each store was tapped on this phone (device-only); the most-tapped store is shown first on Home.
+  const [storeTaps, setStoreTaps] = useState({});
+  useEffect(() => {
+    AsyncStorage.getItem('fern_store_taps').then((v) => { try { const o = v ? JSON.parse(v) : {}; if (o && typeof o === 'object') setStoreTaps(o); } catch (e) {} }).catch(() => {});
+  }, []);
   const [sharedChains, setSharedChains] = useState(null); // null = not known yet
   const [scanStatsState, setScanStatsState] = useState(null);
   const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
@@ -1665,6 +1670,14 @@ export default function HomeScreen({ user, route }) {
   const lookRunRef = useRef(0);
   const chooseFlyerStore = async (store) => {
     const shortName = String(store?.name || '').split(/ - |#/)[0].trim();
+    if (shortName) {
+      const key = shortName.toLowerCase();
+      setStoreTaps((prev) => {
+        const next = { ...prev, [key]: (prev[key] || 0) + 1 };
+        AsyncStorage.setItem('fern_store_taps', JSON.stringify(next)).catch(() => {});
+        return next;
+      });
+    }
     const goToCircular = () => { setFlyerScan(null); navigation.navigate('Shopping', { guide: Date.now(), guideStore: shortName }); };
     const deals = await loadWeekDeals();
     if (dealsForStore(deals, store?.name).length) { goToCircular(); return; }
@@ -2795,6 +2808,7 @@ export default function HomeScreen({ user, route }) {
                 onStorePress={chooseFlyerStore}
                 stores={userStoresLocal}
                 sharedChains={sharedChains}
+                storeTaps={storeTaps}
                 scanStats={scanStatsState}
                 onOpenScanBoard={() => setIsScanBoardOpen(true)}
                 onFixStoreLocation={handleFixStoreLocation}
