@@ -738,3 +738,6 @@ All UI copy goes through a single i18n module, not per-screen strings:
 
 
 **Everyday items show on the plain Shopping list page (2026-11-20).** Field report: the list-only view (Home Shopping list row, recipe List button, Fern list jumps) had no paper towels / toilet paper box, so non-food staples looked gone. `ShoppingScreen` now renders `EverydayCard` in list-only mode too (the `!listOnly` gate was removed); the bag, circular, coupons and dinners stay hidden there. Supersedes the list-only description in the 2026-10-19 note. JS-only. Cause is the reasoned one (Metro behaviour), not yet confirmed on the phone.
+
+
+**Add a meal picker has the quick sort (2026-11-20).** Field report: picking a saved recipe for a day showed one long flat list with only a title search. `FamilyAddSavedMealModal` (Home and Family Hub) now shows the same nested chips as the Recipes tab (meal, then cuisine, then dish, one row at a time, crumbs to step back, "‹ All recipes" via `sort_all`); the title search still works on top, and the sort resets when the sheet closes. Rules live in new `src/utils/recipeSort.js` (a copy of the ones inside `RecipesScreen`; keep them in step). No new strings. JS-only. Cause is the reasoned one (Metro behaviour), not yet confirmed on the phone.

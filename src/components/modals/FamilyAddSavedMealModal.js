@@ -6,6 +6,7 @@ import { fetchRecipeImage } from '../../utils/recipeImage';
 import { useContinuousMic } from '../../hooks/useContinuousMic';
 import { findRecipes } from '../../services/recipeFindService';
 import RecipePhoto from '../RecipePhoto';
+import { mealOf, cuisineOf, dishMatches, mealCountsOf, cuisineCountsOf, dishCountsOf } from '../../utils/recipeSort';
 
 // Remembered for the session so reopening the picker doesn't re-fetch.
 const thumbCache = {};
@@ -40,6 +41,9 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, dayActivit
     const [found, setFound] = useState(null); // null = nothing searched yet, [] = nothing found
     const [addingTitle, setAddingTitle] = useState('');
     const [preview, setPreview] = useState(null); // { recipe, found } | null: look at a recipe before adding it
+    const [fMeal, setFMeal] = useState('');
+    const [fCuisine, setFCuisine] = useState('');
+    const [fDish, setFDish] = useState('');
 
     const runFind = async (query) => {
         const q = String(query || '').trim();
@@ -69,6 +73,7 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, dayActivit
         setHeard('');
         setSearch('');
         setPreview(null);
+        setFMeal(''); setFCuisine(''); setFDish('');
         onClose();
     };
 
@@ -90,11 +95,63 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, dayActivit
         (Array.isArray(savedRecipes) ? savedRecipes : []).map((item, index) => normalizeRecipe(item, index))
     ), [savedRecipes]);
 
+    const afterMeal = useMemo(() => (fMeal ? normalized.filter((r) => mealOf(r) === fMeal) : normalized), [normalized, fMeal]);
+    const afterCuisine = useMemo(() => (fCuisine ? afterMeal.filter((r) => cuisineOf(r) === fCuisine) : afterMeal), [afterMeal, fCuisine]);
+    const mealCounts = useMemo(() => mealCountsOf(normalized), [normalized]);
+    const cuisineCounts = useMemo(() => cuisineCountsOf(afterMeal), [afterMeal]);
+    const dishCounts = useMemo(() => dishCountsOf(afterCuisine), [afterCuisine]);
+
     const filtered = useMemo(() => {
         const query = search.trim().toLowerCase();
-        if (!query) return normalized;
-        return normalized.filter((recipe) => recipe.title.toLowerCase().includes(query));
-    }, [normalized, search]);
+        let base = afterCuisine;
+        if (fDish) base = base.filter((r) => dishMatches(r, fDish));
+        if (!query) return base;
+        return base.filter((recipe) => recipe.title.toLowerCase().includes(query));
+    }, [afterCuisine, fDish, search]);
+
+    // One row of chips at a time: meal -> cuisine -> dish. The chosen path shows as tappable crumbs.
+    const chipRow = (items, onPick) => (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow} keyboardShouldPersistTaps="handled">
+            {items.map(([label, n]) => (
+                <TouchableOpacity key={label} activeOpacity={0.8} style={styles.chip} onPress={() => onPick(label)}>
+                    <Text style={styles.chipText}>{label.charAt(0).toUpperCase() + label.slice(1)} {n}</Text>
+                </TouchableOpacity>
+            ))}
+        </ScrollView>
+    );
+    const sortBar = normalized.length > 1 ? (
+        <View style={styles.sortWrap}>
+            {(fMeal || fCuisine || fDish) ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow} keyboardShouldPersistTaps="handled">
+                    <TouchableOpacity activeOpacity={0.8} style={styles.chip} onPress={() => { setFMeal(''); setFCuisine(''); setFDish(''); }}>
+                        <Text style={styles.chipText}>{`‹ ${t('sort_all')}`}</Text>
+                    </TouchableOpacity>
+                    {fMeal ? (
+                        <TouchableOpacity activeOpacity={0.8} style={[styles.chip, styles.chipOn]} onPress={() => { setFCuisine(''); setFDish(''); }}>
+                            <Text style={[styles.chipText, styles.chipTextOn]}>{fMeal}</Text>
+                        </TouchableOpacity>
+                    ) : null}
+                    {fCuisine ? (
+                        <TouchableOpacity activeOpacity={0.8} style={[styles.chip, styles.chipOn]} onPress={() => setFDish('')}>
+                            <Text style={[styles.chipText, styles.chipTextOn]}>{fCuisine}</Text>
+                        </TouchableOpacity>
+                    ) : null}
+                    {fDish ? (
+                        <View style={[styles.chip, styles.chipOn]}>
+                            <Text style={[styles.chipText, styles.chipTextOn]}>{fDish.charAt(0).toUpperCase() + fDish.slice(1)}</Text>
+                        </View>
+                    ) : null}
+                </ScrollView>
+            ) : null}
+            {!fMeal
+                ? chipRow(mealCounts, (m) => { setFMeal(m); setFCuisine(''); setFDish(''); })
+                : (!fCuisine && cuisineCounts.length > 0)
+                    ? chipRow(cuisineCounts, (c) => { setFCuisine(c); setFDish(''); })
+                    : (!fDish && dishCounts.length > 0)
+                        ? chipRow(dishCounts, (d) => setFDish(d))
+                        : null}
+        </View>
+    ) : null;
 
     return (
         <Modal
@@ -211,6 +268,8 @@ export default function FamilyAddSavedMealModal({ visible, slotLabel, dayActivit
                         ) : null}
                     </View>
 
+                    {sortBar}
+
                     <FlatList
                         data={filtered}
                         keyExtractor={(recipe) => String(recipe.id)}
@@ -318,6 +377,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 14,
         paddingVertical: 12,
     },
+    sortWrap: { paddingTop: 10 },
+    chipRow: { paddingHorizontal: 18, paddingBottom: 6, gap: 8, alignItems: 'center' },
+    chip: { minHeight: 36, paddingHorizontal: 14, borderRadius: 18, borderWidth: 1, borderColor: '#C8D6BE', backgroundColor: '#FFFFFF', justifyContent: 'center' },
+    chipOn: { backgroundColor: '#4E7A54', borderColor: '#4E7A54' },
+    chipText: { color: '#3F5645', fontFamily: 'Jost-Bold', fontSize: 14 },
+    chipTextOn: { color: '#FFFFFF' },
     listContent: {
         paddingHorizontal: 18,
         paddingTop: 14,
