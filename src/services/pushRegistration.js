@@ -23,14 +23,16 @@ export async function registerForPush(user) {
         const { data: expoToken } = await Notifications.getExpoPushTokenAsync({ projectId: EAS_PROJECT_ID });
         if (!expoToken) return 'no-token';
 
-        const mark = `${user.id}|${expoToken}`;
+        let tz = '';
+        try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* unknown */ }
+        const mark = `${user.id}|${expoToken}|${tz}`;
         const already = await AsyncStorage.getItem(SENT_KEY).catch(() => null);
         if (already === mark) return 'unchanged';
 
         const res = await fetch(REGISTER_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'User-Agent': 'FernApp/1.0 (myaifern.com)' },
-            body: JSON.stringify({ token: user.token, expoToken, platform: Platform.OS }),
+            body: JSON.stringify({ token: user.token, expoToken, platform: Platform.OS, tz }),
         });
         if (!res.ok) return 'server-error';
         await AsyncStorage.setItem(SENT_KEY, mark).catch(() => {});

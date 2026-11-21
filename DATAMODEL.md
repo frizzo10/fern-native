@@ -331,3 +331,5 @@ Writes made by the flow: confirmed dinners → `rv4_meal_plan` (`{ slot: 'Dinner
 | `fern_publish_voice` | `'on'` \| `'off'` — Fern reads publish steps aloud (missing = on). | `PublishGuideModal` | same | Device-only |
 
 API: `publish-guide` (GET `?path=download&lang=en|es` -> `{ version, steps[] }`) and `cookbook-cover` (POST `{ token, title, author, photoUrl }` -> `{ url }`), both web-repo functions; callers in `publishService.js`.
+
+`register-push` body also carries `tz` (IANA time zone of the phone, e.g. `America/New_York`), stored in `push_tokens.tz`; used by the web `activity-reminder-sweep` (see CLAUDE.md "Activity warnings also by server push").

@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PREFIX = 'fern-activity-';
 const LEAD_MIN = 20;
@@ -26,6 +27,10 @@ function startOf(a) {
 // so each member's phone schedules its own warning from the same synced list.
 export async function scheduleActivityReminders(activities, copy) {
   try {
+    // A phone registered for server push (with its time zone) is warned by the server, so also scheduling
+    // local ones would show every warning twice. Only phones without push (older builds) use the local path.
+    let serverCovers = false;
+    try { const sent = await AsyncStorage.getItem('fern_push_sent'); serverCovers = !!sent && sent.split('|').length >= 3 && !!sent.split('|')[2]; } catch (e) { /* assume not */ }
     const perm = await Notifications.getPermissionsAsync();
     if (perm.status !== 'granted') return false; // never prompts here; the location-setup screen asks
     const pending = await Notifications.getAllScheduledNotificationsAsync();
@@ -34,6 +39,7 @@ export async function scheduleActivityReminders(activities, copy) {
         try { await Notifications.cancelScheduledNotificationAsync(p.identifier); } catch (e) { /* gone */ }
       }
     }
+    if (serverCovers) return true;
     const now = Date.now();
     const limit = now + DAYS_AHEAD * 86400000;
     const items = (Array.isArray(activities) ? activities : [])
