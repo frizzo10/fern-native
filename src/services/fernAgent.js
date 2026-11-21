@@ -157,7 +157,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false, topic = '' } 
       '- {"type":"check_off","items":["Milk"]} — they say they already got it / have it (instant, no confirmation needed)\n' +
       '- {"type":"save_recipe","title":"...","emoji":"🍝","time":"30 min","description":"one line","ingredients":["1 lb ground beef", "..."],"instructions":["step", "..."],"book":"exact cookbook name or empty for My Recipes"} — YOU write the full recipe (real quantities, 4-8 steps) unless it is one of their saved recipes.\n' +
       '- {"type":"plan_meal","day_offset":2,"slot":"Dinner","title":"...","emoji":"🍽️","sides":["..."],"replace":false} — slot is Breakfast, Lunch or Dinner. Also add the ingredients they would need to buy to add_to_shopping_list when they agree to a meal.\n' +
-      '- {"type":"remove_meal","day_offset":2,"slot":"Dinner","title":"..."} — takes a planned meal off the family week (title optional, use it when you know it). Only after they say yes: ASK FIRST ("Take tacos off Wednesday dinner?"). To CHANGE a planned meal use plan_meal with "replace":true (also ask first).\n' +
+      '- {"type":"remove_meal","day_offset":2,"slot":"Dinner","title":"..."} — takes a planned meal off the family week (title optional, use it when you know it). Only after they say yes: ASK FIRST ("Take tacos off Wednesday dinner?"). To CHANGE a planned meal use plan_meal with "replace":true (also ask first). To MOVE a planned meal to another day or slot ("move X from Sunday lunch to Saturday lunch") use ONE plan_meal for the new spot with "replace":true plus "from_day_offset" and "from_slot" (where it is now) and the same title, so it leaves the old spot and keeps its photo; never plan it again without from_day_offset, or it stays in both places.\n' +
       '- {"type":"add_activity","day_offset":3,"label":"Soccer practice","emoji":"⚽","start":"5:30 PM","end":"6:30 PM"} — start/end optional, format "H:MM AM/PM".\n' +
       '- {"type":"show_recipes","item":"sale item name EXACTLY as in the circular list"} — opens that sale item\'s recipes on the circular page.\n' +
       '- {"type":"add_coupon","title":"coupon title EXACTLY as in the coupon lists"} — adds it to the Fern wallet (and its product to the list).\n' +
@@ -299,10 +299,22 @@ async function planMeal(a, env) {
   const useSides = sides.length ? sides : (Array.isArray(prior?.sides) ? prior.sides : []);
   const entry = { ...carry, slot, title, emoji: a.emoji || prior?.emoji || '🍽️', ...(useSides.length ? { sides: useSides } : {}) };
   const next = { ...plan, [dk]: onePerSlot([...kept, entry]) };
+  // A move: take the meal off its old spot in the same write.
+  let movedFrom = '';
+  if (a.from_day_offset != null && a.from_day_offset !== '') {
+    const fk = dateKeyFor(a.from_day_offset);
+    const fslot = ['Breakfast', 'Lunch', 'Dinner'].find((x) => lc(x) === lc(a.from_slot || slot)) || slot;
+    const fday = Array.isArray(next[fk]) ? next[fk] : [];
+    const isSame = (m) => lc(m.slot || 'Dinner') === lc(fslot) && lc(m.title) === lc(title);
+    if (!(fk === dk && lc(fslot) === lc(slot)) && fday.some(isSame)) {
+      next[fk] = fday.filter((m) => !isSame(m));
+      movedFrom = ` (moved from ${fslot.toLowerCase()} on ${formatDayLabel(fk)})`;
+    }
+  }
   await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
   await patchCache({ mealPlan: next });
   await env.pushChangedFromStorage({ meal_plan: next });
-  return { ok: true, text: `Planned ${slot.toLowerCase()} on ${formatDayLabel(dk)}: ${title}`, changed: 'mealPlan' };
+  return { ok: true, text: `Planned ${slot.toLowerCase()} on ${formatDayLabel(dk)}: ${title}${movedFrom}`, changed: 'mealPlan' };
 }
 
 async function removeMeal(a, env) {
