@@ -157,7 +157,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false, topic = '' } 
       '- {"type":"check_off","items":["Milk"]} — they say they already got it / have it (instant, no confirmation needed)\n' +
       '- {"type":"save_recipe","title":"...","emoji":"🍝","time":"30 min","description":"one line","ingredients":["1 lb ground beef", "..."],"instructions":["step", "..."],"book":"exact cookbook name or empty for My Recipes"} — YOU write the full recipe (real quantities, 4-8 steps) unless it is one of their saved recipes.\n' +
       '- {"type":"plan_meal","day_offset":2,"slot":"Dinner","title":"...","emoji":"🍽️","sides":["..."],"replace":false} — slot is Breakfast, Lunch or Dinner. Also add the ingredients they would need to buy to add_to_shopping_list when they agree to a meal.\n' +
-      '- {"type":"remove_meal","day_offset":2,"slot":"Dinner","title":"..."} — takes a planned meal off the family week (title optional, use it when you know it). Only after they say yes: ASK FIRST ("Take tacos off Wednesday dinner?"). To CHANGE a planned meal use plan_meal with "replace":true (also ask first). To MOVE a planned meal to another day or slot ("move X from Sunday lunch to Saturday lunch") use ONE plan_meal for the new spot with "replace":true plus "from_day_offset" and "from_slot" (where it is now) and the same title, so it leaves the old spot and keeps its photo; never plan it again without from_day_offset, or it stays in both places.\n' +
+      '- {"type":"remove_meal","day_offset":2,"slot":"Dinner","title":"..."} — takes a planned meal off the family week (title optional, use it when you know it). Only after they say yes: ASK FIRST ("Take tacos off Wednesday dinner?"). To CHANGE a planned meal use plan_meal with "replace":true (also ask first). To MOVE a planned meal to another day or slot ("move X from Sunday lunch to Saturday lunch") use ONE move_meal action: {"type":"move_meal","from_day_offset":N,"from_slot":"Lunch","day_offset":M,"slot":"Lunch"} (no title needed). It moves the exact meal already planned there, with its recipe and photo. NEVER offer recipe cards for a move and never use plan_meal or remove_meal for it.\n' +
       '- {"type":"add_activity","day_offset":3,"label":"Soccer practice","emoji":"⚽","start":"5:30 PM","end":"6:30 PM"} — start/end optional, format "H:MM AM/PM".\n' +
       '- {"type":"show_recipes","item":"sale item name EXACTLY as in the circular list"} — opens that sale item\'s recipes on the circular page.\n' +
       '- {"type":"add_coupon","title":"coupon title EXACTLY as in the coupon lists"} — adds it to the Fern wallet (and its product to the list).\n' +
@@ -317,6 +317,31 @@ async function planMeal(a, env) {
   return { ok: true, text: `Planned ${slot.toLowerCase()} on ${formatDayLabel(dk)}: ${title}${movedFrom}`, changed: 'mealPlan' };
 }
 
+// Move the planned meal at one day+slot to another, as the SAME entry (photo, recipe, sides). No title needed.
+async function moveMeal(a, env) {
+  const SL = ['Breakfast', 'Lunch', 'Dinner'];
+  const fk = dateKeyFor(a.from_day_offset);
+  const tk = dateKeyFor(a.day_offset);
+  const fslot = SL.find((x) => lc(x) === lc(a.from_slot)) || 'Dinner';
+  const tslot = SL.find((x) => lc(x) === lc(a.slot || a.from_slot)) || fslot;
+  const plan = await readJson('rv4_meal_plan', {});
+  const fday = Array.isArray(plan[fk]) ? plan[fk] : [];
+  const want = lc(a.title);
+  const at = fday.filter((m) => lc(m.slot || 'Dinner') === lc(fslot));
+  const src = (want && at.find((m) => lc(m.title) === want || lc(m.title).includes(want) || want.includes(lc(m.title)))) || at[0];
+  if (!src) return { ok: false, text: `I did not find ${fslot.toLowerCase()} planned on ${formatDayLabel(fk)}.` };
+  if (fk === tk && lc(fslot) === lc(tslot)) return { ok: false, text: 'It is already there.' };
+  const next = { ...plan };
+  next[fk] = fday.filter((m) => m !== src);
+  const tday = Array.isArray(next[tk]) ? next[tk] : [];
+  const moved = { ...src, slot: tslot };
+  next[tk] = onePerSlot([...tday.filter((m) => lc(m.slot || 'Dinner') !== lc(tslot)), moved]);
+  await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
+  await patchCache({ mealPlan: next });
+  await env.pushChangedFromStorage({ meal_plan: next });
+  return { ok: true, text: `Moved ${src.title} to ${tslot.toLowerCase()} on ${formatDayLabel(tk)}`, changed: 'mealPlan' };
+}
+
 async function removeMeal(a, env) {
   const dk = dateKeyFor(a.day_offset);
   const slot = ['Breakfast', 'Lunch', 'Dinner'].find((s) => lc(s) === lc(a.slot)) || 'Dinner';
@@ -415,6 +440,7 @@ export async function executeAgentActions(actions, env) {
       else if (type === 'save_recipe') r = await saveRecipe(a, env);
       else if (type === 'plan_meal') r = await planMeal(a, env);
       else if (type === 'remove_meal') r = await removeMeal(a, env);
+      else if (type === 'move_meal') r = await moveMeal(a, env);
       else if (type === 'add_activity') r = await addActivity(a, env);
       else if (type === 'add_coupon') r = await addCoupon(a, env);
       else if (type === 'remember') { const x = await addNote(a.note); r = x.ok ? { ok: true, text: x.dup ? `I already knew: ${x.note}` : `I'll remember: ${x.note}` } : { ok: false, text: x.reason === 'full' ? 'My notes about you are full; you can delete some on Account.' : 'I could not save that note.' }; }
@@ -426,7 +452,7 @@ export async function executeAgentActions(actions, env) {
       if (r) out.lines.push(`${r.ok ? '✓' : '✗'} ${r.text}`);
       if (r?.ok && !out.watch) {
         if (['remove_from_list', 'check_off', 'add_coupon', 'add_recipe_to_list'].includes(type)) out.watch = { screen: 'Shopping' };
-        else if (type === 'plan_meal' || type === 'remove_meal' || type === 'add_activity') out.watch = { screen: 'Family', dayOffset: Math.max(0, Math.min(6, Number(a.day_offset) || 0)), kind: type === 'add_activity' ? 'activity' : (type === 'plan_meal' ? 'meal' : undefined), label: clip(a.label || a.title, 80), slot: type === 'plan_meal' ? String(a.slot || 'Dinner') : undefined };
+        else if (type === 'plan_meal' || type === 'move_meal' || type === 'remove_meal' || type === 'add_activity') out.watch = { screen: 'Family', dayOffset: Math.max(0, Math.min(6, Number(a.day_offset) || 0)), kind: type === 'add_activity' ? 'activity' : ((type === 'plan_meal' || type === 'move_meal') ? 'meal' : undefined), label: clip(a.label || a.title, 80), slot: (type === 'plan_meal' || type === 'move_meal') ? String(a.slot || a.from_slot || 'Dinner') : undefined };
         else if (type === 'save_recipe') out.watch = { screen: 'Recipes', recipeId: r.recipeId, recipeTitle: r.recipeTitle };
       }
     } catch (e) {
