@@ -11,7 +11,6 @@ import {
   Platform,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,7 +20,6 @@ import useLanguage from '../../hooks/useLanguage';
 import TechniqueHelpModal from './TechniqueHelpModal';
 import { useFernVoice } from '../../hooks/useFernVoice';
 import { askWhileCooking } from '../../services/cookAskService';
-import screenOrientation from '../../utils/screenOrientation';
 
 // Quiet background music while cooking (same three loops as the Alexa Cook Mode).
 const MUSIC_BASE = 'https://app.clickpickandcook.com/assets/music/';
@@ -34,8 +32,6 @@ const MUSIC_VOL_DUCKED = 0.07;
 export default function CookModeModal({ visible, recipe, user, onClose }) {
   const { t, locale } = useLanguage();
   const insets = useSafeAreaInsets();
-  const { width: winW, height: winH } = useWindowDimensions();
-  const landscape = winW > winH;
   const [stepIndex, setStepIndex] = useState(0);
   const [isIngredientsOpen, setIsIngredientsOpen] = useState(false);
   const [isHelpVisible, setIsHelpVisible] = useState(false);
@@ -165,18 +161,6 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
     };
   }, [visible, voiceLoaded, voiceOn, stepIndex, recipeId, recipeTitle, stepsKey]);
 
-  // Cook Mode may rotate sideways; everything else is locked to portrait again on close.
-  useEffect(() => {
-    const so = screenOrientation;
-    if (!so || !visible) return undefined;
-    // The JS package can be present while the native part is missing (older binary): the call then throws
-    // synchronously, so a try/catch is needed, not just .catch.
-    try { Promise.resolve(so.unlockAsync()).catch(() => {}); } catch (e) { return undefined; }
-    return () => {
-      try { Promise.resolve(so.lockAsync(so.OrientationLock.PORTRAIT_UP)).catch(() => {}); } catch (e) {}
-    };
-  }, [visible]);
-
   // Fresh cache per recipe / each time Cook Mode opens; make sure the ramp timer never outlives the modal.
   useEffect(() => {
     prepCacheRef.current = {};
@@ -234,12 +218,12 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={handleClose} supportedOrientations={['portrait', 'landscape', 'landscape-left', 'landscape-right']}>
+    <Modal visible={visible} animationType="slide" onRequestClose={handleClose}>
       <ImageBackground
         source={recipe.image ? { uri: recipe.image } : require('../../../assets/icon.png')}
         style={styles.background}
       >
-        <View style={[styles.darkPanel, landscape ? { flex: 1, paddingTop: Math.max(insets.top, 8) } : { paddingTop: insets.top + 12 }]}>
+        <View style={[styles.darkPanel, { paddingTop: insets.top + 12 }]}>
           <View style={styles.headerRow}>
             <Text style={styles.headerTitle} numberOfLines={1}>{recipe.title}</Text>
             <TouchableOpacity style={styles.musicBtn} activeOpacity={0.85} onPress={toggleVoice}>
@@ -274,19 +258,10 @@ export default function CookModeModal({ visible, recipe, user, onClose }) {
             <View style={[styles.progressFill, { width: `${progressPct}%` }]} />
           </View>
 
-          {landscape ? (
-            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
-              <Text style={styles.stepCounter}>{t('cook_mode_step_of', { current: stepIndex + 1, total })}</Text>
-              <Text style={styles.stepText}>{currentStep}</Text>
-            </ScrollView>
-          ) : (
-            <>
-              <Text style={styles.stepCounter}>{t('cook_mode_step_of', { current: stepIndex + 1, total })}</Text>
-              <Text style={styles.stepText}>{currentStep}</Text>
-            </>
-          )}
+          <Text style={styles.stepCounter}>{t('cook_mode_step_of', { current: stepIndex + 1, total })}</Text>
+          <Text style={styles.stepText}>{currentStep}</Text>
 
-          <View style={[styles.controlsRow, { paddingBottom: (landscape ? 6 : insets.bottom + 14) }]}>
+          <View style={[styles.controlsRow, { paddingBottom: insets.bottom + 14 }]}>
             <TouchableOpacity
               style={[styles.controlBtn, stepIndex === 0 ? styles.controlBtnDisabled : null]}
               activeOpacity={0.85}

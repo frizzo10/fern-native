@@ -38,8 +38,6 @@ import UpgradeGateModal from './src/components/UpgradeGateModal';
 import { colors, radius, shadow } from './src/constants/tokens';
 import { useFonts } from 'expo-font';
 import { useFernVoice } from './src/hooks/useFernVoice';
-// Everything stays portrait except Cook Mode (which unlocks rotation itself). Guarded: older binaries lack the module.
-try { require('expo-screen-orientation').lockAsync(require('expo-screen-orientation').OrientationLock.PORTRAIT_UP).catch(() => {}); } catch (e) {}
 import { LanguageProvider } from './src/services/LanguageContext';
 import { useLanguage } from './src/hooks/useLanguage';
 import ChatSheetModal from './src/components/modals/ChatSheetModal';
