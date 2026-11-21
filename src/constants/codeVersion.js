@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-20 j: no duplicate store on add';
+export const CODE_VERSION = '11-20 k: ask before adding a similar store';

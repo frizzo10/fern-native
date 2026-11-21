@@ -963,20 +963,49 @@ export default function HomeScreen({ user, route }) {
     if (!candidate) return;
     const storeName = candidate.name;
 
-    const exists = userStoresLocal.some((s) => {
-      const sameName = String(s?.name || '').trim().toLowerCase() === storeName.toLowerCase();
-      const sameAddress = String(s?.address || '').trim().toLowerCase() === String(candidate.address || '').trim().toLowerCase();
-      if (sameName && sameAddress) return true;
-      // Same place under a slightly different name ("Lowes Foods" vs "Lowe's"): same first word and within ~150 m.
-      const w = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().split(/\s+/)[0] || '';
+    const w = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().split(/\s+/)[0] || '';
+    const addrOf = (a) => String(a || '').trim().toLowerCase();
+    const metersBetween = (s) => {
       const la = Number(s?.lat), lo = Number(s?.lng ?? s?.lon), cl = Number(candidate.lat), cn = Number(candidate.lng);
-      if (![la, lo, cl, cn].every(Number.isFinite) || w(s?.name) !== w(storeName)) return false;
+      if (![la, lo, cl, cn].every(Number.isFinite)) return null;
       const dy = (la - cl) * 111000, dx = (lo - cn) * 111000 * Math.cos((cl * Math.PI) / 180);
-      return Math.sqrt(dx * dx + dy * dy) < 150;
+      return Math.sqrt(dx * dx + dy * dy);
+    };
+    // Exact same store: same name and address, or the same first word within ~150 m ("Lowes Foods" vs "Lowe's").
+    const exists = userStoresLocal.some((s) => {
+      if (String(s?.name || '').trim().toLowerCase() === storeName.toLowerCase() && addrOf(s?.address) === addrOf(candidate.address)) return true;
+      const d = metersBetween(s);
+      return d !== null && w(s?.name) === w(storeName) && d < 150;
     });
     if (exists) {
       Alert.alert(t('already_added'), t('already_added_desc'));
       return;
+    }
+
+    // Probably a different place, but close enough to ask: same first word within ~2 km, or the very same address.
+    const similar = userStoresLocal.find((s) => {
+      const d = metersBetween(s);
+      const sameWord = w(s?.name) === w(storeName);
+      return (sameWord && d !== null && d < 2000) || (!!addrOf(candidate.address) && addrOf(s?.address) === addrOf(candidate.address));
+    });
+    if (similar) {
+      const confirmed = await new Promise((resolve) => {
+        Alert.alert(
+          t('store_similar_title'),
+          t('store_similar_desc', {
+            saved: similar.name || '',
+            savedAddress: similar.address || '',
+            found: storeName,
+            foundAddress: candidate.address || '',
+          }),
+          [
+            { text: t('cancel_btn'), style: 'cancel', onPress: () => resolve(false) },
+            { text: t('store_add_anyway'), onPress: () => resolve(true) },
+          ],
+          { cancelable: true, onDismiss: () => resolve(false) }
+        );
+      });
+      if (!confirmed) return;
     }
 
     const nextStores = [
