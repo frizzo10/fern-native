@@ -966,7 +966,13 @@ export default function HomeScreen({ user, route }) {
     const exists = userStoresLocal.some((s) => {
       const sameName = String(s?.name || '').trim().toLowerCase() === storeName.toLowerCase();
       const sameAddress = String(s?.address || '').trim().toLowerCase() === String(candidate.address || '').trim().toLowerCase();
-      return sameName && sameAddress;
+      if (sameName && sameAddress) return true;
+      // Same place under a slightly different name ("Lowes Foods" vs "Lowe's"): same first word and within ~150 m.
+      const w = (n) => String(n || '').toLowerCase().replace(/[^a-z0-9 ]/g, '').trim().split(/\s+/)[0] || '';
+      const la = Number(s?.lat), lo = Number(s?.lng ?? s?.lon), cl = Number(candidate.lat), cn = Number(candidate.lng);
+      if (![la, lo, cl, cn].every(Number.isFinite) || w(s?.name) !== w(storeName)) return false;
+      const dy = (la - cl) * 111000, dx = (lo - cn) * 111000 * Math.cos((cl * Math.PI) / 180);
+      return Math.sqrt(dx * dx + dy * dy) < 150;
     });
     if (exists) {
       Alert.alert(t('already_added'), t('already_added_desc'));
