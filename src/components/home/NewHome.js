@@ -158,6 +158,7 @@ export default function NewHome({
     Alert.alert(String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label'), undefined, buttons);
   };
   const renderStore = (s, i) => {
+    if (!s) return null;
     const st = storeStatus(s);
     const shortName = String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label');
     return (
@@ -285,14 +286,14 @@ export default function NewHome({
         {/* The tour ring covers the stores AND the Add a store button (a new account has no stores yet). */}
         <View ref={tourTargetRef('stores')} collapsable={false}>
         <View style={styles.storeList}>
-          {renderStore(visibleStores[topIdx], topIdx)}
+          {visibleStores.length > 0 && visibleStores[topIdx] ? renderStore(visibleStores[topIdx], topIdx) : null}
           {visibleStores.length > 1 ? (
             <TouchableOpacity style={styles.othersBtn} activeOpacity={0.85} onPress={() => setOthersOpen((o) => !o)} accessibilityRole="button">
               <Text style={styles.othersText}>{t('home_other_stores', { n: visibleStores.length - 1 })}</Text>
               <Ionicons name={othersOpen ? 'chevron-up' : 'chevron-down'} size={18} color={ROSE} />
             </TouchableOpacity>
           ) : null}
-          {othersOpen ? visibleStores.map((s, i) => (i === topIdx ? null : renderStore(s, i))) : null}
+          {othersOpen ? visibleStores.map((s, i) => (i === topIdx || !s ? null : renderStore(s, i))) : null}
 
     const st = storeStatus(s);
             const shortName = String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label');
