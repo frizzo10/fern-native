@@ -1506,7 +1506,7 @@ export default function ShoppingScreen({ user }) {
         </>
         ) : null}
 
-        {(!guideStep || guideStep === 'list') && !listOnly ? (
+        {(!guideStep || guideStep === 'list') ? (
         <View style={hl('everyday')} onLayout={(e) => { sectionY.current.everyday = e.nativeEvent.layout.y; }}>
           <EverydayCard t={t} items={items} onAdd={addEveryday} highlight={Boolean(route?.params?.everyday)} />
         </View>
