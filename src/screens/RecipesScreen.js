@@ -1138,11 +1138,22 @@ export default function RecipesScreen({ user }) {
     vegetarian: /vegetarian|veggie|vegan/i,
   };
   const dishMatches = (r, w) => (DISH_MATCH[w] || new RegExp(w, 'i')).test(r.title || '');
-  const afterWho = useMemo(() => (fWho ? recipes.filter((r) => r.addedBy === fWho) : recipes), [recipes, fWho]);
+  const WHO_FAMILY = '__family__';
+  const whoLabel = (w) => (w === WHO_FAMILY ? t('sort_family') : w);
+  const afterWho = useMemo(() => {
+    if (!fWho) return recipes;
+    if (fWho === WHO_FAMILY) return recipes.filter((r) => !r.addedBy);
+    return recipes.filter((r) => r.addedBy === fWho);
+  }, [recipes, fWho]);
   const whoCounts = useMemo(() => {
     const c = {};
-    recipes.forEach((r) => { if (r.addedBy) c[r.addedBy] = (c[r.addedBy] || 0) + 1; });
-    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+    let unnamed = 0;
+    recipes.forEach((r) => { if (r.addedBy) c[r.addedBy] = (c[r.addedBy] || 0) + 1; else unnamed += 1; });
+    const list = Object.entries(c).sort((a, b) => b[1] - a[1]);
+    // Recipes with no name on them (saved before names were stamped, or by a phone that
+    // has not updated) belong to the whole family, so the row always adds up to the total.
+    if (list.length > 0 && unnamed > 0) list.push([WHO_FAMILY, unnamed]);
+    return list;
   }, [recipes]);
   const afterMeal = useMemo(() => (fMeal ? afterWho.filter((r) => mealOf(r) === fMeal) : afterWho), [afterWho, fMeal]);
   const afterCuisine = useMemo(() => (fCuisine ? afterMeal.filter((r) => cuisineOf(r) === fCuisine) : afterMeal), [afterMeal, fCuisine]);
@@ -1483,7 +1494,7 @@ export default function RecipesScreen({ user }) {
                 </TouchableOpacity>
                 {fWho ? (
                   <TouchableOpacity activeOpacity={0.8} onPress={() => { setFMeal(''); setFCuisine(''); setFDish(''); }} style={[styles.countChip, styles.countChipOn]}>
-                    <Text style={[styles.countChipText, styles.countChipTextOn]}>{fWho}</Text>
+                    <Text style={[styles.countChipText, styles.countChipTextOn]}>{whoLabel(fWho)}</Text>
                   </TouchableOpacity>
                 ) : null}
                 {fMeal ? (
@@ -1507,7 +1518,7 @@ export default function RecipesScreen({ user }) {
               <View style={styles.countChips}>
                 {whoCounts.map(([name, n]) => (
                   <TouchableOpacity key={name} activeOpacity={0.8} onPress={() => { setFWho(name); setFMeal(''); setFCuisine(''); setFDish(''); }} style={styles.countChip}>
-                    <Text style={styles.countChipText}>👤 {name} {n}</Text>
+                    <Text style={styles.countChipText}>{name === WHO_FAMILY ? '🏡' : '👤'} {whoLabel(name)} {n}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
