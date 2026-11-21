@@ -12,21 +12,11 @@ function normalizeAsset(asset) {
     };
 }
 
-// Optional on-phone shrink (expo-image-manipulator, guarded so an older binary just skips it).
+// On-phone shrink is OFF until build 1.1.12 (which contains expo-image-manipulator) is installed:
+// requiring the module on an older binary raises "Cannot find native module" that try/catch cannot stop.
+// To restore: load it once at the top of a small file inside try/catch, then resize here.
 async function shrinkAsset(asset, maxWidth) {
-    try {
-        if (!maxWidth || !asset?.uri || !(asset.width > maxWidth)) return asset;
-        const Manipulator = require('expo-image-manipulator');
-        const out = await Manipulator.manipulateAsync(
-            asset.uri,
-            [{ resize: { width: maxWidth } }],
-            { compress: 0.6, format: Manipulator.SaveFormat.JPEG, base64: true }
-        );
-        if (!out?.base64) return asset;
-        return { ...asset, uri: out.uri, base64: out.base64, width: out.width, height: out.height, mimeType: 'image/jpeg' };
-    } catch (e) {
-        return asset;
-    }
+    return asset;
 }
 
 async function pickFromSource(launchFn, requestPermissionFn, { quality = 0.6, maxWidth, onStage } = {}) {
