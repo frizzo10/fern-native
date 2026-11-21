@@ -294,27 +294,6 @@ export default function NewHome({
             </TouchableOpacity>
           ) : null}
           {othersOpen ? visibleStores.map((s, i) => (i === topIdx || !s ? null : renderStore(s, i))) : null}
-
-    const st = storeStatus(s);
-            const shortName = String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label');
-            return (
-              <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeCard} activeOpacity={0.85} onPress={() => onStorePress && onStorePress(s)} accessibilityRole="button">
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.storeCardName} numberOfLines={1}>{shortName}</Text>
-                  {st ? (
-                    <View style={styles.storeStatusRow}>
-                      <View style={[styles.storeDot, { backgroundColor: st.kind === 'ready' ? '#6FAF88' : '#B8741F' }]} />
-                      <Text style={[styles.storeStatusText, { color: st.kind === 'ready' ? '#4E8F6A' : '#B8741F' }]} numberOfLines={1}>{st.text}</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <TouchableOpacity style={styles.storeMoreBtn} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} onPress={() => openStoreMenu(s, i)} accessibilityRole="button" accessibilityLabel={t('store_more_a11y')}>
-                  <Ionicons name="ellipsis-horizontal" size={20} color={ROSE} />
-                </TouchableOpacity>
-                <Ionicons name="chevron-forward" size={18} color={MUTE} />
-              </TouchableOpacity>
-            );
-          })}
         </View>
         {/* With no stores yet this is the first thing to do, so it is a big filled button. */}
         <TouchableOpacity style={[styles.addStoreBtn, !visibleStores.length && styles.addStoreBtnFirst]} activeOpacity={0.85} onPress={onAddStore} accessibilityRole="button">
