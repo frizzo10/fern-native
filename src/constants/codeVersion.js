@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-21 b: version 1.1.12';
+export const CODE_VERSION = '11-21 c: all of today\'s activities on Home';

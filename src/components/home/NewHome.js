@@ -102,7 +102,6 @@ export default function NewHome({
   const selectedDay = weekDays.find((d) => d.key === selectedKey) || todayEntry;
   const tonightTitle = todayEntry.meals?.dinner || '';
   const tonightEmoji = todayEntry.mealEmojis?.dinner || '';
-  const tonightActivity = (todayEntry.activities || [])[0] || null;
   const openDinners = weekDays.filter((d) => !d.meals?.dinner).length;
 
   // Photo for tonight's dinner, looked up by title like every other recipe photo
@@ -365,13 +364,13 @@ export default function NewHome({
           <Text style={styles.tonightTitle} numberOfLines={2}>
             {tonightTitle || t('home_no_dinner_tonight')}
           </Text>
-          {tonightActivity ? (
-            <TouchableOpacity style={styles.activityChip} activeOpacity={0.7} onPress={() => onEditActivity?.(tonightActivity)} accessibilityRole="button" accessibilityLabel={t('activity_edit_a11y')}>
+          {(todayEntry.activities || []).map((act, i) => (
+            <TouchableOpacity key={`${act.label || ''}-${act.time || ''}-${i}`} style={[styles.activityChip, i > 0 ? { marginTop: 4 } : null]} activeOpacity={0.7} onPress={() => onEditActivity?.(act)} accessibilityRole="button" accessibilityLabel={t('activity_edit_a11y')}>
               <Text style={styles.activityChipText} numberOfLines={1}>
-                {`${tonightActivity.emoji ? tonightActivity.emoji + ' ' : ''}${tonightActivity.label || ''}${tonightActivity.time ? ' · ' + tonightActivity.time : ''}  ✎`}
+                {`${act.emoji ? act.emoji + ' ' : ''}${act.label || ''}${act.time ? ' · ' + act.time : ''}  ✎`}
               </Text>
             </TouchableOpacity>
-          ) : null}
+          ))}
         </View>
       </TouchableOpacity>
 
