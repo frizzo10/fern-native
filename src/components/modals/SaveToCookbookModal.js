@@ -80,6 +80,7 @@ export default function SaveToCookbookModal({
     const [cuisine, setCuisine] = useState('');
     const [customCuisine, setCustomCuisine] = useState('');
     const [mealType, setMealType] = useState('');
+    const [customMeal, setCustomMeal] = useState('');
     const [activeField, setActiveField] = useState(null); // 'book' | 'cuisine' | 'mealType' | null
 
     useEffect(() => {
@@ -88,7 +89,9 @@ export default function SaveToCookbookModal({
         const isKnownCuisine = CUISINE_OPTIONS.includes(initialCuisine);
         setCuisine(isKnownCuisine ? initialCuisine : (initialCuisine ? CUISINE_OTHER_VALUE : ''));
         setCustomCuisine(!isKnownCuisine ? (initialCuisine || '') : '');
-        setMealType(MEAL_TYPE_OPTIONS.includes(initialMealType) ? initialMealType : '');
+        const isKnownMeal = MEAL_TYPE_OPTIONS.includes(initialMealType);
+        setMealType(isKnownMeal ? initialMealType : (initialMealType ? CUISINE_OTHER_VALUE : ''));
+        setCustomMeal(!isKnownMeal ? (initialMealType || '') : '');
         setActiveField(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible, initialBookId, initialCuisine, initialMealType]);
@@ -106,17 +109,23 @@ export default function SaveToCookbookModal({
         ...CUISINE_OPTIONS.map((c) => ({ value: c, label: c })),
         { value: CUISINE_OTHER_VALUE, label: t('cuisine_other_option') },
     ];
-    const mealTypeOptions = MEAL_TYPE_OPTIONS.map((m) => ({ value: m, label: m }));
+    const mealTypeOptions = [
+        ...MEAL_TYPE_OPTIONS.map((m) => ({ value: m, label: m })),
+        { value: CUISINE_OTHER_VALUE, label: t('cuisine_other_option') },
+    ];
 
     const bookLabel = bookOptions.find((o) => o.value === bookId)?.label || t('my_recipes_option');
     const cuisineLabel = cuisine === CUISINE_OTHER_VALUE
         ? (customCuisine || t('cuisine_other_option'))
         : (cuisine || t('select_placeholder'));
-    const mealTypeLabel = mealType || t('select_placeholder');
+    const mealTypeLabel = mealType === CUISINE_OTHER_VALUE
+        ? (customMeal || t('cuisine_other_option'))
+        : (mealType || t('select_placeholder'));
 
     const handleSave = () => {
         const finalCuisine = cuisine === CUISINE_OTHER_VALUE ? customCuisine.trim() : cuisine;
-        onSave({ bookId: bookId || null, cuisine: finalCuisine, mealType });
+        const finalMeal = mealType === CUISINE_OTHER_VALUE ? customMeal.trim() : mealType;
+        onSave({ bookId: bookId || null, cuisine: finalCuisine, mealType: finalMeal });
     };
 
     return (
@@ -142,6 +151,16 @@ export default function SaveToCookbookModal({
                         />
                     ) : null}
                     <PickerField label={t('edit_recipe_meal_label')} value={mealTypeLabel} onPress={() => setActiveField('mealType')} />
+                    {mealType === CUISINE_OTHER_VALUE ? (
+                        <TextInput
+                            style={styles.customCuisineInput}
+                            value={customMeal}
+                            onChangeText={setCustomMeal}
+                            placeholder={t('edit_recipe_meal_label')}
+                            placeholderTextColor={'#5C7262'}
+                            maxLength={30}
+                        />
+                    ) : null}
 
                     <View style={styles.actionsRow}>
                         <TouchableOpacity

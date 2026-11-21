@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-21 p: compact cookbook picker';
+export const CODE_VERSION = '11-21 q: custom meal type';
