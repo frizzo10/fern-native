@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 // "Save recipe": tap, pick My Recipes or one of the cookbooks, and it is saved.
 //   onSave({ bookId }) -> Promise (saves the recipe to rv4_saved; throws on failure)
@@ -11,6 +11,7 @@ export default function SaveRecipeButton({ onSave, books, t }) {
   const [state, setState] = useState('idle'); // idle | choosing | saving | done
   const [where, setWhere] = useState('');
   const [picked, setPicked] = useState(null);
+  const [booksOpen, setBooksOpen] = useState(false);
   const list = (Array.isArray(books) ? books : []).filter((b) => bookId(b) && bookName(b));
 
   const save = async (id, label) => {
@@ -49,12 +50,21 @@ export default function SaveRecipeButton({ onSave, books, t }) {
           <TouchableOpacity style={[styles.chip, chipStyle('mine')]} disabled={state === 'saving'} activeOpacity={0.85} onPress={() => save(null, t('save_recipe_my_recipes'))}>
             {chipBody('mine', t('save_recipe_my_recipes'))}
           </TouchableOpacity>
-          {list.map((b) => (
-            <TouchableOpacity key={String(bookId(b))} style={[styles.chip, chipStyle(bookId(b))]} disabled={state === 'saving'} activeOpacity={0.85} onPress={() => save(bookId(b), bookName(b))}>
-              {chipBody(bookId(b), `📖 ${bookName(b)}`)}
+          {list.length > 0 ? (
+            <TouchableOpacity style={[styles.chip, booksOpen || (state === 'saving' && picked !== 'mine') ? styles.chipOpen : null]} disabled={state === 'saving'} activeOpacity={0.85} onPress={() => setBooksOpen((o) => !o)}>
+              <Text style={styles.chipText} numberOfLines={1}>{`📖 ${t('save_recipe_pick_book')} ${booksOpen ? '▴' : '▾'}`}</Text>
             </TouchableOpacity>
-          ))}
+          ) : null}
         </View>
+        {booksOpen && list.length > 0 ? (
+          <ScrollView style={styles.bookList} nestedScrollEnabled showsVerticalScrollIndicator>
+            {list.map((b) => (
+              <TouchableOpacity key={String(bookId(b))} style={[styles.bookRow, chipStyle(bookId(b))]} disabled={state === 'saving'} activeOpacity={0.85} onPress={() => save(bookId(b), bookName(b))}>
+                {chipBody(bookId(b), bookName(b))}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : null}
       </View>
     );
   }
@@ -72,6 +82,9 @@ const styles = StyleSheet.create({
   label: { fontSize: 12, fontWeight: '700', color: '#2F4535', marginBottom: 4 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { borderWidth: 1, borderColor: '#C8D6BE', backgroundColor: '#fff', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 7, maxWidth: '100%' },
+  chipOpen: { backgroundColor: '#DDE7D5' },
+  bookList: { maxHeight: 132, marginTop: 6, borderWidth: 1, borderColor: '#C8D6BE', borderRadius: 12, backgroundColor: '#fff' },
+  bookRow: { paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#ECF2E6' },
   chipOn: { backgroundColor: '#3F6845', borderColor: '#3F6845' },
   chipFade: { opacity: 0.4 },
   chipInner: { flexDirection: 'row', alignItems: 'center' },
