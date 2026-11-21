@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../../constants/tokens';
-import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea } from '../../services/scanCircularService';
+import { fetchDealRecipeIdeas, fetchFullRecipeForDealIdea, getLastDealIdeasNote } from '../../services/scanCircularService';
 import { fetchMealPlanRecipeDetail } from '../../services/mealPlanRecipeService';
 import { buildRollingWeekDateKeys, normalizeSlot, parseDateKey } from '../../utils/familyDates';
 import { PANTRY_SKIP, pickStarDeals } from '../../utils/starDeals';
@@ -113,17 +113,18 @@ export default function WeekMealsSection({ t, locale, token, weekDeals, onAddToL
       const stars = pickStarDeals(weekDeals, DINNER_COUNT, '');
       if (!stars.length) { setFailed(t('trip_week_failed')); setPhase('idle'); return; }
       const exclude = Object.values(mealPlan).flat().map((e) => String(e?.title || '')).filter(Boolean);
-      const results = await Promise.all(stars.map((d) => fetchDealRecipeIdeas({ itemName: d.name, locale, token, exclude, note: noteFor() }).catch(() => [])));
+      const errs = [];
+      const results = await Promise.all(stars.map((d) => fetchDealRecipeIdeas({ itemName: d.name, locale, token, exclude, note: noteFor() }).catch((e) => { errs.push(String(e?.message || e)); return []; })));
       // One dinner per sale item (ticked); the AI's other ideas wait in `spare` for "Different dish".
       const built = stars.map((d, i) => ({ key: `${d.name}-${i}`, deal: d, ideas: (results[i] || []).slice(0, 1).map((x) => ({ ...x, checked: false })), spare: (results[i] || []).slice(1) })).filter((c) => c.ideas.length);
-      if (!built.length) { setFailed(t('trip_week_failed')); setPhase('idle'); return; }
+      if (!built.length) { setFailed(`${t('trip_week_failed')} (${errs[0] || getLastDealIdeasNote() || 'no reply'})`); setPhase('idle'); return; }
       built.forEach((c, i) => { if (i < open.length) c.ideas[0].checked = true; });
       setCards(built);
       setPreviews({});
       setPhase('ready');
     } catch (e) {
       console.log('[trip] week plan failed', e?.message || e);
-      setFailed(t('trip_week_failed'));
+      setFailed(`${t('trip_week_failed')} (${String(e?.message || e).slice(0, 120)})`);
       setPhase('idle');
     }
   };
