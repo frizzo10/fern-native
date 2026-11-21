@@ -85,6 +85,7 @@ export default function NewHome({
   weekDays,
   onOpenFamily,
   onPlanTonight,
+  onMealMenu,
   onFamilyLayout,
   onOpenMeal,
   mealOpening,
@@ -372,6 +373,11 @@ export default function NewHome({
             </TouchableOpacity>
           ))}
         </View>
+        {tonightTitle ? (
+          <TouchableOpacity onPress={() => onMealMenu?.(todayEntry.key, { slot: 'Dinner', title: tonightTitle })} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ position: 'absolute', top: 2, right: 4, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={t('family_meal_change_btn')}>
+            <Text style={{ fontSize: 26, color: FOREST, fontWeight: '700' }}>⋯</Text>
+          </TouchableOpacity>
+        ) : null}
       </TouchableOpacity>
 
       <View ref={tourTargetRef('week')} collapsable={false} style={styles.weekRow}>
@@ -417,6 +423,9 @@ export default function NewHome({
               <Text style={styles.sheetSlot}>{t('meal_planner_slot_' + m.slot)}</Text>
               <Text style={styles.sheetItem} numberOfLines={2}>{m.title}</Text>
             </View>
+            <TouchableOpacity onPress={() => onMealMenu?.(selectedDay.key, m)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }} accessibilityRole="button" accessibilityLabel={t('family_meal_change_btn')}>
+              <Text style={{ fontSize: 26, color: FOREST, fontWeight: '700' }}>⋯</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         ))}
         {(selectedDay.activities || []).map((a, i) => (

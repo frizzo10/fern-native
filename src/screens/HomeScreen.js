@@ -436,13 +436,33 @@ export default function HomeScreen({ user, route }) {
     }, 400);
   };
 
+  // The three dots on a planned meal: change it to another saved recipe, or take it off the day.
+  const handleHomeMealMenu = (dateKey, meal) => {
+    const sameMeal = (m) => String(m.slot || 'Dinner').toLowerCase() === String(meal.slot || 'Dinner').toLowerCase() && m.title === meal.title;
+    const slot = String(meal.slot || 'Dinner');
+    const slotName = slot.charAt(0).toUpperCase() + slot.slice(1).toLowerCase();
+    Alert.alert(meal.title || slotName, undefined, [
+      { text: t('family_meal_change_btn'), onPress: () => setTimeout(() => setHomeAddMeal({ dateKey, slot: slotName, slotLabel: t('meal_planner_slot_' + slotName.toLowerCase()), replaceTitle: meal.title }), 400) },
+      {
+        text: t('family_meal_remove_btn'),
+        style: 'destructive',
+        onPress: () => {
+          const mealPlan = planNow || {};
+          persistFamilyMealPlan({ ...mealPlan, [dateKey]: (mealPlan[dateKey] || []).filter((m) => !sameMeal(m)) });
+        },
+      },
+      { text: t('cancel_btn'), style: 'cancel' },
+    ]);
+  };
+
   const handleHomeSelectSavedMeal = (recipe) => {
     if (!homeAddMeal) return;
-    const { dateKey, slot } = homeAddMeal;
+    const { dateKey, slot, replaceTitle } = homeAddMeal;
     const mealPlan = planNow || {};
     const dayMeals = mealPlan[dateKey] || [];
     const newEntry = { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: recipe.image || null };
-    persistFamilyMealPlan({ ...mealPlan, [dateKey]: addToSlot(dayMeals, newEntry) });
+    const idx = replaceTitle ? dayMeals.findIndex((m) => m.title === replaceTitle && String(m.slot || 'Dinner').toLowerCase() === String(slot).toLowerCase()) : -1;
+    persistFamilyMealPlan({ ...mealPlan, [dateKey]: idx >= 0 ? dayMeals.map((m, i) => (i === idx ? newEntry : m)) : addToSlot(dayMeals, newEntry) });
     setHomeAddMeal(null);
   };
 
@@ -2821,6 +2841,7 @@ export default function HomeScreen({ user, route }) {
                 weekDays={weekDays}
                 onOpenFamily={() => navigation.navigate('Family')}
                 onOpenMeal={handleOpenHomeMeal}
+                onMealMenu={handleHomeMealMenu}
                 mealOpening={mealOpening}
                 onPlanTonight={() => navigation.navigate('Family')}
                 onFamilyLayout={(e) => { homeSectionY.current.weekPanel = e.nativeEvent.layout.y; }}
