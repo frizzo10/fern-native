@@ -400,22 +400,22 @@ export default function NewHome({
       {selectedDay.key !== todayEntry.key ? (
       <View style={styles.dayPanel}>
         <Text style={styles.dayPanelTitle}>{`${selectedDay.day || ''} ${selectedDay.date || ''}`.trim()}</Text>
-        {!Object.keys(selectedDay.meals || {}).length && !(selectedDay.activities || []).length ? (
+        {!(selectedDay.mealList || []).length && !(selectedDay.activities || []).length ? (
           <Text style={styles.sheetEmpty}>{t('home_day_nothing')}</Text>
         ) : null}
-        {['breakfast', 'lunch', 'dinner'].filter((slot) => selectedDay.meals?.[slot]).map((slot) => (
+        {['breakfast', 'lunch', 'dinner'].flatMap((slot) => (selectedDay.mealList || []).filter((m) => m.slot === slot)).map((m, mi) => (
           <TouchableOpacity
-            key={slot}
+            key={`${m.slot}-${mi}`}
             style={[styles.sheetRow, { alignItems: 'center' }, mealOpening ? { opacity: 0.6 } : null]}
             activeOpacity={0.8}
-            onPress={() => onOpenMeal?.({ title: selectedDay.meals[slot], slot: slot.charAt(0).toUpperCase() + slot.slice(1), emoji: selectedDay.mealEmojis?.[slot] })}
+            onPress={() => onOpenMeal?.({ title: m.title, slot: m.slot.charAt(0).toUpperCase() + m.slot.slice(1), emoji: m.emoji })}
           >
             <View style={{ width: 44, height: 44 }}>
-              <MealPlannerImage title={selectedDay.meals[slot]} variant="thumb" fallback={<Text style={styles.photoEmoji}>{selectedDay.mealEmojis?.[slot] || '🍽️'}</Text>} />
+              <MealPlannerImage title={m.title} variant="thumb" fallback={<Text style={styles.photoEmoji}>{m.emoji || '🍽️'}</Text>} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.sheetSlot}>{t('meal_planner_slot_' + slot)}</Text>
-              <Text style={styles.sheetItem} numberOfLines={2}>{selectedDay.meals[slot]}</Text>
+              <Text style={styles.sheetSlot}>{t('meal_planner_slot_' + m.slot)}</Text>
+              <Text style={styles.sheetItem} numberOfLines={2}>{m.title}</Text>
             </View>
           </TouchableOpacity>
         ))}

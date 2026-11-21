@@ -81,7 +81,7 @@ import InsiderDealsModal from '../components/modals/InsiderDealsModal';
 import CircularsBrowseModal from '../components/modals/CircularsBrowseModal';
 import ScanBoardModal from '../components/modals/ScanBoardModal';
 import PersonalShopperModal from '../components/modals/PersonalShopperModal';
-import { onePerSlot } from '../utils/onePerSlot';
+import { addToSlot } from '../utils/onePerSlot';
 import { buildWeeklyReviewData } from '../utils/buildWeeklyReviewData';
 import { buildRollingWeekDateKeys, daysBetween, dateToKey, formatDayLabel, normalizeSlot, parseDateKey } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
@@ -442,7 +442,7 @@ export default function HomeScreen({ user, route }) {
     const mealPlan = planNow || {};
     const dayMeals = mealPlan[dateKey] || [];
     const newEntry = { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: recipe.image || null };
-    persistFamilyMealPlan({ ...mealPlan, [dateKey]: onePerSlot([...dayMeals, newEntry]) });
+    persistFamilyMealPlan({ ...mealPlan, [dateKey]: addToSlot(dayMeals, newEntry) });
     setHomeAddMeal(null);
   };
 
@@ -480,7 +480,7 @@ export default function HomeScreen({ user, route }) {
       }
       const mealPlan = planNow || {};
       const dayMeals = mealPlan[dateKey] || [];
-      const nextPlan = { ...mealPlan, [dateKey]: onePerSlot([...dayMeals, { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: null }]) };
+      const nextPlan = { ...mealPlan, [dateKey]: addToSlot(dayMeals, { slot, title: recipe.title, emoji: recipe.emoji || '🍽️', image: null }) };
       setPlanOverride(nextPlan);
       await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(nextPlan));
       await pushChangedFromStorage({ saved, meal_plan: nextPlan });
@@ -529,7 +529,7 @@ export default function HomeScreen({ user, route }) {
 
     const dayMeals = mealPlan[targetDateKey] || [];
     const newEntry = { slot: 'Dinner', title: meal.title, emoji: meal.emoji, image: meal.image || null };
-    persistFamilyMealPlan({ ...mealPlan, [targetDateKey]: onePerSlot([...dayMeals, newEntry]) });
+    persistFamilyMealPlan({ ...mealPlan, [targetDateKey]: addToSlot(dayMeals, newEntry) });
     setAddedReviewMealIds((prev) => new Set(prev).add(meal.id));
   };
 
@@ -577,7 +577,7 @@ export default function HomeScreen({ user, route }) {
         const title = String(m?.title || '').trim();
         if (!dateKey || !title) return;
         const dayMeals = nextMealPlan[dateKey] || [];
-        nextMealPlan = { ...nextMealPlan, [dateKey]: onePerSlot([...dayMeals, { slot: m?.slot || 'Dinner', title, emoji: m?.emoji || '🍽️' }]) };
+        nextMealPlan = { ...nextMealPlan, [dateKey]: addToSlot(dayMeals, { slot: m?.slot || 'Dinner', title, emoji: m?.emoji || '🍽️' }) };
       });
       persistFamilyMealPlan(nextMealPlan);
     }
@@ -730,6 +730,7 @@ export default function HomeScreen({ user, route }) {
     const key = dateKey(d);
     const dayMeals = {};
     const dayMealEmojis = {};
+    const dayMealList = [];
 
     // Extract meals from mealPlan
     const planDay = planNow?.[key] || [];
@@ -738,6 +739,7 @@ export default function HomeScreen({ user, route }) {
         const slotKey = m.slot.toLowerCase();
         dayMeals[slotKey] = m.title;
         dayMealEmojis[slotKey] = sanitizeEmoji(m.emoji);
+        dayMealList.push({ slot: slotKey, title: m.title, emoji: sanitizeEmoji(m.emoji) });
       }
     });
 
@@ -751,6 +753,7 @@ export default function HomeScreen({ user, route }) {
       isToday: key === dateKey(today),
       meals: dayMeals,
       mealEmojis: dayMealEmojis,
+      mealList: dayMealList,
       activities: dayActivities,
     };
   });

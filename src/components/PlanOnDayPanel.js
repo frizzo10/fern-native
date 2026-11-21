@@ -26,7 +26,7 @@ export default function PlanOnDayPanel({ recipe, user, onClose }) {
     setErr('');
     try {
       const res = await executeAgentActions(
-        [{ type: 'plan_meal', day_offset: offset, slot, title: recipe?.title, emoji: recipe?.emoji || '🍽️', replace: true }],
+        [{ type: 'plan_meal', day_offset: offset, slot, title: recipe?.title, emoji: recipe?.emoji || '🍽️' }],
         { pushChangedFromStorage, token: user?.token, canSaveUnlimited: true },
       );
       emitAgentChange();

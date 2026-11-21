@@ -77,7 +77,7 @@ import {
   weekLabel,
 } from '../utils/savings';
 import { resetStorePages } from '../utils/scanStats';
-import { onePerSlot } from '../utils/onePerSlot';
+import { addToSlot } from '../utils/onePerSlot';
 import AlexaHint from '../components/AlexaHint';
 import AlexaSkillModal from '../components/modals/AlexaSkillModal';
 import { createListShareLink } from '../services/shareService';
@@ -803,7 +803,7 @@ export default function ShoppingScreen({ user }) {
     let plan = {};
     try { plan = JSON.parse((await AsyncStorage.getItem('rv4_meal_plan')) || '{}'); } catch (e) { plan = {}; }
     const dayMeals = Array.isArray(plan[dateKey]) ? plan[dateKey] : [];
-    const next = { ...plan, [dateKey]: onePerSlot([...dayMeals, { slot: recipe.slot || 'Dinner', title: recipe.title, emoji: recipe.emoji || '🍽️', ...((recipe.sides || []).length ? { sides: recipe.sides } : {}) }]) };
+    const next = { ...plan, [dateKey]: addToSlot(dayMeals, { slot: recipe.slot || 'Dinner', title: recipe.title, emoji: recipe.emoji || '🍽️', ...((recipe.sides || []).length ? { sides: recipe.sides } : {}) }) };
     await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
     try {
       const cache = JSON.parse((await AsyncStorage.getItem('fern_sync_cache')) || '{}');

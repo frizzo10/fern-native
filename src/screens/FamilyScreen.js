@@ -22,7 +22,7 @@ import { fetchMealPlanRecipeDetail, fetchDinnerIdeas } from '../services/mealPla
 import { fetchRecipeImage } from '../utils/recipeImage';
 import { DAY_ABBREVIATIONS, parseDateKey, buildRollingWeekDateKeys, normalizeSlot, formatDayLabel } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
-import { onePerSlot } from '../utils/onePerSlot';
+import { addToSlot } from '../utils/onePerSlot';
 import { createPlanShareLink } from '../services/shareService';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -293,7 +293,7 @@ export default function FamilyScreen({ user }) {
                 const title = String(m?.title || '').trim();
                 if (!dateKey || !title) return;
                 const dayMeals = nextMealPlan[dateKey] || [];
-                nextMealPlan = { ...nextMealPlan, [dateKey]: onePerSlot([...dayMeals, { slot: m?.slot || 'Dinner', title, emoji: m?.emoji || '🍽️' }]) };
+                nextMealPlan = { ...nextMealPlan, [dateKey]: addToSlot(dayMeals, { slot: m?.slot || 'Dinner', title, emoji: m?.emoji || '🍽️' }) };
             });
             persistMealPlan(nextMealPlan);
         }
@@ -342,7 +342,7 @@ export default function FamilyScreen({ user }) {
         const idx = replace ? dayMeals.indexOf(replace) : -1;
         const nextDayMeals = idx >= 0
             ? dayMeals.map((item, i) => (i === idx ? newEntry : item))
-            : onePerSlot([...dayMeals, newEntry]);
+            : addToSlot(dayMeals, newEntry);
         persistMealPlan({ ...mealPlanLocal, [dateKey]: nextDayMeals });
         setAddMealModal(null);
     };
@@ -424,7 +424,7 @@ export default function FamilyScreen({ user }) {
                                 const dayMeals = nextMealPlan[dateKey] || [];
                                 nextMealPlan = {
                                     ...nextMealPlan,
-                                    [dateKey]: onePerSlot([...dayMeals, { slot: 'Dinner', title: idea.title, emoji: idea.emoji }]),
+                                    [dateKey]: addToSlot(dayMeals, { slot: 'Dinner', title: idea.title, emoji: idea.emoji }),
                                 };
                             });
                             persistMealPlan(nextMealPlan);
@@ -604,127 +604,62 @@ export default function FamilyScreen({ user }) {
                             </View>
                         </View>
 
-                        <View
-                            style={[styles.mealCard, !breakfastEntries.length ? styles.mealCardEmpty : null]}
-                            onLayout={(e) => { sectionY.current.mealCards = e.nativeEvent.layout.y; }}
-                        >
-                            {ring(flashMeal('breakfast'))}
-                            <View style={styles.mealIconWrap}>
-                                {breakfastEntries[0]?.image ? (
-                                    <Image source={{ uri: breakfastEntries[0].image }} style={styles.mealIconImage} />
+                        {[
+                            { slot: 'Breakfast', entries: breakfastEntries, label: t('family_hub_breakfast_label'), addText: t('family_hub_add_breakfast'), slotLabel: t('meal_planner_slot_breakfast'), icon: '🌅' },
+                            { slot: 'Lunch', entries: lunchEntries, label: t('family_hub_lunch_label'), addText: t('family_hub_add_lunch'), slotLabel: t('meal_planner_slot_lunch'), icon: '☀️' },
+                            { slot: 'Dinner', entries: dinnerEntries, label: t('family_hub_dinner_label'), addText: t('family_hub_add_dinner'), slotLabel: t('meal_planner_slot_dinner'), icon: '🌙' },
+                        ].map((g, gi) => (
+                            <View key={`${selectedDateKey}-${g.slot}`} onLayout={gi === 0 ? (e) => { sectionY.current.mealCards = e.nativeEvent.layout.y; } : undefined}>
+                                {g.entries.length ? (
+                                    <>
+                                        {g.entries.map((entry, idx) => (
+                                            <View key={`${selectedDateKey}-${g.slot}-${idx}`} style={styles.mealCard}>
+                                                {ring(flashMeal(g.slot.toLowerCase()) && (!flash.label || String(entry.title || '').toLowerCase() === flash.label.toLowerCase() || idx === g.entries.length - 1))}
+                                                <View style={styles.mealIconWrap}>
+                                                    {entry.image ? (
+                                                        <Image source={{ uri: entry.image }} style={styles.mealIconImage} />
+                                                    ) : (
+                                                        <Text style={styles.mealIconEmoji}>{entry.emoji || g.icon}</Text>
+                                                    )}
+                                                </View>
+                                                <TouchableOpacity style={styles.mealInfo} activeOpacity={0.7} onPress={() => handleViewMealRecipe(entry)}>
+                                                    <Text style={styles.mealSlotLabel}>{g.label}</Text>
+                                                    <Text style={styles.mealTitle}>{entry.title}</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={styles.mealActionBtn}
+                                                    activeOpacity={0.7}
+                                                    onPress={() => openMealMenu(selectedDateKey, entry, g.slot, g.slotLabel)}
+                                                >
+                                                    <Text style={styles.mealActionText}>⋯</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                        <TouchableOpacity
+                                            style={{ alignSelf: 'flex-start', paddingVertical: 8, paddingHorizontal: 6, marginBottom: 4, minHeight: 36, justifyContent: 'center' }}
+                                            activeOpacity={0.7}
+                                            onPress={() => openAddMealModal(selectedDateKey, g.slot, g.slotLabel)}
+                                        >
+                                            <Text style={[styles.mealAddText, { fontWeight: '700' }]}>{t('family_hub_add_another', { slot: g.slotLabel })}</Text>
+                                        </TouchableOpacity>
+                                    </>
                                 ) : (
-                                    <Text style={styles.mealIconEmoji}>{breakfastEntries[0]?.emoji || '🌅'}</Text>
-                                )}
-                            </View>
-                            <TouchableOpacity
-                                style={styles.mealInfo}
-                                activeOpacity={0.7}
-                                onPress={() => (breakfastEntries.length
-                                    ? handleViewMealRecipe(breakfastEntries[0])
-                                    : openAddMealModal(selectedDateKey, 'Breakfast', t('meal_planner_slot_breakfast')))}
-                            >
-                                <Text style={styles.mealSlotLabel}>{t('family_hub_breakfast_label')}</Text>
-                                {breakfastEntries.length ? (
-                                    <Text style={styles.mealTitle}>{breakfastEntries[0].title}</Text>
-                                ) : (
-                                    <Text style={styles.mealAddText}>{t('family_hub_add_breakfast')}</Text>
-                                )}
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.mealActionBtn}
-                                activeOpacity={0.7}
-                                onPress={() => (breakfastEntries.length
-                                    ? openMealMenu(selectedDateKey, breakfastEntries[0], 'Breakfast', t('meal_planner_slot_breakfast'))
-                                    : openAddMealModal(selectedDateKey, 'Breakfast', t('meal_planner_slot_breakfast')))}
-                            >
-                                <Text style={styles.mealActionText}>{breakfastEntries.length ? '⋯' : '+'}</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={[styles.mealCard, !lunchEntries.length ? styles.mealCardEmpty : null]}>
-                            {ring(flashMeal('lunch'))}
-                            <View style={styles.mealIconWrap}>
-                                {lunchEntries[0]?.image ? (
-                                    <Image source={{ uri: lunchEntries[0].image }} style={styles.mealIconImage} />
-                                ) : (
-                                    <Text style={styles.mealIconEmoji}>{lunchEntries[0]?.emoji || '☀️'}</Text>
-                                )}
-                            </View>
-                            <TouchableOpacity
-                                style={styles.mealInfo}
-                                activeOpacity={0.7}
-                                onPress={() => (lunchEntries.length
-                                    ? handleViewMealRecipe(lunchEntries[0])
-                                    : openAddMealModal(selectedDateKey, 'Lunch', t('meal_planner_slot_lunch')))}
-                            >
-                                <Text style={styles.mealSlotLabel}>{t('family_hub_lunch_label')}</Text>
-                                {lunchEntries.length ? (
-                                    <Text style={styles.mealTitle}>{lunchEntries[0].title}</Text>
-                                ) : (
-                                    <Text style={styles.mealAddText}>{t('family_hub_add_lunch')}</Text>
-                                )}
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.mealActionBtn}
-                                activeOpacity={0.7}
-                                onPress={() => (lunchEntries.length
-                                    ? openMealMenu(selectedDateKey, lunchEntries[0], 'Lunch', t('meal_planner_slot_lunch'))
-                                    : openAddMealModal(selectedDateKey, 'Lunch', t('meal_planner_slot_lunch')))}
-                            >
-                                <Text style={styles.mealActionText}>{lunchEntries.length ? '⋯' : '+'}</Text>
-                            </TouchableOpacity>
-                        </View>
-
-                        {dinnerEntries.length ? (
-                            dinnerEntries.map((entry, idx) => (
-                                <View key={`${selectedDateKey}-dinner-${idx}`} style={styles.mealCard}>
-                                    {ring(flashMeal('dinner') && (!flash.label || String(entry.title || '').toLowerCase() === flash.label.toLowerCase() || idx === dinnerEntries.length - 1))}
-                                    <View style={styles.mealIconWrap}>
-                                        {entry.image ? (
-                                            <Image source={{ uri: entry.image }} style={styles.mealIconImage} />
-                                        ) : (
-                                            <Text style={styles.mealIconEmoji}>{entry.emoji || '🌙'}</Text>
-                                        )}
+                                    <View style={[styles.mealCard, styles.mealCardEmpty]}>
+                                        {ring(flashMeal(g.slot.toLowerCase()))}
+                                        <View style={styles.mealIconWrap}>
+                                            <Text style={styles.mealIconEmoji}>{g.icon}</Text>
+                                        </View>
+                                        <TouchableOpacity style={styles.mealInfo} activeOpacity={0.7} onPress={() => openAddMealModal(selectedDateKey, g.slot, g.slotLabel)}>
+                                            <Text style={styles.mealSlotLabel}>{g.label}</Text>
+                                            <Text style={styles.mealAddText}>{g.addText}</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity style={styles.mealActionBtn} activeOpacity={0.7} onPress={() => openAddMealModal(selectedDateKey, g.slot, g.slotLabel)}>
+                                            <Text style={styles.mealActionText}>+</Text>
+                                        </TouchableOpacity>
                                     </View>
-                                    <TouchableOpacity
-                                        style={styles.mealInfo}
-                                        activeOpacity={0.7}
-                                        onPress={() => handleViewMealRecipe(entry)}
-                                    >
-                                        <Text style={styles.mealSlotLabel}>{t('family_hub_dinner_label')}</Text>
-                                        <Text style={styles.mealTitle}>{entry.title}</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={styles.mealActionBtn}
-                                        activeOpacity={0.7}
-                                        onPress={() => openMealMenu(selectedDateKey, entry, 'Dinner', t('meal_planner_slot_dinner'))}
-                                    >
-                                        <Text style={styles.mealActionText}>⋯</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            ))
-                        ) : (
-                            <View style={[styles.mealCard, styles.mealCardEmpty]}>
-                                <View style={styles.mealIconWrap}>
-                                    <Text style={styles.mealIconEmoji}>🌙</Text>
-                                </View>
-                                <TouchableOpacity
-                                    style={styles.mealInfo}
-                                    activeOpacity={0.7}
-                                    onPress={() => openAddMealModal(selectedDateKey, 'Dinner', t('meal_planner_slot_dinner'))}
-                                >
-                                    <Text style={styles.mealSlotLabel}>{t('family_hub_dinner_label')}</Text>
-                                    <Text style={styles.mealAddText}>{t('family_hub_add_dinner')}</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={styles.mealActionBtn}
-                                    activeOpacity={0.7}
-                                    onPress={() => openAddMealModal(selectedDateKey, 'Dinner', t('meal_planner_slot_dinner'))}
-                                >
-                                    <Text style={styles.mealActionText}>+</Text>
-                                </TouchableOpacity>
+                                )}
                             </View>
-                        )}
+                        ))}
 
                         {selectedDayActivities.length ? (
                             <View style={styles.activitiesSection} onLayout={(e) => { sectionY.current.activities = e.nativeEvent.layout.y; }}>
