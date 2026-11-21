@@ -16,11 +16,12 @@ import FamilyVoiceExampleScreen from '../components/FamilyVoiceExampleScreen';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import FamilyAddSavedMealModal from '../components/modals/FamilyAddSavedMealModal';
 import FamilyAddActivityModal from '../components/modals/FamilyAddActivityModal';
+import MonthCalendarModal, { MONTHS_EN, MONTHS_ES } from '../components/modals/MonthCalendarModal';
 import ChatSheetModal from '../components/modals/ChatSheetModal';
 import { useAiRecipeCollection } from '../hooks/useAiRecipeCollection';
 import { fetchMealPlanRecipeDetail, fetchDinnerIdeas } from '../services/mealPlanRecipeService';
 import { fetchRecipeImage } from '../utils/recipeImage';
-import { DAY_ABBREVIATIONS, parseDateKey, buildRollingWeekDateKeys, normalizeSlot, formatDayLabel } from '../utils/familyDates';
+import { DAY_ABBREVIATIONS, parseDateKey, buildRollingWeekDateKeys, normalizeSlot, formatDayLabel, dateToKey } from '../utils/familyDates';
 import { FAMILY_PLAN_SYSTEM_PROMPT, FAMILY_PLAN_AUTO_OPENER } from '../constants/familyPlanPrompts';
 import { addToSlot } from '../utils/onePerSlot';
 import { createPlanShareLink } from '../services/shareService';
@@ -50,6 +51,8 @@ export default function FamilyScreen({ user }) {
     const [mealPlanLocal, setMealPlanLocal] = useState({});
     const [activitiesLocal, setActivitiesLocal] = useState([]);
     const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+    const [farKey, setFarKey] = useState(null); // a picked date outside the rolling week, or null
+    const [isCalOpen, setIsCalOpen] = useState(false);
     const [showExampleView, setShowExampleView] = useState(false);
     const [isLoadingMealRecipe, setIsLoadingMealRecipe] = useState(false);
     const [isFillingWeek, setIsFillingWeek] = useState(false);
@@ -125,6 +128,7 @@ export default function FamilyScreen({ user }) {
         const params = route?.params;
         if (!params?.addAction) return;
         const idx = Math.max(0, dateKeys.indexOf(params.addDateKey));
+        setFarKey(null);
         goToDay(idx);
         // On a cold open the day pager may not be mounted yet; re-sync its position once it is.
         setTimeout(() => dayScrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: false }), 350);
@@ -151,6 +155,7 @@ export default function FamilyScreen({ user }) {
         const off = route?.params?.showDayOffset;
         if (off == null) return;
         const idx = Math.max(0, Math.min(Number(off) || 0, dateKeys.length - 1));
+        setFarKey(null);
         goToDay(idx);
         setTimeout(() => dayScrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: false }), 350);
         const kind = route?.params?.showKind;
@@ -183,16 +188,41 @@ export default function FamilyScreen({ user }) {
     const shoppingCount = (data.shopping || []).length;
     const isFullWeekPlanned = dateKeys.length > 0 && dinnersPlannedCount === dateKeys.length;
 
-    const selectedDateKey = dateKeys[selectedDayIndex];
+    const selectedDateKey = farKey || dateKeys[selectedDayIndex];
+    const months = locale === 'es' ? MONTHS_ES : MONTHS_EN;
+    const monthSource = parseDateKey(selectedDateKey || dateKeys[0]);
+    const markedKeys = new Set([
+        ...Object.keys(mealPlanLocal || {}).filter((k) => (mealPlanLocal[k] || []).length),
+        ...activitiesLocal.map((a) => a?.dateKey).filter(Boolean),
+    ]);
+    const handlePickCalendarDay = (key) => {
+        setIsCalOpen(false);
+        const idx = dateKeys.indexOf(key);
+        if (idx >= 0) {
+            setFarKey(null);
+            setSelectedDayIndex(idx);
+            setTimeout(() => dayScrollRef.current?.scrollTo({ x: idx * SCREEN_WIDTH, animated: false }), 150);
+        } else {
+            setFarKey(key);
+        }
+    };
+    const backToWeek = () => {
+        setFarKey(null);
+        setTimeout(() => dayScrollRef.current?.scrollTo({ x: selectedDayIndex * SCREEN_WIDTH, animated: false }), 150);
+    };
+    const farDate = farKey ? parseDateKey(farKey) : null;
     const selectedDayMeals = mealPlanLocal[selectedDateKey] || [];
     const breakfastEntries = selectedDayMeals.filter((entry) => normalizeSlot(entry) === 'breakfast');
     const lunchEntries = selectedDayMeals.filter((entry) => normalizeSlot(entry) === 'lunch');
     const dinnerEntries = selectedDayMeals.filter((entry) => normalizeSlot(entry) === 'dinner');
     const missingMealsCount = (breakfastEntries.length ? 0 : 1) + (lunchEntries.length ? 0 : 1) + (dinnerEntries.length ? 0 : 1);
 
-    const dayOptions = dateKeys.map((dateKey) => ({ dateKey, label: formatDayLabel(dateKey) }));
+    const dayOptions = [
+        ...dateKeys.map((dateKey) => ({ dateKey, label: formatDayLabel(dateKey) })),
+        ...(farKey ? [{ dateKey: farKey, label: `${formatDayLabel(farKey).split(' ')[0]} ${MONTH_ABBREVIATIONS[parseDateKey(farKey).getMonth()]} ${parseDateKey(farKey).getDate()}` }] : []),
+    ];
     const activitiesThisWeek = activitiesLocal.filter((activity) => dateKeys.includes(activity?.dateKey));
-    const selectedDayActivities = activitiesThisWeek.filter((activity) => activity.dateKey === selectedDateKey);
+    const selectedDayActivities = activitiesLocal.filter((activity) => activity?.dateKey === selectedDateKey);
 
     // Real photos for the selected day's meals: render emoji first (above),
     // then fetch a photo in the background per entry and swap it in once it
@@ -496,7 +526,19 @@ export default function FamilyScreen({ user }) {
                     <Text style={styles.hiddenToggleText}>🧪</Text>
                 </TouchableOpacity> */}
 
-                <Text style={styles.title}>{`🗓️ ${t('family_hub_title')}`}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Text style={[styles.title, { flex: 1 }]}>{`🗓️ ${t('family_hub_title')}`}</Text>
+                    <TouchableOpacity
+                        style={{ minHeight: 44, paddingHorizontal: 12, borderRadius: 22, backgroundColor: '#ECF2E6', borderWidth: 1, borderColor: '#C8D6BE', flexDirection: 'row', alignItems: 'center' }}
+                        activeOpacity={0.8}
+                        onPress={() => setIsCalOpen(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('family_cal_a11y')}
+                    >
+                        <Text style={{ fontSize: 16, marginRight: 6 }}>📅</Text>
+                        <Text style={{ fontFamily: 'Jost-Bold', fontSize: 15, color: '#3F5645' }}>{months[monthSource.getMonth()]}</Text>
+                    </TouchableOpacity>
+                </View>
                 {isLoadingMealRecipe ? (
                     <View style={styles.recipeLoadingRow}>
                         <ActivityIndicator color={'#3F5645'} size="small" />
@@ -552,7 +594,19 @@ export default function FamilyScreen({ user }) {
                     <Text style={styles.emptyText}>{t('family_hub_empty_no_days')}</Text>
                 ) : (
                     <>
-                        <View style={styles.dayStripOuter}>
+                        {farDate ? (
+                            <View style={[styles.dayStripOuter, { alignItems: 'center', paddingVertical: 10 }]}>
+                                <Text style={styles.dayAbbrev}>{DAY_ABBREVIATIONS[farDate.getDay()]}</Text>
+                                <View style={styles.dayDateRow}>
+                                    <Text style={styles.dayDateNum}>{farDate.getDate()}</Text>
+                                    <Text style={styles.dayMonth}>{`${MONTH_ABBREVIATIONS[farDate.getMonth()]} ${farDate.getFullYear()}`}</Text>
+                                </View>
+                                <TouchableOpacity style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 12 }} onPress={backToWeek} accessibilityRole="button">
+                                    <Text style={{ fontFamily: 'Jost-Bold', fontSize: 15, color: '#4E7A54' }}>{`‹ ${t('family_cal_back')}`}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        ) : null}
+                        <View style={[styles.dayStripOuter, farDate ? { display: 'none' } : null]}>
                             <ScrollView
                                 ref={dayScrollRef}
                                 horizontal
@@ -737,6 +791,14 @@ export default function FamilyScreen({ user }) {
                 onClose={() => setAddMealModal(null)}
                 onSelect={handleSelectSavedMealForAdd}
                 onAddFound={handleAddFoundMeal}
+            />
+
+            <MonthCalendarModal
+                visible={isCalOpen}
+                selectedKey={selectedDateKey}
+                markedKeys={markedKeys}
+                onPick={handlePickCalendarDay}
+                onClose={() => setIsCalOpen(false)}
             />
 
             <FamilyAddActivityModal

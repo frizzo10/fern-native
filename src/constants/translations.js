@@ -751,6 +751,9 @@ export const translations = {
 
     // Family Hub
     family_hub_title: "Family Hub",
+    family_cal_a11y: "Open month calendar",
+    family_cal_back: "Back to this week",
+    family_cal_today: "Today",
     family_hub_full_week_planned: "✅ Full week planned!",
     family_hub_dinners_left: "{count} dinners left to plan",
     family_hub_ai_fill_week_btn: "✦ AI Fill Week",
@@ -3437,6 +3440,9 @@ export const translations = {
 
     // Family Hub
     family_hub_title: "Centro Familiar",
+    family_cal_a11y: "Abrir calendario del mes",
+    family_cal_back: "Volver a esta semana",
+    family_cal_today: "Hoy",
     family_hub_full_week_planned: "✅ ¡Semana completa planificada!",
     family_hub_dinners_left: "{count} cenas por planificar",
     family_hub_ai_fill_week_btn: "✦ Llenar Semana con IA",
