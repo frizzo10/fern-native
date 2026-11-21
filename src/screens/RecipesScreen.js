@@ -211,6 +211,7 @@ export default function RecipesScreen({ user }) {
   const [fMeal, setFMeal] = useState('');
   const [fCuisine, setFCuisine] = useState('');
   const [fDish, setFDish] = useState('');
+  const [fWho, setFWho] = useState('');
   const [peekId, setPeekId] = useState(null); // shelf: tapped spine shows a preview card first
   const [bMeal, setBMeal] = useState('');
   const [bCuisine, setBCuisine] = useState('');
@@ -1137,7 +1138,13 @@ export default function RecipesScreen({ user }) {
     vegetarian: /vegetarian|veggie|vegan/i,
   };
   const dishMatches = (r, w) => (DISH_MATCH[w] || new RegExp(w, 'i')).test(r.title || '');
-  const afterMeal = useMemo(() => (fMeal ? recipes.filter((r) => mealOf(r) === fMeal) : recipes), [recipes, fMeal]);
+  const afterWho = useMemo(() => (fWho ? recipes.filter((r) => r.addedBy === fWho) : recipes), [recipes, fWho]);
+  const whoCounts = useMemo(() => {
+    const c = {};
+    recipes.forEach((r) => { if (r.addedBy) c[r.addedBy] = (c[r.addedBy] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => b[1] - a[1]);
+  }, [recipes]);
+  const afterMeal = useMemo(() => (fMeal ? afterWho.filter((r) => mealOf(r) === fMeal) : afterWho), [afterWho, fMeal]);
   const afterCuisine = useMemo(() => (fCuisine ? afterMeal.filter((r) => cuisineOf(r) === fCuisine) : afterMeal), [afterMeal, fCuisine]);
   const cuisineCounts = useMemo(() => {
     const c = {};
@@ -1165,12 +1172,12 @@ export default function RecipesScreen({ user }) {
   // Total + per-meal-type counts for the summary line above the grid (all saved recipes).
   const mealTypeCounts = useMemo(() => {
     const counts = {};
-    recipes.forEach((recipe) => {
+    afterWho.forEach((recipe) => {
       const key = mealOf(recipe);
       counts[key] = (counts[key] || 0) + 1;
     });
     return Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  }, [recipes]);
+  }, [afterWho]);
 
   const books = useMemo(() => {
     const list = Array.isArray(booksLocal) ? booksLocal : [];
@@ -1469,11 +1476,16 @@ export default function RecipesScreen({ user }) {
                 : t(recipes.length === 1 ? 'recipes_count_one' : 'recipes_count_many', { count: recipes.length })}
             </Text>
             {/* Nested sort: one level of chips at a time. Meal -> Cuisine -> Dish. The chosen path shows as tappable crumbs. */}
-            {(fMeal || fCuisine || fDish) ? (
+            {(fWho || fMeal || fCuisine || fDish) ? (
               <View style={styles.countChips}>
-                <TouchableOpacity activeOpacity={0.8} onPress={() => { setFMeal(''); setFCuisine(''); setFDish(''); }} style={styles.countChip}>
+                <TouchableOpacity activeOpacity={0.8} onPress={() => { setFWho(''); setFMeal(''); setFCuisine(''); setFDish(''); }} style={styles.countChip}>
                   <Text style={styles.countChipText}>‹ {t('sort_all')}</Text>
                 </TouchableOpacity>
+                {fWho ? (
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => { setFMeal(''); setFCuisine(''); setFDish(''); }} style={[styles.countChip, styles.countChipOn]}>
+                    <Text style={[styles.countChipText, styles.countChipTextOn]}>{fWho}</Text>
+                  </TouchableOpacity>
+                ) : null}
                 {fMeal ? (
                   <TouchableOpacity activeOpacity={0.8} onPress={() => { setFCuisine(''); setFDish(''); }} style={[styles.countChip, styles.countChipOn]}>
                     <Text style={[styles.countChipText, styles.countChipTextOn]}>{fMeal}</Text>
@@ -1489,6 +1501,15 @@ export default function RecipesScreen({ user }) {
                     <Text style={[styles.countChipText, styles.countChipTextOn]}>{fDish.charAt(0).toUpperCase() + fDish.slice(1)}</Text>
                   </View>
                 ) : null}
+              </View>
+            ) : null}
+            {!fWho && !fMeal && whoCounts.length > 0 ? (
+              <View style={styles.countChips}>
+                {whoCounts.map(([name, n]) => (
+                  <TouchableOpacity key={name} activeOpacity={0.8} onPress={() => { setFWho(name); setFMeal(''); setFCuisine(''); setFDish(''); }} style={styles.countChip}>
+                    <Text style={styles.countChipText}>👤 {name} {n}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             ) : null}
             {!fMeal ? (
