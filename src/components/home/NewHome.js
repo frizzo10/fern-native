@@ -157,12 +157,12 @@ export default function NewHome({
     buttons.push({ text: t('cancel_btn'), style: 'cancel' });
     Alert.alert(String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label'), undefined, buttons);
   };
-  const renderStore = (s, i) => {
+  const renderStore = (s, i, grouped) => {
     if (!s) return null;
     const st = storeStatus(s);
     const shortName = String(s.name || '').split(/ - |#/)[0].trim() || t('store_fallback_label');
     return (
-      <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={styles.storeCard} activeOpacity={0.85} onPress={() => onStorePress && onStorePress(s)} accessibilityRole="button">
+      <TouchableOpacity key={`${s.name || 'store'}-${i}`} style={grouped ? styles.storeCardGrouped : styles.storeCard} activeOpacity={0.85} onPress={() => onStorePress && onStorePress(s)} accessibilityRole="button">
         <View style={{ flex: 1 }}>
           <Text style={styles.storeCardName} numberOfLines={1}>{shortName}</Text>
           {st ? (
@@ -286,12 +286,16 @@ export default function NewHome({
         {/* The tour ring covers the stores AND the Add a store button (a new account has no stores yet). */}
         <View ref={tourTargetRef('stores')} collapsable={false}>
         <View style={styles.storeList}>
-          {visibleStores.length > 0 && visibleStores[topIdx] ? renderStore(visibleStores[topIdx], topIdx) : null}
-          {visibleStores.length > 1 ? (
-            <TouchableOpacity style={styles.othersBtn} activeOpacity={0.85} onPress={() => setOthersOpen((o) => !o)} accessibilityRole="button">
-              <Text style={styles.othersText}>{t('home_other_stores', { n: visibleStores.length - 1 })}</Text>
-              <Ionicons name={othersOpen ? 'chevron-up' : 'chevron-down'} size={18} color={ROSE} />
-            </TouchableOpacity>
+          {visibleStores.length > 0 && visibleStores[topIdx] ? (
+            <View style={styles.storeGroup}>
+              {renderStore(visibleStores[topIdx], topIdx, true)}
+              {visibleStores.length > 1 ? (
+                <TouchableOpacity style={styles.othersStrip} activeOpacity={0.85} onPress={() => setOthersOpen((o) => !o)} accessibilityRole="button">
+                  <Text style={styles.othersText}>{t('home_other_stores', { n: visibleStores.length - 1 })}</Text>
+                  <Ionicons name={othersOpen ? 'chevron-up' : 'chevron-down'} size={18} color={ROSE} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           ) : null}
           {othersOpen ? visibleStores.map((s, i) => (i === topIdx || !s ? null : renderStore(s, i))) : null}
         </View>
@@ -472,6 +476,9 @@ const styles = StyleSheet.create({
   heroLabel: { fontFamily: 'Jost-Bold', fontSize: 11, letterSpacing: 1.4, color: MUTE, marginTop: 18, marginBottom: 10, marginLeft: 2 },
   othersBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 14, borderRadius: 14, borderWidth: 1, borderColor: LINE, backgroundColor: '#FFFFFF' },
   othersText: { fontSize: 15, fontWeight: '700', color: ROSE },
+  storeGroup: { borderRadius: 18, backgroundColor: CARD, borderWidth: 1, borderColor: LINE, overflow: 'hidden' },
+  storeCardGrouped: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 68, paddingVertical: 12, paddingLeft: 16, paddingRight: 12 },
+  othersStrip: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44, paddingHorizontal: 16, borderTopWidth: 1, borderTopColor: LINE },
   storeList: { marginTop: 2, gap: 10 },
   storeCard: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 68, paddingVertical: 12, paddingLeft: 16, paddingRight: 12, borderRadius: 18, backgroundColor: CARD, borderWidth: 1, borderColor: LINE },
   storeCardName: { fontFamily: 'Jost-Bold', fontSize: 19, color: ROSE },

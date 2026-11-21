@@ -64,13 +64,15 @@ export default function HouseholdHomeCard({ user, pull, onOpenAccount }) {
     const line = others.length ? t('hh_home_with', { names: others.join(', ') }) : t('hh_home_alone');
     return (
       <View style={s.card}>
-        <TouchableOpacity activeOpacity={0.85} onPress={onOpenAccount} accessibilityRole="button" style={s.rowTop}>
-          <Text style={s.title}>🏡 {line}</Text>
-          <Text style={s.link}>{t('hh_home_manage')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={s.ghost} activeOpacity={0.85} onPress={invite} disabled={busy} accessibilityRole="button">
-          <Text style={s.ghostText}>{t('hh_invite_more')}</Text>
-        </TouchableOpacity>
+        <View style={s.hhRow}>
+          <TouchableOpacity activeOpacity={0.85} onPress={onOpenAccount} accessibilityRole="button" style={s.hhLeft}>
+            <Text style={s.title} numberOfLines={1}>🏡 {line}</Text>
+            <Text style={s.link}>{t('hh_home_manage')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.small} activeOpacity={0.85} onPress={invite} disabled={busy} accessibilityRole="button" accessibilityLabel={t('hh_invite_more')}>
+            <Text style={s.smallText}>{t('hh_invite_short')}</Text>
+          </TouchableOpacity>
+        </View>
         {err ? <Text style={s.err}>{err}</Text> : null}
       </View>
     );
@@ -112,6 +114,10 @@ export default function HouseholdHomeCard({ user, pull, onOpenAccount }) {
 
 const s = StyleSheet.create({
   card: { backgroundColor: '#ECF2E6', borderRadius: 16, borderWidth: 1, borderColor: '#C8D6BE', padding: 16, marginBottom: 14 },
+  hhRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  hhLeft: { flex: 1, minHeight: 44, justifyContent: 'center' },
+  small: { borderWidth: 1, borderColor: '#3F5645', borderRadius: 10, minHeight: 36, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  smallText: { color: '#3F5645', fontFamily: 'Jost-SemiBold', fontSize: 14 },
   rowTop: { minHeight: 44, justifyContent: 'center' },
   title: { color: '#2F4535', fontFamily: 'Jost-SemiBold', fontSize: 18 },
   body: { color: '#2F4535', fontFamily: 'Jost-Regular', fontSize: 15, lineHeight: 21, marginTop: 6 },
