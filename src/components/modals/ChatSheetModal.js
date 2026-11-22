@@ -327,6 +327,8 @@ export default function ChatSheetModal({
       const parsed = parseChatResponse(rawText);
       let reply = parsed?.reply || (/^\s*(```|\{)/.test(rawText) ? t('generic_error_message') : rawText);
       // She sometimes writes a whole recipe (ingredients, steps) into the chat text instead of a card, which can't be saved or planned.
+      // "Can I make fresh pasta with tapioca flour?" deserves a recipe to try, not only an answer.
+      const makeQuestion = /\b(can|could|should)\s+(i|we|you)\s+(make|cook|bake|do|use)\b|\bhow\s+(do|would|should|can)\s+(i|we|you)\s+(make|cook|bake)\b|\bhow\s+to\s+(make|cook|bake)\b/i.test(String(text || ''));
       const recipeInText = typeof reply === 'string' && reply.length > 180 && /ingredients/i.test(reply) && /\n\s*(?:[-•*]|\d+[.)])\s/.test(reply);
       const itemsToAdd = Array.isArray(parsed?.add_to_shopping_list)
         ? parsed.add_to_shopping_list.map(item => String(item || '').trim()).filter(Boolean)
@@ -358,7 +360,7 @@ export default function ChatSheetModal({
       }
       // Sometimes the model names the dishes in her sentence but leaves "options" empty, so no cards show.
       // Ask once more, only for the cards (same context, so the day and meal are read the same way).
-      if (agentOn && !silent && !options.length && (recipeInText || /New ideas from me|From your recipes:/i.test(reply))) {
+      if (agentOn && !silent && !options.length && (recipeInText || makeQuestion || /New ideas from me|From your recipes:/i.test(reply))) {
         try {
           const ctl2 = typeof AbortController !== 'undefined' ? new AbortController() : null;
           const timer2 = ctl2 ? setTimeout(() => ctl2.abort(), 25000) : null;
@@ -373,7 +375,7 @@ export default function ChatSheetModal({
                 messages: [
                   ...requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
                   { role: 'assistant', content: rawText },
-                  { role: 'user', content: (recipeInText ? 'You wrote the recipe into the chat text. Put it in a card instead. ' : '') + 'You named the dishes but left "options" empty. Reply ONLY with JSON {"reply":"<same reply>","add_to_shopping_list":[],"actions":[],"options":[...]} with one full card for EACH dish you named (title, emoji, time, description, ingredients with quantities, 4-6 instructions; saved recipes only the exact title), and day_offset and slot when the request named a day or meal.' },
+                  { role: 'user', content: (recipeInText ? 'You wrote the recipe into the chat text. Put it in a card instead. ' : '') + (makeQuestion && !recipeInText ? 'They asked whether or how they can make something; give ONE recipe card for exactly what they asked about (keep the same reply). ' : '') + 'You named the dishes but left "options" empty. Reply ONLY with JSON {"reply":"<same reply>","add_to_shopping_list":[],"actions":[],"options":[...]} with one full card for EACH dish you named (title, emoji, time, description, ingredients with quantities, 4-6 instructions; saved recipes only the exact title), and day_offset and slot when the request named a day or meal.' },
                 ],
                 locale,
                 userId: user?.id,
