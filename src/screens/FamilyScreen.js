@@ -3,6 +3,7 @@ import { subscribeAgentChange } from '../services/fernAgent';
 import { ActivityIndicator, Alert, Animated, Dimensions, Image, Platform, ScrollView, Share, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import useLivePull from '../hooks/useLivePull';
 import { colors, shadow } from '../constants/tokens';
 import { useSync } from '../hooks/useSync';
 import useLanguage from '../hooks/useLanguage';
@@ -95,11 +96,7 @@ export default function FamilyScreen({ user }) {
         setSelectedDayIndex((current) => Math.min(current, Math.max(0, dateKeys.length - 1)));
     }, [dateKeys.length]);
 
-    useFocusEffect(
-        useMemo(() => () => {
-            pull();
-        }, [pull])
-    );
+    useLivePull(pull);
 
     useEffect(() => {
         maybeAutoStart('family_hub');

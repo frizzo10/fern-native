@@ -30,6 +30,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Updates from 'expo-updates';
 import buildStamp from '../buildStamp.json';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import useLivePull from '../hooks/useLivePull';
 import { colors, radius, shadow } from '../constants/tokens';
 import { STORE_PRESETS } from '../constants/storePresets';
 import { useContinuousMic } from '../hooks/useContinuousMic';
@@ -665,11 +666,11 @@ export default function HomeScreen({ user, route }) {
     }
   };
 
+  useLivePull(pull);
   const [storedShop, setStoredShop] = React.useState(null);
   React.useEffect(() => { setStoredShop(null); }, [data.shopping]);
   useFocusEffect(
     useMemo(() => () => {
-      pull();
       setScanTick((n) => n + 1);
       // Items added or deleted on Shopping are written to storage first; read the count from there so Home is never stale.
       AsyncStorage.getItem('rv4_master_shop').then((v) => {

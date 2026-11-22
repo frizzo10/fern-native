@@ -15,6 +15,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
+import useLivePull from '../hooks/useLivePull';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { buildChapters, chapterNameById } from '../utils/cookbookChapters';
@@ -404,11 +405,7 @@ export default function RecipesScreen({ user }) {
   const [isSavingAddRecipes, setIsSavingAddRecipes] = useState(false);
   const attemptedImageFetchIds = useRef(new Set());
 
-  useFocusEffect(
-    useMemo(() => () => {
-      pull();
-    }, [pull])
-  );
+  useLivePull(pull);
 
   React.useEffect(() => {
     setRecipesLocal(Array.isArray(data.recipes) ? data.recipes : []);
