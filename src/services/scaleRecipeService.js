@@ -1,4 +1,5 @@
 import { logApiResponse } from '../utils/apiLogger';
+import { tidyScaledLine } from '../utils/recipeNormalize';
 
 function normalizeScaledIngredients(responseJson, originalIngredients) {
   const raw = responseJson?.ingredients
@@ -11,11 +12,12 @@ function normalizeScaledIngredients(responseJson, originalIngredients) {
 
   return raw.map((item, index) => {
     const was = originalIngredients[index] || '';
+    // "now" must be a clean ingredient line: never "X scaled to Y", never "6.4 eggs".
     if (typeof item === 'string') {
-      return { was, now: item };
+      return { was, now: tidyScaledLine(item) };
     }
-    const now = item?.now || item?.scaled || item?.text || item?.amount || '';
-    return { was: item?.was || item?.original || was, now };
+    const now = tidyScaledLine(item?.now || item?.scaled || item?.text || item?.amount || '');
+    return { was: was || item?.was || item?.original || '', now };
   }).filter((row) => row.now);
 }
 

@@ -119,6 +119,7 @@ export default function ScaleRecipeModal({ visible, recipe, token, user, canRepl
   }, [visible, recipe?.id]);
 
   const handlePickQuick = (value) => {
+    if (value === currentServings) return; // scaling to the same number changes nothing
     setTarget(value);
     setCustomServings('');
   };
@@ -127,11 +128,11 @@ export default function ScaleRecipeModal({ visible, recipe, token, user, canRepl
     const digitsOnly = value.replace(/[^0-9]/g, '');
     setCustomServings(digitsOnly);
     const parsed = parseInt(digitsOnly, 10);
-    setTarget(digitsOnly && parsed >= 1 && parsed <= 50 ? parsed : null);
+    setTarget(digitsOnly && parsed >= 1 && parsed <= 50 && parsed !== currentServings ? parsed : null);
   };
 
   const handleScale = async () => {
-    if (!target || isScaling) return;
+    if (!target || isScaling || target === currentServings) return;
     setIsScaling(true);
     setError('');
     try {
@@ -196,7 +197,8 @@ export default function ScaleRecipeModal({ visible, recipe, token, user, canRepl
                         isSelected ? styles.quickBtnSelected : null,
                         isCurrent && !isSelected ? styles.quickBtnCurrent : null,
                       ]}
-                      activeOpacity={0.85}
+                      activeOpacity={isCurrent ? 1 : 0.85}
+                      disabled={isCurrent}
                       onPress={() => handlePickQuick(value)}
                     >
                       <Text style={styles.quickBtnText}>{value}</Text>

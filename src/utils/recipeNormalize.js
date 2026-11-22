@@ -63,6 +63,32 @@ export function fixDegrees(text) {
   return text.replace(/(\d)\s*\uFFFD+\s*([FC])\b/g, '$1\u00B0$2').replace(/\uFFFD+/g, '');
 }
 
+// Scaled ingredient lines must read like a recipe: no "8 eggs scaled to 20 eggs" sentences (an older
+// scale reply was saved that way) and no "6.4 eggs". Keeps only the text after the last "scaled to",
+// rounds things you count (eggs, cloves, cans...) to a whole number (at least 1) and turns other
+// decimals into kitchen fractions (1/4, 1/3, 1/2, 2/3, 3/4).
+const COUNTABLE = /\b(eggs?|huevos?|yolks?|yemas?|whites?|claras?|cloves?|dientes?|cans?|latas?|jars?|frascos?|lemons?|limes?|limones?|onions?|cebollas?|shallots?|potato(es)?|papas?|patatas?|tomato(es)?|tomates?|peppers?|pimientos?|chiles?|jalape[nñ]os?|bananas?|pl[aá]tanos?|apples?|manzanas?|tortillas?|slices?|rebanadas?|breasts?|pechugas?|thighs?|muslos?|carrots?|zanahorias?|avocados?|aguacates?|leaves|hojas?|sticks?|packages?|paquetes?|bags?|bolsas?|buns?|panes?|rolls?|links?|sausages?|salchichas?|fillets?|filetes?|chops?|chuletas?|ears?|mazorcas?|heads?|cabezas?|sprigs?|ramitas?|bunch(es)?|manojos?|pieces?|piezas?|whole|enteros?|enteras?)\b/i;
+const FRACTIONS = [[0, ''], [0.25, '1/4'], [1 / 3, '1/3'], [0.5, '1/2'], [2 / 3, '2/3'], [0.75, '3/4'], [1, '']];
+function kitchenAmount(n, countable) {
+  if (countable) return String(Math.max(1, Math.round(n)));
+  let whole = Math.floor(n);
+  const rest = n - whole;
+  let best = FRACTIONS[0];
+  FRACTIONS.forEach((f) => { if (Math.abs(f[0] - rest) < Math.abs(best[0] - rest)) best = f; });
+  if (best[0] === 1) { whole += 1; best = FRACTIONS[0]; }
+  if (!whole && !best[1]) return '1/4';
+  return [whole || '', best[1]].filter(Boolean).join(' ');
+}
+export function tidyScaledLine(text) {
+  if (typeof text !== 'string') return text;
+  let s = text;
+  const m = s.match(/\s(?:scaled|escalad[oa]s?|ajustad[oa]s?)\s+(?:to|a)\s+/gi);
+  if (m) { const at = s.toLowerCase().lastIndexOf(m[m.length - 1].toLowerCase()); s = s.slice(at + m[m.length - 1].length); }
+  const countable = COUNTABLE.test(s);
+  s = s.replace(/\d+[.,]\d+/g, (num) => kitchenAmount(parseFloat(num.replace(',', '.')), countable));
+  return s.trim();
+}
+
 // A lost hyphen/dash in a title ("Herb-Marinated") shows as U+FFFD: between two letters it was a hyphen.
 export function fixTitle(text) {
   if (typeof text !== 'string' || text.indexOf('\uFFFD') === -1) return text;
@@ -177,7 +203,7 @@ export function normalizeRecipe(item, index) {
     photos,
     description,
     servings,
-    ingredients: ingredients.length ? ingredients.map(fixDegrees) : ['No ingredients listed yet'],
+    ingredients: ingredients.length ? ingredients.map((x) => tidyScaledLine(fixDegrees(x))) : ['No ingredients listed yet'],
     methodSteps: methodSteps.length ? methodSteps.map(fixDegrees) : ['No method steps listed yet'],
     note,
     bookIds,
