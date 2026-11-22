@@ -133,6 +133,16 @@ export default function RecipeDetailModal({
   // also saved into the recipe when this screen allows edits (onSaveEdits).
   const [ingredientOverrides, setIngredientOverrides] = useState({});
   useEffect(() => { setIngredientOverrides({}); }, [recipe?.id, recipe?.title]);
+  // Scaled amounts the person chose to use ({ servings, ingredients }); stays while this recipe is open.
+  const [scaledView, setScaledView] = useState(null);
+  useEffect(() => { setScaledView(null); }, [recipe?.id, recipe?.title]);
+  const shownIngredients = scaledView ? scaledView.ingredients : (Array.isArray(recipe?.ingredients) ? recipe.ingredients : []);
+  const shownServings = scaledView ? scaledView.servings : recipe?.servings;
+  const cookRecipe = useMemo(
+    () => (recipe && scaledView ? { ...recipe, ingredients: scaledView.ingredients, servings: scaledView.servings } : recipe),
+    [recipe, scaledView],
+  );
+  const applyScaled = (v) => { setIngredientOverrides({}); setScaledView(v); };
   useEffect(() => { if (recipe?.title) trackEvent('recipe_view', recipe.title); }, [recipe?.id, recipe?.title]);
   const [isSharing, setIsSharing] = useState(false);
   // Photo viewing: the hero swipes (heroIdx drives the dots); tapping it opens a full-screen
@@ -209,8 +219,8 @@ export default function RecipeDetailModal({
           time: String(recipe.time || '').trim(),
           difficulty: (recipe.difficulty || '').trim(),
           description: (recipe.description || '').trim(),
-          servings: String(recipe.servings ?? '').trim(),
-          ingredients: (recipe.ingredients || []).map((ing, i) => (nextOverrides[i] ?? ing)),
+          servings: String(shownServings ?? '').trim(),
+          ingredients: shownIngredients.map((ing, i) => (nextOverrides[i] ?? ing)),
           methodSteps: recipe.methodSteps || [],
         });
       } catch (e) {
@@ -276,7 +286,7 @@ export default function RecipeDetailModal({
   const [planOpen, setPlanOpen] = useState(false);
   useEffect(() => { setPlanOpen(false); }, [recipe?.id, recipe?.title]);
   const openListReview = async () => {
-    const ingredients = (Array.isArray(recipe?.ingredients) ? recipe.ingredients : []).map((ing, idx) => ingredientOverrides[idx] ?? ing);
+    const ingredients = shownIngredients.map((ing, idx) => ingredientOverrides[idx] ?? ing);
     if (!ingredients.length) { onAddToList?.(); return; }
     let existing = [];
     try { existing = JSON.parse((await AsyncStorage.getItem('rv4_master_shop')) || '[]'); } catch (e) { existing = []; }
@@ -356,8 +366,8 @@ export default function RecipeDetailModal({
         time: recipe.time || '',
         difficulty: recipe.difficulty || '',
         description: recipe.description || '',
-        servings: String(recipe.servings ?? ''),
-        ingredientsText: (recipe.ingredients || []).join('\n'),
+        servings: String(shownServings ?? ''),
+        ingredientsText: shownIngredients.map((ing, i) => ingredientOverrides[i] ?? ing).join('\n'),
         methodStepsText: (recipe.methodSteps || []).join('\n'),
       });
       setIsEditMode(true);
@@ -781,7 +791,15 @@ export default function RecipeDetailModal({
                     </TouchableOpacity>
                   </View>
 
-                  <Text style={styles.overlaySectionTitle}>{t('ingredients_title')} <Text style={styles.overlayServings}>• {recipe.servings} {t('servings_label')}</Text></Text>
+                  <Text style={styles.overlaySectionTitle}>{t('ingredients_title')} <Text style={styles.overlayServings}>• {shownServings} {t('servings_label')}</Text></Text>
+                  {scaledView ? (
+                    <View style={styles.scaledBanner}>
+                      <Text style={styles.scaledBannerText}>{t('scale_banner', { count: scaledView.servings })}</Text>
+                      <TouchableOpacity onPress={() => applyScaled(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                        <Text style={styles.scaledBannerLink}>{t('scale_show_original')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : null}
 
                   <View style={styles.overlayTopActionsRow}>
                     <TouchableOpacity
@@ -831,7 +849,7 @@ export default function RecipeDetailModal({
                     </View>
                   ) : (
                     <View style={styles.overlayIngredientsList}>
-                      {recipe.ingredients.map((ingredient, idx) => (
+                      {shownIngredients.map((ingredient, idx) => (
                         <View key={`${recipe.id}-ing-${idx}`} style={styles.overlayIngredientItem}>
                           <TouchableOpacity activeOpacity={0.6} onPress={() => { setSubstitutionIdx(idx); setSubstitutionIngredient(ingredientOverrides[idx] ?? ingredient); }}>
                             <Text style={[styles.overlayIngredientText, { fontSize: 12 * textScale, lineHeight: 16 * textScale }]}>- {ingredientOverrides[idx] ?? ingredient}</Text>
@@ -1087,8 +1105,11 @@ export default function RecipeDetailModal({
 
         <ScaleRecipeModal
           visible={isScaleModalVisible && !!recipe}
-          recipe={recipe}
+          recipe={cookRecipe}
           token={user?.token}
+          user={user}
+          canReplace={isAlreadySaved}
+          onApply={applyScaled}
           onClose={() => setIsScaleModalVisible(false)}
         />
 
@@ -1117,7 +1138,7 @@ export default function RecipeDetailModal({
 
         <CookModeModal
           visible={isCookModeVisible && !!recipe}
-          recipe={recipe}
+          recipe={cookRecipe}
           user={user}
           onClose={() => setIsCookModeVisible(false)}
         />
@@ -1149,6 +1170,30 @@ const TEXT_LEVEL_KEY = 'fern_recipe_text_level';
 const TEXT_SCALES = [1, 1.3, 1.6, 2];
 
 const styles = StyleSheet.create({
+  scaledBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 6,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: '#DDE7D5',
+  },
+  scaledBannerText: {
+    flex: 1,
+    color: '#2F4535',
+    fontFamily: 'Jost-Bold',
+    fontSize: 13,
+  },
+  scaledBannerLink: {
+    color: '#3F6845',
+    fontFamily: 'Jost-Bold',
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
   overlayBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.34)',

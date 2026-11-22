@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-22 o: live refresh every 30 s';
+export const CODE_VERSION = '11-22 p: keep or save a scaled recipe';

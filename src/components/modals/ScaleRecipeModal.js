@@ -15,10 +15,89 @@ import {
 } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
 import { fetchScaledRecipe } from '../../services/scaleRecipeService';
+import { useSync } from '../../hooks/useSync';
+import { saveScaledCopy, replaceWithScaled } from '../../services/scaledRecipeSave';
+
+// The three things to do with a scaled recipe. Its own component so useSync only mounts once there is a result.
+function ScaleResultActions({ recipe, result, user, canReplace, onApply, onClose }) {
+  const { t } = useLanguage();
+  const { pushChangedFromStorage } = useSync(user);
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState('');
+  const ingredients = result.ingredients.map((r) => r.now).filter(Boolean);
+
+  const run = async (kind) => {
+    if (busy) return;
+    setBusy(kind);
+    setErr('');
+    try {
+      if (kind === 'copy') {
+        const title = await saveScaledCopy({
+          recipe, servings: result.to, ingredients, pushChangedFromStorage,
+          title: t('scale_copy_title', { title: recipe?.title || '', count: result.to }),
+        });
+        onApply?.({ servings: result.to, ingredients });
+        setMsg(t('scale_saved_copy', { title }));
+      } else {
+        await replaceWithScaled({ recipe, servings: result.to, ingredients, pushChangedFromStorage });
+        onApply?.({ servings: result.to, ingredients });
+        setMsg(t('scale_saved_replace', { count: result.to }));
+      }
+    } catch (e) {
+      setErr(t('scale_save_failed'));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  if (msg) {
+    return (
+      <View style={styles.actionsWrap}>
+        <Text style={styles.doneText}>✓ {msg}</Text>
+        <TouchableOpacity style={styles.actionBtn} activeOpacity={0.85} onPress={onClose}>
+          <Text style={styles.actionBtnText}>{t('close_btn')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.actionsWrap}>
+      <TouchableOpacity
+        style={styles.actionBtn}
+        activeOpacity={0.85}
+        disabled={!!busy}
+        onPress={() => { onApply?.({ servings: result.to, ingredients }); onClose?.(); }}
+      >
+        <Text style={styles.actionBtnText}>{t('scale_use_btn')}</Text>
+        <Text style={styles.actionSub}>{t('scale_use_sub')}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.actionBtnAlt} activeOpacity={0.85} disabled={!!busy} onPress={() => run('copy')}>
+        {busy === 'copy' ? <ActivityIndicator size="small" color="#3F5645" /> : (
+          <>
+            <Text style={styles.actionBtnAltText}>{t('scale_save_copy_btn', { count: result.to })}</Text>
+            <Text style={styles.actionSubAlt}>{t('scale_save_copy_sub')}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+      {canReplace ? (
+        <TouchableOpacity style={styles.actionBtnAlt} activeOpacity={0.85} disabled={!!busy} onPress={() => run('replace')}>
+          {busy === 'replace' ? <ActivityIndicator size="small" color="#3F5645" /> : (
+            <>
+              <Text style={styles.actionBtnAltText}>{t('scale_replace_btn', { count: result.to })}</Text>
+              <Text style={styles.actionSubAlt}>{t('scale_replace_sub', { from: result.from })}</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      ) : null}
+      {err ? <Text style={styles.errorText}>{err}</Text> : null}
+    </View>
+  );
+}
 
 const QUICK_SERVINGS = [1, 2, 3, 4, 6, 8, 10, 12, 16];
 
-export default function ScaleRecipeModal({ visible, recipe, token, onClose }) {
+export default function ScaleRecipeModal({ visible, recipe, token, user, canReplace, onApply, onClose }) {
   const { t, locale } = useLanguage();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const currentServings = Number(recipe?.servings) || 4;
@@ -183,6 +262,14 @@ export default function ScaleRecipeModal({ visible, recipe, token, onClose }) {
                       </View>
                     ))}
                   </View>
+                  <ScaleResultActions
+                    recipe={recipe}
+                    result={result}
+                    user={user}
+                    canReplace={canReplace}
+                    onApply={onApply}
+                    onClose={onClose}
+                  />
                 </View>
               ) : null}
             </ScrollView>
@@ -433,6 +520,63 @@ const styles = StyleSheet.create({
     fontFamily: 'Jost-Regular',
     fontSize: 13,
     textDecorationLine: 'line-through',
+  },
+  actionsWrap: {
+    marginTop: 16,
+    gap: 10,
+  },
+  actionBtn: {
+    borderRadius: 14,
+    backgroundColor: '#4E7A54',
+    borderBottomWidth: 3,
+    borderBottomColor: '#3F5645',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  actionBtnText: {
+    color: '#ECF2E6',
+    fontFamily: 'Jost-Bold',
+    fontSize: 15,
+  },
+  actionSub: {
+    marginTop: 2,
+    color: '#DDE7D5',
+    fontFamily: 'Jost-Regular',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  actionBtnAlt: {
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#4E7A54',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    minHeight: 48,
+    justifyContent: 'center',
+  },
+  actionBtnAltText: {
+    color: '#3F5645',
+    fontFamily: 'Jost-Bold',
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  actionSubAlt: {
+    marginTop: 2,
+    color: '#5C7262',
+    fontFamily: 'Jost-Regular',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  doneText: {
+    color: '#3F6845',
+    fontFamily: 'Jost-Bold',
+    fontSize: 14,
+    textAlign: 'center',
   },
   nowText: {
     color: '#3F5645',
