@@ -157,7 +157,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false, topic = '' } 
       '- {"type":"check_off","items":["Milk"]} — they say they already got it / have it (instant, no confirmation needed)\n' +
       '- {"type":"save_recipe","title":"...","emoji":"🍝","time":"30 min","description":"one line","ingredients":["1 lb ground beef", "..."],"instructions":["step", "..."],"book":"exact cookbook name or empty for My Recipes"} — YOU write the full recipe (real quantities, 4-8 steps) unless it is one of their saved recipes.\n' +
       '- {"type":"plan_meal","day_offset":2,"slot":"Dinner","title":"...","emoji":"🍽️","sides":["..."],"replace":false} — slot is Breakfast, Lunch or Dinner. Also add the ingredients they would need to buy to add_to_shopping_list when they agree to a meal.\n' +
-      '- {"type":"remove_meal","day_offset":2,"slot":"Dinner","title":"..."} — takes a planned meal off the family week (title optional but REQUIRED when the slot holds several items, so the right one is removed). Only after they say yes: ASK FIRST ("Take tacos off Wednesday dinner?"). To CHANGE a planned meal use plan_meal with "replace":true (also ask first). To MOVE a planned meal to another day or slot ("move X from Sunday lunch to Saturday lunch") use ONE move_meal action: {"type":"move_meal","from_day_offset":N,"from_slot":"Lunch","day_offset":M,"slot":"Lunch"} (no title needed). It moves the exact meal already planned there, with its recipe and photo. NEVER offer recipe cards for a move and never use plan_meal or remove_meal for it.\n' +
+      '- {"type":"remove_meal","day_offset":2,"slot":"Dinner","title":"..."} — takes a planned meal off the family week (title optional but REQUIRED when the slot holds several items, so the right one is removed). Only after they say yes: ASK FIRST ("Take tacos off Wednesday dinner?"). To CHANGE a planned meal use plan_meal with "replace":true (also ask first). To MOVE a planned meal to another day or slot ("move X from Sunday lunch to Saturday lunch") use ONE move_meal action: {"type":"move_meal","from_day_offset":N,"from_slot":"Lunch","day_offset":M,"slot":"Lunch"} (leave out "title" to move EVERYTHING in that slot, e.g. "move my Tuesday lunch to Wednesday"; add "title" to move just one item when they name it). It moves the exact meals already planned there, with their recipes and photos. NEVER offer recipe cards for a move and never use plan_meal or remove_meal for it.\n' +
       '- {"type":"add_activity","day_offset":3,"label":"Soccer practice","emoji":"⚽","start":"5:30 PM","end":"6:30 PM"} — start/end optional, format "H:MM AM/PM".\n' +
       '- {"type":"show_recipes","item":"sale item name EXACTLY as in the circular list"} — opens that sale item\'s recipes on the circular page.\n' +
       '- {"type":"add_coupon","title":"coupon title EXACTLY as in the coupon lists"} — adds it to the Fern wallet (and its product to the list).\n' +
@@ -329,18 +329,21 @@ async function moveMeal(a, env) {
   const fday = Array.isArray(plan[fk]) ? plan[fk] : [];
   const want = lc(a.title);
   const at = fday.filter((m) => lc(m.slot || 'Dinner') === lc(fslot));
-  const src = (want && at.find((m) => lc(m.title) === want || lc(m.title).includes(want) || want.includes(lc(m.title)))) || at[0];
-  if (!src) return { ok: false, text: `I did not find ${fslot.toLowerCase()} planned on ${formatDayLabel(fk)}.` };
+  // No title = move everything in that slot ("move my Tuesday lunch to Wednesday").
+  const one = want ? at.find((m) => lc(m.title) === want || lc(m.title).includes(want) || want.includes(lc(m.title))) : null;
+  const srcs = one ? [one] : (want ? [] : at);
+  if (!srcs.length) return { ok: false, text: `I did not find ${want ? a.title + ' at ' : ''}${fslot.toLowerCase()} planned on ${formatDayLabel(fk)}.` };
   if (fk === tk && lc(fslot) === lc(tslot)) return { ok: false, text: 'It is already there.' };
   const next = { ...plan };
-  next[fk] = fday.filter((m) => m !== src);
-  const tday = Array.isArray(next[tk]) ? next[tk] : [];
-  const moved = { ...src, slot: tslot };
-  next[tk] = addToSlot(tday, moved);
+  next[fk] = fday.filter((m) => !srcs.includes(m));
+  let tday = Array.isArray(next[tk]) ? next[tk] : [];
+  srcs.forEach((m) => { tday = addToSlot(tday, { ...m, slot: tslot }); });
+  next[tk] = tday;
   await AsyncStorage.setItem('rv4_meal_plan', JSON.stringify(next));
   await patchCache({ mealPlan: next });
   await env.pushChangedFromStorage({ meal_plan: next });
-  return { ok: true, text: `Moved ${src.title} to ${tslot.toLowerCase()} on ${formatDayLabel(tk)}`, changed: 'mealPlan' };
+  const names = srcs.map((m) => m.title).join(', ');
+  return { ok: true, text: `Moved ${names} to ${tslot.toLowerCase()} on ${formatDayLabel(tk)}`, changed: 'mealPlan' };
 }
 
 async function removeMeal(a, env) {
