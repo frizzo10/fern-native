@@ -19,7 +19,7 @@ import useLivePull from '../hooks/useLivePull';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, radius, shadow } from '../constants/tokens';
 import { buildChapters, chapterNameById } from '../utils/cookbookChapters';
-import { loadChapterMap, needsOrganizing, organizeBook, placeNewRecipes, LAYOUT_VERSION } from '../services/cookbookOrganizer';
+import { loadChapterMap, needsOrganizing, organizeBook, placeNewRecipes, LAYOUT_VERSION, LIBRARY_ID, libraryNeedsOrganizing } from '../services/cookbookOrganizer';
 import { useSync, lastPush } from '../hooks/useSync';
 import RecipeDetailModal from '../components/RecipeDetailModal';
 import {
@@ -1227,6 +1227,15 @@ export default function RecipesScreen({ user }) {
 
   // Chapters made by Fern in the background (device-only layout, see cookbookOrganizer).
   const [chapterMap, setChapterMap] = useState({});
+  const [libOrganizing, setLibOrganizing] = useState(false);
+  // Recipes tab: by chapter (like a cookbook) or one list. Device-only `fern_library_view`.
+  const [libView, setLibView] = useState('chapters');
+  useEffect(() => { AsyncStorage.getItem('fern_library_view').then((v) => { if (v === 'list' || v === 'chapters') setLibView(v); }).catch(() => {}); }, []);
+  const toggleLibView = () => {
+    const next = libView === 'chapters' ? 'list' : 'chapters';
+    setLibView(next);
+    AsyncStorage.setItem('fern_library_view', next).catch(() => {});
+  };
   const organizingRef = useRef(false);
   const organizeTriedRef = useRef({});
   useEffect(() => { loadChapterMap().then(setChapterMap); }, []);
@@ -1238,6 +1247,38 @@ export default function RecipesScreen({ user }) {
         .filter(Boolean).join(', ');
       return { id: r.id, title: r.title, hint: [r.meal, ings].filter(Boolean).join(' | ') };
     };
+    const afterSave = (changed) => (changed === false ? null : loadChapterMap().then((m) => { setChapterMap(m); AsyncStorage.getItem('fern_household_hv').then((v) => { if (Number(v)) pushChangedFromStorage?.(); }).catch(() => {}); }));
+    // The whole library (Recipes tab) first: lay it out in chapters like a cookbook, then file new recipes into them.
+    const libHint = (r) => {
+      const ings = (Array.isArray(r.ingredients) ? r.ingredients : []).slice(0, 3)
+        .map((i) => String(typeof i === 'string' ? i : (i?.item || i?.name || i?.text || '')).replace(/\s+/g, ' ').trim().slice(0, 24))
+        .filter(Boolean).join(', ');
+      return { id: r.id, title: r.title, hint: [r.meal, ings].filter(Boolean).join(' | ') };
+    };
+    const libEntry = chapterMap[LIBRARY_ID];
+    if (libraryNeedsOrganizing(libEntry, recipes.length) && organizeTriedRef.current[LIBRARY_ID] !== recipes.length) {
+      organizingRef.current = true;
+      organizeTriedRef.current[LIBRARY_ID] = recipes.length;
+      setLibOrganizing(true);
+      organizeBook({ bookId: LIBRARY_ID, recipes: recipes.map(libHint), locale, token: user.token, feature: 'recipe_search' })
+        .then(() => afterSave(true))
+        .catch(() => {})
+        .finally(() => { organizingRef.current = false; setLibOrganizing(false); });
+      return;
+    }
+    if (libEntry && libEntry.v === LAYOUT_VERSION && Array.isArray(libEntry.chapters) && organizeTriedRef.current[`fill:${LIBRARY_ID}`] !== recipes.length) {
+      const placedLib = new Set();
+      libEntry.chapters.forEach((c) => (c.ids || []).forEach((id) => placedLib.add(String(id))));
+      if (recipes.some((r) => !placedLib.has(String(r.id)))) {
+        organizingRef.current = true;
+        organizeTriedRef.current[`fill:${LIBRARY_ID}`] = recipes.length;
+        placeNewRecipes({ bookId: LIBRARY_ID, entry: libEntry, recipes: recipes.map(libHint), locale, token: user.token, feature: 'recipe_search' })
+          .then(afterSave)
+          .catch(() => {})
+          .finally(() => { organizingRef.current = false; });
+        return;
+      }
+    }
     const withMembers = booksWithMatchedCounts.map((book) => ({
       book,
       members: recipes.filter((r) => r.bookIds.includes(book.id) || (book.recipeIds || []).includes(String(r.id))),
@@ -1309,6 +1350,81 @@ export default function RecipesScreen({ user }) {
     () => buildChapters(selectedBookRecipes, selectedBook ? chapterMap[selectedBook.id] : null),
     [selectedBookRecipes, selectedBook, chapterMap],
   );
+
+  // Recipes tab laid out in chapters like a cookbook (AI layout under LIBRARY_ID). Only the plain view:
+  // a search or a sort chip shows the flat grid. Never the built-in cookie rules here.
+  const libraryLayout = chapterMap[LIBRARY_ID];
+  const libraryChapters = useMemo(() => {
+    if (libView !== 'chapters' || !libraryLayout || query.trim() || fWho || fMeal || fCuisine || fDish) return null;
+    const chs = buildChapters(recipes, libraryLayout);
+    if (!chs || chs.some((c) => c.key && c.key !== 'ch_more')) return null;
+    return chs;
+  }, [libView, libraryLayout, recipes, query, fWho, fMeal, fCuisine, fDish]);
+
+  // Contents chips jump to a chapter: wrapper y (in the scroll content) + chapter y (in the wrapper).
+  const mainScrollRef = useRef(null);
+  const libWrapY = useRef(0);
+  const libChapterY = useRef({});
+  const jumpToChapter = (ci) => {
+    const y = libWrapY.current + (libChapterY.current[ci] || 0) - 8;
+    mainScrollRef.current?.scrollTo({ y: Math.max(0, y), animated: true });
+  };
+
+  const renderLibraryCard = (recipe) => (
+                <TouchableOpacity
+                  key={recipe.id}
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    setSelectedRecipe(recipe);
+                    setNoteText(noteByRecipeId[recipe.id] ?? recipe.note ?? '');
+                  }}
+                  style={[styles.recipeCard, shadow.card]}
+                >
+                  <View style={styles.imageWrap}>
+                    <ImageBackground
+                      source={recipe.image ? { uri: recipe.image } : require('../../assets/icon.png')}
+                      style={styles.recipeImage}
+                      imageStyle={styles.recipeImageInner}
+                    >
+                      <View style={styles.badgePill}>
+                        <Text style={styles.badgePillText}>{t('my_recipes_badge')}</Text>
+                      </View>
+                    </ImageBackground>
+                  </View>
+
+                  <View style={styles.cardBody}>
+                    <Text numberOfLines={2} style={styles.recipeTitle}>{recipe.title}</Text>
+                    <Text numberOfLines={2} style={styles.recipeMeta}>
+                      {recipe.category} • {recipe.meal}
+                      {recipe.time ? ` • ${recipe.time}` : ''}
+                    </Text>
+
+                    <Text style={styles.noteHint}>
+                      {(noteByRecipeId[recipe.id] ?? recipe.note)
+                        ? t('note_saved_badge')
+                        : ' '}
+                    </Text>
+
+                    <View style={styles.difficultyPill}>
+                      {Array.from({ length: 3 }, (_, i) => {
+                        const dotIdx = i + 1;
+                        const isFilled = dotIdx <= getDifficultyLevel(recipe.difficulty);
+                        return (
+                          <View
+                            key={`${recipe.id}-dot-${dotIdx}`}
+                            style={[
+                              styles.difficultyDot,
+                              isFilled ? styles.difficultyDotFilled : styles.difficultyDotEmpty,
+                            ]}
+                          />
+                        );
+                      })}
+                      <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+  );
+
 
   // Quick sort inside an open cookbook (meal -> cuisine -> dish), same idea as the Recipes tab.
   const bActive = !!(bMeal || bCuisine || bDish);
@@ -1456,6 +1572,7 @@ export default function RecipesScreen({ user }) {
   return (
     <View style={styles.container}>
       <ScrollView
+        ref={mainScrollRef}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
@@ -1517,6 +1634,24 @@ export default function RecipesScreen({ user }) {
                 ? t('recipes_count_filtered', { shown: filteredRecipes.length, total: recipes.length })
                 : t(recipes.length === 1 ? 'recipes_count_one' : 'recipes_count_many', { count: recipes.length })}
             </Text>
+            {libOrganizing && !libraryLayout ? <Text style={styles.libNote}>{t('lib_organizing')}</Text> : null}
+            {libraryLayout && !query.trim() && !fWho && !fMeal && !fCuisine && !fDish ? (
+              <TouchableOpacity activeOpacity={0.8} onPress={toggleLibView} style={styles.libToggle}>
+                <Text style={styles.libToggleText}>{libView === 'chapters' ? t('lib_view_list') : t('lib_view_chapters')}</Text>
+              </TouchableOpacity>
+            ) : null}
+            {libraryChapters ? (
+              <View style={styles.libContents}>
+                <Text style={styles.libContentsTitle}>{t('lib_contents')}</Text>
+                <View style={styles.countChips}>
+                  {libraryChapters.map((c, ci) => (
+                    <TouchableOpacity key={`toc-${ci}`} activeOpacity={0.8} onPress={() => jumpToChapter(ci)} style={styles.countChip}>
+                      <Text style={styles.countChipText}>{ci + 1}. {c.name || t(c.key)} {c.items.length}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : null}
             {/* Nested sort: one level of chips at a time. Meal -> Cuisine -> Dish. The chosen path shows as tappable crumbs. */}
             {(fWho || fMeal || fCuisine || fDish) ? (
               <View style={styles.countChips}>
@@ -1584,61 +1719,21 @@ export default function RecipesScreen({ user }) {
 
         {tab === 'recipes' ? (
           filteredRecipes.length ? (
-            <View style={styles.grid}>
-              {filteredRecipes.map((recipe) => (
-                <TouchableOpacity
-                  key={recipe.id}
-                  activeOpacity={0.9}
-                  onPress={() => {
-                    setSelectedRecipe(recipe);
-                    setNoteText(noteByRecipeId[recipe.id] ?? recipe.note ?? '');
-                  }}
-                  style={[styles.recipeCard, shadow.card]}
-                >
-                  <View style={styles.imageWrap}>
-                    <ImageBackground
-                      source={recipe.image ? { uri: recipe.image } : require('../../assets/icon.png')}
-                      style={styles.recipeImage}
-                      imageStyle={styles.recipeImageInner}
-                    >
-                      <View style={styles.badgePill}>
-                        <Text style={styles.badgePillText}>{t('my_recipes_badge')}</Text>
-                      </View>
-                    </ImageBackground>
-                  </View>
-
-                  <View style={styles.cardBody}>
-                    <Text numberOfLines={2} style={styles.recipeTitle}>{recipe.title}</Text>
-                    <Text numberOfLines={2} style={styles.recipeMeta}>
-                      {recipe.category} • {recipe.meal}
-                      {recipe.time ? ` • ${recipe.time}` : ''}
+            <View style={libraryChapters ? null : styles.grid} onLayout={(e) => { libWrapY.current = e.nativeEvent.layout.y; }}>
+              {libraryChapters ? (
+                libraryChapters.map((chapter, ci) => (
+                  <View key={`libch-${ci}`} style={styles.libChapter} onLayout={(e) => { libChapterY.current[ci] = e.nativeEvent.layout.y; }}>
+                    <Text style={styles.bookChapterLabel}>{t('ch_label', { n: ci + 1 }).toUpperCase()}</Text>
+                    <Text style={styles.libChapterTitle}>{chapter.name || t(chapter.key)}</Text>
+                    <Text style={styles.libChapterCount}>
+                      {t(chapter.items.length === 1 ? 'recipe_count_singular' : 'recipe_count_plural', { count: chapter.items.length })}
                     </Text>
-
-                    <Text style={styles.noteHint}>
-                      {(noteByRecipeId[recipe.id] ?? recipe.note)
-                        ? t('note_saved_badge')
-                        : ' '}
-                    </Text>
-
-                    <View style={styles.difficultyPill}>
-                      {Array.from({ length: 3 }, (_, i) => {
-                        const dotIdx = i + 1;
-                        const isFilled = dotIdx <= getDifficultyLevel(recipe.difficulty);
-                        return (
-                          <View
-                            key={`${recipe.id}-dot-${dotIdx}`}
-                            style={[
-                              styles.difficultyDot,
-                              isFilled ? styles.difficultyDotFilled : styles.difficultyDotEmpty,
-                            ]}
-                          />
-                        );
-                      })}
-                      <Text style={styles.difficultyText}>{recipe.difficulty}</Text>
+                    <View style={styles.grid}>
+                      {chapter.items.map((recipe) => renderLibraryCard(recipe))}
                     </View>
                   </View>
-                </TouchableOpacity>
-              ))}
+                ))
+              ) : filteredRecipes.map((recipe) => renderLibraryCard(recipe))}
             </View>
           ) : (recipes.length === 0 && syncLoading) ? null : (
             <View style={styles.emptyState}>
@@ -2486,6 +2581,53 @@ const styles = StyleSheet.create({
   },
   bookChapter: {
     marginTop: 26,
+  },
+  libChapter: {
+    marginTop: 26,
+  },
+  libChapterTitle: {
+    color: '#2F4535',
+    fontSize: 22,
+    lineHeight: 28,
+    fontFamily: 'PlayfairDisplay-Bold',
+  },
+  libChapterCount: {
+    color: '#6B7F66',
+    fontSize: 13,
+    fontStyle: 'italic',
+    marginTop: 2,
+  },
+  libNote: {
+    marginTop: 6,
+    color: '#5C7262',
+    fontSize: 13,
+    fontStyle: 'italic',
+  },
+  libToggle: {
+    alignSelf: 'flex-start',
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    justifyContent: 'center',
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#4E7A54',
+    backgroundColor: '#FFFFFF',
+  },
+  libToggleText: {
+    color: '#3F5645',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  libContents: {
+    marginTop: 10,
+  },
+  libContentsTitle: {
+    color: '#6B7F66',
+    fontSize: 11,
+    letterSpacing: 2,
+    fontWeight: '700',
   },
   bookChapterLabel: {
     color: '#6B7F66',
