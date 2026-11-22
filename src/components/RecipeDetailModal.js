@@ -35,6 +35,7 @@ import IngredientSubstitutionModal from './modals/IngredientSubstitutionModal';
 import UpgradeGateModal from './UpgradeGateModal';
 import { ListAddPreviewBody } from './ListAddPreview';
 import PlanOnDayPanel from './PlanOnDayPanel';
+import RecipeFernHelper from './RecipeFernHelper';
 import { planShoppingAdditions, setPendingSkip } from '../utils/shoppingListSync';
 import AlexaHint from './AlexaHint';
 import { showShoppingList } from '../services/listBus';
@@ -118,6 +119,7 @@ export default function RecipeDetailModal({
   };
   const textScale = TEXT_SCALES[textLevel];
   const [isScaleModalVisible, setIsScaleModalVisible] = useState(false);
+  const [scaleAuto, setScaleAuto] = useState(null); // servings Fern asked for, scaled at once
   const [isWinePairingVisible, setIsWinePairingVisible] = useState(false);
   const [isPlatingCoachVisible, setIsPlatingCoachVisible] = useState(false);
   const [isCookModeVisible, setIsCookModeVisible] = useState(false);
@@ -1103,14 +1105,27 @@ export default function RecipeDetailModal({
           </View>
         ) : null}
 
+        <RecipeFernHelper
+          recipe={recipe}
+          user={user}
+          servings={shownServings}
+          ingredients={shownIngredients.map((ing, idx) => ingredientOverrides[idx] ?? ing)}
+          hidden={!!viewer || isScaleModalVisible || isCookModeVisible || isEditMode || isSaveToCookbookVisible || !!substitutionIngredient || isWinePairingVisible || isPlatingCoachVisible}
+          bottom={40}
+          onScale={(n) => { setScaleAuto(n); setTimeout(() => setIsScaleModalVisible(true), 250); }}
+          onAddToList={() => { openListReview(); setTimeout(() => sheetScrollRef.current?.scrollToEnd?.({ animated: true }), 350); }}
+          onCook={() => setTimeout(() => setIsCookModeVisible(true), 250)}
+        />
+
         <ScaleRecipeModal
+          autoTarget={scaleAuto}
           visible={isScaleModalVisible && !!recipe}
           recipe={cookRecipe}
           token={user?.token}
           user={user}
           canReplace={isAlreadySaved}
           onApply={applyScaled}
-          onClose={() => setIsScaleModalVisible(false)}
+          onClose={() => { setIsScaleModalVisible(false); setScaleAuto(null); }}
         />
 
         <IngredientSubstitutionModal

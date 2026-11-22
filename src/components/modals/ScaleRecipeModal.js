@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Keyboard,
@@ -97,7 +97,7 @@ function ScaleResultActions({ recipe, result, user, canReplace, onApply, onClose
 
 const QUICK_SERVINGS = [1, 2, 3, 4, 6, 8, 10, 12, 16];
 
-export default function ScaleRecipeModal({ visible, recipe, token, user, canReplace, onApply, onClose }) {
+export default function ScaleRecipeModal({ visible, recipe, token, user, canReplace, onApply, onClose, autoTarget }) {
   const { t, locale } = useLanguage();
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const currentServings = Number(recipe?.servings) || 4;
@@ -150,6 +150,18 @@ export default function ScaleRecipeModal({ visible, recipe, token, user, canRepl
       setIsScaling(false);
     }
   };
+
+  // Fern in the recipe viewer can ask for a scale ("make it for 6"): pick that number and scale at once.
+  const autoRanRef = useRef(false);
+  useEffect(() => { if (!visible) autoRanRef.current = false; }, [visible]);
+  useEffect(() => {
+    if (!visible || autoRanRef.current) return;
+    const n = Number(autoTarget);
+    if (!(n >= 1 && n <= 50) || n === currentServings) return;
+    if (target !== n) { setTarget(n); return; }
+    autoRanRef.current = true;
+    handleScale();
+  }, [visible, autoTarget, target]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!visible || !recipe) return null;
 

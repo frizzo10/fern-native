@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-22 t: shared recipes keep servings';
+export const CODE_VERSION = '11-22 u: Fern in the recipe viewer';
