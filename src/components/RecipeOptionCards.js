@@ -32,6 +32,7 @@ function OptionCard({ option, onAction }) {
   const [ask, setAsk] = useState(false); // after planning: "add the ingredients too?"
   const [picking, setPicking] = useState(false); // card had no day: choose meal + day
   const [pickSlot, setPickSlot] = useState('Dinner');
+  const [saveChoices, setSaveChoices] = useState(null); // cookbook names while choosing where to save
 
   useEffect(() => {
     let live = true;
@@ -50,6 +51,16 @@ function OptionCard({ option, onAction }) {
     setReview(planShoppingAdditions([{ title: recipe.title, ingredients: recipe.ingredients }], shop));
   };
 
+  // Save asks where: My Recipes or one of their cookbooks (no cookbooks = straight to My Recipes).
+  const openSave = async () => {
+    if (busy || done.save) return;
+    let books = [];
+    try { books = JSON.parse((await AsyncStorage.getItem('rv4_books')) || '[]'); } catch (e) { books = []; }
+    const names = (Array.isArray(books) ? books : []).map((b) => b?.title || b?.name || b?.book_title || '').filter(Boolean);
+    if (!names.length) { run('save', { book: '' }); return; }
+    setSaveChoices(names);
+  };
+
   const run = async (kind, extra) => {
     if (busy || done[kind]) return;
     setBusy(kind);
@@ -58,6 +69,7 @@ function OptionCard({ option, onAction }) {
       if (ok && kind === 'list') setReview(null);
       if (ok) setDone((d) => ({ ...d, [kind]: true }));
       if (ok && kind === 'plan') { setPicking(false); }
+      if (ok && kind === 'save') { setSaveChoices(null); }
     } finally {
       setBusy('');
     }
@@ -97,7 +109,7 @@ function OptionCard({ option, onAction }) {
           {busy === 'list' ? <ActivityIndicator size="small" color={'#3F5645'} /> : <Text style={(recipe.dayOffset !== null && recipe.dayOffset !== undefined && !done.list) ? styles.btnAltText : styles.btnMainText}>{done.list ? t('option_added') : t('option_add_list')}</Text>}
         </TouchableOpacity>
         {!recipe.isSaved ? (
-          <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => run('save')} disabled={!!busy}>
+          <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={openSave} disabled={!!busy}>
             {busy === 'save' ? <ActivityIndicator size="small" color={'#3F5645'} /> : <Text style={styles.btnAltText}>{done.save ? t('option_saved') : t('option_save')}</Text>}
           </TouchableOpacity>
         ) : null}
@@ -105,6 +117,21 @@ function OptionCard({ option, onAction }) {
           <Text style={styles.btnAltText}>{open ? t('option_hide') : t('option_preview')}</Text>
         </TouchableOpacity>
       </View>
+      {saveChoices && !done.save ? (
+        <View style={styles.askBox}>
+          <Text style={styles.askText}>{t('save_recipe_where')}</Text>
+          <View style={styles.btnRow}>
+            {['', ...saveChoices].map((name) => (
+              <TouchableOpacity key={name || '__mine'} style={[styles.btn, styles.btnAlt]} onPress={() => run('save', { book: name })} disabled={!!busy}>
+                <Text style={styles.btnAltText} numberOfLines={1}>{name ? `📖 ${name}` : t('save_recipe_my_recipes')}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => setSaveChoices(null)} disabled={!!busy}>
+              <Text style={styles.btnAltText}>{t('cancel_btn')}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : null}
       {noDay && picking && !done.plan ? (
         <View style={styles.askBox}>
           <Text style={styles.askText}>{t('option_pick_day')}</Text>
