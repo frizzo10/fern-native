@@ -1,1 +1,1 @@
-export const CODE_VERSION = '11-22 s: scroll fixes';
+export const CODE_VERSION = '11-22 t: shared recipes keep servings';
