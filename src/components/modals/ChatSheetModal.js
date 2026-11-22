@@ -325,7 +325,9 @@ export default function ChatSheetModal({
       if (!rawText) throw new Error('ai response had no content');
 
       const parsed = parseChatResponse(rawText);
-      const reply = parsed?.reply || (/^\s*(```|\{)/.test(rawText) ? t('generic_error_message') : rawText);
+      let reply = parsed?.reply || (/^\s*(```|\{)/.test(rawText) ? t('generic_error_message') : rawText);
+      // She sometimes writes a whole recipe (ingredients, steps) into the chat text instead of a card, which can't be saved or planned.
+      const recipeInText = typeof reply === 'string' && reply.length > 180 && /ingredients/i.test(reply) && /\n\s*(?:[-•*]|\d+[.)])\s/.test(reply);
       const itemsToAdd = Array.isArray(parsed?.add_to_shopping_list)
         ? parsed.add_to_shopping_list.map(item => String(item || '').trim()).filter(Boolean)
         : [];
@@ -356,7 +358,7 @@ export default function ChatSheetModal({
       }
       // Sometimes the model names the dishes in her sentence but leaves "options" empty, so no cards show.
       // Ask once more, only for the cards (same context, so the day and meal are read the same way).
-      if (agentOn && !silent && !options.length && /New ideas from me|From your recipes:/i.test(reply)) {
+      if (agentOn && !silent && !options.length && (recipeInText || /New ideas from me|From your recipes:/i.test(reply))) {
         try {
           const ctl2 = typeof AbortController !== 'undefined' ? new AbortController() : null;
           const timer2 = ctl2 ? setTimeout(() => ctl2.abort(), 25000) : null;
@@ -371,7 +373,7 @@ export default function ChatSheetModal({
                 messages: [
                   ...requestMessages.map(m => ({ role: m.role === 'fern' ? 'assistant' : 'user', content: m.text })),
                   { role: 'assistant', content: rawText },
-                  { role: 'user', content: 'You named the dishes but left "options" empty. Reply ONLY with JSON {"reply":"<same reply>","add_to_shopping_list":[],"actions":[],"options":[...]} with one full card for EACH dish you named (title, emoji, time, description, ingredients with quantities, 4-6 instructions; saved recipes only the exact title), and day_offset and slot when the request named a day or meal.' },
+                  { role: 'user', content: (recipeInText ? 'You wrote the recipe into the chat text. Put it in a card instead. ' : '') + 'You named the dishes but left "options" empty. Reply ONLY with JSON {"reply":"<same reply>","add_to_shopping_list":[],"actions":[],"options":[...]} with one full card for EACH dish you named (title, emoji, time, description, ingredients with quantities, 4-6 instructions; saved recipes only the exact title), and day_offset and slot when the request named a day or meal.' },
                 ],
                 locale,
                 userId: user?.id,
@@ -390,6 +392,11 @@ export default function ChatSheetModal({
                 .map((o) => (typeof o === 'string' ? { title: o } : o && typeof o === 'object' ? { ...o, title: o.title || o.name || o.recipe || o.dish } : null))
                 .filter((o) => o && typeof o.title === 'string' && o.title.trim())
                 .slice(0, 3);
+              // The card now holds the recipe, so the chat keeps only her opening line.
+              if (recipeInText && options.length) {
+                const first = String(reply).split(/\n/)[0].replace(/\*+/g, '').trim();
+                reply = first || options[0].title;
+              }
             }
           }
         } catch { /* no cards this time; her sentence still shows */ }
