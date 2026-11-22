@@ -578,7 +578,9 @@ export default function ChatSheetModal({
           setTimeout(() => setSpeechPending(false), 25000);
           speakText(t('voice_say_ready')).then((uri) => { if (!uri) setSpeechPending(false); }).catch(() => setSpeechPending(false));
         } else {
-          askFern(autoOpenerPrompt, { silent: true });
+          // Instant hello on the phone (no AI round trip, which took 1-2 s before she said anything).
+          const i = (n + new Date().getDate()) % 4 + 1;
+          setMessages([{ role: 'fern', text: t(`chat_hello_${i}`) }]);
         }
       })();
       return;
