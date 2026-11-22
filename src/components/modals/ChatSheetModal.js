@@ -644,7 +644,7 @@ export default function ChatSheetModal({
   return (
     <Modal visible={visible} animationType="slide" transparent={compact} onRequestClose={handleClose}>
       <KeyboardAvoidingView style={compact ? styles.compactBackdrop : styles.fullBackdrop} behavior={compact && Platform.OS === 'ios' ? 'padding' : undefined}>
-      <KeyboardAvoidingView style={compact ? [styles.compactSheet, (thinking || peek) ? { height: 130, minHeight: 0 } : kbUp ? { height: 190, minHeight: 0 } : (messages.some((m) => m.options?.length) ? { height: '66%' } : null)] : styles.container} behavior={!compact && Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={compact ? [styles.compactSheet, peek ? { height: 130, minHeight: 0 } : thinking ? { height: 180, minHeight: 0 } : kbUp ? { height: 190, minHeight: 0 } : (messages.some((m) => m.options?.length) ? { height: '66%' } : null)] : styles.container} behavior={!compact && Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={[styles.header, compact ? styles.headerCompact : null]}>
           <Text style={styles.headerTitle}>{title || `🌿 ${t('ask_fern_btn')}`}</Text>
           <TouchableOpacity onPress={handleClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -652,6 +652,12 @@ export default function ChatSheetModal({
           </TouchableOpacity>
         </View>
 
+        {thinking && compact ? (
+          <View style={styles.thinkingBar}>
+            <ActivityIndicator size="small" color={'#3F5645'} />
+            <Text style={styles.thinkingText}>{t('fern_thinking')}</Text>
+          </View>
+        ) : null}
         <ScrollView ref={scrollRef} style={styles.messageList} contentContainerStyle={styles.messageListContent} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
           {messages.length === 0 && !thinking && !error && (
             <View style={styles.emptyState}>
@@ -668,7 +674,10 @@ export default function ChatSheetModal({
           {thinking && (
             <View style={[styles.bubbleRow, styles.bubbleRowFern]}>
               <View style={[styles.bubble, styles.bubbleFern, shadow.card]}>
-                <ActivityIndicator size="small" color={'#3F5645'} />
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <ActivityIndicator size="small" color={'#3F5645'} />
+                  <Text style={[styles.thinkingText, { marginLeft: 8 }]}>{t('fern_thinking')}</Text>
+                </View>
               </View>
             </View>
           )}
@@ -717,6 +726,8 @@ export default function ChatSheetModal({
 }
 
 const styles = StyleSheet.create({
+  thinkingBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingVertical: 10, backgroundColor: '#ECF2E6', borderBottomWidth: 1, borderBottomColor: '#C8D6BE' },
+  thinkingText: { fontSize: 16, fontWeight: '600', color: '#3F5645' },
   container: { flex: 1, backgroundColor: '#F7FAF3' },
   fullBackdrop: { flex: 1 },
   compactBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.12)' },
