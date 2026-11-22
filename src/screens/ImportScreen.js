@@ -21,7 +21,8 @@ import UpgradeGateModal from '../components/UpgradeGateModal';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
 import { recipeLimitReached } from '../utils/freeLimits';
-import { importFromUrl, importFromVideo, importFromCard, importFromText } from '../services/importService';
+import { importFromUrl, importFromVideo, importFromCard, importFromText, importFromDishPhoto } from '../services/importService';
+import { uploadPhoto } from '../services/uploadPhotoService';
 
 const C = {
   forest: '#3F5645',
@@ -51,11 +52,12 @@ export default function ImportScreen({ user, onBack, onImported }) {
     setPickerOpen(true);
   }
 
-  const [mode, setMode] = useState('url'); // 'url' | 'video' | 'text' | 'card'
+  const [mode, setMode] = useState('url'); // 'url' | 'video' | 'text' | 'card' | 'dish'
   const [url, setUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [text, setText] = useState('');
   const [cardPhoto, setCardPhoto] = useState(null); // {uri, base64, mimeType}
+  const [dishPhoto, setDishPhoto] = useState(null); // a photo of finished food
   const [loading, setLoading] = useState(false);
   const [previewRecipe, setPreviewRecipe] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -85,6 +87,19 @@ export default function ImportScreen({ user, onBack, onImported }) {
         if (!u.startsWith('http')) u = 'https://' + u;
         recipe = await importFromVideo(u, locale);
         recipe.sourceUrl = recipe.sourceUrl || u;
+      } else if (mode === 'dish') {
+        if (!dishPhoto) return Alert.alert(t('import_take_photo_first'));
+        recipe = await importFromDishPhoto({ base64: dishPhoto.base64, mimeType: dishPhoto.mimeType, locale });
+        recipe.notes = [t('import_dish_note'), recipe.notes].filter(Boolean).join('\n\n');
+        // The person's own photo is the recipe's picture. Best-effort: a failed upload
+        // falls through to the usual looked-up photo below.
+        try {
+          const ext = /png/i.test(dishPhoto.mimeType || '') ? 'png' : 'jpg';
+          const url = await uploadPhoto(`data:${dishPhoto.mimeType || 'image/jpeg'};base64,${dishPhoto.base64}`, `dish_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`, 45000);
+          if (url) { recipe.image = url; recipe._cloudPhotos = [url]; }
+        } catch (upErr) {
+          console.warn('[import] dish photo upload failed', upErr?.message);
+        }
       } else if (mode === 'card') {
         if (!cardPhoto) return Alert.alert(t('import_take_photo_first'));
         recipe = await importFromCard({ base64: cardPhoto.base64, mimeType: cardPhoto.mimeType, locale });
@@ -100,20 +115,22 @@ export default function ImportScreen({ user, onBack, onImported }) {
       }
       setPreviewRecipe(recipe);
     } catch (e) {
-      Alert.alert(t('import_failed_title'), e.message);
+      if (e && e.notFood) Alert.alert(t('import_dish_not_food_title'), t('import_dish_not_food'));
+      else Alert.alert(t('import_failed_title'), e.message);
     } finally {
       setLoading(false);
     }
   }
 
-  async function handlePickPhoto(fromCamera) {
-    const result = fromCamera ? await pickPhotoFromCamera() : await pickPhotoFromLibrary();
+  async function handlePickPhoto(fromCamera, forDish = false) {
+    const opts = forDish ? { maxWidth: 1600, quality: 0.6 } : {};
+    const result = fromCamera ? await pickPhotoFromCamera(opts) : await pickPhotoFromLibrary(opts);
     if (result.permissionDenied) {
       Alert.alert(t('import_permission_needed'));
       return;
     }
     if (result.canceled || !result.photo) return;
-    setCardPhoto(result.photo);
+    if (forDish) setDishPhoto(result.photo); else setCardPhoto(result.photo);
   }
 
   // Which cookbook / cuisine / meal type, like the web app's save dialog.
@@ -140,6 +157,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
           title: previewRecipe.title,
           emoji: previewRecipe.emoji || '🍽️',
           image: previewRecipe.image || null,
+          ...(Array.isArray(previewRecipe._cloudPhotos) && previewRecipe._cloudPhotos.length ? { _cloudPhotos: previewRecipe._cloudPhotos } : {}),
           cuisine: cuisine || previewRecipe.cuisine,
           mealType: mealType || previewRecipe.mealType,
           ...(bookId ? { _bookIds: [bookId] } : {}),
@@ -165,7 +183,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
       setSavedInfo({ title: previewRecipe.title, book: bookName, id: savedId });
       setSyncState('syncing');
       setPreviewRecipe(null);
-      setUrl(''); setVideoUrl(''); setText(''); setCardPhoto(null);
+      setUrl(''); setVideoUrl(''); setText(''); setCardPhoto(null); setDishPhoto(null);
 
       (async () => {
         // Push, and only pull if the push worked: pulling after a failed push would replace the
@@ -199,6 +217,7 @@ export default function ImportScreen({ user, onBack, onImported }) {
     { key: 'video', label: stripEmoji(t('import_tab_video')), icon: 'videocam-outline' },
     { key: 'text', label: stripEmoji(t('import_tab_text')), icon: 'document-text-outline' },
     { key: 'card', label: stripEmoji(t('import_tab_scan')), icon: 'camera-outline' },
+    { key: 'dish', label: stripEmoji(t('import_tab_dish')), icon: 'restaurant-outline' },
   ];
 
   return (
@@ -236,7 +255,9 @@ export default function ImportScreen({ user, onBack, onImported }) {
               ) : (
                 <Text style={s.previewEmoji}>{previewRecipe.emoji || '🍽️'}</Text>
               )}
+              {previewRecipe.fromDishPhoto ? <Text style={s.dishBadge}>{t('import_dish_badge')}</Text> : null}
               <Text style={s.previewTitle}>{previewRecipe.title}</Text>
+              {previewRecipe.fromDishPhoto && previewRecipe.description ? <Text style={s.previewMeta}>{previewRecipe.description}</Text> : null}
               <Text style={s.previewMeta}>
                 {[previewRecipe.cuisine, previewRecipe.mealType, previewRecipe.time].filter(Boolean).join(' · ')}
               </Text>
@@ -346,12 +367,34 @@ export default function ImportScreen({ user, onBack, onImported }) {
                 </>
               )}
 
+              {mode === 'dish' && (
+                <>
+                  <Text style={s.helper}>{t('import_dish_helper')}</Text>
+                  {dishPhoto ? (
+                    <Image source={{ uri: dishPhoto.uri }} style={s.cardPreviewImg} />
+                  ) : (
+                    <View style={s.cardPlaceholder}>
+                      <Text style={s.cardPlaceholderText}>🍽️</Text>
+                    </View>
+                  )}
+                  <View style={s.photoBtnRow}>
+                    <TouchableOpacity style={s.photoBtn} onPress={() => handlePickPhoto(true, true)}>
+                      <Text style={s.photoBtnText}>{t('takeAPhotoBtn')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={s.photoBtnOutline} onPress={() => handlePickPhoto(false, true)}>
+                      <Text style={s.photoBtnOutlineText}>{t('uploadFromLibraryBtn')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              )}
+
               <TouchableOpacity style={s.importBtn} onPress={handleImport} disabled={loading}>
                 {loading
                   ? <ActivityIndicator color="#fff" />
-                  : <Text style={s.importBtnText}>{t('importRecipeBtn')}</Text>
+                  : <Text style={s.importBtnText}>{mode === 'dish' ? t('import_dish_go') : t('importRecipeBtn')}</Text>
                 }
               </TouchableOpacity>
+              {loading && mode === 'dish' ? <Text style={s.savingText}>{t('import_dish_working')}</Text> : null}
             </>
           )}
         </ScrollView>
@@ -420,6 +463,7 @@ const s = StyleSheet.create({
     backgroundColor: C.card, borderRadius: 16, borderWidth: 1, borderColor: C.border,
     padding: 20, alignItems: 'center',
   },
+  dishBadge: { alignSelf: 'center', backgroundColor: '#ECF2E6', color: C.forest, fontFamily: 'Jost-Bold', fontSize: 12, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, overflow: 'hidden', marginBottom: 8, textAlign: 'center' },
   previewEmoji: { fontSize: 40, marginBottom: 8 },
   previewTitle: { fontSize: 18, fontFamily: 'Playfair-Bold', color: C.ink, textAlign: 'center', marginBottom: 6 },
   previewMeta: { fontSize: 13, color: C.brown, fontFamily: 'Jost-Medium', marginBottom: 4 },

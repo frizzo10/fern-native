@@ -44,6 +44,33 @@ export async function importFromCard({ base64, mimeType, locale }) {
   return recipe;
 }
 
+// A photo of finished food (not a written recipe): the same scanner in 'dish' mode names
+// the dish and writes a likely recipe for it. A photo with no food throws err.notFood.
+export async function importFromDishPhoto({ base64, mimeType, locale }) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 40000);
+  let res;
+  try {
+    res = await fetch(`${BASE}/scan-recipe-card`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageData: base64, mediaType: mimeType || 'image/jpeg', locale: locale || 'en', mode: 'dish' }),
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    if (ctrl.signal.aborted) throw new Error('Fern took too long to look at that photo. Check your signal and try again.');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (data && data.notFood) { const err = new Error('notFood'); err.notFood = true; throw err; }
+  if (!res.ok || data.error) throw new Error(data.error || 'Could not make a recipe from that photo. Try a closer, brighter photo.');
+  const recipe = data.recipe || (data.title ? data : null);
+  if (!recipe || !recipe.title) throw new Error('Could not make a recipe from that photo. Try a closer, brighter photo.');
+  return { ...recipe, fromDishPhoto: true };
+}
+
 // Text paste doesn't have its own dedicated function on the backend -- the
 // web app sends it straight to the shared `ai` function with an extraction
 // prompt, same pattern already used for recipe_search. Mirrored here rather
