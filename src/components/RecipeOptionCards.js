@@ -57,7 +57,7 @@ function OptionCard({ option, onAction }) {
     let books = [];
     try { books = JSON.parse((await AsyncStorage.getItem('rv4_books')) || '[]'); } catch (e) { books = []; }
     const names = (Array.isArray(books) ? books : []).map((b) => b?.title || b?.name || b?.book_title || '').filter(Boolean);
-    if (!names.length) { run('save', { book: '' }); return; }
+    if (!names.length) { if (!recipe.isSaved) run('save', { book: '' }); return; }
     setSaveChoices(names);
   };
 
@@ -108,11 +108,9 @@ function OptionCard({ option, onAction }) {
         <TouchableOpacity style={[styles.btn, recipe.dayOffset !== null && recipe.dayOffset !== undefined ? styles.btnAlt : styles.btnMain, done.list && styles.btnDone]} onPress={openReview} disabled={!!busy}>
           {busy === 'list' ? <ActivityIndicator size="small" color={'#3F5645'} /> : <Text style={(recipe.dayOffset !== null && recipe.dayOffset !== undefined && !done.list) ? styles.btnAltText : styles.btnMainText}>{done.list ? t('option_added') : t('option_add_list')}</Text>}
         </TouchableOpacity>
-        {!recipe.isSaved ? (
-          <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={openSave} disabled={!!busy}>
-            {busy === 'save' ? <ActivityIndicator size="small" color={'#3F5645'} /> : <Text style={styles.btnAltText}>{done.save ? t('option_saved') : t('option_save')}</Text>}
-          </TouchableOpacity>
-        ) : null}
+        <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={openSave} disabled={!!busy}>
+          {busy === 'save' ? <ActivityIndicator size="small" color={'#3F5645'} /> : <Text style={styles.btnAltText}>{done.save ? t('option_saved') : (recipe.isSaved ? t('option_add_cookbook') : t('option_save'))}</Text>}
+        </TouchableOpacity>
         <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => setOpen((o) => !o)}>
           <Text style={styles.btnAltText}>{open ? t('option_hide') : t('option_preview')}</Text>
         </TouchableOpacity>
@@ -121,7 +119,7 @@ function OptionCard({ option, onAction }) {
         <View style={styles.askBox}>
           <Text style={styles.askText}>{t('save_recipe_where')}</Text>
           <View style={styles.btnRow}>
-            {['', ...saveChoices].map((name) => (
+            {(recipe.isSaved ? saveChoices : ['', ...saveChoices]).map((name) => (
               <TouchableOpacity key={name || '__mine'} style={[styles.btn, styles.btnAlt]} onPress={() => run('save', { book: name })} disabled={!!busy}>
                 <Text style={styles.btnAltText} numberOfLines={1}>{name ? `📖 ${name}` : t('save_recipe_my_recipes')}</Text>
               </TouchableOpacity>
