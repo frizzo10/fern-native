@@ -1417,6 +1417,8 @@ export default function RecipesScreen({ user }) {
   }, [route?.params?.openTab, route?.params?.requestKey]);
 
   const bookLinkDoneRef = React.useRef('');
+  // Set when a cookbook was opened from a recipe's "📖 Cookbook" link: Back returns to that recipe.
+  const [backRecipe, setBackRecipe] = useState(null);
   // From a recipe's "Added by X" / "📖 Cookbook" links in the viewer.
   React.useEffect(() => {
     const who = route?.params?.filterWho;
@@ -1435,11 +1437,18 @@ export default function RecipesScreen({ user }) {
     const b = booksWithMatchedCounts.find((x) => String(x.id) === String(wantBook));
     if (!b) return;
     bookLinkDoneRef.current = key;
+    const bId = route?.params?.backRecipeId;
+    const bTitle = route?.params?.backRecipeTitle;
+    setBackRecipe(bId != null || bTitle ? { id: bId, title: bTitle || '' } : null);
     setTab('cookbooks');
     setPeekId(null);
     setQuery('');
     setSelectedBook(b);
   }, [route?.params?.openBookId, route?.params?.requestKey, booksWithMatchedCounts.length]);
+
+  React.useEffect(() => {
+    if (!selectedBook && backRecipe) setBackRecipe(null);
+  }, [selectedBook, backRecipe]);
 
   React.useEffect(() => {
     if (tab !== 'cookbooks' && selectedBook) {
@@ -1646,7 +1655,16 @@ export default function RecipesScreen({ user }) {
               <View style={styles.bookDetailActionsTop}>
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  onPress={() => setSelectedBook(null)}
+                  onPress={() => {
+                    const back = backRecipe;
+                    setBackRecipe(null);
+                    setSelectedBook(null);
+                    if (back) {
+                      const r = recipes.find((x) => back.id != null && String(x.id) === String(back.id))
+                        || recipes.find((x) => back.title && x.title === back.title);
+                      if (r) setTimeout(() => openRecipeDetail(r), 350);
+                    }
+                  }}
                   style={[styles.bookActionBtn, styles.bookActionBtnMuted]}
                 >
                   <Text style={styles.bookActionTextLight}>{t('back_btn')}</Text>

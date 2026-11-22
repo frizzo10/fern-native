@@ -317,8 +317,8 @@ function AppNavigator({ user, signOut, deleteAccount, userStores: rawUserStores,
   }), []);
   useEffect(() => subscribeRecipeLink((link) => {
     setIsChatOpen(false);
-    const base = { openRecipeId: undefined, openRecipeTitle: undefined, openTab: undefined, importLink: undefined, filterWho: undefined, openBookId: undefined, requestKey: Date.now() };
-    const params = link?.bookId ? { ...base, openBookId: link.bookId } : { ...base, filterWho: link?.who || '' };
+    const base = { openRecipeId: undefined, openRecipeTitle: undefined, openTab: undefined, importLink: undefined, filterWho: undefined, openBookId: undefined, backRecipeId: undefined, backRecipeTitle: undefined, requestKey: Date.now() };
+    const params = link?.bookId ? { ...base, openBookId: link.bookId, backRecipeId: link.fromId ?? undefined, backRecipeTitle: link.fromTitle || undefined } : { ...base, filterWho: link?.who || '' };
     setTimeout(() => navigationRef.current?.navigate('Recipes', params), 600);
   }), []);
   useEffect(() => subscribeOpenHelp(() => { requestToursScroll(); openAccountModal(); }), [openAccountModal]);

@@ -599,7 +599,7 @@ export default function RecipeDetailModal({
                         </TouchableOpacity>
                       ) : null}
                       {recipeBooks.map((b) => (
-                        <TouchableOpacity key={b.id} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }} onPress={() => goToLink({ bookId: b.id })}>
+                        <TouchableOpacity key={b.id} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }} onPress={() => goToLink({ bookId: b.id, fromId: recipe?.id ?? null, fromTitle: recipe?.title || '' })}>
                           <Text style={[styles.sharedByTag, styles.linkTag]}>{`📖 ${b.name}`}</Text>
                         </TouchableOpacity>
                       ))}
