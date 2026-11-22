@@ -446,6 +446,24 @@ export default function RecipeDetailModal({
       ]
     );
   };
+  // Cookbook(s) this recipe is in, shown next to "Added by".
+  const bookNames = (() => {
+    try {
+      const ids = [
+        ...(Array.isArray(recipe?.bookIds) ? recipe.bookIds : []),
+        ...(Array.isArray(recipe?._bookIds) ? recipe._bookIds : []),
+        recipe?._bookId,
+      ].filter(Boolean).map(String);
+      if (!ids.length || !Array.isArray(books)) return '';
+      const names = [];
+      books.forEach((b) => {
+        const id = String(b?.id ?? b?.uuid ?? b?.book_id ?? '');
+        const name = b?.title || b?.name || b?.book_title;
+        if (id && name && ids.includes(id) && !names.includes(name)) names.push(name);
+      });
+      return names.join(', ');
+    } catch (e) { return ''; }
+  })();
   return (
     <Modal
       visible={!!recipe}
@@ -571,8 +589,10 @@ export default function RecipeDetailModal({
                       {recipe.sharedBy ? t('shared_by_label', { name: recipe.sharedBy }) : t('shared_with_you')}
                     </Text>
                   ) : null}
-                  {!isEditMode && recipe.addedBy ? (
-                    <Text style={styles.sharedByTag}>{t('added_by_label', { name: recipe.addedBy })}</Text>
+                  {!isEditMode && (recipe.addedBy || bookNames) ? (
+                    <Text style={styles.sharedByTag}>
+                      {[recipe.addedBy ? t('added_by_label', { name: recipe.addedBy }) : '', bookNames ? `📖 ${bookNames}` : ''].filter(Boolean).join('  ·  ')}
+                    </Text>
                   ) : null}
 
                   {isEditMode ? (
