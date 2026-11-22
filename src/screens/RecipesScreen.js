@@ -1576,6 +1576,7 @@ export default function RecipesScreen({ user }) {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={styles.content}
       >
         {!selectedBook ? (
@@ -2196,7 +2197,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 20,
     paddingTop: 10,
-    paddingBottom: 20,
+    paddingBottom: 140,
   },
   tabsRow: {
     flexDirection: 'row',

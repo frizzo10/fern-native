@@ -159,8 +159,7 @@ export default function ScaleRecipeModal({ visible, recipe, token, user, canRepl
         style={styles.backdrop}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.sheet}>
+        <View style={styles.sheet}>
             <View style={styles.headerRow}>
               <View style={styles.headerTextWrap}>
                 <Text style={styles.title}>{t('scale_recipe_title')}</Text>
@@ -172,8 +171,11 @@ export default function ScaleRecipeModal({ visible, recipe, token, user, canRepl
             </View>
 
             <ScrollView
-              showsVerticalScrollIndicator={false}
+              style={styles.scroll}
+              showsVerticalScrollIndicator
               keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              nestedScrollEnabled
               contentContainerStyle={styles.scrollContent}
             >
               <View style={styles.currentCard}>
@@ -275,8 +277,7 @@ export default function ScaleRecipeModal({ visible, recipe, token, user, canRepl
                 </View>
               ) : null}
             </ScrollView>
-          </View>
-        </TouchableWithoutFeedback>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -342,10 +343,14 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     fontFamily: 'Jost-Regular',
   },
+  scroll: {
+    flexGrow: 0,
+    flexShrink: 1,
+  },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 18,
-    paddingBottom: 30,
+    paddingBottom: 60,
   },
   currentCard: {
     borderRadius: 14,
