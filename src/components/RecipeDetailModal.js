@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRecipePhoto } from './RecipePhoto';
 import { trackEvent } from '../services/track';
@@ -7,6 +7,7 @@ import {
   Alert,
   Image,
   ImageBackground,
+  Keyboard,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -137,6 +138,30 @@ export default function RecipeDetailModal({
   // viewer drawn inside this same Modal (a second Modal would be dropped by iOS). viewer = null or
   // { index, grid }.
   const { width: screenW, height: screenH } = useWindowDimensions();
+  // The note box sits near the bottom of a tall sheet; keep it above the keyboard while typing.
+  const [kbH, setKbH] = useState(0);
+  const sheetScrollRef = useRef(null);
+  const scrollYRef = useRef(0);
+  const noteBoxRef = useRef(null);
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const s1 = Keyboard.addListener(showEvt, (e) => setKbH(e?.endCoordinates?.height || 0));
+    const s2 = Keyboard.addListener(hideEvt, () => setKbH(0));
+    return () => { s1.remove(); s2.remove(); };
+  }, []);
+  const revealNote = () => {
+    setTimeout(() => {
+      try {
+        noteBoxRef.current?.measureInWindow((x, y, w, h) => {
+          const kb = Keyboard.metrics?.()?.height || kbH || 320;
+          const visibleBottom = screenH - kb - 16;
+          const over = y + h - visibleBottom;
+          if (over > 0) sheetScrollRef.current?.scrollTo({ y: scrollYRef.current + over + 24, animated: true });
+        });
+      } catch (e) { /* ignore */ }
+    }, 380);
+  };
   const [heroIdx, setHeroIdx] = useState(0);
   const [viewer, setViewer] = useState(null);
   // Photo links that failed to load (a dead stock-photo link): show a plain tile instead of a blank space.
@@ -438,11 +463,13 @@ export default function RecipeDetailModal({
         {recipe ? (
           <KeyboardAvoidingView
             style={styles.overlaySheetKeyboardAvoid}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+            behavior={Platform.OS === 'ios' ? undefined : 'height'}
           >
-            <View style={styles.overlaySheet}>
+            <View style={[styles.overlaySheet, kbH > 0 && Platform.OS === 'ios' ? { maxHeight: screenH - kbH - 50, marginBottom: kbH } : null]}>
               <ScrollView
+                ref={sheetScrollRef}
+                onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+                scrollEventThrottle={32}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
@@ -836,8 +863,9 @@ export default function RecipeDetailModal({
                   <Text style={styles.overlaySectionTitle}>{t('my_note_title')}</Text>
                   <View style={styles.overlayDivider} />
 
-                  <View style={styles.overlayNoteBox}>
+                  <View style={styles.overlayNoteBox} ref={noteBoxRef} collapsable={false}>
                     <TextInput
+                      onFocus={revealNote}
                       multiline
                       placeholder={t('own_note_placeholder')}
                       placeholderTextColor="#A9A9A9"
