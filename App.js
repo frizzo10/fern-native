@@ -44,6 +44,7 @@ import ChatSheetModal from './src/components/modals/ChatSheetModal';
 import { subscribeOpenChat } from './src/services/chatBus';
 import { subscribeOpenHelp, requestToursScroll } from './src/services/helpBus';
 import { subscribeShowList } from './src/services/listBus';
+import { subscribeRecipeLink } from './src/services/recipeLinkBus';
 import { requestOpenTool } from './src/services/toolBus';
 import AccountScreen from './src/screens/AccountScreen';
 import HelpModal from './src/components/modals/HelpModal';
@@ -313,6 +314,12 @@ function AppNavigator({ user, signOut, deleteAccount, userStores: rawUserStores,
   useEffect(() => subscribeShowList(() => {
     setIsChatOpen(false);
     setTimeout(() => navigationRef.current?.navigate('Shopping', { listOnly: Date.now() }), 600);
+  }), []);
+  useEffect(() => subscribeRecipeLink((link) => {
+    setIsChatOpen(false);
+    const base = { openRecipeId: undefined, openRecipeTitle: undefined, openTab: undefined, importLink: undefined, filterWho: undefined, openBookId: undefined, requestKey: Date.now() };
+    const params = link?.bookId ? { ...base, openBookId: link.bookId } : { ...base, filterWho: link?.who || '' };
+    setTimeout(() => navigationRef.current?.navigate('Recipes', params), 600);
   }), []);
   useEffect(() => subscribeOpenHelp(() => { requestToursScroll(); openAccountModal(); }), [openAccountModal]);
   const [showArrivalUpsell, setShowArrivalUpsell] = useState(false);

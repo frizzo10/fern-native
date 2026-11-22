@@ -1416,6 +1416,31 @@ export default function RecipesScreen({ user }) {
     }
   }, [route?.params?.openTab, route?.params?.requestKey]);
 
+  const bookLinkDoneRef = React.useRef('');
+  // From a recipe's "Added by X" / "📖 Cookbook" links in the viewer.
+  React.useEffect(() => {
+    const who = route?.params?.filterWho;
+    if (!who) return;
+    setTab('recipes');
+    setSelectedBook(null);
+    setQuery('');
+    setFWho(who); setFMeal(''); setFCuisine(''); setFDish('');
+  }, [route?.params?.filterWho, route?.params?.requestKey]);
+
+  React.useEffect(() => {
+    const wantBook = route?.params?.openBookId;
+    if (!wantBook) return;
+    const key = `${wantBook}:${route?.params?.requestKey || ''}`;
+    if (bookLinkDoneRef.current === key) return;
+    const b = booksWithMatchedCounts.find((x) => String(x.id) === String(wantBook));
+    if (!b) return;
+    bookLinkDoneRef.current = key;
+    setTab('cookbooks');
+    setPeekId(null);
+    setQuery('');
+    setSelectedBook(b);
+  }, [route?.params?.openBookId, route?.params?.requestKey, booksWithMatchedCounts.length]);
+
   React.useEffect(() => {
     if (tab !== 'cookbooks' && selectedBook) {
       setSelectedBook(null);

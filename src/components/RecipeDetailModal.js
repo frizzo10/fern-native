@@ -38,6 +38,7 @@ import PlanOnDayPanel from './PlanOnDayPanel';
 import { planShoppingAdditions, setPendingSkip } from '../utils/shoppingListSync';
 import AlexaHint from './AlexaHint';
 import { showShoppingList } from '../services/listBus';
+import { openRecipeLink } from '../services/recipeLinkBus';
 import { copyAlexaPhrase } from '../services/alexaPromo';
 import useEntitlement from '../hooks/useEntitlement';
 import { TIERS } from '../constants/tiers';
@@ -447,23 +448,24 @@ export default function RecipeDetailModal({
     );
   };
   // Cookbook(s) this recipe is in, shown next to "Added by".
-  const bookNames = (() => {
+  const recipeBooks = (() => {
     try {
       const ids = [
         ...(Array.isArray(recipe?.bookIds) ? recipe.bookIds : []),
         ...(Array.isArray(recipe?._bookIds) ? recipe._bookIds : []),
         recipe?._bookId,
       ].filter(Boolean).map(String);
-      if (!ids.length || !Array.isArray(books)) return '';
-      const names = [];
+      if (!ids.length || !Array.isArray(books)) return [];
+      const out = [];
       books.forEach((b) => {
         const id = String(b?.id ?? b?.uuid ?? b?.book_id ?? '');
         const name = b?.title || b?.name || b?.book_title;
-        if (id && name && ids.includes(id) && !names.includes(name)) names.push(name);
+        if (id && name && ids.includes(id) && !out.some((o) => o.name === name)) out.push({ id, name });
       });
-      return names.join(', ');
-    } catch (e) { return ''; }
+      return out;
+    } catch (e) { return []; }
   })();
+  const goToLink = (link) => { onClose?.(); openRecipeLink(link); };
   return (
     <Modal
       visible={!!recipe}
@@ -589,10 +591,19 @@ export default function RecipeDetailModal({
                       {recipe.sharedBy ? t('shared_by_label', { name: recipe.sharedBy }) : t('shared_with_you')}
                     </Text>
                   ) : null}
-                  {!isEditMode && (recipe.addedBy || bookNames) ? (
-                    <Text style={styles.sharedByTag}>
-                      {[recipe.addedBy ? t('added_by_label', { name: recipe.addedBy }) : '', bookNames ? `📖 ${bookNames}` : ''].filter(Boolean).join('  ·  ')}
-                    </Text>
+                  {!isEditMode && (recipe.addedBy || recipeBooks.length > 0) ? (
+                    <View style={styles.linkTagRow}>
+                      {recipe.addedBy ? (
+                        <TouchableOpacity activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }} onPress={() => goToLink({ who: recipe.addedBy })}>
+                          <Text style={[styles.sharedByTag, styles.linkTag]}>{t('added_by_label', { name: recipe.addedBy })}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                      {recipeBooks.map((b) => (
+                        <TouchableOpacity key={b.id} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }} onPress={() => goToLink({ bookId: b.id })}>
+                          <Text style={[styles.sharedByTag, styles.linkTag]}>{`📖 ${b.name}`}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
                   ) : null}
 
                   {isEditMode ? (
@@ -1195,6 +1206,15 @@ const styles = StyleSheet.create({
   },
   overlayFoodEmoji: {
     fontSize: 30,
+  },
+  linkTagRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  linkTag: {
+    textDecorationLine: 'underline',
   },
   sharedByTag: {
     alignSelf: 'center',
