@@ -1,6 +1,6 @@
 // Recipe cards Fern offers in the chat (the agent's "options"): tap to preview, then add to the list or save.
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, ScrollView } from 'react-native';
 import { colors, radius } from '../constants/tokens';
 import useLanguage from '../hooks/useLanguage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -33,6 +33,7 @@ function OptionCard({ option, onAction }) {
   const [picking, setPicking] = useState(false); // card had no day: choose meal + day
   const [pickSlot, setPickSlot] = useState('Dinner');
   const [saveChoices, setSaveChoices] = useState(null); // cookbook names while choosing where to save
+  const [booksOpen, setBooksOpen] = useState(false); // cookbook list folded like an accordion
 
   useEffect(() => {
     let live = true;
@@ -58,6 +59,7 @@ function OptionCard({ option, onAction }) {
     try { books = JSON.parse((await AsyncStorage.getItem('rv4_books')) || '[]'); } catch (e) { books = []; }
     const names = (Array.isArray(books) ? books : []).map((b) => b?.title || b?.name || b?.book_title || '').filter(Boolean);
     if (!names.length) { if (!recipe.isSaved) run('save', { book: '' }); return; }
+    setBooksOpen(!!recipe.isSaved);
     setSaveChoices(names);
   };
 
@@ -119,15 +121,27 @@ function OptionCard({ option, onAction }) {
         <View style={styles.askBox}>
           <Text style={styles.askText}>{t('save_recipe_where')}</Text>
           <View style={styles.btnRow}>
-            {(recipe.isSaved ? saveChoices : ['', ...saveChoices]).map((name) => (
-              <TouchableOpacity key={name || '__mine'} style={[styles.btn, styles.btnAlt]} onPress={() => run('save', { book: name })} disabled={!!busy}>
-                <Text style={styles.btnAltText} numberOfLines={1}>{name ? `📖 ${name}` : t('save_recipe_my_recipes')}</Text>
+            {!recipe.isSaved ? (
+              <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => run('save', { book: '' })} disabled={!!busy}>
+                <Text style={styles.btnAltText}>{t('save_recipe_my_recipes')}</Text>
               </TouchableOpacity>
-            ))}
+            ) : null}
+            <TouchableOpacity style={[styles.btn, booksOpen ? styles.btnMain : styles.btnAlt]} onPress={() => setBooksOpen((o) => !o)} disabled={!!busy}>
+              <Text style={booksOpen ? styles.btnMainText : styles.btnAltText}>{`📖 ${t('save_recipe_pick_book')} ${booksOpen ? '▴' : '▾'}`}</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={[styles.btn, styles.btnAlt]} onPress={() => setSaveChoices(null)} disabled={!!busy}>
               <Text style={styles.btnAltText}>{t('cancel_btn')}</Text>
             </TouchableOpacity>
           </View>
+          {booksOpen ? (
+            <ScrollView style={styles.bookList} nestedScrollEnabled showsVerticalScrollIndicator>
+              {saveChoices.map((name) => (
+                <TouchableOpacity key={name} style={styles.bookRow} onPress={() => run('save', { book: name })} disabled={!!busy} activeOpacity={0.85}>
+                  <Text style={styles.btnAltText} numberOfLines={1}>{`📖 ${name}`}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : null}
         </View>
       ) : null}
       {noDay && picking && !done.plan ? (
@@ -187,6 +201,8 @@ export default function RecipeOptionCards({ options, onAction }) {
 }
 
 const styles = StyleSheet.create({
+  bookList: { maxHeight: 176, marginTop: 8, borderWidth: 1, borderColor: '#C8D6BE', borderRadius: 12, backgroundColor: '#fff' },
+  bookRow: { paddingHorizontal: 14, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: '#ECF2E6' },
   wrap: { marginHorizontal: 16, marginTop: 4, marginBottom: 8, gap: 8 },
   card: { backgroundColor: '#fff', borderRadius: radius?.md || 14, borderWidth: 1, borderColor: '#C8D6BE', padding: 12 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
