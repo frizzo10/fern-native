@@ -9,6 +9,8 @@ import { buildRollingWeekDateKeys, dateToKey, formatDayLabel } from '../utils/fa
 import { loadWeekDeals } from '../utils/savings';
 import { pickStarDeals } from '../utils/starDeals';
 import { executeAgentActions } from './fernAgent';
+import { toShoppingName } from '../utils/shoppingName';
+import { nameKey, addRecipesToShoppingList } from '../utils/shoppingListSync';
 
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
 const MODE_KEY = 'fern_autopilot';
@@ -43,14 +45,15 @@ function parseLoose(text) {
 }
 
 // Drafts dinners for the empty nights. Returns { summary, meals: [{ day_offset, dayLabel, title, emoji, sides, ingredients }] }.
-export async function draftWeek({ user, locale, onStep }) {
+export async function draftWeek({ user, locale, onStep, avoid = [] }) {
   const keys = buildRollingWeekDateKeys();
   const [plan, saved, acts, list, prefs, profile, deals] = await Promise.all([
     readJson('rv4_meal_plan', {}), readJson('rv4_saved', []), readJson('rv4_activities', []),
     readJson('rv4_master_shop', []), readJson('fern_shopper_prefs', {}), readJson('remi_explicit', {}), loadWeekDeals(),
   ]);
   const hasDinner = (k) => (Array.isArray(plan[k]) ? plan[k] : []).some((m) => String(m?.slot || 'Dinner').toLowerCase() === 'dinner');
-  const empty = keys.map((k, i) => ({ k, i })).filter((x) => !hasDinner(x.k));
+  const skipDays = new Set((Array.isArray(avoid) ? avoid : []).map(Number));
+  const empty = keys.map((k, i) => ({ k, i })).filter((x) => !hasDinner(x.k) && !skipDays.has(x.i));
   if (!empty.length) return { summary: '', meals: [], nothingToPlan: true };
   if (onStep) onStep('plan', empty.length);
   const planned = keys.flatMap((k) => (Array.isArray(plan[k]) ? plan[k] : []).map((m) => m?.title)).filter(Boolean);
@@ -100,7 +103,7 @@ export async function applyWeek(meals, env) {
   const snapshot = { plan: await readJson('rv4_meal_plan', {}), shop: await readJson('rv4_master_shop', []) };
   const actions = meals.flatMap((m) => [
     { type: 'plan_meal', day_offset: m.day_offset, slot: 'Dinner', title: m.title, emoji: m.emoji, sides: m.sides },
-    { type: 'add_recipe_to_list', title: m.title, ingredients: m.ingredients },
+    { type: 'add_recipe_to_list', title: m.title, ingredients: m.ingredients, skip: Array.isArray(m.skip) ? m.skip : [] },
   ]);
   const out = await executeAgentActions(actions, { ...env, canSaveUnlimited: true });
   return { count: meals.length, lines: out.lines, snapshot };
@@ -115,4 +118,52 @@ export async function undoWeek(snapshot, env) {
     await env.pushChangedFromStorage({ meal_plan: snapshot.plan, shopping: snapshot.shop });
     return true;
   } catch (e) { return false; }
+}
+
+// The ingredients a planned dinner needs, as the list would show them: a saved recipe's own, else the ones Fern drafted.
+export async function mealIngredients(meal) {
+  const saved = await readJson('rv4_saved', []);
+  const lc = (x) => String(x || '').trim().toLowerCase();
+  const own = saved.find((r) => lc(r?.title) === lc(meal.title));
+  const raw = own && Array.isArray(own.ingredients) && own.ingredients.length ? own.ingredients : meal.ingredients || [];
+  const lines = raw.map((x) => (typeof x === 'string' ? x : [x?.amount, x?.unit, x?.item || x?.name].filter(Boolean).join(' '))).map((x) => String(x).trim()).filter(Boolean);
+  const seen = new Set();
+  return { fromSaved: Boolean(own), items: lines.map((l) => { const name = toShoppingName(l); return { name, key: nameKey(name) }; }).filter((i) => i.name && !seen.has(i.key) && seen.add(i.key)) };
+}
+
+// "soccer Tuesday 5:30, dinner out Friday" -> { activities: [...], skipDinners: [offsets] }. One ai call.
+export async function parsePlans({ text, user, locale }) {
+  const keys = buildRollingWeekDateKeys();
+  const cal = keys.map((k, i) => ({ day_offset: i, day: formatDayLabel(k), weekday: parseWeekday(k) }));
+  const system =
+    'Turn the person\'s plans into JSON. Return ONLY: {"activities":[{"day_offset":0,"label":"Soccer practice","emoji":"⚽","start":"5:30 PM","end":""}],"skipDinners":[4]}. ' +
+    'day_offset comes from calendar (use the weekday or date they say). start/end are "H:MM AM/PM" or empty. Put "dinner out", "eating out", "away" style plans in skipDinners (day_offsets that need no home dinner) AND also as an activity. ' +
+    'Ignore anything outside the 7 days. No markdown.' + (locale === 'es' ? ' Labels in Spanish.' : '');
+  const res = await fetch(AI_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system, feature: 'fern_chat', messages: [{ role: 'user', content: JSON.stringify({ calendar: cal, plans: String(text || '').slice(0, 600) }) }], locale, userId: user?.id, token: user?.token }),
+  });
+  if (!res.ok) throw new Error(`ai ${res.status}`);
+  const d = await res.json();
+  const parsed = parseLoose(d?.content?.[0]?.text ?? d?.data?.content?.[0]?.text ?? '');
+  const ok = (n) => Number.isInteger(Number(n)) && Number(n) >= 0 && Number(n) <= 6;
+  const activities = (Array.isArray(parsed?.activities) ? parsed.activities : []).filter((a) => a?.label && ok(a.day_offset))
+    .slice(0, 10).map((a) => ({ day_offset: Number(a.day_offset), label: String(a.label).slice(0, 60), emoji: a.emoji || '📌', start: String(a.start || ''), end: String(a.end || ''), dayLabel: formatDayLabel(keys[Number(a.day_offset)]) }));
+  const skipDinners = (Array.isArray(parsed?.skipDinners) ? parsed.skipDinners : []).filter(ok).map(Number);
+  return { activities, skipDinners };
+}
+function parseWeekday(k) { const [y, m, d] = k.split('-').map(Number); return ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date(y, m - 1, d).getDay()]; }
+
+export async function addPlannedActivities(activities, env) {
+  if (!activities.length) return;
+  await executeAgentActions(activities.map((a) => ({ type: 'add_activity', day_offset: a.day_offset, label: a.label, emoji: a.emoji, start: a.start, end: a.end })), env);
+}
+
+// Extra items the person typed in the shopping review.
+export async function addExtraItems(items, env) {
+  const names = items.map((x) => String(x).trim()).filter(Boolean);
+  if (!names.length) return;
+  const list = await readJson('rv4_master_shop', []);
+  await addRecipesToShoppingList([{ id: `autopilot-extra-${Date.now()}`, title: 'Manual Add', ingredients: names }], list, { skip: new Set() });
+  await env.pushChangedFromStorage();
 }

@@ -2,7 +2,9 @@
 // "I planned your week" summary with Undo (Fully automatic). Logic lives in services/autopilot.js.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import useLanguage from '../../hooks/useLanguage';
+import AutopilotTourModal from '../modals/AutopilotTourModal';
 import { emitAgentChange } from '../../services/fernAgent';
 import {
   getAutopilotMode, setAutopilotMode, autopilotRanToday, markAutopilotRan, draftWeek, applyWeek, undoWeek, subscribeAutopilotMode,
@@ -10,6 +12,8 @@ import {
 
 export default function AutopilotCard({ user, ready, pushChangedFromStorage, pull }) {
   const { t, locale } = useLanguage();
+  const navigation = useNavigation();
+  const [tourOpen, setTourOpen] = useState(false);
   const [phase, setPhase] = useState('idle'); // idle | offer | planning | proposal | done | note
   const [stepText, setStepText] = useState('');
   const [noteText, setNoteText] = useState('');
@@ -70,7 +74,18 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
   }, [check]);
 
   // Turning the Home toggle on (or changing the mode) runs it right away, so the person sees it work.
-  useEffect(() => subscribeAutopilotMode((m) => { if (m === 'ask' || m === 'auto') run(m); else setPhase('idle'); }), [run]);
+  const tourTimer = useRef(null);
+  useEffect(() => {
+    const unsub = subscribeAutopilotMode((m) => {
+      if (tourTimer.current) clearTimeout(tourTimer.current);
+      setPhase('idle');
+      // iOS drops a Modal opened while the picker sheet is still closing
+      if (m === 'ask' || m === 'auto') tourTimer.current = setTimeout(() => setTourOpen(true), 450);
+    });
+    return () => { unsub(); if (tourTimer.current) clearTimeout(tourTimer.current); };
+  }, []);
+
+  const seeDay = (offset, title) => navigation.navigate('Family', { showDayOffset: offset, showKind: 'meal', showLabel: title, showSlot: 'Dinner', showNonce: Date.now() });
 
   const choose = async (mode) => {
     await setAutopilotMode(mode);
@@ -93,9 +108,23 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
     setPhase('idle');
   };
 
-  if (phase === 'idle') return null;
+  const tour = (
+    <AutopilotTourModal
+      visible={tourOpen}
+      user={user}
+      pushChangedFromStorage={pushChangedFromStorage}
+      pull={pull}
+      onClose={() => setTourOpen(false)}
+      onFinished={({ meals: ms, snapshot: sn }) => { snapshot.current = sn; setMeals(ms); setSummary(''); markAutopilotRan(); setPhase('done'); }}
+      onSeeWeek={(off, title) => { setTourOpen(false); setTimeout(() => seeDay(off, title), 450); }}
+    />
+  );
+
+  if (phase === 'idle') return tour;
 
   return (
+    <>
+    {tour}
     <View style={s.card}>
       {phase === 'offer' ? (
         <>
@@ -122,7 +151,10 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
           <Text style={s.title}>{phase === 'done' ? `✅ ${t('autopilot_done_title')}` : `🤖 ${t('autopilot_proposal_title')}`}</Text>
           {summary ? <Text style={s.body}>{summary}</Text> : null}
           {phase === 'done' ? <Text style={s.body}>{t('autopilot_added', { n: meals.length })}</Text> : null}
-          {meals.map((m) => <Text key={m.day_offset} style={s.meal}>{`${m.emoji} ${m.dayLabel}: ${m.title}`}</Text>)}
+          {phase === 'done' ? <Text style={s.body}>{t('autopilot_done_tap')}</Text> : null}
+          {meals.map((m) => (phase === 'done'
+            ? <TouchableOpacity key={m.day_offset} style={s.mealRow} activeOpacity={0.8} onPress={() => seeDay(m.day_offset, m.title)} accessibilityRole="button"><Text style={s.mealTap}>{`${m.emoji} ${m.dayLabel}: ${m.title}`}</Text><Text style={s.chev}>›</Text></TouchableOpacity>
+            : <Text key={m.day_offset} style={s.meal}>{`${m.emoji} ${m.dayLabel}: ${m.title}`}</Text>))}
           <View style={s.row}>
             {phase === 'proposal' ? (
               <>
@@ -139,6 +171,7 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
         </>
       ) : null}
     </View>
+    </>
   );
 }
 
@@ -172,6 +205,9 @@ const s = StyleSheet.create({
   card: { backgroundColor: '#ECF2E6', borderRadius: 14, borderWidth: 1, borderColor: '#C8D6BE', padding: 14, marginBottom: 12 },
   title: { fontSize: 16, fontFamily: 'Jost-Bold', color: '#2F4535' },
   body: { fontSize: 14, fontFamily: 'Jost-Regular', color: '#5C7262', marginTop: 4, lineHeight: 20 },
+  mealRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#C8D6BE', paddingVertical: 11, paddingHorizontal: 12, marginTop: 6, minHeight: 44 },
+  mealTap: { flex: 1, fontSize: 15, fontFamily: 'Jost-SemiBold', color: '#2F4535' },
+  chev: { fontSize: 22, color: '#4E7A54', marginLeft: 8 },
   meal: { fontSize: 14, fontFamily: 'Jost-SemiBold', color: '#2F4535', marginTop: 6 },
   row: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginTop: 10 },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
