@@ -5,12 +5,14 @@ import { ActivityIndicator, AppState, StyleSheet, Text, TouchableOpacity, View }
 import useLanguage from '../../hooks/useLanguage';
 import { emitAgentChange } from '../../services/fernAgent';
 import {
-  getAutopilotMode, setAutopilotMode, autopilotRanToday, markAutopilotRan, draftWeek, applyWeek, undoWeek,
+  getAutopilotMode, setAutopilotMode, autopilotRanToday, markAutopilotRan, draftWeek, applyWeek, undoWeek, subscribeAutopilotMode,
 } from '../../services/autopilot';
 
 export default function AutopilotCard({ user, ready, pushChangedFromStorage, pull }) {
   const { t, locale } = useLanguage();
-  const [phase, setPhase] = useState('idle'); // idle | offer | planning | proposal | done
+  const [phase, setPhase] = useState('idle'); // idle | offer | planning | proposal | done | note
+  const [stepText, setStepText] = useState('');
+  const [noteText, setNoteText] = useState('');
   const [meals, setMeals] = useState([]);
   const [summary, setSummary] = useState('');
   const snapshot = useRef(null);
@@ -23,13 +25,21 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
     if (running.current) return;
     running.current = true;
     try {
-      await markAutopilotRan();
+      setStepText(t('autopilot_step_look'));
       setPhase('planning');
-      const draft = await draftWeek({ user, locale });
-      if (!draft.meals.length) { setPhase('idle'); return; }
+      const draft = await draftWeek({ user, locale, onStep: (k, n) => { if (k === 'plan') setStepText(t('autopilot_step_plan', { n })); } });
+      if (draft.nothingToPlan) {
+        await markAutopilotRan();
+        setNoteText(t('autopilot_nothing'));
+        setPhase('note');
+        return;
+      }
+      if (!draft.meals.length) { setNoteText(t('autopilot_failed')); setPhase('note'); return; }
+      await markAutopilotRan();
       setMeals(draft.meals);
       setSummary(draft.summary);
       if (mode === 'auto') {
+        setStepText(t('autopilot_step_apply'));
         const r = await applyWeek(draft.meals, env());
         snapshot.current = r.snapshot;
         await refresh();
@@ -39,9 +49,10 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
       }
     } catch (e) {
       console.warn('[autopilot]', e?.message || e);
-      setPhase('idle');
+      setNoteText(t('autopilot_failed'));
+      setPhase('note');
     } finally { running.current = false; }
-  }, [user, locale, env, refresh]);
+  }, [user, locale, env, refresh, t]);
 
   const check = useCallback(async () => {
     if (!ready || !user?.token || running.current) return;
@@ -57,6 +68,9 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
     const sub = AppState.addEventListener('change', (st) => { if (st === 'active') check(); });
     return () => sub.remove();
   }, [check]);
+
+  // Turning the Home toggle on (or changing the mode) runs it right away, so the person sees it work.
+  useEffect(() => subscribeAutopilotMode((m) => { if (m === 'ask' || m === 'auto') run(m); else setPhase('idle'); }), [run]);
 
   const choose = async (mode) => {
     await setAutopilotMode(mode);
@@ -95,12 +109,19 @@ export default function AutopilotCard({ user, ready, pushChangedFromStorage, pul
         </>
       ) : null}
       {phase === 'planning' ? (
-        <View style={s.rowCenter}><ActivityIndicator color="#3F5645" /><Text style={[s.body, { marginLeft: 10, marginTop: 0 }]}>{t('autopilot_planning')}</Text></View>
+        <View style={s.rowCenter}><ActivityIndicator color="#3F5645" /><Text style={[s.body, { marginLeft: 10, marginTop: 0 }]}>{stepText || t('autopilot_planning')}</Text></View>
+      ) : null}
+      {phase === 'note' ? (
+        <>
+          <Text style={s.body}>{noteText}</Text>
+          <View style={s.row}><TouchableOpacity style={s.later} onPress={() => setPhase('idle')}><Text style={s.laterText}>{t('autopilot_ok')}</Text></TouchableOpacity></View>
+        </>
       ) : null}
       {phase === 'proposal' || phase === 'done' ? (
         <>
           <Text style={s.title}>{phase === 'done' ? `✅ ${t('autopilot_done_title')}` : `🤖 ${t('autopilot_proposal_title')}`}</Text>
           {summary ? <Text style={s.body}>{summary}</Text> : null}
+          {phase === 'done' ? <Text style={s.body}>{t('autopilot_added', { n: meals.length })}</Text> : null}
           {meals.map((m) => <Text key={m.day_offset} style={s.meal}>{`${m.emoji} ${m.dayLabel}: ${m.title}`}</Text>)}
           <View style={s.row}>
             {phase === 'proposal' ? (

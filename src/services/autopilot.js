@@ -21,8 +21,11 @@ async function readJson(key, fallback) {
 export async function getAutopilotMode() {
   try { const m = await AsyncStorage.getItem(MODE_KEY); return m === 'ask' || m === 'auto' || m === 'off' ? m : null; } catch (e) { return null; }
 }
+const modeListeners = new Set();
+export function subscribeAutopilotMode(fn) { modeListeners.add(fn); return () => modeListeners.delete(fn); }
 export async function setAutopilotMode(mode) {
   try { await AsyncStorage.setItem(MODE_KEY, mode); } catch (e) { /* ignore */ }
+  modeListeners.forEach((fn) => { try { fn(mode); } catch (e) { /* ignore */ } });
 }
 export async function autopilotRanToday() {
   try { return (await AsyncStorage.getItem(LAST_KEY)) === dateToKey(new Date()); } catch (e) { return false; }
@@ -40,7 +43,7 @@ function parseLoose(text) {
 }
 
 // Drafts dinners for the empty nights. Returns { summary, meals: [{ day_offset, dayLabel, title, emoji, sides, ingredients }] }.
-export async function draftWeek({ user, locale }) {
+export async function draftWeek({ user, locale, onStep }) {
   const keys = buildRollingWeekDateKeys();
   const [plan, saved, acts, list, prefs, profile, deals] = await Promise.all([
     readJson('rv4_meal_plan', {}), readJson('rv4_saved', []), readJson('rv4_activities', []),
@@ -48,7 +51,8 @@ export async function draftWeek({ user, locale }) {
   ]);
   const hasDinner = (k) => (Array.isArray(plan[k]) ? plan[k] : []).some((m) => String(m?.slot || 'Dinner').toLowerCase() === 'dinner');
   const empty = keys.map((k, i) => ({ k, i })).filter((x) => !hasDinner(x.k));
-  if (!empty.length) return { summary: '', meals: [] };
+  if (!empty.length) return { summary: '', meals: [], nothingToPlan: true };
+  if (onStep) onStep('plan', empty.length);
   const planned = keys.flatMap((k) => (Array.isArray(plan[k]) ? plan[k] : []).map((m) => m?.title)).filter(Boolean);
   const star = pickStarDeals(deals, 8).map((d) => `${d.name}${d.salePrice ? ` ${d.salePrice}` : ''}${d.isBogo ? ' BOGO' : ''}`);
   const busy = keys.map((k, i) => ({ i, n: acts.filter((a) => a.dateKey === k).length })).filter((x) => x.n > 0).map((x) => x.i);
