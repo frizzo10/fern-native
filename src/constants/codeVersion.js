@@ -1,1 +1,1 @@
-export const CODE_VERSION = "11-24 e: planning dinner card with photo";
+export const CODE_VERSION = "11-24 f: dinner card shows full recipe";

@@ -265,9 +265,11 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
                   <Text style={s.whyTitle}>🤔 {t('autopilot_tour_why_title', { day: m.dayLabel })}</Text>
                   <Text style={s.whyText}>{m.why || t('autopilot_tour_why_none')}</Text>
                 </View>
-                <Text style={s.sub}>{t('autopilot_tour_ingredients')}</Text>
-                {m.ing.items.map((i) => <Text key={i.key} style={s.ing}>• {i.name}</Text>)}
-                {!m.ing.items.length ? <Text style={s.p}>{t('autopilot_tour_no_ing')}</Text> : null}
+                <Text style={s.sub}>{t('autopilot_tour_ingredients')}{m.ing.servings ? ` · ${t('autopilot_tour_serves', { n: m.ing.servings })}` : ''}</Text>
+                {(m.ing.lines?.length ? m.ing.lines : m.ing.items.map((i) => i.name)).map((line, k) => <Text key={k} style={s.ing}>• {line}</Text>)}
+                {m.ing.steps?.length ? <Text style={[s.sub, { marginTop: 14 }]}>{t('autopilot_tour_method')}</Text> : null}
+                {(m.ing.steps || []).map((st, k) => <Text key={`st${k}`} style={s.step2}><Text style={s.stepNo}>{k + 1}.  </Text>{st}</Text>)}
+                {!m.ing.items.length && !m.ing.lines?.length ? <Text style={s.p}>{t('autopilot_tour_no_ing')}</Text> : null}
                 </View>
               </View>
               {!swap ? (
@@ -371,6 +373,8 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
   step: { fontSize: 13, fontFamily: 'Jost-SemiBold', color: '#5C7262', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
   card: { backgroundColor: '#ECF2E6', borderRadius: 18, borderWidth: 1, borderColor: '#C8D6BE', overflow: 'hidden' },
+  step2: { fontSize: 16, fontFamily: 'Jost-Regular', color: '#2F4535', marginTop: 8, lineHeight: 23 },
+  stepNo: { fontFamily: 'Jost-Bold', color: '#3F5645' },
   cardBody: { padding: 16 },
   photo: { width: '100%', height: 210, backgroundColor: '#DDE7D5' },
   photoTile: { flex: 1, alignItems: 'center', justifyContent: 'center' },

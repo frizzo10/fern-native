@@ -10,6 +10,7 @@ import { loadWeekDeals } from '../utils/savings';
 import { pickStarDeals } from '../utils/starDeals';
 import { executeAgentActions } from './fernAgent';
 import { toShoppingName } from '../utils/shoppingName';
+import { normalizeRecipe, stripStepNumber } from '../utils/recipeNormalize';
 import { nameKey, addRecipesToShoppingList } from '../utils/shoppingListSync';
 
 const AI_URL = 'https://app.clickpickandcook.com/.netlify/functions/ai';
@@ -71,15 +72,15 @@ export async function draftWeek({ user, locale, onStep, avoid = [], replan = fal
   };
   const system =
     'You are Fern, a food planner. Plan one dinner for EACH night in nightsToPlan. Return ONLY JSON: ' +
-    '{"summary":"one friendly sentence","meals":[{"day_offset":0,"title":"dish name","emoji":"🍽️","sides":["side"],"ingredients":["1 lb chicken thighs"],"why":"one short sentence saying why this dish fits THAT day"}]}. ' +
-    'Rules: prefer an exact title from savedRecipeTitles (then leave ingredients empty); otherwise a new dish with 5-10 buyable ingredients with quantities. ' +
+    '{"summary":"one friendly sentence","meals":[{"day_offset":0,"title":"dish name","emoji":"🍽️","sides":["side"],"ingredients":["1 lb chicken thighs"],"instructions":["Step in one sentence"],"why":"one short sentence saying why this dish fits THAT day"}]}. ' +
+    'Rules: prefer an exact title from savedRecipeTitles (then leave ingredients empty); otherwise a new dish with 5-10 buyable ingredients with quantities and 4-7 short method steps in instructions (for a saved title leave instructions empty too). ' +
     'Build several dinners around saleItemsThisWeek. Respect peopleCookedFor and dietOrAvoid strictly. Quick meals on busyDaysWithActivities. ' +
     'No repeats of alreadyPlanned or of each other. Give each dinner one or two sides. In why, name the real reason for that day (a busy evening with an activity, a sale item it uses, a saved recipe the family already likes, variety after another dish), never generic praise. No markdown.' +
     (locale === 'es' ? ' Write titles and the summary in Spanish.' : '');
   const res = await fetch(AI_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system, feature: 'fern_chat', messages: [{ role: 'user', content: JSON.stringify(context) }], locale, userId: user?.id, token: user?.token }),
+    body: JSON.stringify({ system, feature: 'recipe_search', messages: [{ role: 'user', content: JSON.stringify(context) }], locale, userId: user?.id, token: user?.token }),
   });
   if (!res.ok) throw new Error(`ai ${res.status}`);
   const d = await res.json();
@@ -92,6 +93,7 @@ export async function draftWeek({ user, locale, onStep, avoid = [], replan = fal
     emoji: m?.emoji || '🍽️',
     sides: Array.isArray(m?.sides) ? m.sides.map(String).filter(Boolean).slice(0, 2) : [],
     ingredients: Array.isArray(m?.ingredients) ? m.ingredients.map(String).filter(Boolean) : [],
+    instructions: Array.isArray(m?.instructions) ? m.instructions.map(String).filter(Boolean).slice(0, 10) : [],
     why: String(m?.why || '').trim().slice(0, 220),
   })).filter((m) => m.title && allowed.has(m.day_offset) && !seen.has(m.day_offset) && seen.add(m.day_offset))
     .map((m) => ({ ...m, dayLabel: formatDayLabel(keys[m.day_offset]) }))
@@ -125,12 +127,17 @@ export async function undoWeek(snapshot, env) {
 export async function mealIngredients(meal) {
   const saved = await readJson('rv4_saved', []);
   const lc = (x) => String(x || '').trim().toLowerCase();
-  const own = saved.find((r) => lc(r?.title) === lc(meal.title));
+  const own = (Array.isArray(saved) ? saved : []).find((r) => lc(r?.title) === lc(meal.title));
+  const norm = own ? normalizeRecipe(own, 0) : null;
+  const real = (a) => (Array.isArray(a) ? a : []).map((x) => String(x || '').trim()).filter((x) => x && !/^No (ingredients|method steps) listed yet$/i.test(x));
+  const ownIng = norm ? real(norm.ingredients) : [];
   const raw = own && Array.isArray(own.ingredients) && own.ingredients.length ? own.ingredients : meal.ingredients || [];
   const lines = raw.map((x) => (typeof x === 'string' ? x : [x?.amount, x?.unit, x?.item || x?.name].filter(Boolean).join(' '))).map((x) => String(x).trim()).filter(Boolean);
-  const seen = new Set();
+  const shown = ownIng.length ? ownIng : lines;
+  const steps = (norm ? real(norm.methodSteps) : real(meal.instructions)).map(stripStepNumber).filter(Boolean);
   const photo = own ? (([...(Array.isArray(own._cloudPhotos) ? own._cloudPhotos : []), own._photoUrl, own.image].find((u) => typeof u === 'string' && /^https?:/.test(u))) || null) : null;
-  return { fromSaved: Boolean(own), photo, items: lines.map((l) => { const name = toShoppingName(l); return { name, key: nameKey(name) }; }).filter((i) => i.name && !seen.has(i.key) && seen.add(i.key)) };
+  const seen = new Set();
+  return { fromSaved: Boolean(own), photo, lines: shown, steps, servings: own ? String(own.servings || own.serves || own.yield || '').trim() : '', items: lines.map((l) => { const name = toShoppingName(l); return { name, key: nameKey(name) }; }).filter((i) => i.name && !seen.has(i.key) && seen.add(i.key)) };
 }
 
 // "soccer Tuesday 5:30, dinner out Friday" -> { activities: [...], skipDinners: [offsets] }. One ai call.
@@ -184,10 +191,10 @@ export async function existingDinners(avoid = []) {
   return out;
 }
 
-function jsonAsk(system, content, user, locale) {
+function jsonAsk(system, content, user, locale, feature = 'fern_chat') {
   return fetch(AI_URL, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system, feature: 'fern_chat', messages: [{ role: 'user', content: JSON.stringify(content) }], locale, userId: user?.id, token: user?.token }),
+    body: JSON.stringify({ system, feature, messages: [{ role: 'user', content: JSON.stringify(content) }], locale, userId: user?.id, token: user?.token }),
   }).then(async (res) => {
     if (!res.ok) throw new Error(`ai ${res.status}`);
     const d = await res.json();
@@ -231,13 +238,14 @@ export async function explainDinners({ dinners, user, locale }) {
 // Other dinners for one night: some from the saved recipes, some new ideas, each with a reason.
 export async function suggestAlternatives({ dayOffset, currentTitle, otherTitles = [], user, locale }) {
   const facts = await dayFacts(dayOffset);
-  const system = 'You are Fern, planning ONE dinner. Give 4 alternatives for this night: exactly two whose title is copied EXACTLY from savedRecipeTitles and two new ideas. Not the current dish and not anything in plannedThisWeek. Return ONLY JSON: {"options":[{"title":"","emoji":"🍽️","sides":[""],"ingredients":["1 lb ..."],"why":"one short specific sentence why it fits THIS day"}]}. For saved titles leave ingredients empty. For new ideas give 5-9 buyable ingredients. Respect people and diet strictly. No markdown.' + (locale === 'es' ? ' Titles and why in Spanish (saved titles stay exactly as they are).' : '');
-  const parsed = await jsonAsk(system, { ...facts, plannedThisWeek: [...facts.plannedThisWeek, ...otherTitles].slice(0, 30), currentDish: currentTitle }, user, locale);
+  const system = 'You are Fern, planning ONE dinner. Give 4 alternatives for this night: exactly two whose title is copied EXACTLY from savedRecipeTitles and two new ideas. Not the current dish and not anything in plannedThisWeek. Return ONLY JSON: {"options":[{"title":"","emoji":"🍽️","sides":[""],"ingredients":["1 lb ..."],"instructions":["Step"],"why":"one short specific sentence why it fits THIS day"}]}. For saved titles leave ingredients empty. For new ideas give 5-9 buyable ingredients with quantities and 4-6 short method steps in instructions. Respect people and diet strictly. No markdown.' + (locale === 'es' ? ' Titles and why in Spanish (saved titles stay exactly as they are).' : '');
+  const parsed = await jsonAsk(system, { ...facts, plannedThisWeek: [...facts.plannedThisWeek, ...otherTitles].slice(0, 30), currentDish: currentTitle }, user, locale, 'recipe_search');
   const planned = new Set([String(currentTitle || '').toLowerCase(), ...otherTitles.map((x) => String(x || '').toLowerCase())]);
   return (Array.isArray(parsed?.options) ? parsed.options : []).map((o) => ({
     title: String(o?.title || '').trim(), emoji: o?.emoji || '🍽️',
     sides: Array.isArray(o?.sides) ? o.sides.map(String).filter(Boolean).slice(0, 2) : [],
     ingredients: Array.isArray(o?.ingredients) ? o.ingredients.map(String).filter(Boolean) : [],
+    instructions: Array.isArray(o?.instructions) ? o.instructions.map(String).filter(Boolean).slice(0, 10) : [],
     why: String(o?.why || '').trim().slice(0, 220),
   })).filter((o) => o.title && !planned.has(o.title.toLowerCase()) && planned.add(o.title.toLowerCase())).slice(0, 5);
 }
