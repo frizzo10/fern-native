@@ -1244,14 +1244,14 @@ export default function ShoppingScreen({ user }) {
 
         {guideStep === 'list' && !weekDeals.length ? (
           <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
-            <FlyerSection user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
+            <FlyerSection user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} onOpenStore={(name) => navigation.navigate('Shopping', { guide: Date.now(), guideStore: name })} />
           </View>
         ) : null}
 
         {false ? (
           <>
         <View onLayout={(e) => { sectionY.current.flyer = e.nativeEvent.layout.y; }}>
-          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => { if (route?.params?.tripStart) setTripChatMode('choose'); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
+          <FlyerSection user={user} stores={data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onOpenStore={(name) => navigation.navigate('Shopping', { guide: Date.now(), guideStore: name })} onScanned={() => { if (route?.params?.tripStart) setTripChatMode('choose'); setTimeout(() => scrollRef.current?.scrollTo({ y: Math.max(0, (sectionY.current.sales || 0) - 8), animated: true }), 350); }} />
         </View>
 
         {(tripChatMode === 'choose' ? (
@@ -1292,7 +1292,7 @@ export default function ShoppingScreen({ user }) {
                 <View>
                   <Text style={styles.checkoutTitle}>{`🏷 ${t('sale_list_week_title')}`}</Text>
                   <Text style={styles.checkoutSub}>{t('sale_list_week_sub', { n: weekDeals.length })}</Text>
-                  <FlyerSection embedded user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} />
+                  <FlyerSection embedded user={user} stores={guideStores.length ? guideStores : data.userStores} t={t} weekDeals={weekDeals} onDealsChanged={reloadDeals} onScanned={() => {}} onOpenStore={(name) => navigation.navigate('Shopping', { guide: Date.now(), guideStore: name })} />
                   <TouchableOpacity onPress={clearStoreDeals} activeOpacity={0.8} style={{ marginTop: 8 }}>
                     <Text style={{ color: '#C0392B', fontSize: 13, fontFamily: 'Jost-Regular' }}>{t('trip_clear_store_btn', { store: String(guideStoreName || '').split(/ - |#/)[0].trim() || t('trip_flyer_unknown_store') })}</Text>
                   </TouchableOpacity>

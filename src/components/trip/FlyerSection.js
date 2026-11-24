@@ -14,7 +14,7 @@ import { loadWeekDeals, replaceWeekDeals, saveWeekDeals } from '../../utils/savi
 // Kept at module level so the "Read N items / Wrong photo" line survives the card swapping into the circular.
 let lastScanMemo = null;
 
-export default function FlyerSection({ user, stores, t, weekDeals, onDealsChanged, onScanned, embedded }) {
+export default function FlyerSection({ user, stores, t, weekDeals, onDealsChanged, onScanned, onOpenStore, embedded }) {
   const [shared, setShared] = useState([]); // [{ store, scannedAt, itemCount, items }]
   const [busy, setBusy] = useState(false);
   const [last, setLastState] = useState(lastScanMemo); // { store, validDates, count, before }
@@ -84,6 +84,21 @@ export default function FlyerSection({ user, stores, t, weekDeals, onDealsChange
       const added = Math.max(0, afterN - beforeN); // items this page really added (repeats are merged away)
       setLast({ store: String(result.store || '').trim(), validDates: String(result.validDates || '').trim(), count: items.length, before, added, total: afterN });
       onScanned?.();
+      // The circular was filed under a different store than the one open on this screen, so it is not shown here.
+      // Say so on screen and offer to open it, instead of leaving the page looking unchanged.
+      const readKey = chainOf(result.store);
+      const otherStore = hereKeys.length === 1 && readKey && !(readKey.includes(hereKeys[0]) || hereKeys[0].includes(readKey));
+      if (otherStore) {
+        const shortName = String(result.store).split(/ - |#/)[0].trim();
+        Alert.alert(
+          t('trip_flyer_other_title', { store: shortName }),
+          t('trip_flyer_other_body', { n: items.length, store: shortName }),
+          [
+            { text: t('trip_flyer_other_later'), style: 'cancel' },
+            ...(onOpenStore ? [{ text: t('trip_flyer_other_view', { store: shortName }), onPress: () => onOpenStore(shortName) }] : []),
+          ],
+        );
+      }
     } catch (e) {
       console.log('[trip] flyer scan failed', e?.message || e);
       Alert.alert(t('scan_circular_scan_failed_title'), t('scan_circular_scan_failed_desc'));
