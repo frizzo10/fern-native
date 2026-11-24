@@ -1,1 +1,1 @@
-export const CODE_VERSION = "11-24 g: swap ideas with photos and preview";
+export const CODE_VERSION = "11-24 h: swap ideas retry and salvage";

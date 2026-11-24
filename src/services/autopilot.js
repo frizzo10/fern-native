@@ -235,19 +235,63 @@ export async function explainDinners({ dinners, user, locale }) {
   return out;
 }
 
+// Pulls every complete {...} object that has a "title" out of a reply that may be cut off mid-JSON.
+function salvageOptions(raw) {
+  const text = String(raw || '');
+  try { const whole = JSON.parse(text.trim()); if (Array.isArray(whole?.options)) return whole.options; } catch (e) { /* salvage below */ }
+  const out = [];
+  let depth = 0, begin = -1, inStr = false, esc = false;
+  const from = Math.max(0, text.indexOf('['));
+  for (let i = from + 1; i < text.length; i++) {
+    const c = text[i];
+    if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{') { if (depth === 0) begin = i; depth++; }
+    else if (c === '}') { depth--; if (depth === 0 && begin >= 0) { try { const o = JSON.parse(text.slice(begin, i + 1)); if (o?.title) out.push(o); } catch (e) { /* skip */ } begin = -1; } }
+  }
+  return out;
+}
+
+async function askOptionsRaw(system, content, user, locale, feature) {
+  const res = await fetch(AI_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system, feature, messages: [{ role: 'user', content: JSON.stringify(content) }], locale, userId: user?.id, token: user?.token }),
+  });
+  if (!res.ok) throw new Error(`ai ${res.status}`);
+  const d = await res.json();
+  return d?.content?.[0]?.text ?? d?.data?.content?.[0]?.text ?? '';
+}
+
 // Other dinners for one night: some from the saved recipes, some new ideas, each with a reason.
 export async function suggestAlternatives({ dayOffset, currentTitle, otherTitles = [], user, locale }) {
   const facts = await dayFacts(dayOffset);
-  const system = 'You are Fern, planning ONE dinner. Give 4 alternatives for this night: exactly two whose title is copied EXACTLY from savedRecipeTitles and two new ideas. Not the current dish and not anything in plannedThisWeek. Return ONLY JSON: {"options":[{"title":"","emoji":"🍽️","sides":[""],"ingredients":["1 lb ..."],"instructions":["Step"],"why":"one short specific sentence why it fits THIS day"}]}. For saved titles leave ingredients empty. For new ideas give 5-9 buyable ingredients with quantities and 4-6 short method steps in instructions. Respect people and diet strictly. No markdown.' + (locale === 'es' ? ' Titles and why in Spanish (saved titles stay exactly as they are).' : '');
-  const parsed = await jsonAsk(system, { ...facts, plannedThisWeek: [...facts.plannedThisWeek, ...otherTitles].slice(0, 30), currentDish: currentTitle }, user, locale, 'recipe_search');
-  const planned = new Set([String(currentTitle || '').toLowerCase(), ...otherTitles.map((x) => String(x || '').toLowerCase())]);
-  return (Array.isArray(parsed?.options) ? parsed.options : []).map((o) => ({
-    title: String(o?.title || '').trim(), emoji: o?.emoji || '🍽️',
-    sides: Array.isArray(o?.sides) ? o.sides.map(String).filter(Boolean).slice(0, 2) : [],
-    ingredients: Array.isArray(o?.ingredients) ? o.ingredients.map(String).filter(Boolean) : [],
-    instructions: Array.isArray(o?.instructions) ? o.instructions.map(String).filter(Boolean).slice(0, 10) : [],
-    why: String(o?.why || '').trim().slice(0, 220),
-  })).filter((o) => o.title && !planned.has(o.title.toLowerCase()) && planned.add(o.title.toLowerCase())).slice(0, 5);
+  const es = locale === 'es' ? ' Titles and why in Spanish (saved titles stay exactly as they are).' : '';
+  const full = 'You are Fern, planning ONE dinner. Give 4 alternatives for this night: exactly two whose title is copied EXACTLY from savedRecipeTitles and two new ideas. Not the current dish and not anything in plannedThisWeek. Return ONLY JSON: {"options":[{"title":"","emoji":"🍽️","sides":[""],"ingredients":["1 lb ..."],"instructions":["Step"],"why":"one short specific sentence why it fits THIS day"}]}. For saved titles leave ingredients empty. For new ideas give 5-8 buyable ingredients with quantities and 4-5 short method steps in instructions. Keep every sentence short. Respect people and diet strictly. No markdown.' + es;
+  const light = 'You are Fern, planning ONE dinner. Give 3 alternatives for this night: two whose title is copied EXACTLY from savedRecipeTitles and one new idea. Not the current dish and not anything in plannedThisWeek. Return ONLY JSON: {"options":[{"title":"","emoji":"🍽️","sides":[""],"why":"one short sentence why it fits THIS day"}]}. No ingredients, no steps. Respect people and diet strictly. No markdown.' + es;
+  const content = { ...facts, savedRecipeTitles: facts.savedRecipeTitles.slice(0, 50), plannedThisWeek: [...facts.plannedThisWeek, ...otherTitles].slice(0, 30), currentDish: currentTitle };
+  const blocked = [String(currentTitle || '').toLowerCase(), ...otherTitles.map((x) => String(x || '').toLowerCase())];
+  const tidy = (list, acc) => {
+    const seen = new Set([...blocked, ...acc.map((o) => o.title.toLowerCase())]);
+    const add = list.map((o) => ({
+      title: String(o?.title || '').trim(), emoji: o?.emoji || '🍽️',
+      sides: Array.isArray(o?.sides) ? o.sides.map(String).filter(Boolean).slice(0, 2) : [],
+      ingredients: Array.isArray(o?.ingredients) ? o.ingredients.map(String).filter(Boolean) : [],
+      instructions: Array.isArray(o?.instructions) ? o.instructions.map(String).filter(Boolean).slice(0, 10) : [],
+      why: String(o?.why || '').trim().slice(0, 220),
+    })).filter((o) => o.title && !seen.has(o.title.toLowerCase()) && seen.add(o.title.toLowerCase()));
+    return [...acc, ...add].slice(0, 5);
+  };
+  let got = [];
+  let lastErr = null;
+  for (const [sys, feat] of [[full, 'recipe_search'], [light, 'fern_chat']]) {
+    try {
+      const raw = await askOptionsRaw(sys, content, user, locale, feat);
+      got = tidy(salvageOptions(raw), got);
+      if (got.length >= 2) return got;
+    } catch (e) { lastErr = e; }
+  }
+  if (!got.length && lastErr) throw lastErr;
+  return got;
 }
 
 export async function savedRecipeList() {
