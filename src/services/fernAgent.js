@@ -9,7 +9,7 @@
 // keys the screens use, so what she says she did is what was done.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { buildRollingWeekDateKeys, parseDateKey, formatDayLabel } from '../utils/familyDates';
-import { loadWeekDeals, couponItemName } from '../utils/savings';
+import { loadWeekDeals, saveWeekDeals, couponItemName } from '../utils/savings';
 import { fetchAllCoupons } from './couponsService';
 import { trackEvent, couponMeta } from './track';
 import { normalizeCoupons } from '../utils/couponNormalize';
@@ -26,6 +26,9 @@ export function emitAgentChange() { listeners.forEach((fn) => { try { fn(); } ca
 import { getNotes, addNote, removeNote } from './fernNotes';
 import { getPublishContext } from './publishService';
 import { fetchPriceCompare, priceLines } from './priceCompareService';
+import { fetchStoreDeals, sharedStoresToDeals } from './storeDealsService';
+import { dealsForStore } from '../utils/flyerStore';
+import { zipsByStoreName } from '../utils/storeZip';
 const clip = (s, n = 60) => String(s || '').replace(/\s+/g, ' ').trim().slice(0, n);
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const lc = (s) => String(s || '').trim().toLowerCase();
@@ -162,7 +165,7 @@ export function buildAgentPrompt(ctx, { extra = '', voice = false, topic = '' } 
       '- {"type":"add_activity","day_offset":3,"label":"Soccer practice","emoji":"⚽","start":"5:30 PM","end":"6:30 PM"} — start/end optional, format "H:MM AM/PM".\n' +
       '- {"type":"show_recipes","item":"sale item name EXACTLY as in the circular list"} — opens that sale item\'s recipes on the circular page.\n' +
       '- {"type":"add_coupon","title":"coupon title EXACTLY as in the coupon lists"} — adds it to the Fern wallet (and its product to the list).\n' +
-      '- {"type":"compare_price","item":"chicken breast","store":"optional store name"} — looks up the LOWEST scanned sale price of an item (other shoppers\' scanned circulars near them). Use it for "where is X cheapest", "lowest price for X", "is X cheaper at Publix". The app prints the stores and prices itself, so say ONE short sentence like "Let me check the scanned circulars" and NEVER state a price, store or date yourself. Only advertised sale prices exist, never everyday shelf prices; if asked about shelf prices say so.\n' +
+      '- {"type":"compare_price","item":"chicken breast","store":"optional store name"} — looks up the LOWEST scanned sale price of an item (other shoppers\' scanned circulars near them). Use it for "where is X cheapest", "lowest price for X", "is X cheaper at Publix". ALWAYS use this action (not the sale list above) for any cheapest / lowest price question. The app prints the stores and prices itself AND takes them to the cheapest store\'s circular with the item\'s recipes already open, so say ONE short sentence like "Let me check the circulars", NEVER state a price, store or date yourself, and NEVER ask "Want a recipe?". Only advertised sale prices exist, never everyday shelf prices; if asked about shelf prices say so.\n' +
       '- {"type":"go_to","screen":"Shopping|Recipes|Family|Find|Home"} — use it when they ask to be taken somewhere or after you explain where something is.\n' +
       '- {"type":"open_tool","tool":"charcuterie|wine_pairing|fridge_challenge|leftover_magic|quick_dinner|budget_planner|meal_planner|semi_homemade|nutrition|dinner_party|family_vault|circulars"} — opens one of the app\'s own built-in tools (see BUILT-IN TOOLS below).\n' +
       '- {"type":"remember","note":"We do not like mushrooms"} — saves ONE short note about their food tastes or household routine (dislikes, favorites, spice level, kitchen gear, a regular busy night). Only when they clearly state it as lasting ("we hate mushrooms", "Thursday is soccer night", "I have an air fryer"), in their own words, third person plural or "I" as they said it; a one-off request ("no mushrooms tonight") is NOT a note. Never save health conditions, allergies, medical or personal details, or anything you only guessed. Say in your reply, in a few words, that you will remember it.\n' +
@@ -436,7 +439,7 @@ export async function resolveOptionRecipe(o) {
 // Runs every action she asked for. Returns { lines: [report lines], showRecipesFor, goTo, close }.
 // env: { pushChangedFromStorage, token, canSaveUnlimited }
 export async function executeAgentActions(actions, env) {
-  const out = { lines: [], showRecipesFor: '', goTo: '', close: false, watch: null }; // watch: where to jump so the person sees the change happen
+  const out = { lines: [], showRecipesFor: '', goTo: '', goStore: '', close: false, watch: null }; // watch: where to jump so the person sees the change happen
   for (const a of Array.isArray(actions) ? actions : []) {
     const type = String(a?.type || '');
     try {
@@ -453,7 +456,25 @@ export async function executeAgentActions(actions, env) {
       else if (type === 'compare_price') {
         const item = clip(a.item, 60);
         if (!item) r = { ok: false, text: 'Tell me which item to compare.' };
-        else for (const l of priceLines(item, await fetchPriceCompare({ token: env.token, item, store: clip(a.store, 60) }))) out.lines.push(`${l.ok ? '✓' : '✗'} ${l.text}`);
+        else {
+          const res = await fetchPriceCompare({ token: env.token, item, store: clip(a.store, 60) });
+          for (const l of priceLines(item, res)) out.lines.push(`${l.ok ? '✓' : '✗'} ${l.text}`);
+          // Cheapest store is on sale right now: take them to that store's circular with the item's recipes open.
+          const top = res?.cheapest;
+          if (top?.current && top.store && top.item) {
+            try {
+              const have = dealsForStore(await loadWeekDeals(), top.store);
+              if (!have.length) {
+                const raw = await readJson('cpc_user_stores', []);
+                const shared = await fetchStoreDeals({ token: env.token, stores: [top.store], zips: zipsByStoreName(raw) });
+                const deals = sharedStoresToDeals(shared);
+                if (deals.length) await saveWeekDeals(deals);
+              }
+            } catch (e) { /* still go: Shopping offers the scan/use-ad card */ }
+            out.goStore = clip(top.store.split(/ - |#/)[0], 60);
+            out.showRecipesFor = clip(top.item, 120);
+          }
+        }
       }
       else if (type === 'remember') { const x = await addNote(a.note); r = x.ok ? { ok: true, text: x.dup ? `I already knew: ${x.note}` : `I'll remember: ${x.note}` } : { ok: false, text: x.reason === 'full' ? 'My notes about you are full; you can delete some on Account.' : 'I could not save that note.' }; }
       else if (type === 'forget') { const x = await removeNote(a.note); r = x.ok ? { ok: true, text: `Forgot: ${x.note}` } : { ok: false, text: 'I could not find that note.' }; }

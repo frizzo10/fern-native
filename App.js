@@ -591,7 +591,7 @@ function AppNavigator({ user, signOut, deleteAccount, userStores: rawUserStores,
             return;
           }
           setTimeout(() => {
-            if (item) navigationRef.current?.navigate('Shopping', { recipesFor: item, recipesNonce: Date.now() });
+            if (item) navigationRef.current?.navigate('Shopping', p?.go_store ? { guide: Date.now(), guideStore: String(p.go_store), recipesFor: item, recipesNonce: Date.now() } : { recipesFor: item, recipesNonce: Date.now() });
             else if (p?.go_to) navigationRef.current?.navigate(p.go_to);
           }, 350);
         }}
