@@ -39,13 +39,15 @@ export default function MealPlannerImage({ title, index, variant = 'thumb', fall
     }, [title, index]);
 
     const showPhoto = !!url && !failed;
-    const box = variant === 'hero'
+    const box = variant === 'fill'
+        ? { width: '100%', height: '100%', overflow: 'hidden' }
+        : variant === 'hero'
         ? { width: '100%', height: 190, borderRadius: 16, overflow: 'hidden', marginTop: 10, marginBottom: 12 }
         : { width: 44, height: 44, borderRadius: 8, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' };
 
     if (!showPhoto) {
         // Hero: no banner at all without a photo (the emoji stays where it was).
-        return variant === 'hero' ? (fallback || null) : <View style={box}>{fallback}</View>;
+        return variant === 'hero' || variant === 'fill' ? (fallback || null) : <View style={box}>{fallback}</View>;
     }
     return (
         <View style={box}>

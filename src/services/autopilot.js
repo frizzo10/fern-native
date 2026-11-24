@@ -129,7 +129,8 @@ export async function mealIngredients(meal) {
   const raw = own && Array.isArray(own.ingredients) && own.ingredients.length ? own.ingredients : meal.ingredients || [];
   const lines = raw.map((x) => (typeof x === 'string' ? x : [x?.amount, x?.unit, x?.item || x?.name].filter(Boolean).join(' '))).map((x) => String(x).trim()).filter(Boolean);
   const seen = new Set();
-  return { fromSaved: Boolean(own), items: lines.map((l) => { const name = toShoppingName(l); return { name, key: nameKey(name) }; }).filter((i) => i.name && !seen.has(i.key) && seen.add(i.key)) };
+  const photo = own ? (([...(Array.isArray(own._cloudPhotos) ? own._cloudPhotos : []), own._photoUrl, own.image].find((u) => typeof u === 'string' && /^https?:/.test(u))) || null) : null;
+  return { fromSaved: Boolean(own), photo, items: lines.map((l) => { const name = toShoppingName(l); return { name, key: nameKey(name) }; }).filter((i) => i.name && !seen.has(i.key) && seen.add(i.key)) };
 }
 
 // "soccer Tuesday 5:30, dinner out Friday" -> { activities: [...], skipDinners: [offsets] }. One ai call.

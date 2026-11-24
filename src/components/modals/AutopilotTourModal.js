@@ -2,12 +2,27 @@
 // each dinner in turn -> review/edit the shopping list -> done. Nothing is changed until the list step is confirmed.
 import React, { useEffect, useRef, useState } from 'react';
 import AS from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
 import AutopilotWorking from '../AutopilotWorking';
+import MealPlannerImage from '../MealPlannerImage';
 import { playWorkSound, startTicking, stopTicking } from '../../utils/workSounds';
 import { emitAgentChange } from '../../services/fernAgent';
 import { draftWeek, applyWeek, parsePlans, addPlannedActivities, mealIngredients, addExtraItems, existingDinners, explainDinners, suggestAlternatives, savedRecipeList } from '../../services/autopilot';
+
+// Recipe-card photo: the saved recipe's own picture, else the best stock match by title, else a big emoji tile.
+function DinnerPhoto({ photo, title, emoji }) {
+  const [bad, setBad] = useState(false);
+  useEffect(() => { setBad(false); }, [photo, title]);
+  const tile = <View style={s.photoTile}><Text style={s.photoEmoji}>{emoji || '🍽️'}</Text></View>;
+  if (photo && !bad) return <Image source={{ uri: photo }} style={s.photo} resizeMode="cover" onError={() => setBad(true)} />;
+  return (
+    <View style={s.photo}>
+      {tile}
+      <View style={StyleSheet.absoluteFill}><MealPlannerImage title={title} variant="fill" fallback={null} /></View>
+    </View>
+  );
+}
 
 export default function AutopilotTourModal({ visible, user, pushChangedFromStorage, pull, onClose, onFinished, onSeeWeek }) {
   const { t, locale } = useLanguage();
@@ -238,8 +253,10 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
               {added.length ? <View style={s.chipBox}><Text style={s.chipLabel}>📅 {t('autopilot_tour_added_title')}</Text>{added.map((a, i) => <Text key={i} style={s.chipText}>{`${a.emoji} ${a.dayLabel}: ${a.label}${a.start ? ` ${a.start}` : ''}`}</Text>)}</View> : null}
               <Text style={s.step}>{t('autopilot_tour_walk_title')} · {idx + 1}/{meals.length}</Text>
               <View style={[s.card, !m.include && { opacity: 0.5 }]}>
-                <Text style={s.day}>{m.dayLabel}</Text>
-                <Text style={s.dish}>{m.emoji} {m.title}</Text>
+                <DinnerPhoto photo={m.ing.photo} title={m.title} emoji={m.emoji} />
+                <View style={s.dayPill}><Text style={s.dayPillText}>{m.dayLabel}</Text></View>
+                <View style={s.cardBody}>
+                <Text style={s.dish}>{m.title}</Text>
                 <View style={[s.srcBadge, m.ing.fromSaved ? s.srcSaved : s.srcAi]}>
                   <Text style={[s.srcText, m.ing.fromSaved ? s.srcTextSaved : s.srcTextAi]}>{m.ing.fromSaved ? `📖 ${t('autopilot_tour_from_saved')}` : `✨ ${t('autopilot_tour_new_idea')}`}</Text>
                 </View>
@@ -251,6 +268,7 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
                 <Text style={s.sub}>{t('autopilot_tour_ingredients')}</Text>
                 {m.ing.items.map((i) => <Text key={i.key} style={s.ing}>• {i.name}</Text>)}
                 {!m.ing.items.length ? <Text style={s.p}>{t('autopilot_tour_no_ing')}</Text> : null}
+                </View>
               </View>
               {!swap ? (
                 <>
@@ -352,9 +370,15 @@ const s = StyleSheet.create({
   linkText: { color: '#3F5645', fontSize: 16, fontFamily: 'Jost-SemiBold', textDecorationLine: 'underline' },
   row: { flexDirection: 'row', alignItems: 'center' },
   step: { fontSize: 13, fontFamily: 'Jost-SemiBold', color: '#5C7262', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
-  card: { backgroundColor: '#ECF2E6', borderRadius: 16, borderWidth: 1, borderColor: '#C8D6BE', padding: 16 },
+  card: { backgroundColor: '#ECF2E6', borderRadius: 18, borderWidth: 1, borderColor: '#C8D6BE', overflow: 'hidden' },
+  cardBody: { padding: 16 },
+  photo: { width: '100%', height: 210, backgroundColor: '#DDE7D5' },
+  photoTile: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  photoEmoji: { fontSize: 72 },
+  dayPill: { position: 'absolute', top: 12, left: 12, backgroundColor: 'rgba(255,255,255,0.92)', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 5 },
+  dayPillText: { fontSize: 15, fontFamily: 'Jost-Bold', color: '#2F4535' },
   day: { fontSize: 15, fontFamily: 'Jost-SemiBold', color: '#5C7262' },
-  dish: { fontSize: 24, fontFamily: 'Jost-Bold', color: '#2F4535', marginTop: 4 },
+  dish: { fontSize: 24, fontFamily: 'Jost-Bold', color: '#2F4535' },
   srcBadge: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
   srcSaved: { backgroundColor: '#DDE7D5', borderWidth: 1, borderColor: '#4E7A54' },
   srcAi: { backgroundColor: '#FFF4D6', borderWidth: 1, borderColor: '#C9A227' },
