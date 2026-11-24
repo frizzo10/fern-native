@@ -71,10 +71,10 @@ export async function draftWeek({ user, locale, onStep, avoid = [], replan = fal
   };
   const system =
     'You are Fern, a food planner. Plan one dinner for EACH night in nightsToPlan. Return ONLY JSON: ' +
-    '{"summary":"one friendly sentence","meals":[{"day_offset":0,"title":"dish name","emoji":"🍽️","sides":["side"],"ingredients":["1 lb chicken thighs"]}]}. ' +
+    '{"summary":"one friendly sentence","meals":[{"day_offset":0,"title":"dish name","emoji":"🍽️","sides":["side"],"ingredients":["1 lb chicken thighs"],"why":"one short sentence saying why this dish fits THAT day"}]}. ' +
     'Rules: prefer an exact title from savedRecipeTitles (then leave ingredients empty); otherwise a new dish with 5-10 buyable ingredients with quantities. ' +
     'Build several dinners around saleItemsThisWeek. Respect peopleCookedFor and dietOrAvoid strictly. Quick meals on busyDaysWithActivities. ' +
-    'No repeats of alreadyPlanned or of each other. Give each dinner one or two sides. No markdown.' +
+    'No repeats of alreadyPlanned or of each other. Give each dinner one or two sides. In why, name the real reason for that day (a busy evening with an activity, a sale item it uses, a saved recipe the family already likes, variety after another dish), never generic praise. No markdown.' +
     (locale === 'es' ? ' Write titles and the summary in Spanish.' : '');
   const res = await fetch(AI_URL, {
     method: 'POST',
@@ -92,6 +92,7 @@ export async function draftWeek({ user, locale, onStep, avoid = [], replan = fal
     emoji: m?.emoji || '🍽️',
     sides: Array.isArray(m?.sides) ? m.sides.map(String).filter(Boolean).slice(0, 2) : [],
     ingredients: Array.isArray(m?.ingredients) ? m.ingredients.map(String).filter(Boolean) : [],
+    why: String(m?.why || '').trim().slice(0, 220),
   })).filter((m) => m.title && allowed.has(m.day_offset) && !seen.has(m.day_offset) && seen.add(m.day_offset))
     .map((m) => ({ ...m, dayLabel: formatDayLabel(keys[m.day_offset]) }))
     .sort((a, b) => a.day_offset - b.day_offset);
@@ -180,4 +181,68 @@ export async function existingDinners(avoid = []) {
     if (m?.title) out.push({ day_offset: i, dayLabel: formatDayLabel(k), title: String(m.title), emoji: m.emoji || '🍽️', sides: Array.isArray(m.sides) ? m.sides.slice(0, 2) : [], ingredients: [] });
   });
   return out;
+}
+
+function jsonAsk(system, content, user, locale) {
+  return fetch(AI_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system, feature: 'fern_chat', messages: [{ role: 'user', content: JSON.stringify(content) }], locale, userId: user?.id, token: user?.token }),
+  }).then(async (res) => {
+    if (!res.ok) throw new Error(`ai ${res.status}`);
+    const d = await res.json();
+    return parseLoose(d?.content?.[0]?.text ?? d?.data?.content?.[0]?.text ?? '');
+  });
+}
+
+async function dayFacts(dayOffset) {
+  const keys = buildRollingWeekDateKeys();
+  const [acts, deals, saved, plan, prefs] = await Promise.all([
+    readJson('rv4_activities', []), loadWeekDeals(), readJson('rv4_saved', []), readJson('rv4_meal_plan', {}), readJson('fern_shopper_prefs', {}),
+  ]);
+  const k = keys[dayOffset];
+  return {
+    day: formatDayLabel(k),
+    activitiesThatDay: acts.filter((a) => a.dateKey === k).map((a) => `${a.label}${a.startTime ? ` at ${a.startTime}` : ''}`),
+    saleItems: pickStarDeals(deals, 8).map((d) => `${d.name}${d.salePrice ? ` ${d.salePrice}` : ''}${d.isBogo ? ' BOGO' : ''}`),
+    savedRecipeTitles: saved.map((r) => r?.title).filter(Boolean).slice(0, 80),
+    plannedThisWeek: keys.flatMap((kk) => (Array.isArray(plan[kk]) ? plan[kk] : []).map((m) => m?.title)).filter(Boolean).slice(0, 20),
+    people: prefs?.householdSize || '',
+    diet: (await mergedDietary(prefs?.dietary).catch(() => '')) || prefs?.dietary || '',
+  };
+}
+
+// A reason, per dinner, for dinners that are already on the week (so the walkthrough can say why each fits its day).
+export async function explainDinners({ dinners, user, locale }) {
+  const keys = buildRollingWeekDateKeys();
+  const acts = await readJson('rv4_activities', []);
+  const deals = await loadWeekDeals();
+  const context = {
+    dinners: dinners.map((m) => ({ day_offset: m.day_offset, day: formatDayLabel(keys[m.day_offset]), title: m.title, activitiesThatDay: acts.filter((a) => a.dateKey === keys[m.day_offset]).map((a) => a.label) })),
+    saleItemsThisWeek: pickStarDeals(deals, 8).map((d) => d.name),
+  };
+  const system = 'You are Fern. For each dinner say in one short sentence why it works on THAT day (an activity that night, a sale item it uses, variety with the other dinners, an easy night). Be specific and honest; if there is no special reason say it is a good fit for an open evening. Return ONLY JSON: {"reasons":[{"day_offset":0,"why":"..."}]}. No markdown.' + (locale === 'es' ? ' Write in Spanish.' : '');
+  const parsed = await jsonAsk(system, context, user, locale);
+  const out = {};
+  (Array.isArray(parsed?.reasons) ? parsed.reasons : []).forEach((r) => { if (Number.isInteger(Number(r?.day_offset)) && r?.why) out[Number(r.day_offset)] = String(r.why).slice(0, 220); });
+  return out;
+}
+
+// Other dinners for one night: some from the saved recipes, some new ideas, each with a reason.
+export async function suggestAlternatives({ dayOffset, currentTitle, otherTitles = [], user, locale }) {
+  const facts = await dayFacts(dayOffset);
+  const system = 'You are Fern, planning ONE dinner. Give 4 alternatives for this night: exactly two whose title is copied EXACTLY from savedRecipeTitles and two new ideas. Not the current dish and not anything in plannedThisWeek. Return ONLY JSON: {"options":[{"title":"","emoji":"🍽️","sides":[""],"ingredients":["1 lb ..."],"why":"one short specific sentence why it fits THIS day"}]}. For saved titles leave ingredients empty. For new ideas give 5-9 buyable ingredients. Respect people and diet strictly. No markdown.' + (locale === 'es' ? ' Titles and why in Spanish (saved titles stay exactly as they are).' : '');
+  const parsed = await jsonAsk(system, { ...facts, plannedThisWeek: [...facts.plannedThisWeek, ...otherTitles].slice(0, 30), currentDish: currentTitle }, user, locale);
+  const planned = new Set([String(currentTitle || '').toLowerCase(), ...otherTitles.map((x) => String(x || '').toLowerCase())]);
+  return (Array.isArray(parsed?.options) ? parsed.options : []).map((o) => ({
+    title: String(o?.title || '').trim(), emoji: o?.emoji || '🍽️',
+    sides: Array.isArray(o?.sides) ? o.sides.map(String).filter(Boolean).slice(0, 2) : [],
+    ingredients: Array.isArray(o?.ingredients) ? o.ingredients.map(String).filter(Boolean) : [],
+    why: String(o?.why || '').trim().slice(0, 220),
+  })).filter((o) => o.title && !planned.has(o.title.toLowerCase()) && planned.add(o.title.toLowerCase())).slice(0, 5);
+}
+
+export async function savedRecipeList() {
+  const savedRaw = await readJson('rv4_saved', []);
+  const saved = Array.isArray(savedRaw) ? savedRaw : [];
+  return saved.map((r) => ({ title: String(r?.title || '').trim(), emoji: r?.emoji || '🍽️' })).filter((r) => r.title);
 }

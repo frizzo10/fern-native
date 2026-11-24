@@ -7,7 +7,7 @@ import useLanguage from '../../hooks/useLanguage';
 import AutopilotWorking from '../AutopilotWorking';
 import { playWorkSound, startTicking, stopTicking } from '../../utils/workSounds';
 import { emitAgentChange } from '../../services/fernAgent';
-import { draftWeek, applyWeek, parsePlans, addPlannedActivities, mealIngredients, addExtraItems, existingDinners } from '../../services/autopilot';
+import { draftWeek, applyWeek, parsePlans, addPlannedActivities, mealIngredients, addExtraItems, existingDinners, explainDinners, suggestAlternatives, savedRecipeList } from '../../services/autopilot';
 
 export default function AutopilotTourModal({ visible, user, pushChangedFromStorage, pull, onClose, onFinished, onSeeWeek }) {
   const { t, locale } = useLanguage();
@@ -19,6 +19,7 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   const [workDone, setWorkDone] = useState(false);
   const stageAt = useRef(0);
   const sessionRef = useRef(0);
+  const swapReqRef = useRef(0);
   const [added, setAdded] = useState([]);
   const [skipDays, setSkipDays] = useState([]);
   const [meals, setMeals] = useState([]); // each gets include + ing { fromSaved, items }
@@ -28,6 +29,7 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   const [extraText, setExtraText] = useState('');
   const [note, setNote] = useState('');
   const [existing, setExisting] = useState(new Set());
+  const [swap, setSwap] = useState(null); // null | { loading, options, error, browse, query, list }
   const snapshotRef = useRef(null);
   const env = () => ({ pushChangedFromStorage, token: user?.token });
 
@@ -35,13 +37,15 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   useEffect(() => {
     sessionRef.current += 1;
     if (!visible) { stopTicking(); return; }
-    setStep('ask'); setText(''); setAdded([]); setSkipDays([]); setMeals([]); setIdx(0); setUnticked({}); setExtras([]); setExtraText(''); setNote('');
+    setStep('ask'); setText(''); setAdded([]); setSkipDays([]); setMeals([]); setIdx(0); setUnticked({}); setExtras([]); setExtraText(''); setNote(''); setSwap(null);
   }, [visible]);
+
+  useEffect(() => { swapReqRef.current += 1; stopTicking(); setSwap(null); }, [idx]);
 
   const dwell = (ms) => new Promise((r) => setTimeout(r, ms));
   // Moves the checklist to step n (each step stays on screen long enough to be seen) and rings the bell for the one just finished.
   const goStage = async (n) => {
-    const wait = 900 - (Date.now() - stageAt.current);
+    const wait = 1700 - (Date.now() - stageAt.current);
     if (wait > 0) await dwell(wait);
     setStage(n); stageAt.current = Date.now();
     if (n > 0) playWorkSound('bell');
@@ -69,10 +73,10 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   const plan = async (avoid, replan) => {
     setAvoid(avoid);
     const mine = sessionRef.current;
-    beginWork([t('autopilot_work_week'), t('autopilot_work_sales'), t('autopilot_work_pick'), t('autopilot_work_ing'), t('autopilot_work_list')]);
+    beginWork([t('autopilot_work_week'), t('autopilot_work_busy'), t('autopilot_work_sales'), t('autopilot_work_match'), t('autopilot_work_pick'), t('autopilot_work_ing'), t('autopilot_work_list')]);
     try {
       const draftP = draftWeek({ user, locale, avoid, replan: Boolean(replan) });
-      await goStage(1); await goStage(2);
+      await goStage(1); await goStage(2); await goStage(3); await goStage(4);
       if (sessionRef.current !== mine) return;
       startTicking();
       const draft = await draftP;
@@ -80,9 +84,9 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
       if (sessionRef.current !== mine) return;
       if (draft.nothingToPlan) { setStep('full'); return; }
       if (!draft.meals.length) { setNote(t('autopilot_failed')); setStep('done'); setMeals([]); return; }
-      await goStage(3);
+      await goStage(5);
       const full = await buildMeals(draft.meals.map((m) => (replan ? { ...m, replace: true } : m)));
-      await goStage(4);
+      await goStage(6);
       if (sessionRef.current !== mine) return;
       await endWork();
       if (sessionRef.current !== mine) return;
@@ -92,18 +96,61 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
 
   const walkExisting = async () => {
     const mine = sessionRef.current;
-    beginWork([t('autopilot_work_week'), t('autopilot_work_ing'), t('autopilot_work_list')]);
+    beginWork([t('autopilot_work_week'), t('autopilot_work_explain'), t('autopilot_work_ing'), t('autopilot_work_list')]);
     try {
       const have = await existingDinners(avoidDays);
       if (!have.length) { stopTicking(); setNote(t('autopilot_nothing')); setStep('done'); return; }
       await goStage(1);
-      const full = await buildMeals(have);
+      startTicking();
+      let why = {};
+      try { why = await explainDinners({ dinners: have, user, locale }); } catch (e) { /* reasons are a nicety */ }
+      stopTicking();
+      if (sessionRef.current !== mine) return;
       await goStage(2);
+      const full = await buildMeals(have.map((m) => ({ ...m, why: why[m.day_offset] || '' })));
+      await goStage(3);
       if (sessionRef.current !== mine) return;
       await endWork();
       if (sessionRef.current !== mine) return;
       setMeals(full); setIdx(0); setStep('walk');
     } catch (e) { stopTicking(); setNote(t('autopilot_failed')); setMeals([]); setStep('done'); }
+  };
+
+  // Swapping one dinner: Fern offers other ideas (saved recipes and new ones, each with a reason), or the person browses their saved recipes.
+  const openSwap = async () => {
+    const mine = sessionRef.current;
+    const req = ++swapReqRef.current;
+    const stale = () => sessionRef.current !== mine || swapReqRef.current !== req;
+    const cur = meals[idx];
+    setSwap({ loading: true, options: [], error: false, browse: false, query: '', list: [] });
+    playWorkSound('start'); startTicking(500);
+    try {
+      const options = await suggestAlternatives({ dayOffset: cur.day_offset, currentTitle: cur.title, otherTitles: meals.map((x) => x.title), user, locale });
+      stopTicking();
+      if (stale()) return;
+      const withSrc = [];
+      for (const o of options) withSrc.push({ ...o, ing: await mealIngredients(o) });
+      if (stale()) return;
+      setSwap({ loading: false, options: withSrc, error: !withSrc.length, browse: false, query: '', list: [] });
+      playWorkSound('bell');
+    } catch (e) { stopTicking(); if (!stale()) setSwap({ loading: false, options: [], error: true, browse: false, query: '', list: [] }); }
+  };
+  const openBrowse = async () => {
+    const mine = sessionRef.current;
+    const req = swapReqRef.current;
+    try {
+      const list = await savedRecipeList();
+      if (sessionRef.current !== mine || swapReqRef.current !== req) return;
+      setSwap((sw) => (sw ? { ...sw, loading: false, browse: true, query: '', list } : sw));
+    } catch (e) { /* ignore */ }
+  };
+  const pickReplacement = async (o, whyText) => {
+    const base = { day_offset: meals[idx].day_offset, dayLabel: meals[idx].dayLabel, replace: meals[idx].replace };
+    const ing = o.ing || await mealIngredients(o);
+    const next = { ...base, title: o.title, emoji: o.emoji || '🍽️', sides: o.sides || [], ingredients: o.ingredients || [], why: whyText || o.why || '', include: true, ing, swapped: true };
+    setMeals((ms) => ms.map((x, k) => (k === idx ? next : x)));
+    setSwap(null);
+    playWorkSound('bell');
   };
 
   const submitPlans = async (skip) => {
@@ -193,14 +240,53 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
               <View style={[s.card, !m.include && { opacity: 0.5 }]}>
                 <Text style={s.day}>{m.dayLabel}</Text>
                 <Text style={s.dish}>{m.emoji} {m.title}</Text>
-                <Text style={s.badge}>{m.ing.fromSaved ? t('autopilot_tour_from_saved') : t('autopilot_tour_new_idea')}</Text>
+                <View style={[s.srcBadge, m.ing.fromSaved ? s.srcSaved : s.srcAi]}>
+                  <Text style={[s.srcText, m.ing.fromSaved ? s.srcTextSaved : s.srcTextAi]}>{m.ing.fromSaved ? `📖 ${t('autopilot_tour_from_saved')}` : `✨ ${t('autopilot_tour_new_idea')}`}</Text>
+                </View>
                 {m.sides?.length ? <Text style={s.p}>+ {m.sides.join(', ')}</Text> : null}
+                <View style={s.whyBox}>
+                  <Text style={s.whyTitle}>🤔 {t('autopilot_tour_why_title', { day: m.dayLabel })}</Text>
+                  <Text style={s.whyText}>{m.why || t('autopilot_tour_why_none')}</Text>
+                </View>
                 <Text style={s.sub}>{t('autopilot_tour_ingredients')}</Text>
                 {m.ing.items.map((i) => <Text key={i.key} style={s.ing}>• {i.name}</Text>)}
+                {!m.ing.items.length ? <Text style={s.p}>{t('autopilot_tour_no_ing')}</Text> : null}
               </View>
-              <TouchableOpacity style={s.link} onPress={() => setMeals((ms) => ms.map((x, k) => (k === idx ? { ...x, include: !x.include } : x)))}>
-                <Text style={s.linkText}>{m.include ? t('autopilot_tour_drop') : t('autopilot_tour_keep')}</Text>
-              </TouchableOpacity>
+              {!swap ? (
+                <>
+                  <TouchableOpacity style={[s.second, { marginTop: 12, flex: 0 }]} activeOpacity={0.85} onPress={openSwap}><Text style={s.secondText}>🔄 {t('autopilot_tour_swap_btn')}</Text></TouchableOpacity>
+                  <TouchableOpacity style={s.link} onPress={() => setMeals((ms) => ms.map((x, k) => (k === idx ? { ...x, include: !x.include } : x)))}>
+                    <Text style={s.linkText}>{m.include ? t('autopilot_tour_drop') : t('autopilot_tour_keep')}</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <View style={s.swapBox}>
+                  <Text style={s.swapTitle}>{t('autopilot_tour_swap_title', { day: m.dayLabel })}</Text>
+                  {swap.loading ? <View style={{ alignItems: 'center', paddingVertical: 16 }}><ActivityIndicator color="#3F5645" /><Text style={[s.p, { textAlign: 'center' }]}>{t('autopilot_tour_swap_loading')}</Text></View> : null}
+                  {!swap.loading && swap.error && !swap.browse ? <Text style={s.p}>{t('autopilot_tour_swap_failed')}</Text> : null}
+                  {!swap.loading && !swap.browse ? swap.options.map((o, i) => (
+                    <TouchableOpacity key={i} style={s.optRow} activeOpacity={0.85} onPress={() => pickReplacement(o)}>
+                      <Text style={s.optTitle}>{o.emoji} {o.title}</Text>
+                      <Text style={[s.optSrc, o.ing?.fromSaved ? s.srcTextSaved : s.srcTextAi]}>{o.ing?.fromSaved ? `📖 ${t('autopilot_tour_from_saved')}` : `✨ ${t('autopilot_tour_new_idea')}`}</Text>
+                      {o.why ? <Text style={s.optWhy}>{o.why}</Text> : null}
+                    </TouchableOpacity>
+                  )) : null}
+                  {swap.browse ? (
+                    <>
+                      <TextInput style={[s.input, { minHeight: 44, marginTop: 8, marginBottom: 8 }]} value={swap.query} onChangeText={(q) => setSwap((sw) => ({ ...sw, query: q }))} placeholder={t('autopilot_tour_swap_search_ph')} placeholderTextColor="#8A9C86" />
+                      {swap.list.filter((r) => !swap.query.trim() || r.title.toLowerCase().includes(swap.query.trim().toLowerCase())).slice(0, 30).map((r, i) => (
+                        <TouchableOpacity key={i} style={s.optRow} activeOpacity={0.85} onPress={() => pickReplacement({ title: r.title, emoji: r.emoji, ingredients: [], sides: [] }, t('autopilot_tour_swap_you_picked'))}>
+                          <Text style={s.optTitle}>{r.emoji} {r.title}</Text>
+                          <Text style={[s.optSrc, s.srcTextSaved]}>📖 {t('autopilot_tour_from_saved')}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </>
+                  ) : null}
+                  {!swap.loading && !swap.browse ? <TouchableOpacity style={s.link} onPress={openBrowse}><Text style={s.linkText}>📖 {t('autopilot_tour_swap_browse')}</Text></TouchableOpacity> : null}
+                  {!swap.loading && !swap.browse ? <TouchableOpacity style={s.link} onPress={openSwap}><Text style={s.linkText}>{t('autopilot_tour_swap_more')}</Text></TouchableOpacity> : null}
+                  <TouchableOpacity style={s.link} onPress={() => setSwap(null)}><Text style={s.linkText}>{t('autopilot_tour_swap_back')}</Text></TouchableOpacity>
+                </View>
+              )}
               <View style={s.dots}>{meals.map((_, k) => <View key={k} style={[s.dot, k === idx && s.dotOn]} />)}</View>
               <View style={s.row}>
                 <TouchableOpacity style={[s.second, idx === 0 && { opacity: 0.4 }]} disabled={idx === 0} onPress={() => setIdx(idx - 1)}><Text style={s.secondText}>{t('autopilot_tour_back')}</Text></TouchableOpacity>
@@ -269,6 +355,21 @@ const s = StyleSheet.create({
   card: { backgroundColor: '#ECF2E6', borderRadius: 16, borderWidth: 1, borderColor: '#C8D6BE', padding: 16 },
   day: { fontSize: 15, fontFamily: 'Jost-SemiBold', color: '#5C7262' },
   dish: { fontSize: 24, fontFamily: 'Jost-Bold', color: '#2F4535', marginTop: 4 },
+  srcBadge: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 },
+  srcSaved: { backgroundColor: '#DDE7D5', borderWidth: 1, borderColor: '#4E7A54' },
+  srcAi: { backgroundColor: '#FFF4D6', borderWidth: 1, borderColor: '#C9A227' },
+  srcText: { fontSize: 14, fontFamily: 'Jost-Bold' },
+  srcTextSaved: { color: '#3F5645' },
+  srcTextAi: { color: '#8A6A00' },
+  whyBox: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#C8D6BE', padding: 12, marginTop: 12 },
+  whyTitle: { fontSize: 14, fontFamily: 'Jost-Bold', color: '#2F4535' },
+  whyText: { fontSize: 16, fontFamily: 'Jost-Regular', color: '#2F4535', marginTop: 4, lineHeight: 23 },
+  swapBox: { marginTop: 12, backgroundColor: '#ECF2E6', borderRadius: 14, borderWidth: 1, borderColor: '#C8D6BE', padding: 12 },
+  swapTitle: { fontSize: 17, fontFamily: 'Jost-Bold', color: '#2F4535' },
+  optRow: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#C8D6BE', padding: 12, marginTop: 10 },
+  optTitle: { fontSize: 17, fontFamily: 'Jost-Bold', color: '#2F4535' },
+  optSrc: { fontSize: 13, fontFamily: 'Jost-SemiBold', marginTop: 4 },
+  optWhy: { fontSize: 15, fontFamily: 'Jost-Regular', color: '#5C7262', marginTop: 4, lineHeight: 21 },
   badge: { alignSelf: 'flex-start', marginTop: 8, fontSize: 13, fontFamily: 'Jost-SemiBold', color: '#3F5645', backgroundColor: '#DDE7D5', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 3, overflow: 'hidden' },
   sub: { fontSize: 14, fontFamily: 'Jost-Bold', color: '#2F4535', marginTop: 14, marginBottom: 4 },
   ing: { fontSize: 16, fontFamily: 'Jost-Regular', color: '#2F4535', lineHeight: 24 },
