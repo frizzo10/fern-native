@@ -8,7 +8,8 @@ import AutopilotWorking from '../AutopilotWorking';
 import MealPlannerImage from '../MealPlannerImage';
 import { playWorkSound, startTicking, stopTicking } from '../../utils/workSounds';
 import { emitAgentChange } from '../../services/fernAgent';
-import { draftWeek, applyWeek, parsePlans, addPlannedActivities, mealIngredients, addExtraItems, existingDinners, explainDinners, suggestAlternatives, savedRecipeList } from '../../services/autopilot';
+import { buildRollingWeekDateKeys, formatDayLabel } from '../../utils/familyDates';
+import { draftWeek, applyWeek, addPlannedActivities, mealIngredients, addExtraItems, existingDinners, explainDinners, suggestAlternatives, savedRecipeList } from '../../services/autopilot';
 
 // Recipe-card photo: the saved recipe's own picture, else the best stock match by title, else a big emoji tile.
 function DinnerPhoto({ photo, title, emoji, compact }) {
@@ -62,6 +63,9 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   const stageAt = useRef(0);
   const sessionRef = useRef(0);
   const swapReqRef = useRef(0);
+  const [picks, setPicks] = useState([]); // [{ label, emoji, days: [offsets], noDinner }]
+  const [history, setHistory] = useState([]); // past activities, most frequent first
+  const [customAct, setCustomAct] = useState('');
   const [added, setAdded] = useState([]);
   const [skipDays, setSkipDays] = useState([]);
   const [meals, setMeals] = useState([]); // each gets include + ing { fromSaved, items }
@@ -80,7 +84,23 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   useEffect(() => {
     sessionRef.current += 1;
     if (!visible) { stopTicking(); return; }
-    setStep('ask'); setText(''); setAdded([]); setSkipDays([]); setMeals([]); setIdx(0); setUnticked({}); setExtras([]); setExtraText(''); setNote(''); setSwap(null); setSwapNote('');
+    setStep('ask'); setText(''); setPicks([]); setCustomAct(''); setAdded([]); setSkipDays([]); setMeals([]); setIdx(0); setUnticked({}); setExtras([]); setExtraText(''); setNote(''); setSwap(null); setSwapNote('');
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    (async () => {
+      const acts = await readJson('rv4_activities', []);
+      const seen = new Map();
+      (Array.isArray(acts) ? acts : []).forEach((a) => {
+        const label = String(a?.label || '').trim();
+        if (!label) return;
+        const k = label.toLowerCase();
+        const cur = seen.get(k) || { label, emoji: a?.emoji || '📌', count: 0 };
+        cur.count += 1; seen.set(k, cur);
+      });
+      setHistory([...seen.values()].sort((a, b) => b.count - a.count).slice(0, 10));
+    })();
   }, [visible]);
 
   useEffect(() => { swapReqRef.current += 1; stopTicking(); setSwap(null); setSwapNote(''); }, [idx]);
@@ -212,24 +232,39 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
     setSwap((sw) => (sw ? { ...sw, preview: { ...o, ing, why: whyText || o.why || '' } } : sw));
   };
 
-  const submitPlans = async (skip) => {
-    if (skip || !text.trim()) { plan([]); return; }
+  const weekKeys = buildRollingWeekDateKeys();
+  const pickFor = (label) => picks.find((p) => p.label.toLowerCase() === label.toLowerCase());
+  const togglePick = (label, emoji, noDinner) => {
+    setPicks((ps) => (ps.some((p) => p.label.toLowerCase() === label.toLowerCase())
+      ? ps.filter((p) => p.label.toLowerCase() !== label.toLowerCase())
+      : [...ps, { label, emoji, days: [], noDinner: Boolean(noDinner) }]));
+  };
+  const toggleDay = (label, d) => setPicks((ps) => ps.map((p) => (p.label === label ? { ...p, days: p.days.includes(d) ? p.days.filter((x) => x !== d) : [...p.days, d].sort((a, b) => a - b) } : p)));
+  const addCustom = () => {
+    const v = customAct.trim().slice(0, 40);
+    if (!v) return;
+    if (!pickFor(v)) setPicks((ps) => [...ps, { label: v, emoji: '📌', days: [], noDinner: false }]);
+    setCustomAct('');
+  };
+
+  const submitPicks = async (skip) => {
+    const ready = skip ? [] : picks.filter((p) => p.days.length);
+    if (!ready.length) { plan([]); return; }
     const mine = sessionRef.current;
     beginWork([t('autopilot_work_read_plans'), t('autopilot_work_calendar')]);
-    startTicking();
     try {
-      const r = await parsePlans({ text, user, locale });
-      stopTicking();
-      if (sessionRef.current !== mine) return;
       await goStage(1);
-      await addPlannedActivities(r.activities, env());
-      if (r.activities.length) { emitAgentChange(); }
-      setAdded(r.activities); setSkipDays(r.skipDinners);
+      const activities = ready.flatMap((p) => p.days.map((d) => ({ day_offset: d, label: p.label, emoji: p.emoji, start: '', end: '', dayLabel: formatDayLabel(weekKeys[d]) })));
+      const skipDinners = [...new Set(ready.filter((p) => p.noDinner).flatMap((p) => p.days))];
+      await addPlannedActivities(activities, env());
+      emitAgentChange();
+      if (sessionRef.current !== mine) return;
+      setAdded(activities); setSkipDays(skipDinners);
       await goStage(2);
       await dwell(500);
       if (sessionRef.current !== mine) return;
-      plan(r.skipDinners);
-    } catch (e) { stopTicking(); if (sessionRef.current === mine) plan([]); }
+      plan(skipDinners);
+    } catch (e) { if (sessionRef.current === mine) plan([]); }
   };
 
   const included = meals.filter((m) => m.include);
@@ -277,9 +312,50 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
             <>
               <Text style={s.h}>{t('autopilot_tour_ask_title')}</Text>
               <Text style={s.p}>{t('autopilot_tour_ask_body')}</Text>
-              <TextInput style={s.input} value={text} onChangeText={setText} multiline placeholder={t('autopilot_tour_ask_ph')} placeholderTextColor="#8A9C86" maxLength={600} />
-              <TouchableOpacity style={s.primary} activeOpacity={0.85} onPress={() => submitPlans(false)}><Text style={s.primaryText}>{text.trim() ? t('autopilot_tour_ask_go') : t('autopilot_tour_ask_skip')}</Text></TouchableOpacity>
-              {text.trim() ? <TouchableOpacity style={s.link} onPress={() => submitPlans(true)}><Text style={s.linkText}>{t('autopilot_tour_ask_skip')}</Text></TouchableOpacity> : null}
+              {history.length ? (
+                <>
+                  <Text style={s.askLabel}>{t('autopilot_tour_ask_past')}</Text>
+                  <View style={s.chipRow}>
+                    {history.map((h) => {
+                      const on = Boolean(pickFor(h.label));
+                      return <TouchableOpacity key={h.label} style={[s.actChip, on && s.actChipOn]} activeOpacity={0.85} onPress={() => togglePick(h.label, h.emoji, /dinner out|eating out|cena fuera/i.test(h.label))}><Text style={[s.actChipText, on && s.actChipTextOn]}>{h.emoji} {h.label}</Text></TouchableOpacity>;
+                    })}
+                  </View>
+                </>
+              ) : null}
+              <Text style={s.askLabel}>{t('autopilot_tour_ask_common')}</Text>
+              <View style={s.chipRow}>
+                {COMMON_ACTIVITIES.map((c) => {
+                  const label = t(c.key);
+                  const on = Boolean(pickFor(label));
+                  return <TouchableOpacity key={c.key} style={[s.actChip, on && s.actChipOn]} activeOpacity={0.85} onPress={() => togglePick(label, c.emoji, c.noDinner)}><Text style={[s.actChipText, on && s.actChipTextOn]}>{c.emoji} {label}</Text></TouchableOpacity>;
+                })}
+              </View>
+              <View style={s.customRow}>
+                <TextInput style={[s.input, { flex: 1, minHeight: 44, marginBottom: 0 }]} value={customAct} onChangeText={setCustomAct} placeholder={t('autopilot_tour_ask_custom_ph')} placeholderTextColor="#8A9C86" maxLength={40} returnKeyType="done" onSubmitEditing={addCustom} />
+                <TouchableOpacity style={s.customBtn} activeOpacity={0.85} onPress={addCustom}><Text style={s.customBtnText}>+</Text></TouchableOpacity>
+              </View>
+              {picks.length ? (
+                <View style={{ marginTop: 14 }}>
+                  <Text style={s.askLabel}>{t('autopilot_tour_ask_days')}</Text>
+                  {picks.map((p) => (
+                    <View key={p.label} style={s.pickCard}>
+                      <View style={s.pickHead}>
+                        <Text style={s.pickName}>{p.emoji} {p.label}</Text>
+                        <TouchableOpacity onPress={() => togglePick(p.label, p.emoji)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}><Text style={s.close}>✕</Text></TouchableOpacity>
+                      </View>
+                      <View style={s.chipRow}>
+                        {weekKeys.map((k, d) => {
+                          const on = p.days.includes(d);
+                          return <TouchableOpacity key={k} style={[s.dayChip, on && s.actChipOn]} activeOpacity={0.85} onPress={() => toggleDay(p.label, d)}><Text style={[s.actChipText, on && s.actChipTextOn]}>{d === 0 ? t('psp_today') : formatDayLabel(k)}</Text></TouchableOpacity>;
+                        })}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              <TouchableOpacity style={[s.primary, { marginTop: 16 }]} activeOpacity={0.85} onPress={() => submitPicks(false)}><Text style={s.primaryText}>{picks.some((p) => p.days.length) ? t('autopilot_tour_ask_go') : t('autopilot_tour_ask_skip')}</Text></TouchableOpacity>
+              {picks.some((p) => p.days.length) ? <TouchableOpacity style={s.link} onPress={() => submitPicks(true)}><Text style={s.linkText}>{t('autopilot_tour_ask_skip')}</Text></TouchableOpacity> : null}
             </>
           ) : null}
           {step === 'working' ? <AutopilotWorking title={t('autopilot_work_title')} steps={workSteps} current={stage} finished={workDone} /> : null}
@@ -448,6 +524,19 @@ const s = StyleSheet.create({
   dots: { flexDirection: 'row', justifyContent: 'center', marginVertical: 12 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#C8D6BE', marginHorizontal: 4 },
   dotOn: { backgroundColor: '#3F5645' },
+  askLabel: { fontSize: 14, fontFamily: 'Jost-Bold', color: '#5C7262', marginTop: 14, marginBottom: 8, textTransform: 'uppercase' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  actChip: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, borderRadius: 22, borderWidth: 1.5, borderColor: '#C8D6BE', backgroundColor: '#FFFFFF' },
+  actChipOn: { backgroundColor: '#4E7A54', borderColor: '#4E7A54' },
+  actChipText: { fontSize: 15, fontFamily: 'Jost-SemiBold', color: '#2F4535' },
+  actChipTextOn: { color: '#FFFFFF' },
+  dayChip: { minHeight: 44, minWidth: 64, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 10, borderRadius: 12, borderWidth: 1.5, borderColor: '#C8D6BE', backgroundColor: '#FFFFFF' },
+  customRow: { flexDirection: 'row', gap: 8, marginTop: 12, alignItems: 'center' },
+  customBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#4E7A54', alignItems: 'center', justifyContent: 'center' },
+  customBtnText: { color: '#FFFFFF', fontSize: 26, fontFamily: 'Jost-Bold', lineHeight: 30 },
+  pickCard: { backgroundColor: '#ECF2E6', borderRadius: 14, padding: 12, marginBottom: 10, borderWidth: 1, borderColor: '#C8D6BE' },
+  pickHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  pickName: { fontSize: 16, fontFamily: 'Jost-Bold', color: '#2F4535', flexShrink: 1 },
   chipBox: { backgroundColor: '#DDE7D5', borderRadius: 12, padding: 12, marginBottom: 14 },
   chipLabel: { fontSize: 14, fontFamily: 'Jost-Bold', color: '#2F4535', marginBottom: 4 },
   chipText: { fontSize: 15, fontFamily: 'Jost-Regular', color: '#2F4535', lineHeight: 22 },
