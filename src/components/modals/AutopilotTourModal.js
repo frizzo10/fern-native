@@ -11,15 +11,42 @@ import { emitAgentChange } from '../../services/fernAgent';
 import { draftWeek, applyWeek, parsePlans, addPlannedActivities, mealIngredients, addExtraItems, existingDinners, explainDinners, suggestAlternatives, savedRecipeList } from '../../services/autopilot';
 
 // Recipe-card photo: the saved recipe's own picture, else the best stock match by title, else a big emoji tile.
-function DinnerPhoto({ photo, title, emoji }) {
+function DinnerPhoto({ photo, title, emoji, compact }) {
   const [bad, setBad] = useState(false);
   useEffect(() => { setBad(false); }, [photo, title]);
-  const tile = <View style={s.photoTile}><Text style={s.photoEmoji}>{emoji || '🍽️'}</Text></View>;
-  if (photo && !bad) return <Image source={{ uri: photo }} style={s.photo} resizeMode="cover" onError={() => setBad(true)} />;
+  const box = compact ? s.photoRow : s.photo;
+  const tile = <View style={s.photoTile}><Text style={compact ? s.photoEmojiSm : s.photoEmoji}>{emoji || '🍽️'}</Text></View>;
+  if (photo && !bad) return <Image source={{ uri: photo }} style={box} resizeMode="cover" onError={() => setBad(true)} />;
   return (
-    <View style={s.photo}>
+    <View style={box}>
       {tile}
       <View style={StyleSheet.absoluteFill}><MealPlannerImage title={title} variant="fill" fallback={null} /></View>
+    </View>
+  );
+}
+
+// The recipe card for one dinner (used for the walk-through and for previewing a swap idea).
+function DinnerCard({ m, t, dim }) {
+  return (
+    <View style={[s.card, dim && { opacity: 0.5 }]}>
+      <DinnerPhoto photo={m.ing.photo} title={m.title} emoji={m.emoji} />
+      <View style={s.dayPill}><Text style={s.dayPillText}>{m.dayLabel}</Text></View>
+      <View style={s.cardBody}>
+        <Text style={s.dish}>{m.title}</Text>
+        <View style={[s.srcBadge, m.ing.fromSaved ? s.srcSaved : s.srcAi]}>
+          <Text style={[s.srcText, m.ing.fromSaved ? s.srcTextSaved : s.srcTextAi]}>{m.ing.fromSaved ? `📖 ${t('autopilot_tour_from_saved')}` : `✨ ${t('autopilot_tour_new_idea')}`}</Text>
+        </View>
+        {m.sides?.length ? <Text style={s.p}>+ {m.sides.join(', ')}</Text> : null}
+        <View style={s.whyBox}>
+          <Text style={s.whyTitle}>🤔 {t('autopilot_tour_why_title', { day: m.dayLabel })}</Text>
+          <Text style={s.whyText}>{m.why || t('autopilot_tour_why_none')}</Text>
+        </View>
+        <Text style={s.sub}>{t('autopilot_tour_ingredients')}{m.ing.servings ? ` · ${t('autopilot_tour_serves', { n: m.ing.servings })}` : ''}</Text>
+        {(m.ing.lines?.length ? m.ing.lines : m.ing.items.map((i) => i.name)).map((line, k) => <Text key={k} style={s.ing}>• {line}</Text>)}
+        {m.ing.steps?.length ? <Text style={[s.sub, { marginTop: 14 }]}>{t('autopilot_tour_method')}</Text> : null}
+        {(m.ing.steps || []).map((st, k) => <Text key={`st${k}`} style={s.step2}><Text style={s.stepNo}>{k + 1}.  </Text>{st}</Text>)}
+        {!m.ing.items.length && !m.ing.lines?.length ? <Text style={s.p}>{t('autopilot_tour_no_ing')}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -45,6 +72,7 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   const [note, setNote] = useState('');
   const [existing, setExisting] = useState(new Set());
   const [swap, setSwap] = useState(null); // null | { loading, options, error, browse, query, list }
+  const [swapNote, setSwapNote] = useState('');
   const snapshotRef = useRef(null);
   const env = () => ({ pushChangedFromStorage, token: user?.token });
 
@@ -52,10 +80,10 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   useEffect(() => {
     sessionRef.current += 1;
     if (!visible) { stopTicking(); return; }
-    setStep('ask'); setText(''); setAdded([]); setSkipDays([]); setMeals([]); setIdx(0); setUnticked({}); setExtras([]); setExtraText(''); setNote(''); setSwap(null);
+    setStep('ask'); setText(''); setAdded([]); setSkipDays([]); setMeals([]); setIdx(0); setUnticked({}); setExtras([]); setExtraText(''); setNote(''); setSwap(null); setSwapNote('');
   }, [visible]);
 
-  useEffect(() => { swapReqRef.current += 1; stopTicking(); setSwap(null); }, [idx]);
+  useEffect(() => { swapReqRef.current += 1; stopTicking(); setSwap(null); setSwapNote(''); }, [idx]);
 
   const dwell = (ms) => new Promise((r) => setTimeout(r, ms));
   // Moves the checklist to step n (each step stays on screen long enough to be seen) and rings the bell for the one just finished.
@@ -102,6 +130,7 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
       await goStage(5);
       const full = await buildMeals(draft.meals.map((m) => (replan ? { ...m, replace: true } : m)));
       await goStage(6);
+      await dwell(1500);
       if (sessionRef.current !== mine) return;
       await endWork();
       if (sessionRef.current !== mine) return;
@@ -124,6 +153,7 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
       await goStage(2);
       const full = await buildMeals(have.map((m) => ({ ...m, why: why[m.day_offset] || '' })));
       await goStage(3);
+      await dwell(1500);
       if (sessionRef.current !== mine) return;
       await endWork();
       if (sessionRef.current !== mine) return;
@@ -165,7 +195,16 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
     const next = { ...base, title: o.title, emoji: o.emoji || '🍽️', sides: o.sides || [], ingredients: o.ingredients || [], why: whyText || o.why || '', include: true, ing, swapped: true };
     setMeals((ms) => ms.map((x, k) => (k === idx ? next : x)));
     setSwap(null);
+    setSwapNote(t('autopilot_tour_swap_done', { title: o.title, day: meals[idx].dayLabel }));
     playWorkSound('bell');
+  };
+  // Tapping an idea shows its full recipe card first; the person then confirms with "Use this dinner".
+  const previewIdea = async (o, whyText) => {
+    const mine = sessionRef.current;
+    const req = swapReqRef.current;
+    const ing = o.ing || await mealIngredients(o);
+    if (sessionRef.current !== mine || swapReqRef.current !== req) return;
+    setSwap((sw) => (sw ? { ...sw, preview: { ...o, ing, why: whyText || o.why || '' } } : sw));
   };
 
   const submitPlans = async (skip) => {
@@ -252,26 +291,8 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
             <>
               {added.length ? <View style={s.chipBox}><Text style={s.chipLabel}>📅 {t('autopilot_tour_added_title')}</Text>{added.map((a, i) => <Text key={i} style={s.chipText}>{`${a.emoji} ${a.dayLabel}: ${a.label}${a.start ? ` ${a.start}` : ''}`}</Text>)}</View> : null}
               <Text style={s.step}>{t('autopilot_tour_walk_title')} · {idx + 1}/{meals.length}</Text>
-              <View style={[s.card, !m.include && { opacity: 0.5 }]}>
-                <DinnerPhoto photo={m.ing.photo} title={m.title} emoji={m.emoji} />
-                <View style={s.dayPill}><Text style={s.dayPillText}>{m.dayLabel}</Text></View>
-                <View style={s.cardBody}>
-                <Text style={s.dish}>{m.title}</Text>
-                <View style={[s.srcBadge, m.ing.fromSaved ? s.srcSaved : s.srcAi]}>
-                  <Text style={[s.srcText, m.ing.fromSaved ? s.srcTextSaved : s.srcTextAi]}>{m.ing.fromSaved ? `📖 ${t('autopilot_tour_from_saved')}` : `✨ ${t('autopilot_tour_new_idea')}`}</Text>
-                </View>
-                {m.sides?.length ? <Text style={s.p}>+ {m.sides.join(', ')}</Text> : null}
-                <View style={s.whyBox}>
-                  <Text style={s.whyTitle}>🤔 {t('autopilot_tour_why_title', { day: m.dayLabel })}</Text>
-                  <Text style={s.whyText}>{m.why || t('autopilot_tour_why_none')}</Text>
-                </View>
-                <Text style={s.sub}>{t('autopilot_tour_ingredients')}{m.ing.servings ? ` · ${t('autopilot_tour_serves', { n: m.ing.servings })}` : ''}</Text>
-                {(m.ing.lines?.length ? m.ing.lines : m.ing.items.map((i) => i.name)).map((line, k) => <Text key={k} style={s.ing}>• {line}</Text>)}
-                {m.ing.steps?.length ? <Text style={[s.sub, { marginTop: 14 }]}>{t('autopilot_tour_method')}</Text> : null}
-                {(m.ing.steps || []).map((st, k) => <Text key={`st${k}`} style={s.step2}><Text style={s.stepNo}>{k + 1}.  </Text>{st}</Text>)}
-                {!m.ing.items.length && !m.ing.lines?.length ? <Text style={s.p}>{t('autopilot_tour_no_ing')}</Text> : null}
-                </View>
-              </View>
+              {swapNote ? <View style={s.doneBox}><Text style={s.doneText}>✓ {swapNote}</Text></View> : null}
+              <DinnerCard m={m} t={t} dim={!m.include} />
               {!swap ? (
                 <>
                   <TouchableOpacity style={[s.second, { marginTop: 12, flex: 0 }]} activeOpacity={0.85} onPress={openSwap}><Text style={s.secondText}>🔄 {t('autopilot_tour_swap_btn')}</Text></TouchableOpacity>
@@ -284,26 +305,39 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
                   <Text style={s.swapTitle}>{t('autopilot_tour_swap_title', { day: m.dayLabel })}</Text>
                   {swap.loading ? <View style={{ alignItems: 'center', paddingVertical: 16 }}><ActivityIndicator color="#3F5645" /><Text style={[s.p, { textAlign: 'center' }]}>{t('autopilot_tour_swap_loading')}</Text></View> : null}
                   {!swap.loading && swap.error && !swap.browse ? <Text style={s.p}>{t('autopilot_tour_swap_failed')}</Text> : null}
-                  {!swap.loading && !swap.browse ? swap.options.map((o, i) => (
-                    <TouchableOpacity key={i} style={s.optRow} activeOpacity={0.85} onPress={() => pickReplacement(o)}>
-                      <Text style={s.optTitle}>{o.emoji} {o.title}</Text>
-                      <Text style={[s.optSrc, o.ing?.fromSaved ? s.srcTextSaved : s.srcTextAi]}>{o.ing?.fromSaved ? `📖 ${t('autopilot_tour_from_saved')}` : `✨ ${t('autopilot_tour_new_idea')}`}</Text>
-                      {o.why ? <Text style={s.optWhy}>{o.why}</Text> : null}
+                  {swap.preview ? (
+                    <>
+                      <DinnerCard m={{ ...swap.preview, dayLabel: m.dayLabel }} t={t} />
+                      <TouchableOpacity style={[s.primary, { marginTop: 12 }]} activeOpacity={0.85} onPress={() => pickReplacement(swap.preview)}><Text style={s.primaryText}>{t('autopilot_tour_swap_use', { day: m.dayLabel })}</Text></TouchableOpacity>
+                      <TouchableOpacity style={s.link} onPress={() => setSwap((sw) => ({ ...sw, preview: null }))}><Text style={s.linkText}>{t('autopilot_tour_swap_ideas')}</Text></TouchableOpacity>
+                    </>
+                  ) : null}
+                  {!swap.preview && !swap.loading && !swap.browse ? swap.options.map((o, i) => (
+                    <TouchableOpacity key={i} style={s.optRow} activeOpacity={0.85} onPress={() => previewIdea(o)}>
+                      <DinnerPhoto photo={o.ing?.photo} title={o.title} emoji={o.emoji} compact />
+                      <View style={s.optText}>
+                        <Text style={s.optTitle}>{o.title}</Text>
+                        <Text style={[s.optSrc, o.ing?.fromSaved ? s.srcTextSaved : s.srcTextAi]}>{o.ing?.fromSaved ? `📖 ${t('autopilot_tour_from_saved')}` : `✨ ${t('autopilot_tour_new_idea')}`}</Text>
+                        {o.why ? <Text style={s.optWhy}>{o.why}</Text> : null}
+                      </View>
                     </TouchableOpacity>
                   )) : null}
-                  {swap.browse ? (
+                  {!swap.preview && swap.browse ? (
                     <>
                       <TextInput style={[s.input, { minHeight: 44, marginTop: 8, marginBottom: 8 }]} value={swap.query} onChangeText={(q) => setSwap((sw) => ({ ...sw, query: q }))} placeholder={t('autopilot_tour_swap_search_ph')} placeholderTextColor="#8A9C86" />
                       {swap.list.filter((r) => !swap.query.trim() || r.title.toLowerCase().includes(swap.query.trim().toLowerCase())).slice(0, 30).map((r, i) => (
-                        <TouchableOpacity key={i} style={s.optRow} activeOpacity={0.85} onPress={() => pickReplacement({ title: r.title, emoji: r.emoji, ingredients: [], sides: [] }, t('autopilot_tour_swap_you_picked'))}>
-                          <Text style={s.optTitle}>{r.emoji} {r.title}</Text>
-                          <Text style={[s.optSrc, s.srcTextSaved]}>📖 {t('autopilot_tour_from_saved')}</Text>
+                        <TouchableOpacity key={i} style={s.optRow} activeOpacity={0.85} onPress={() => previewIdea({ title: r.title, emoji: r.emoji, ingredients: [], sides: [] }, t('autopilot_tour_swap_you_picked'))}>
+                          <DinnerPhoto photo={r.photo} title={r.title} emoji={r.emoji} compact />
+                          <View style={s.optText}>
+                            <Text style={s.optTitle}>{r.title}</Text>
+                            <Text style={[s.optSrc, s.srcTextSaved]}>📖 {t('autopilot_tour_from_saved')}</Text>
+                          </View>
                         </TouchableOpacity>
                       ))}
                     </>
                   ) : null}
-                  {!swap.loading && !swap.browse ? <TouchableOpacity style={s.link} onPress={openBrowse}><Text style={s.linkText}>📖 {t('autopilot_tour_swap_browse')}</Text></TouchableOpacity> : null}
-                  {!swap.loading && !swap.browse ? <TouchableOpacity style={s.link} onPress={openSwap}><Text style={s.linkText}>{t('autopilot_tour_swap_more')}</Text></TouchableOpacity> : null}
+                  {!swap.preview && !swap.loading && !swap.browse ? <TouchableOpacity style={s.link} onPress={openBrowse}><Text style={s.linkText}>📖 {t('autopilot_tour_swap_browse')}</Text></TouchableOpacity> : null}
+                  {!swap.preview && !swap.loading && !swap.browse ? <TouchableOpacity style={s.link} onPress={openSwap}><Text style={s.linkText}>{t('autopilot_tour_swap_more')}</Text></TouchableOpacity> : null}
                   <TouchableOpacity style={s.link} onPress={() => setSwap(null)}><Text style={s.linkText}>{t('autopilot_tour_swap_back')}</Text></TouchableOpacity>
                 </View>
               )}
@@ -394,7 +428,12 @@ const s = StyleSheet.create({
   whyText: { fontSize: 16, fontFamily: 'Jost-Regular', color: '#2F4535', marginTop: 4, lineHeight: 23 },
   swapBox: { marginTop: 12, backgroundColor: '#ECF2E6', borderRadius: 14, borderWidth: 1, borderColor: '#C8D6BE', padding: 12 },
   swapTitle: { fontSize: 17, fontFamily: 'Jost-Bold', color: '#2F4535' },
-  optRow: { backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#C8D6BE', padding: 12, marginTop: 10 },
+  optRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#C8D6BE', padding: 10, marginTop: 10 },
+  doneBox: { backgroundColor: '#DDE7D5', borderRadius: 12, borderWidth: 1, borderColor: '#4E7A54', padding: 12, marginBottom: 10 },
+  doneText: { fontSize: 15, fontFamily: 'Jost-SemiBold', color: '#2F4535', lineHeight: 21 },
+  optText: { flex: 1, marginLeft: 12 },
+  photoRow: { width: 84, height: 84, borderRadius: 12, overflow: 'hidden', backgroundColor: '#DDE7D5' },
+  photoEmojiSm: { fontSize: 34 },
   optTitle: { fontSize: 17, fontFamily: 'Jost-Bold', color: '#2F4535' },
   optSrc: { fontSize: 13, fontFamily: 'Jost-SemiBold', marginTop: 4 },
   optWhy: { fontSize: 15, fontFamily: 'Jost-Regular', color: '#5C7262', marginTop: 4, lineHeight: 21 },

@@ -253,5 +253,5 @@ export async function suggestAlternatives({ dayOffset, currentTitle, otherTitles
 export async function savedRecipeList() {
   const savedRaw = await readJson('rv4_saved', []);
   const saved = Array.isArray(savedRaw) ? savedRaw : [];
-  return saved.map((r) => ({ title: String(r?.title || '').trim(), emoji: r?.emoji || '🍽️' })).filter((r) => r.title);
+  return saved.map((r) => ({ title: String(r?.title || '').trim(), emoji: r?.emoji || '🍽️', photo: ([...(Array.isArray(r?._cloudPhotos) ? r._cloudPhotos : []), r?._photoUrl, r?.image].find((u) => typeof u === 'string' && /^https?:/.test(u))) || null })).filter((r) => r.title);
 }
