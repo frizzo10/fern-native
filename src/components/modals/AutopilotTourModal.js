@@ -4,14 +4,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import AS from '@react-native-async-storage/async-storage';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import useLanguage from '../../hooks/useLanguage';
+import AutopilotWorking from '../AutopilotWorking';
+import { playWorkSound, startTicking, stopTicking } from '../../utils/workSounds';
 import { emitAgentChange } from '../../services/fernAgent';
-import { draftWeek, applyWeek, parsePlans, addPlannedActivities, mealIngredients, addExtraItems } from '../../services/autopilot';
+import { draftWeek, applyWeek, parsePlans, addPlannedActivities, mealIngredients, addExtraItems, existingDinners } from '../../services/autopilot';
 
 export default function AutopilotTourModal({ visible, user, pushChangedFromStorage, pull, onClose, onFinished, onSeeWeek }) {
   const { t, locale } = useLanguage();
-  const [step, setStep] = useState('ask'); // ask | working | walk | list | applying | done
+  const [step, setStep] = useState('ask'); // ask | working | full | walk | list | applying | done
+  const [avoidDays, setAvoid] = useState([]);
   const [text, setText] = useState('');
-  const [busyText, setBusyText] = useState('');
+  const [stage, setStage] = useState(0);
+  const [workSteps, setWorkSteps] = useState([]);
+  const [workDone, setWorkDone] = useState(false);
+  const stageAt = useRef(0);
+  const sessionRef = useRef(0);
   const [added, setAdded] = useState([]);
   const [skipDays, setSkipDays] = useState([]);
   const [meals, setMeals] = useState([]); // each gets include + ing { fromSaved, items }
@@ -24,40 +31,99 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   const snapshotRef = useRef(null);
   const env = () => ({ pushChangedFromStorage, token: user?.token });
 
+  useEffect(() => () => stopTicking(), []);
   useEffect(() => {
-    if (!visible) return;
+    sessionRef.current += 1;
+    if (!visible) { stopTicking(); return; }
     setStep('ask'); setText(''); setAdded([]); setSkipDays([]); setMeals([]); setIdx(0); setUnticked({}); setExtras([]); setExtraText(''); setNote('');
   }, [visible]);
 
-  const plan = async (avoid, activitiesNote) => {
-    setStep('working');
-    setBusyText(t('autopilot_step_look'));
+  const dwell = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Moves the checklist to step n (each step stays on screen long enough to be seen) and rings the bell for the one just finished.
+  const goStage = async (n) => {
+    const wait = 900 - (Date.now() - stageAt.current);
+    if (wait > 0) await dwell(wait);
+    setStage(n); stageAt.current = Date.now();
+    if (n > 0) playWorkSound('bell');
+  };
+  const beginWork = (labels) => {
+    setWorkSteps(labels); setStage(0); setWorkDone(false); stageAt.current = Date.now(); setStep('working');
+    playWorkSound('start');
+  };
+  const endWork = async () => {
+    stopTicking();
+    setWorkDone(true); playWorkSound('done');
+    await dwell(1100);
+  };
+
+  const buildMeals = async (drafted) => {
+    const full = [];
+    for (const m of drafted) full.push({ ...m, include: true, ing: await mealIngredients(m) });
     try {
-      const draft = await draftWeek({ user, locale, avoid, onStep: (k, n) => { if (k === 'plan') setBusyText(t('autopilot_step_plan', { n })); } });
-      if (draft.nothingToPlan) { setNote(t('autopilot_nothing')); setStep('done'); setMeals([]); return; }
+      const list = JSON.parse((await AS.getItem('rv4_master_shop')) || '[]');
+      setExisting(new Set(list.filter((i) => !i.checked).map((i) => String(i.text || '').toLowerCase())));
+    } catch (e) { /* ignore */ }
+    return full;
+  };
+
+  const plan = async (avoid, replan) => {
+    setAvoid(avoid);
+    const mine = sessionRef.current;
+    beginWork([t('autopilot_work_week'), t('autopilot_work_sales'), t('autopilot_work_pick'), t('autopilot_work_ing'), t('autopilot_work_list')]);
+    try {
+      const draftP = draftWeek({ user, locale, avoid, replan: Boolean(replan) });
+      await goStage(1); await goStage(2);
+      if (sessionRef.current !== mine) return;
+      startTicking();
+      const draft = await draftP;
+      stopTicking();
+      if (sessionRef.current !== mine) return;
+      if (draft.nothingToPlan) { setStep('full'); return; }
       if (!draft.meals.length) { setNote(t('autopilot_failed')); setStep('done'); setMeals([]); return; }
-      setBusyText(t('autopilot_tour_step_ing'));
-      const full = [];
-      for (const m of draft.meals) full.push({ ...m, include: true, ing: await mealIngredients(m) });
-      try {
-        const AsyncStorage = AS;
-        const list = JSON.parse((await AsyncStorage.getItem('rv4_master_shop')) || '[]');
-        setExisting(new Set(list.filter((i) => !i.checked).map((i) => String(i.text || '').toLowerCase())));
-      } catch (e) { /* ignore */ }
+      await goStage(3);
+      const full = await buildMeals(draft.meals.map((m) => (replan ? { ...m, replace: true } : m)));
+      await goStage(4);
+      if (sessionRef.current !== mine) return;
+      await endWork();
+      if (sessionRef.current !== mine) return;
       setMeals(full); setIdx(0); setStep('walk');
-    } catch (e) { setNote(t('autopilot_failed')); setMeals([]); setStep('done'); }
+    } catch (e) { stopTicking(); setNote(t('autopilot_failed')); setMeals([]); setStep('done'); }
+  };
+
+  const walkExisting = async () => {
+    const mine = sessionRef.current;
+    beginWork([t('autopilot_work_week'), t('autopilot_work_ing'), t('autopilot_work_list')]);
+    try {
+      const have = await existingDinners(avoidDays);
+      if (!have.length) { stopTicking(); setNote(t('autopilot_nothing')); setStep('done'); return; }
+      await goStage(1);
+      const full = await buildMeals(have);
+      await goStage(2);
+      if (sessionRef.current !== mine) return;
+      await endWork();
+      if (sessionRef.current !== mine) return;
+      setMeals(full); setIdx(0); setStep('walk');
+    } catch (e) { stopTicking(); setNote(t('autopilot_failed')); setMeals([]); setStep('done'); }
   };
 
   const submitPlans = async (skip) => {
     if (skip || !text.trim()) { plan([]); return; }
-    setStep('working'); setBusyText(t('autopilot_tour_step_cal'));
+    const mine = sessionRef.current;
+    beginWork([t('autopilot_work_read_plans'), t('autopilot_work_calendar')]);
+    startTicking();
     try {
       const r = await parsePlans({ text, user, locale });
+      stopTicking();
+      if (sessionRef.current !== mine) return;
+      await goStage(1);
       await addPlannedActivities(r.activities, env());
       if (r.activities.length) { emitAgentChange(); }
       setAdded(r.activities); setSkipDays(r.skipDinners);
+      await goStage(2);
+      await dwell(500);
+      if (sessionRef.current !== mine) return;
       plan(r.skipDinners);
-    } catch (e) { plan([]); }
+    } catch (e) { stopTicking(); if (sessionRef.current === mine) plan([]); }
   };
 
   const included = meals.filter((m) => m.include);
@@ -68,17 +134,25 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
   };
 
   const confirm = async () => {
-    setStep('applying'); setBusyText(t('autopilot_step_apply'));
+    const mine = sessionRef.current;
+    beginWork([t('autopilot_work_adding_week'), t('autopilot_work_adding_list'), t('autopilot_work_syncing')]);
     try {
       const skip = Object.keys(unticked).filter((k) => unticked[k]);
+      startTicking(500);
       const r = await applyWeek(included.map((m) => ({ ...m, skip })), env());
       snapshotRef.current = r.snapshot;
+      stopTicking();
+      await goStage(1);
       await addExtraItems(extras, env());
+      await goStage(2);
       try { await pull?.(); } catch (e) { /* ignore */ }
       emitAgentChange();
-      setStep('done');
       onFinished?.({ meals: included, snapshot: r.snapshot });
-    } catch (e) { setNote(t('autopilot_failed')); setMeals([]); setStep('done'); }
+      if (sessionRef.current !== mine) return;
+      await endWork();
+      if (sessionRef.current !== mine) return;
+      setStep('done');
+    } catch (e) { stopTicking(); setNote(t('autopilot_failed')); setMeals([]); setStep('done'); }
   };
 
   const m = meals[idx];
@@ -102,12 +176,15 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
               {text.trim() ? <TouchableOpacity style={s.link} onPress={() => submitPlans(true)}><Text style={s.linkText}>{t('autopilot_tour_ask_skip')}</Text></TouchableOpacity> : null}
             </>
           ) : null}
-          {step === 'working' || step === 'applying' ? (
-            <View style={s.center}>
-              <ActivityIndicator size="large" color="#3F5645" />
-              <Text style={[s.h, { marginTop: 16, textAlign: 'center' }]}>{busyText}</Text>
-              {added.length ? <Text style={s.p}>{t('autopilot_tour_added_title')}: {added.map((a) => `${a.emoji} ${a.dayLabel} ${a.label}`).join(' · ')}</Text> : null}
-            </View>
+          {step === 'working' ? <AutopilotWorking title={t('autopilot_work_title')} steps={workSteps} current={stage} finished={workDone} /> : null}
+          {step === 'full' ? (
+            <>
+              <Text style={s.h}>{t('autopilot_tour_full_title')}</Text>
+              <Text style={s.p}>{t('autopilot_tour_full_body')}</Text>
+              <TouchableOpacity style={[s.primary, { marginTop: 18 }]} activeOpacity={0.85} onPress={walkExisting}><Text style={s.primaryText}>{t('autopilot_tour_full_walk')}</Text></TouchableOpacity>
+              <TouchableOpacity style={[s.second, { marginTop: 12, flex: 0 }]} activeOpacity={0.85} onPress={() => plan(avoidDays, true)}><Text style={s.secondText}>{t('autopilot_tour_full_replan')}</Text></TouchableOpacity>
+              <Text style={[s.p, { fontSize: 14 }]}>{t('autopilot_tour_full_hint')}</Text>
+            </>
           ) : null}
           {step === 'walk' && m ? (
             <>

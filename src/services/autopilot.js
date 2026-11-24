@@ -45,7 +45,7 @@ function parseLoose(text) {
 }
 
 // Drafts dinners for the empty nights. Returns { summary, meals: [{ day_offset, dayLabel, title, emoji, sides, ingredients }] }.
-export async function draftWeek({ user, locale, onStep, avoid = [] }) {
+export async function draftWeek({ user, locale, onStep, avoid = [], replan = false }) {
   const keys = buildRollingWeekDateKeys();
   const [plan, saved, acts, list, prefs, profile, deals] = await Promise.all([
     readJson('rv4_meal_plan', {}), readJson('rv4_saved', []), readJson('rv4_activities', []),
@@ -53,7 +53,7 @@ export async function draftWeek({ user, locale, onStep, avoid = [] }) {
   ]);
   const hasDinner = (k) => (Array.isArray(plan[k]) ? plan[k] : []).some((m) => String(m?.slot || 'Dinner').toLowerCase() === 'dinner');
   const skipDays = new Set((Array.isArray(avoid) ? avoid : []).map(Number));
-  const empty = keys.map((k, i) => ({ k, i })).filter((x) => !hasDinner(x.k) && !skipDays.has(x.i));
+  const empty = keys.map((k, i) => ({ k, i })).filter((x) => (replan || !hasDinner(x.k)) && !skipDays.has(x.i));
   if (!empty.length) return { summary: '', meals: [], nothingToPlan: true };
   if (onStep) onStep('plan', empty.length);
   const planned = keys.flatMap((k) => (Array.isArray(plan[k]) ? plan[k] : []).map((m) => m?.title)).filter(Boolean);
@@ -61,7 +61,7 @@ export async function draftWeek({ user, locale, onStep, avoid = [] }) {
   const busy = keys.map((k, i) => ({ i, n: acts.filter((a) => a.dateKey === k).length })).filter((x) => x.n > 0).map((x) => x.i);
   const context = {
     nightsToPlan: empty.map((x) => ({ day_offset: x.i, day: formatDayLabel(x.k) })),
-    alreadyPlanned: planned.slice(0, 20),
+    alreadyPlanned: replan ? [] : planned.slice(0, 20),
     busyDaysWithActivities: busy,
     peopleCookedFor: prefs?.householdSize || '',
     dietOrAvoid: (await mergedDietary(prefs?.dietary).catch(() => '')) || prefs?.dietary || '',
@@ -102,7 +102,7 @@ export async function draftWeek({ user, locale, onStep, avoid = [] }) {
 export async function applyWeek(meals, env) {
   const snapshot = { plan: await readJson('rv4_meal_plan', {}), shop: await readJson('rv4_master_shop', []) };
   const actions = meals.flatMap((m) => [
-    { type: 'plan_meal', day_offset: m.day_offset, slot: 'Dinner', title: m.title, emoji: m.emoji, sides: m.sides },
+    { type: 'plan_meal', day_offset: m.day_offset, slot: 'Dinner', title: m.title, emoji: m.emoji, sides: m.sides, replace: true },
     { type: 'add_recipe_to_list', title: m.title, ingredients: m.ingredients, skip: Array.isArray(m.skip) ? m.skip : [] },
   ]);
   const out = await executeAgentActions(actions, { ...env, canSaveUnlimited: true });
@@ -166,4 +166,18 @@ export async function addExtraItems(items, env) {
   const list = await readJson('rv4_master_shop', []);
   await addRecipesToShoppingList([{ id: `autopilot-extra-${Date.now()}`, title: 'Manual Add', ingredients: names }], list, { skip: new Set() });
   await env.pushChangedFromStorage();
+}
+
+// The dinners already on the week (for walking through them when every night is planned).
+export async function existingDinners(avoid = []) {
+  const keys = buildRollingWeekDateKeys();
+  const plan = await readJson('rv4_meal_plan', {});
+  const skip = new Set((avoid || []).map(Number));
+  const out = [];
+  keys.forEach((k, i) => {
+    if (skip.has(i)) return;
+    const m = (Array.isArray(plan[k]) ? plan[k] : []).find((x) => String(x?.slot || 'Dinner').toLowerCase() === 'dinner');
+    if (m?.title) out.push({ day_offset: i, dayLabel: formatDayLabel(k), title: String(m.title), emoji: m.emoji || '🍽️', sides: Array.isArray(m.sides) ? m.sides.slice(0, 2) : [], ingredients: [] });
+  });
+  return out;
 }
