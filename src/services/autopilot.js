@@ -84,7 +84,8 @@ export async function draftWeek({ user, locale, onStep, avoid = [], replan = fal
   });
   if (!res.ok) throw new Error(`ai ${res.status}`);
   const d = await res.json();
-  const parsed = parseLoose(d?.content?.[0]?.text ?? d?.data?.content?.[0]?.text ?? '');
+  const rawText = d?.content?.[0]?.text ?? d?.data?.content?.[0]?.text ?? '';
+  const parsed = parseLoose(rawText) || { meals: salvageObjects(rawText, 'meals') };
   const allowed = new Set(empty.map((x) => x.i));
   const seen = new Set();
   const meals = (Array.isArray(parsed?.meals) ? parsed.meals : []).map((m) => ({
@@ -236,12 +237,9 @@ export async function explainDinners({ dinners, user, locale }) {
 }
 
 // Pulls every complete {...} object that has a "title" out of a reply that may be cut off mid-JSON.
-function salvageOptions(raw) {
-  const text = String(raw || '');
-  try { const whole = JSON.parse(text.trim()); if (Array.isArray(whole?.options)) return whole.options; } catch (e) { /* salvage below */ }
+function scanObjects(text, from) {
   const out = [];
   let depth = 0, begin = -1, inStr = false, esc = false;
-  const from = Math.max(0, text.indexOf('['));
   for (let i = from + 1; i < text.length; i++) {
     const c = text[i];
     if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
@@ -250,6 +248,17 @@ function salvageOptions(raw) {
     else if (c === '}') { depth--; if (depth === 0 && begin >= 0) { try { const o = JSON.parse(text.slice(begin, i + 1)); if (o?.title) out.push(o); } catch (e) { /* skip */ } begin = -1; } }
   }
   return out;
+}
+function salvageObjects(raw, key) {
+  const text = String(raw || '');
+  const k = text.indexOf('"' + key + '"');
+  const from = text.indexOf('[', Math.max(0, k));
+  return from < 0 ? [] : scanObjects(text, from);
+}
+function salvageOptions(raw) {
+  const text = String(raw || '');
+  try { const whole = JSON.parse(text.trim()); if (Array.isArray(whole?.options)) return whole.options; } catch (e) { /* salvage below */ }
+  return scanObjects(text, Math.max(0, text.indexOf('[')));
 }
 
 async function askOptionsRaw(system, content, user, locale, feature) {

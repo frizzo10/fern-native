@@ -189,6 +189,11 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
       setSwap((sw) => (sw ? { ...sw, loading: false, browse: true, query: '', list } : sw));
     } catch (e) { /* ignore */ }
   };
+  // Keep the dinner as it is and go on to the next one (or to the shopping list after the last).
+  const keepOriginal = () => {
+    swapReqRef.current += 1; stopTicking(); setSwap(null);
+    if (idx < meals.length - 1) setIdx(idx + 1); else setStep('list');
+  };
   const pickReplacement = async (o, whyText) => {
     const base = { day_offset: meals[idx].day_offset, dayLabel: meals[idx].dayLabel, replace: meals[idx].replace };
     const ing = o.ing || await mealIngredients(o);
@@ -338,7 +343,7 @@ export default function AutopilotTourModal({ visible, user, pushChangedFromStora
                   ) : null}
                   {!swap.preview && !swap.loading && !swap.browse ? <TouchableOpacity style={s.link} onPress={openBrowse}><Text style={s.linkText}>📖 {t('autopilot_tour_swap_browse')}</Text></TouchableOpacity> : null}
                   {!swap.preview && !swap.loading && !swap.browse ? <TouchableOpacity style={s.link} onPress={openSwap}><Text style={s.linkText}>{t('autopilot_tour_swap_more')}</Text></TouchableOpacity> : null}
-                  <TouchableOpacity style={s.link} onPress={() => setSwap(null)}><Text style={s.linkText}>{t('autopilot_tour_swap_back')}</Text></TouchableOpacity>
+                  <TouchableOpacity style={s.link} onPress={keepOriginal}><Text style={s.linkText}>{t('autopilot_tour_swap_back')}</Text></TouchableOpacity>
                 </View>
               )}
               <View style={s.dots}>{meals.map((_, k) => <View key={k} style={[s.dot, k === idx && s.dotOn]} />)}</View>
